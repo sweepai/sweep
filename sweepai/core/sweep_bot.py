@@ -12,7 +12,7 @@ from networkx import Graph
 from pydantic import BaseModel
 from tqdm import tqdm
 
-from sweepai.agents.modify import find_best_match, parse_fcr
+from sweepai.agents.modify import find_best_match, parse_fcr, indent
 from sweepai.agents.modify_file import modify_file
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
@@ -85,7 +85,7 @@ Edit old_code to pass the CI/CD.
 
 def parse_patch_fcrs(fcr_patch_string: str):
     pattern = re.compile(r"""<(?P<change_type>[a-z_]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- @\{\}]*?)\"\s+index=\"(?P<index>\d+)\">(?P<instructions>.*?)\s*<\/\1>""", re.DOTALL)
-    drop_pattern = re.compile(f"<drop>.+?</drop>", re.DOTALL)
+    drop_pattern = re.compile(f"<drop>(.+?)</drop>", re.DOTALL)
     matches = []
     for match in pattern.finditer(fcr_patch_string):
         matches.append((
@@ -186,14 +186,31 @@ def get_error_message(
                 original_code = parsed_fcr["original_code"][0].strip("\n")
                 if not original_code:
                     error_indices.append(i)
-                    error_message += f"Modify #{i}: <original_code> can not be empty. If you would like to append code, copy the code you want to append the new code after into the <original_code>, then copy the same code into <new_code>, then finally append the new code after <new_code>.\n"
-                elif original_code not in file_contents:
-                    error_indices.append(i)
-                    best_match, best_score = find_best_match(original_code, file_contents)
-                    if best_score:
-                        error_message += f"Modify #{i}: <original_code> could not be found in the file. Did you mean to modify the following code instead?\n```\n{best_match}\n```\n"
-                    else:
-                        error_message += f"Modify #{i}: <original_code> could not be found in the file. Please ensure the code you want to modify is present in the file.\n"
+                    error_message += f"<modify> #{i}: the <original_code> can not be empty. If you would like to append code, copy the code you want to append the new code after into the <original_code>, then copy the same code into <new_code>, then finally append the new code after <new_code>.\n\n"
+                else:
+                    if original_code not in file_contents:
+                        # Check all indents
+                        for indent_count in range(0, 20, 2):
+                            if indent(original_code, indent_count) in file_contents:
+                                break
+                        else:
+                            error_indices.append(i)
+                            best_match = ""
+                            best_score = 0
+                            best_indent = 0
+                            # Check all indents
+                            for indent_count in tqdm(range(0, 20, 2)):
+                                current_best_match, current_best_score = find_best_match(indent(original_code, indent_count), file_contents, verbose=False)
+                                if current_best_score > best_score:
+                                    best_match = current_best_match
+                                    best_score = current_best_score
+                                    best_indent = indent_count
+                                if current_best_score > 99:
+                                    break
+                            if best_score > 70:
+                                error_message += f"<modify> #{i}: <original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match)}\n```\n\n"
+                            else:
+                                error_message += f"<modify> #{i}: <original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{original_code}\n```\nPlease ensure the code you want to modify is present in `{file_change_request.filename}`.\n\n"
             except FileNotFoundError as e:
                 logger.warning(f"Failed to get file contents for {file_change_request.filename} due to {e}")
                 for file_path in cloned_repo.get_file_list():
@@ -203,7 +220,7 @@ def get_error_message(
                         file_change_request.filename = file_path
                 else:
                     error_indices.append(i)
-                    error_message += f"Modify #{i}: Failed to get file contents for {file_change_request.filename}, does this file exist?\n"
+                    error_message += f"<modify> #{i}: The file `{file_change_request.filename}` does not exist. Double-check your spelling.\n\n"
     return error_message, error_indices
         
 def sort_and_fuse_snippets(
@@ -986,16 +1003,20 @@ def get_files_to_change_for_gha(
         if error_message:
             fix_attempt = chat_gpt.chat_anthropic(
                 content=fix_files_to_change_prompt.format(error_message=error_message),
-                model=MODEL,
+                # model=MODEL,
+                model="claude-3-opus-20240229",
                 temperature=0.1,
             )
-            breakpoint()
+            # breakpoint()
             drops, matches = parse_patch_fcrs(fix_attempt)
             for index, new_fcr in matches:
                 file_change_requests[index - 1] = new_fcr
             for drop in sorted(drops, reverse=True):
                 file_change_requests.pop(drop - 1)
-            breakpoint()
+            new_error_message, new_error_indices = get_error_message(file_change_requests, cloned_repo)
+            print("Old indices", error_indices)
+            print("New indices", new_error_indices)
+            # breakpoint()
         return file_change_requests, files_to_change_response
     except RegexMatchError as e:
         print("RegexMatchError", e)

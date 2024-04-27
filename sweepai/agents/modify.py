@@ -550,13 +550,13 @@ def english_join(items: list[str]) -> str:
 def indent(text: str, spaces: int) -> str:
     return "\n".join([f"{' ' * spaces}{line}" for line in text.split("\n")])
 
-def find_best_match(needle: str, haystack: str, threshold: int = 60):
+def find_best_match(needle: str, haystack: str, threshold: int = 60, verbose=True):
     best_match = 0
     best_score = 0
     file_contents_lines = haystack.split("\n")
     num_lines = len(file_contents_lines)
     num_match_lines = len(needle.split("\n"))
-    for start_line in tqdm(range(num_lines), total=num_lines):
+    for start_line in tqdm(range(num_lines), total=num_lines) if verbose else range(num_lines):
         potential_choices = []
         for end_line in range(start_line + max(1, num_match_lines - 5), start_line + num_match_lines + 5):
             if end_line > num_lines:
@@ -564,13 +564,6 @@ def find_best_match(needle: str, haystack: str, threshold: int = 60):
             potential_choice = "\n".join(file_contents_lines[start_line:end_line])
             potential_choices.append(potential_choice)
 
-        # weights = {
-        #     " ": 0.01,
-        #     "\n": 0.01,
-        #     "\t": 0.01,
-        # }
-        # weighted_ratio = fuzz.WRatio(weights=weights)
-        # results = process.extractOne(needle, potential_choices, scorer=weighted_ratio, score_cutoff=threshold)
         results = process.extractOne(needle, potential_choices, scorer=fuzz.QRatio, score_cutoff=threshold)
             
         if results is not None:

@@ -11,6 +11,16 @@ def generate_diff(old_code, new_code, **kwargs):
     stripped_old_code = old_code.strip()
     stripped_new_code = new_code.strip()
 
+    # Split the code into lines, preserving the line endings
+    old_lines = old_code.splitlines(keepends=True)
+    new_lines = new_code.splitlines(keepends=True)
+
+    # Add a newline character at the end if it's missing
+    if not old_code.endswith("\n"):
+        old_lines.append("\n")
+    if not new_code.endswith("\n"):
+        new_lines.append("\n")
+
     default_kwargs = {"n": 5}
     default_kwargs.update(kwargs)
 

@@ -216,8 +216,6 @@ Please use the following XML format for your response:
 <issue_analysis>
 a. Identify potential root causes of the issue by referencing specific code entities in the relevant files. Then, select which of the root causes the user is most likely to be interested in resolving based on the current state of the codebase. (1 paragraph)
 
-b. Identify a similar feature in the codebase and describe in exact detail how it was implemented. Be complete and precise. (1 paragraph)
-
 c. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
 
 d. List ALL of the files we should modify to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
@@ -272,6 +270,56 @@ Use multiple <modify> blocks for the same file to separate distinct changes.
 <relevant_modules>
 [List of all relevant files to reference while making changes, one per line] 
 </relevant_modules>""" # + files_to_change_example TODO: test separately
+
+fix_files_to_change_prompt = """You proposed plan a plan. However, your proposed plan has the following errors:
+
+<errors>
+{error_message}
+</errors>
+
+You must resolve these errors before proceeding. Respond in the following format:
+
+<error_resolutions>
+For each error, identify what went wrong and what the fix is. Analyze the contents of the provided file path to find the correct code block that needs to be modified. Update the <original_code> block with the actual code from the file, and then provide the necessary changes in the <new_code> block. Follow the format:
+
+<error_resolution>
+Error #1: Description of the error
+
+<thinking>
+Analyze what went wrong, including the file path and the specific code block that needs to be modified. The fix for error #1.
+
+Strategies:
+- For "<original_code> does not exist in the file" errors:
+  - Look closely and carefully at the actual contents of the file. Are there any missing indentation, whitespace or comments?
+  - Look closely at similar files, could you have selected the wrong file?
+- For empty <original_code> blocks:
+  - First, look closely at the file to determine where to make the change. Then, copy that code into the <original_code>. Then, copy the code into <new_code> with the code you would like to add before or after the code in the <new_code> block to prepend or append code.
+
+Update <original_code> with the necessary changes:
+<original_code>
+The corrected code from the file verbatim. Abbreviating, missing indents, paraphrasing and placeholder code are NOT permitted. It is absolutely critical that the indentation is correct and matches the source code EXACTLY.
+</original_code>
+
+Update <new_code> block with the necessary changes:
+<new_code>
+Updated new code, based on the corrections in <original_code>. Ensure all newly introduced indents and comments are propagated here.
+</new_code>
+</thinking>
+
+If you determine that this task is not needed, you may drop the task like so:
+
+<drop>Index of the task to drop</drop>
+
+Otherwise, you must patch the task to resolve the error like so:
+
+<modify file="file_path_1" index="index of old modify block to replace">
+Rewritten instructions to resolve the error. Update the original_code and new_code blocks as required, ensuring that the <original_code> block contains the actual code from the file.
+</modify>
+</error_resolution>
+[additional <error> blocks as needed, for the same file or different files]
+</error_resolutions>
+
+Please resolve the errors in your proposed plan."""
 
 test_files_to_change_system_prompt = """You are an AI assistant helping an intern write tests to validate his code that aims to resolve a GitHub issue. The user will provide code files, a description of the issue, and relevant parts of the codebase.
 Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
@@ -378,6 +426,7 @@ Use multiple <modify> blocks for the same file to separate distinct changes.
 </relevant_modules>""" # + files_to_change_example TODO: test separately
 
 gha_files_to_change_system_prompt = """You are an AI assistant helping an intern write a plan to fix failing errors in his code. The intern will provide code files, a description of the issue, the error log, relevant parts of the codebase, and the changes he's made.
+
 Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to fix the errors. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
 Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.
 
@@ -426,12 +475,12 @@ c. List ALL the types of error messages in the error logs and their root causes.
     There are a total of X errors in the error logs:
     Error message 1: Copy the full error message here VERBOSE, abbreviations, paraphrasing, ellipses, and placeholder comments are not permitted.
         - Count the number of occurrences of this error and list all of the particular tests that raised it.
-        - Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code.
-        - Explain how to resolve the error. Be complete and precise.
+        - Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code. Most of the time, the test case has yet to be updated.
+        - Explain how to resolve the error in the test case. Be complete and precise.
         - Indicate whether this exact fix is required in multiple places in the same file.
     Error message 2: Copy the full error message here VERBOSE, abbreviations, paraphrasing, ellipses, and placeholder comments are not permitted.
         - Count the number of occurrences of this error and list all of the particular tests that raised it.
-        - Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code.
+        - Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code. Most of the time, the test case has yet to be updated.
         - Explain how to resolve the error. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise.
         - Indicate whether this exact fix is required in multiple places in the same file.
     [additional error types, ensuring you cover all errors in this analysis]
