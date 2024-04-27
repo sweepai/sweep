@@ -12,6 +12,7 @@ from networkx import Graph
 from pydantic import BaseModel
 from tqdm import tqdm
 
+from sweepai.agents.modify import find_best_match, parse_fcr
 from sweepai.agents.modify_file import modify_file
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
@@ -40,6 +41,7 @@ from sweepai.core.prompts import (
     gha_files_to_change_prompt,
     test_files_to_change_system_prompt,
     test_files_to_change_prompt,
+    fix_files_to_change_prompt
 )
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.event_logger import posthog
@@ -80,6 +82,23 @@ Edit old_code to pass the CI/CD.
 1. Analyze the business logic and tests. Identify whether the failure is in the unit tests or business logic.
 2a. If the business logic is correct fix the test to return the expected output.
 2b. If the business logic has a bug or you are unsure, skip the failing tests with an explanation."""
+
+def parse_patch_fcrs(fcr_patch_string: str):
+    pattern = re.compile(r"""<(?P<change_type>[a-z_]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- @\{\}]*?)\"\s+index=\"(?P<index>\d+)\">(?P<instructions>.*?)\s*<\/\1>""", re.DOTALL)
+    drop_pattern = re.compile(f"<drop>.+?</drop>", re.DOTALL)
+    matches = []
+    for match in pattern.finditer(fcr_patch_string):
+        matches.append((
+            int(match.group("index")),
+            FileChangeRequest(
+                change_type=match.group("change_type"),
+                filename=match.group("filename"),
+                instructions=match.group("instructions"),
+            )
+        ))
+    drops = [int(drop.group(1).strip()) for drop in drop_pattern.finditer(fcr_patch_string)]
+    matches.sort(key=lambda x: x[0])
+    return drops, [match for match in matches]
 
 def safe_decode(
     repo: Repository,
@@ -151,6 +170,41 @@ def validate_file_change_requests(
                 fcr.change_type = "modify" # need better handling
             except FileNotFoundError:
                 pass
+
+def get_error_message(
+    file_change_requests: list[FileChangeRequest],
+    cloned_repo: ClonedRepo,
+):
+    error_message = ""
+    error_indices = []
+    for index, file_change_request in enumerate(file_change_requests):
+        i = index + 1
+        if file_change_request.change_type == "modify":
+            try:
+                file_contents = cloned_repo.get_file_contents(file_change_request.filename)
+                parsed_fcr = parse_fcr(file_change_request)
+                original_code = parsed_fcr["original_code"][0].strip("\n")
+                if not original_code:
+                    error_indices.append(i)
+                    error_message += f"Modify #{i}: <original_code> can not be empty. If you would like to append code, copy the code you want to append the new code after into the <original_code>, then copy the same code into <new_code>, then finally append the new code after <new_code>.\n"
+                elif original_code not in file_contents:
+                    error_indices.append(i)
+                    best_match, best_score = find_best_match(original_code, file_contents)
+                    if best_score:
+                        error_message += f"Modify #{i}: <original_code> could not be found in the file. Did you mean to modify the following code instead?\n```\n{best_match}\n```\n"
+                    else:
+                        error_message += f"Modify #{i}: <original_code> could not be found in the file. Please ensure the code you want to modify is present in the file.\n"
+            except FileNotFoundError as e:
+                logger.warning(f"Failed to get file contents for {file_change_request.filename} due to {e}")
+                for file_path in cloned_repo.get_file_list():
+                    if file_path.endswith(file_change_request.filename):
+                        logger.info(f"Found similar file {file_change_request.filename} at {file_path}")
+                        cloned_repo.get_file_contents(file_path)
+                        file_change_request.filename = file_path
+                else:
+                    error_indices.append(i)
+                    error_message += f"Modify #{i}: Failed to get file contents for {file_change_request.filename}, does this file exist?\n"
+    return error_message, error_indices
         
 def sort_and_fuse_snippets(
     snippets: list[Snippet],
@@ -377,6 +431,17 @@ def get_files_to_change(
             file_change_request = FileChangeRequest.from_string(re_match.group(0))
             file_change_request.raw_relevant_files = " ".join(relevant_modules)
             file_change_requests.append(file_change_request)
+        
+        error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
+        
+        if error_message:
+            # breakpoint()
+            fix_attempts = chat_gpt.chat_anthropic(
+                content=f"The following errors have appeared:\n```\n{error_message}\n```\nPlease fix the errors and try again.",
+                model=MODEL,
+                temperature=0.1,
+            )
+        
         return file_change_requests, files_to_change_response
     except RegexMatchError as e:
         print("RegexMatchError", e)
@@ -559,6 +624,7 @@ def get_files_to_change_for_test(
     read_only_snippets: list[Snippet],
     problem_statement: str,
     updated_files: dict[str, dict[str, str]],
+    cloned_repo: ClonedRepo,
     import_graph: Graph | None = None,
     chat_logger: ChatLogger = None,
 ) -> tuple[list[FileChangeRequest], str]:
@@ -760,6 +826,7 @@ def get_files_to_change_for_gha(
     read_only_snippets: list[Snippet],
     problem_statement: str,
     updated_files: dict[str, dict[str, str]],
+    cloned_repo: ClonedRepo,
     pr_diffs: str = "",
     chat_logger: ChatLogger = None,
     use_faster_model: bool = False,
@@ -869,10 +936,11 @@ def get_files_to_change_for_gha(
                 ),
             ],
         )
-        MODEL = "claude-3-opus-20240229"
+        MODEL = "claude-3-opus-20240229" if not use_faster_model else "claude-3-sonnet-20240229"
+        # MODEL = "claude-3-opus-20240229" if not use_faster_model else "claude-3-haiku-20240307"
         files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + gha_files_to_change_prompt,
-            model=MODEL if not use_faster_model else "claude-3-sonnet-20240229",
+            model=MODEL,
             temperature=0.1
         )
         max_tokens = 4096 * 3.5 * 0.8 # approx max tokens per response
@@ -883,11 +951,12 @@ def get_files_to_change_for_gha(
             try:
                 second_response = chat_gpt.chat_anthropic(
                     content="",
-                    model=MODEL if not use_faster_model else "claude-3-sonnet-20240229",
+                    model=MODEL,
                     temperature=0.1
                 )
                 # we can simply concatenate the responses
                 files_to_change_response += second_response
+                chat_gpt.messages[-1].content += second_response
             except Exception as e:
                 logger.warning(f"Failed to get second response due to {e}")
         if chat_logger:
@@ -911,6 +980,22 @@ def get_files_to_change_for_gha(
             file_change_request = FileChangeRequest.from_string(re_match.group(0))
             file_change_request.raw_relevant_files = " ".join(relevant_modules)
             file_change_requests.append(file_change_request)
+
+        error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
+        
+        if error_message:
+            fix_attempt = chat_gpt.chat_anthropic(
+                content=fix_files_to_change_prompt.format(error_message=error_message),
+                model=MODEL,
+                temperature=0.1,
+            )
+            breakpoint()
+            drops, matches = parse_patch_fcrs(fix_attempt)
+            for index, new_fcr in matches:
+                file_change_requests[index - 1] = new_fcr
+            for drop in sorted(drops, reverse=True):
+                file_change_requests.pop(drop - 1)
+            breakpoint()
         return file_change_requests, files_to_change_response
     except RegexMatchError as e:
         print("RegexMatchError", e)
