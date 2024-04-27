@@ -285,6 +285,8 @@ For each error, identify what went wrong and what the fix is. Analyze the conten
 <error_resolution>
 Error #1: Description of the error
 
+You will first think step-by-step about the error, and then either rewrite the instructions with the corrected fix, or drop the task.
+
 <thinking>
 Analyze what went wrong, including the file path and the specific code block that needs to be modified. The fix for error #1.
 
@@ -306,17 +308,20 @@ Updated new code, based on the corrections in <original_code>. Ensure all newly 
 </new_code>
 </thinking>
 
+Let's resolve the errors in your proposed plan:
+
 If you determine that this task is not needed, you may drop the task like so:
 
 <drop>Index of the task to drop</drop>
 
 Otherwise, you must patch the task to resolve the error like so:
 
-<modify file="file_path_1" index="index of old modify block to replace">
+<modify file="file_path_1" index="index of error to fix">
 Rewritten instructions to resolve the error. Update the original_code and new_code blocks as required, ensuring that the <original_code> block contains the actual code from the file.
 </modify>
 </error_resolution>
-[additional <error> blocks as needed, for the same file or different files]
+
+[additional <error_resolution> blocks as needed, for the same file or different files]
 </error_resolutions>
 
 Please resolve the errors in your proposed plan."""
@@ -490,7 +495,7 @@ Error message 1: Copy the full error message here VERBOSE, abbreviations, paraph
 - Explain how to resolve the error in the test case. Be complete and precise.
 - Indicate whether this exact fix is required in multiple places in the same file.
 
-Then, based on the analysis, propose a fix by following the format below:
+Then, based on the analysis, propose a fix by following the format below. If the error has already been fixed, you can skip this step.
 
 <modify file="file_path_2"> 
 Instructions for modifying one section of the file. Each block must have exactly one original_code and one new_code block. Do not make a change that has already been made by the intern.
