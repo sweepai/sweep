@@ -890,7 +890,6 @@ def get_files_to_change_for_gha(
                 files_to_change_response += second_response
             except Exception as e:
                 logger.warning(f"Failed to get second response due to {e}")
-        breakpoint()
         if chat_logger:
             chat_logger.add_chat(
                 {
