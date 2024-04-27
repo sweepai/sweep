@@ -30,16 +30,18 @@ from sweepai.core.entities import (
     Snippet,
 )
 from sweepai.core.prompts import (
-    files_to_change_prompt,
     context_files_to_change_prompt,
     context_files_to_change_system_prompt,
     pull_request_prompt,
     subissues_prompt,
-    files_to_change_system_prompt,
     gha_files_to_change_system_prompt,
     gha_files_to_change_prompt,
     test_files_to_change_system_prompt,
     test_files_to_change_prompt,
+)
+from sweepai.core.planning_prompts import (
+    files_to_change_prompt,
+    files_to_change_system_prompt,
 )
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.event_logger import posthog
