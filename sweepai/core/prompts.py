@@ -435,13 +435,15 @@ Take these steps:
 
 2. Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue.
     - When modifying code you MUST take the following approach:
-        Step 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file, with correct indentation and whitespace. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
-        Step 2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+        Step 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file, with correct indentation and whitespace.
+            - Do NOT paraphrase or abbreviate the source code.
+            - Placeholder comments like "# existing code" are not permitted.
+        Step 2. Write the new code in <new_code> tags, specifying necessary imports and including relevant type definitions, interfaces, and schemas.
+            - BE EXACT as this code will replace the mentioned <original_code>.
         Step 3. Determine if this is a change that occurs EXACTLY in other parts of the same file. If so, add a <replace_all>true</replace_all> flag.
 
 3. List all of the relevant files to reference while making changes, one per line."""
 
-# the current issue analysis is heavily optimized, i'd like to try removing step d though
 gha_files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve the errors in his code while also resolving the GitHub issue.
 
 You will analyze the provided issue, error log, relevant parts of the codebase, and changes he's made to understand the requested change. Create a step-by-step plan for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code files and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
@@ -455,6 +457,7 @@ Guidelines:
 - Prioritize using existing code and utility methods to minimize writing new code
 - To remove code, replace it with empty <new_code> tags.
 - Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file. However, if a particular change is repeated exactly across an entire file, use <replace_all>true</replace_all>.
+- Do not make a change that has already been made by the intern.
 
 Please use the following XML format for your response:
 
@@ -462,13 +465,15 @@ Please use the following XML format for your response:
 <error_analysis>
 a. Summarize what the original GitHub issue is and asks us to do.
 
-b. List ALL the changes made so far in extreme detail. Be complete and precise. Follow this format:
+b. List ALL the changes made so far in extreme detail. Be absolutely complete. Follow this format:
     - File path 1:
-        - Change 1 in the file in extreme detail.
-        - Change 2 in the file in extreme detail.
+        - Description of first diff hunk in extreme detail.
+        - Description of second diff hunk in extreme detail.
+        [additional changes as needed]
     - File path 2:
-        - Change 1 in the file in extreme detail.
-        - Change 2 in the file in extreme detail.
+        - Description of first diff hunk in extreme detail.
+        - Description of second diff hunk in extreme detail.
+        [additional changes as needed]
     [additional files as needed]
 
 c. List ALL the types of error messages in the error logs and their root causes. Follow this format:
@@ -495,7 +500,7 @@ Use <create> blocks ONLY for files that do not already exist in the codebase. Do
 [additional creates]
 
 <modify file="file_path_2"> 
-The error message # this resolves, as well as instructions for modifying one section of the file. Each block must have exactly one original_code and one new_code block.
+The error message # this resolves, as well as instructions for modifying one section of the file. Each block must have exactly one original_code and one new_code block. Do not make a change that has already been made by the intern.
 
 a. Describe the section of code that needs to be modified, i.e. the test case that checks if `foo` == `bar`.
 <original_code>
@@ -511,7 +516,7 @@ c. (Optional) Identify whether this is a change that needs to be applied exactly
 </modify>
 
 <modify file="file_path_2">
-The error message # this resolves, as well as instructions for modifying one section of the file. Each block must have exactly one original_code and one new_code block.
+The error message # this resolves, as well as instructions for modifying one section of the file. Each block must have exactly one original_code and one new_code block. Do not make a change that has already been made by the intern.
 
 a. Describe the section of code that needs to be modified, i.e. the test case that checks if `foo` == `bar`.
 <original_code>
