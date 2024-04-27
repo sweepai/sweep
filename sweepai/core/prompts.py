@@ -411,33 +411,30 @@ Please use the following XML format for your response:
 
 # 1. Error Analysis:
 <error_analysis>
-a. Summarize what the original GitHub issue is. Then summarize all the changes made so far. (1 paragraph)
+a. Summarize what the original GitHub issue is and asks us to do.
 
-b. List ALL the types of error messages in the error logs and their root causes. Follow this format:
-    Error type 1: Copy the exact error message here
-        - List all the occurrences of this error in the error logs, and the particular test that raised it.
+b. List ALL the changes made so far in extreme detail. Be complete and precise. Follow this format:
+    - File path 1:
+        - Change 1 in the file in extreme detail.
+        - Change 2 in the file in extreme detail.
+    - File path 2:
+        - Change 1 in the file in extreme detail.
+        - Change 2 in the file in extreme detail.
+    [additional files as needed]
+
+c. List ALL the types of error messages in the error logs and their root causes. Follow this format:
+    There are a total of X errors in the error logs:
+    Error message 1: Copy the full error message here VERBOSE, abbreviations, paraphrasing, ellipses, and placeholder comments are not permitted.
+        - Count the number of occurrences of this error and list all of the particular tests that raised it.
         - Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code.
-        - Explain in detail how to resolve the error. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise.
+        - Explain how to resolve the error. Be complete and precise.
         - Indicate whether this exact fix is required in multiple places in the same file.
-    Error type 2: Copy the exact error message here
-        - List all the occurrences of this error in the error logs, and the particular test that raised it.
+    Error message 2: Copy the full error message here VERBOSE, abbreviations, paraphrasing, ellipses, and placeholder comments are not permitted.
+        - Count the number of occurrences of this error and list all of the particular tests that raised it.
         - Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code.
-        - Explain in detail how to resolve the error. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise.
+        - Explain how to resolve the error. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise.
         - Indicate whether this exact fix is required in multiple places in the same file.
-    [additional error types]
-
-c. Detail ALL of the changes that need to made to resolve the errors. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (1 paragraph)
-
-d. List ALL of the files we should modify to resolve the errors. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
-  - File path 1: Detailed instructions for modifying the file.
-      a. Describe the first change to make in the file. Indicate whether this exact change is required in multiple sections of this file.
-      b. Describe the second change to make in the file. Indicate whether this exact change is required in multiple sections of this file.
-      c. Continue listing all changes that need to be made. Be complete and precise.
-  - File path 2: Detailed instructions for modifying the file.
-      a. Describe the first change to make in the file. Indicate whether this exact change is required in multiple sections of this file.
-      b. Describe the second change to make in the file. Indicate whether this exact change is required in multiple sections of this file.
-      c. Continue listing all changes that need to be made. Be complete and precise.
-[additional files as needed]
+    [additional error types, ensuring you cover all errors in this analysis]
 </error_analysis>
 
 # 2. Plan:
@@ -449,23 +446,35 @@ Use <create> blocks ONLY for files that do not already exist in the codebase. Do
 [additional creates]
 
 <modify file="file_path_2"> 
-Instructions for modifying one section of the file.
+The error message # this resolves, as well as instructions for modifying one section of the file. Each block must have exactly one original_code and one new_code block.
 
-1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+a. Describe the section of code that needs to be modified, i.e. the test case that checks if `foo` == `bar`.
+<original_code>
+Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+</original_code>
 
-2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+b. Describe the changes that need to be made to the code, i.e. the test case should instead check if `foo` != `baz`.
+<new_code>
+Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+</new_code>
 
-3. (Optional) Identify whether this is a change that needs to be applied exactly in other places of this file. If so, add <replace_all>true</replace_all> to replace all instances of the <original_code> in the file with the <new_code>.
+c. (Optional) Identify whether this is a change that needs to be applied exactly in other places of this file. If so, add <replace_all>true</replace_all> to replace all instances of the <original_code> in the file with the <new_code>.
 </modify>
 
 <modify file="file_path_2">
-Instructions for modifying one section of the file.
+The error message # this resolves, as well as instructions for modifying one section of the file. Each block must have exactly one original_code and one new_code block.
 
-1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+a. Describe the section of code that needs to be modified, i.e. the test case that checks if `foo` == `bar`.
+<original_code>
+Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+</original_code>
 
-2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+b. Describe the changes that need to be made to the code, i.e. the test case should instead check if `foo` != `baz`.
+<new_code>
+Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+</new_code>
 
-3. (Optional) Identify whether this is a change that needs to be applied exactly in other places of this file. If so, add <replace_all>true</replace_all> to replace all instances of the <original_code> in the file with the <new_code>.
+c. (Optional) Identify whether this is a change that needs to be applied exactly in other places of this file. If so, add <replace_all>true</replace_all> to replace all instances of the <original_code> in the file with the <new_code>.
 
 Use multiple <modify> blocks for the same file to separate distinct changes. Use <modify> blocks for ALL existing files that require changes. Do not use <create> for existing files.
 </modify>
