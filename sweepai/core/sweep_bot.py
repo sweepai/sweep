@@ -12,7 +12,7 @@ from networkx import Graph
 from pydantic import BaseModel
 from tqdm import tqdm
 
-from sweepai.agents.modify import find_best_match, parse_fcr, indent
+from sweepai.agents.modify import find_best_match, parse_fcr, indent, rstrip_lines
 from sweepai.agents.modify_file import modify_file
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
@@ -177,12 +177,15 @@ def get_error_message(
 ):
     error_message = ""
     error_indices = []
-    for index, file_change_request in enumerate(file_change_requests):
-        i = index + 1
+    for i, file_change_request in enumerate(file_change_requests):
         if file_change_request.change_type == "modify":
             try:
                 file_contents = cloned_repo.get_file_contents(file_change_request.filename)
                 parsed_fcr = parse_fcr(file_change_request)
+                if not parsed_fcr or not parsed_fcr["original_code"]:
+                    error_message += f"<error index=\"{len(error_indices)}\">\nThere must be an <original_code> block and a <new_code> block. If you would like to drop this task use the <drop> marker.\n</error>\n\n"
+                    error_indices.append(i)
+                    continue
                 original_code = parsed_fcr["original_code"][0].strip("\n")
                 if not original_code:
                     error_message += f"<error index=\"{len(error_indices)}\">\nThe <original_code> can not be empty. If you would like to append code, copy the code you want to append the new code after into the <original_code>, then copy the same code into <new_code>, then finally append the new code after <new_code>.\n</error>\n\n"
@@ -192,6 +195,9 @@ def get_error_message(
                         # Check all indents
                         for indent_count in range(0, 20, 2):
                             if indent(original_code, indent_count) in file_contents:
+                                break
+                        for indent_count in range(0, 20, 2):
+                            if rstrip_lines(indent(original_code, indent_count)) in file_contents:
                                 break
                         else:
                             best_match = ""
@@ -207,7 +213,10 @@ def get_error_message(
                                 if current_best_score > 99:
                                     break
                             if best_score > 70:
-                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match)}\n```\n</error>\n\n"
+                                if best_score > 90:
+                                    error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match)}\n```\n</error>\n\n"
+                                else:
+                                    error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\n</error>\n\n"
                             else:
                                 error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{original_code}\n```\nPlease ensure the code you want to modify is present in `{file_change_request.filename}`. Could this code be in another file?\n</error>\n\n"
                             error_indices.append(i)
@@ -1009,9 +1018,9 @@ def get_files_to_change_for_gha(
             file_change_request.raw_relevant_files = " ".join(relevant_modules)
             file_change_requests.append(file_change_request)
 
+        # Auto-fix plan, should do this multiple times but once works for now.
         error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
         
-        breakpoint()
         if error_message:
             fix_attempt = chat_gpt.chat_anthropic(
                 content=fix_files_to_change_prompt.format(error_message=error_message),
@@ -1019,16 +1028,21 @@ def get_files_to_change_for_gha(
                 # model="claude-3-opus-20240229",
                 temperature=0.1,
             )
-            # breakpoint()
             drops, matches = parse_patch_fcrs(fix_attempt)
             for index, new_fcr in matches:
+                if index >= len(error_indices):
+                    logger.warning(f"Index {index} not in error indices")
+                    continue
                 file_change_requests[error_indices[index]] = new_fcr
             for drop in sorted(drops, reverse=True):
+                if drop >= len(error_indices):
+                    logger.warning(f"Index {drop} not in error indices")
+                    continue
                 file_change_requests.pop(error_indices[drop])
             new_error_message, new_error_indices = get_error_message(file_change_requests, cloned_repo)
-            print("Old indices", error_indices)
-            print("New indices", new_error_indices)
-            breakpoint()
+            logger.debug("Old indices", error_indices)
+            logger.debug("New indices", new_error_indices)
+
         validate_file_change_requests(file_change_requests, cloned_repo)
         return file_change_requests, files_to_change_response
     except RegexMatchError as e:
