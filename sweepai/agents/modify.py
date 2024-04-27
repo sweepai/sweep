@@ -564,6 +564,13 @@ def find_best_match(needle: str, haystack: str, threshold: int = 60):
             potential_choice = "\n".join(file_contents_lines[start_line:end_line])
             potential_choices.append(potential_choice)
 
+        # weights = {
+        #     " ": 0.01,
+        #     "\n": 0.01,
+        #     "\t": 0.01,
+        # }
+        # weighted_ratio = fuzz.WRatio(weights=weights)
+        # results = process.extractOne(needle, potential_choices, scorer=weighted_ratio, score_cutoff=threshold)
         results = process.extractOne(needle, potential_choices, scorer=fuzz.QRatio, score_cutoff=threshold)
             
         if results is not None:
@@ -767,9 +774,7 @@ def get_replaces_per_fcr(fcr: FileChangeRequest) -> int:
         return -1
     return len(original_code_matches)
 
-# returns the old/new code change as a function call
-def compile_fcr(fcr: FileChangeRequest, index: int) -> str:
-    # justification is wrong, fix this later!
+def parse_fcr(fcr: FileChangeRequest):
     flags = ""
     justification, *_ = fcr.instructions.split("<original_code>", 1)
     original_code_pattern = r"<original_code>(.*?)</original_code>"
@@ -780,16 +785,23 @@ def compile_fcr(fcr: FileChangeRequest, index: int) -> str:
     replace_all_matches = list(re.finditer(replace_all_pattern, fcr.instructions, re.DOTALL))
     if replace_all_matches:
         flags += "\n<replace_all>true</replace_all>"
-    if original_code_matches and new_code_matches:
-        try:
-            if len(original_code_matches) != len(new_code_matches):
-                raise Exception(f"Mismatch between original_code and new_code sections: {len(original_code_matches)} to {len(new_code_matches)}")
-            original_code = original_code_matches[index].group(1).strip("\n")
-            new_code = new_code_matches[index].group(1).strip("\n")
-        except Exception as e:
-            logger.error(f"Error while running compile_fcr: {e}")
-            return ""
-        return DEFAULT_FUNCTION_CALL.format(justification=justification.strip(), file_path=fcr.filename, original_code=original_code, new_code=new_code, flags=flags)
+    return {
+        "justification": justification.strip(),
+        "file_path": fcr.filename,
+        "original_code": [original_code_match.group(1).strip("\n") for original_code_match in original_code_matches],
+        "new_code": [new_code_match.group(1).strip("\n") for new_code_match in new_code_matches],
+        "replace_all": bool(replace_all_matches),
+    }
+
+# returns the old/new code change as a function call
+def compile_fcr(fcr: FileChangeRequest, index: int) -> str:
+    # justification is wrong, fix this later!
+    parsed_fcr = parse_fcr(fcr)
+    if parsed_fcr["replace_all"]:
+        flags = "\n<replace_all>true</replace_all>"
+    else:
+        flags = ""
+    return DEFAULT_FUNCTION_CALL.format(justification=parsed_fcr["justification"], file_path=parsed_fcr["file_path"], original_code=parsed_fcr["original_code"][index], new_code=parsed_fcr["new_code"][index], flags=flags)
 
 # return the number of tasks completed
 def tasks_completed(fcrs: list[FileChangeRequest]):
