@@ -6,6 +6,7 @@ import re
 from rapidfuzz import fuzz, process
 
 from loguru import logger
+import rapidfuzz
 from tqdm import tqdm
 from sweepai.core.chat import ChatGPT, parse_function_calls_for_openai
 from sweepai.core.entities import FileChangeRequest, Message
@@ -443,14 +444,14 @@ d. Indicate the minimum amount of changes required to resolve the linter warning
 
 Then, call the make_change function to fix the linter warnings. If the warning cannot be resolved, call submit_task with an explanation of the issue."""
 
-fix_syntax_prompt = """Resolve the issue by following these steps:
+fix_syntax_prompt = """You must resolve the issue by following these steps:
 
 # 1. Thinking
 <thinking>
-1. Indicate what you have changed. Indicate the code that you have removed and the code that you have added back.
-2. Identify where the broken code occurs and why it is broken.
-3. Identify whether it is the code removed (original_code) that is causing the issue or the code added back (new_code).
-4. Explain how we can correct the original_code or new_code in the make_change function call to create a correct change.
+a. Indicate what you have changed. Indicate the code that you have removed and the code that you have added back.
+b. Identify where the broken code occurs and why it is broken.
+c. Identify whether it is the code removed (original_code) that is causing the issue or the code added back (new_code).
+d. Explain how we can correct the original_code or new_code in the make_change function call to create a correct change.
 </thinking>
 
 # 2. Function call
@@ -546,10 +547,12 @@ def english_join(items: list[str]) -> str:
         return f"{items[0]} and {items[1]}"
     return ", ".join(items[:-1]) + f", and {items[-1]}"
 
-def find_best_match(needle: str, haystack: str, threshold: int = 80):
+def indent(text: str, spaces: int) -> str:
+    return "\n".join([f"{' ' * spaces}{line}" for line in text.split("\n")])
+
+def find_best_match(needle: str, haystack: str, threshold: int = 60):
     best_match = 0
     best_score = 0
-    threshold = 80
     file_contents_lines = haystack.split("\n")
     num_lines = len(file_contents_lines)
     num_match_lines = len(needle.split("\n"))
@@ -829,6 +832,7 @@ def modify(
         "completed_changes_per_fcr": [0 for _ in fcrs], # how many successful changes have been applied per fcr
         "attempt_lazy_change": True, # whether or not we attempt to bypass the llm call and apply old/new code pair directly
         "attempt_count": 0, # how many times we have attempted to apply the old/new code pair
+        "visited_set": set(), # keep track of which outputs have been attempted
     }
     full_instructions = instructions + (modify_tools_openai if use_openai else modify_tools)
     chat_gpt.messages = [Message(role="system", content=full_instructions)]
@@ -943,7 +947,6 @@ def modify(
             # on first attempt of a new task we use the first fcr
             if change_in_fcr_index >= max_changes:
                 function_calls_string = SUBMIT_TASK_MOCK_FUNCTION_CALL.format(justification=f"Task {current_fcr_index} is now complete.")
-                # breakpoint()
             else:
                 if lazy_change:
                     compiled_fcr = compile_fcr(fcrs[current_fcr_index], change_in_fcr_index)
@@ -964,6 +967,24 @@ def modify(
                         stop_sequences=["</function_call>"],
                         use_openai=use_openai,
                     )
+                    if function_calls_string in llm_state["visited_set"]:
+                        if llm_state["attempt_count"] < 5:
+                            logger.warning(f"Function call {function_calls_string} has already been visited, retrying with a different model.")
+                            llm_state["attempt_count"] = 5
+                            function_calls_string = chat_gpt.chat_anthropic(
+                                content=SLOW_MODEL,
+                                model=model,
+                                stop_sequences=["</function_call>"],
+                                use_openai=use_openai,
+                            )
+                            if function_calls_string in llm_state["visited_set"]:
+                                logger.warning(f"Function call {function_calls_string} has already been visited, skipping task {current_fcr_index}.")
+                                function_calls_string = SUBMIT_TASK_MOCK_FUNCTION_CALL.format(justification=f"Skipping task {current_fcr_index} due to too many retries.")
+                            else:
+                                llm_state["visited_set"] = set()
+                        else:
+                            logger.warning(f"Function call {function_calls_string} has already been visited, skipping task {current_fcr_index}.")
+                            function_calls_string = SUBMIT_TASK_MOCK_FUNCTION_CALL.format(justification=f"Skipping task {current_fcr_index} due to too many retries.")
             detailed_chat_logger_messages.append({"role": "assistant", "content": function_calls_string})
         except Exception as e:
             logger.error(f"Error in chat_anthropic: {e}")
@@ -998,6 +1019,14 @@ def generate_diffs(modify_files_dict: dict[str, dict[str, str]]) -> dict[str, st
         if diff:
             changes_made = True
     return changes_made
+
+def generate_diff_string(modify_files_dict: dict[str, dict[str, str]]) -> dict[str, str]:
+    diff_string = ""
+    for file_name, file_data in modify_files_dict.items():
+        new_contents = file_data["contents"]
+        original_contents = file_data["original_contents"]
+        diff_string += f"{file_name}\n{generate_diff(original_contents, new_contents)}\n"
+    return diff_string
 
 def create_tool_call_response(tool_name: str, tool_call_response_contents: str) -> str:
     return f"<function_results>\n<result>\n<tool_name>{tool_name}<tool_name>\n<stdout>\n{tool_call_response_contents}\n</stdout>\n</result>\n</function_results>"
@@ -1068,6 +1097,7 @@ def handle_function_call(
         if all([fcr.is_completed for fcr in llm_state["fcrs"]]):
             llm_response = "DONE"
         llm_state["attempt_lazy_change"] = True
+        llm_state["visited_set"] = set()
     elif tool_name == "no_tool_call":
         if use_openai:
             llm_response = NO_TOOL_CALL_PROMPT_OPENAI
@@ -1115,17 +1145,30 @@ def handle_function_call(
                 # if the original_code couldn't be found in the chunk we need to let the llm know
                 
                 if original_code not in file_contents and correct_indent == -1:
+                    if new_code in file_contents:
+                        error_message = f"Your original_code was not found in the file but your new_code was found. This is likely because this fix has already been applied. Validate that this requested feature has already been applied. If so, call the submit_task tool."
+                        break
                     # TODO: add weighted ratio to the choices, penalize whitespace less
                     best_match, best_score = find_best_match(original_code, file_contents) # TODO: this should check other files for exact to 90% match
                     if best_score > 80:
                         surrounding_lines_before, surrounding_lines_after = get_surrounding_lines(file_contents, best_match)
                         START_MARKER = "\n===== START =====\n"
                         END_MARKER = "\n===== END =====\n"
-                        first_diff_text = surrounding_lines_before + START_MARKER + tool_call['original_code'] + END_MARKER + surrounding_lines_after
+
+                        best_indent_score = 0
+                        best_indent = 0
+
+                        for indentation in range(0, 10):
+                            indented_original_code = indent(original_code, indentation)
+                            score = rapidfuzz.fuzz.ratio(indented_original_code, best_match)
+                            if score > best_indent_score:
+                                best_indent_score = score
+                                best_indent = indentation
+
+                        first_diff_text = surrounding_lines_before + START_MARKER + indent(original_code, best_indent) + END_MARKER + surrounding_lines_after
                         second_diff_text = surrounding_lines_before + START_MARKER + best_match + END_MARKER + surrounding_lines_after
                         best_match_diff = generate_diff(first_diff_text, second_diff_text, n=20) # this is bounded to 14 * 2 lines of context
                         error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the difference between the original_code and the most similar existing code from the file, along with its surrounding code:\n```\n{best_match_diff}\n```\n" + DID_YOU_MEAN_PROMPT
-                        # breakpoint()
                         # error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
                         manual_code_check(file_contents, original_code)
                     else:
@@ -1147,16 +1190,6 @@ def handle_function_call(
                                     error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the {other_file_name} file?\n```\n{best_match}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
                                 break
                         else: # if no other file match was found then return this block
-                            # error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
-                            # # first check the lines in original_code, if it is too long, ask for smaller changes
-                            # original_code_lines_length = len(original_code.split("\n"))
-                            # if original_code_lines_length > 10: # I moved this into the else statement because if you had a good match you don't need the extra warnings.
-                            #     error_message += f"\n\nThe original_code seems to be quite long with {original_code_lines_length} lines of code. Break this large change up into a series of SMALLER changes to avoid errors like these! Try to make sure the original_code is under 10 lines. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
-                            # else:
-                            #     # generate the diff between the original code and the current chunk to help the llm identify what it messed up
-                            #     # chunk_original_code_diff = generate_diff(original_code, current_chunk) - not necessary
-                            #     # WARNING/TODO: sometimes this occurs because the LLM selected the wrong file, so we need to provide the llm with the correct file
-                            #     error_message += "\n\nDOUBLE CHECK that the original_code you have provided is correct, if it is not, correct it then make another replacement with the corrected original_code. The original_code MUST be in the selected file in order for you to make a change. DOUBLE CHECK to make sure that this make_change tool call is only attempting a singular change, if it is not, make sure to split this make_change tool call into multiple smaller make_change tool calls!"
                             error_message = ORIGINAL_CODE_NOT_FOUND_PROMPT.format(
                                 original_code=tool_call['original_code'],
                                 file_path=file_name
@@ -1274,7 +1307,6 @@ def handle_function_call(
                 llm_response = f"SKIPPED\n\nThe previous task took too many attempts so we gave up. Please move on to the next task. {llm_state['current_task']}"
                 if all([fcr.is_completed for fcr in llm_state["fcrs"]]):
                     llm_response = "DONE"
-
                 llm_state["attempt_lazy_change"] = True # successful application with no warning message means we can attempt lazy change again
         if not error_message:
             success_message = (
