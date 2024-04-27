@@ -261,6 +261,7 @@ class ModifyBot:
             fcrs=fcrs,
             chat_logger=self.chat_logger,
             use_openai=use_openai,
+            previous_modify_files_dict=previous_modify_files_dict,
         )
         if new_files:
             posthog.capture(
