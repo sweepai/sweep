@@ -600,7 +600,7 @@ def validate_and_parse_function_call_openai(
 
 def validate_and_parse_function_call(
     function_calls_string: str, chat_gpt: ChatGPT
-) -> list[AnthropicFunctionCall]:
+) -> AnthropicFunctionCall:
     function_calls = AnthropicFunctionCall.mock_function_calls_from_string(
         function_calls_string.strip("\n") + "\n</function_call>"
     )  # add end tag
@@ -837,15 +837,37 @@ def modify(
     full_instructions = instructions + (modify_tools_openai if use_openai else modify_tools)
     chat_gpt.messages = [Message(role="system", content=full_instructions)]
     try:
-        chat_gpt.messages.append(Message(role="user", content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}"))
         compiled_fcr = compile_fcr(fcrs[0], 0)
         if compiled_fcr:
+            chat_gpt.messages.append(Message(role="user", content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}"))
             function_calls_string = compiled_fcr
-            # update messages to make it seem as if it called the fcr
-            chat_gpt.messages.append(Message(
+            chat_gpt.messages.append(Message( # this will happen no matter what
                 role="assistant",
                 content=function_calls_string
             ))
+            # update messages to make it seem as if it called the fcr
+            # update state if it's bad
+            # TODO: handling logic to be moved out
+            function_call = validate_and_parse_function_call(function_calls_string, chat_gpt) # this will raise if it's bad but compile_fcr should guarantee it's good
+            if function_call.function_parameters["original_code"] == function_call.function_parameters["new_code"]:
+                current_fcr_index = get_current_task_index(llm_state["fcrs"])
+                llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
+                for fcr in llm_state["fcrs"]:
+                    if not fcr.is_completed:
+                        fcr.is_completed = True # incrementing because we should skip bad calls
+                        break
+                llm_state["attempt_count"] = 0
+                llm_state['current_task'] = render_current_task(llm_state["fcrs"]) # rerender the current task
+                user_response = f"SUCCESS\n\nThe previous task is now complete. Please move on to the next task. {llm_state['current_task']}"
+                llm_state["attempt_lazy_change"] = True
+                llm_state["visited_set"] = set()
+                function_calls_string = chat_gpt.chat_anthropic(
+                    content=user_response,
+                    stop_sequences=["</function_call>"],
+                    model=MODEL,
+                    message_key="user_request",
+                    use_openai=use_openai,
+                )
         else:
             model = MODEL
             logger.info(f"Using model: {model}")
@@ -952,6 +974,28 @@ def modify(
                     compiled_fcr = compile_fcr(fcrs[current_fcr_index], change_in_fcr_index)
                     if compiled_fcr:
                         function_calls_string = compiled_fcr
+                        function_call = validate_and_parse_function_call(function_calls_string, chat_gpt) # this will raise if it's bad but compile_fcr should guarantee it's good
+                        if function_call.function_parameters["original_code"] == function_call.function_parameters["new_code"]:
+                            current_fcr_index = get_current_task_index(llm_state["fcrs"])
+                            llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
+                            for fcr in llm_state["fcrs"]:
+                                if not fcr.is_completed:
+                                    fcr.is_completed = True # incrementing because we should skip bad calls
+                                    break
+                            if all([fcr.is_completed for fcr in llm_state["fcrs"]]):
+                                return modify_files_dict
+                            llm_state["attempt_count"] = 0
+                            llm_state['current_task'] = render_current_task(llm_state["fcrs"]) # rerender the current task
+                            llm_state["attempt_lazy_change"] = True
+                            llm_state["visited_set"] = set()
+                            user_response = f"SUCCESS\n\nThe previous task is now complete. Please move on to the next task. {llm_state['current_task']}"
+                            function_calls_string = chat_gpt.chat_anthropic(
+                                content=user_response,
+                                stop_sequences=["</function_call>"],
+                                model=MODEL,
+                                message_key="user_request",
+                                use_openai=use_openai,
+                            )
                         # update messages to make it seem as if it called the fcr
                         chat_gpt.messages.append(Message(
                             role="assistant",
@@ -1075,7 +1119,6 @@ def handle_function_call(
     llm_response = ""
     tool_name = function_call.function_name
     tool_call = function_call.function_parameters
-    breakpoint()
     if tool_name == "submit_task":
         current_fcr_index = get_current_task_index(llm_state["fcrs"])
         llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
@@ -1144,10 +1187,9 @@ def handle_function_call(
                 # check to see that the original_code is in the new_code by trying all possible indentations
                 correct_indent, rstrip_original_code = manual_code_check(file_contents, original_code)
                 # if the original_code couldn't be found in the chunk we need to let the llm know
-                breakpoint()
                 if original_code not in file_contents and correct_indent == -1:
-                    if new_code in file_contents:
-                        error_message = f"Your original_code was not found in the file but your new_code was found. This is likely because this fix has already been applied. Validate that this requested feature has already been applied. If so, call the submit_task tool."
+                    if new_code in file_contents and new_code.strip():
+                        error_message = "Your original_code was not found in the file but your new_code was found. This is likely because this fix has already been applied. Validate that this requested feature has already been applied. If so, call the submit_task tool."
                         break
                     # TODO: add weighted ratio to the choices, penalize whitespace less
                     best_match, best_score = find_best_match(original_code, file_contents) # TODO: this should check other files for exact to 90% match
