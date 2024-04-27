@@ -57,19 +57,12 @@ Reference the provided code files, summaries, entity names, and necessary files/
 ...
 </excerpt_from_issue>
 <proposed_changes>
-1. For each of the excerpts here write a detailed set of code changes spanning at least one change, with possibly more depending on the preceding excerpt. This code change should describe exactly what to do, referencing specific code entities in the relevant files.
+1. For each of the excerpts here write a detailed set of code changes spanning at least one change, with more depending on the preceding excerpt. This code change should describe exactly what to do, referencing specific code entities in the relevant files.
 ...
 </proposed_changes>
 </issue_and_proposed_changes>
 
 c. Detail ALL changes that do not correspond to an excerpt from the user's issue. These changes should be necessary to resolve the issue but are not explicitly mentioned in the user's request. Be complete. You must describe ALL changes that are required per this section.
-
-d. List ALL of the files we should modify to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
-  - File Path 1: Detailed instructions for modifying the file.
-      [list all of the changes described in the preceding section ...]
-  - File Path 2: Detailed instructions for modifying the file.
-      [list all of the changes described in the preceding section ...]
-[additional files as needed]
 </issue_analysis>
 
 # 2. Plan:
