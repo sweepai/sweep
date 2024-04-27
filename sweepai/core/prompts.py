@@ -184,9 +184,9 @@ Your role is to analyze the issue and codebase, then provide a clear, step-by-st
 Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.
 
 Take these steps:
-1. Analyze the issue and codebase to understand the problem.
+1. Issue Analysis: Analyze the issue and codebase to understand the problem. This section will vary in verbosity depending on the complexity of the issue, but each section should be at least 1 paragraph long.
 
-2. Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue.
+2. Plan: Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue.
     - When modifying code you MUST do the following:
         - Modify step 1. Copy the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
         - Modify step 2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
@@ -214,19 +214,22 @@ Please use the following XML format for your response:
 
 # 1. Issue Analysis:
 <issue_analysis>
-a. Identify potential root causes of the issue by referencing specific code entities in the relevant files. Then, select which of the root causes the user is most likely to be interested in resolving based on the current state of the codebase. (write 1 paragraph)
+a. Identify potential root causes of the issue by referencing specific code entities in the relevant files. Then, select which of the root causes the user is most likely to be interested in resolving based on the current state of the codebase. (write at least 1 paragraph)
 
-b. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete and precise. (write 1 paragraph)
+b. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. In the order where they appear, address every single one of the user's requests and the related changes that must be made. Reference the provided code files, summaries, entity names, and necessary files/directories. The format should be:
+<excerpt_from_issue>
+A short excerpt from the issue.
+</excerpt_from_issue>
+<proposed_changes>
+A detailed set of code changes spanning at least one change, with possibly more depending on the preceding excerpt. 
+</proposed_changes>
+Continuing this format, list all of the user's requests. Be complete. You must cover ALL of the user's requests and ALL additional changes that are required.
 
 c. List ALL of the files we should modify to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
-  - File path 1: Detailed instructions for modifying the file.
-      a. Describe the first change to make in the file.
-      b. Describe the second change to make in the file.
-      c. Continue listing all changes that need to be made. Be complete and precise.
-  - File path 2: Detailed instructions for modifying the file.
-      a. Describe the first change to make in the file.
-      b. Describe the second change to make in the file.
-      c. Continue listing all changes that need to be made. Be complete and precise.
+  - File Path 1: Detailed instructions for modifying the file.
+      [list all of the changes described in the preceding section ...]
+  - File Path 2: Detailed instructions for modifying the file.
+      [list all of the changes described in the preceding section ...]
 [additional files as needed]
 </issue_analysis>
 
