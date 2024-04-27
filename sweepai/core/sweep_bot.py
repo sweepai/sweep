@@ -751,6 +751,7 @@ def get_files_to_change_for_gha(
     updated_files: dict[str, dict[str, str]],
     pr_diffs: str = "",
     chat_logger: ChatLogger = None,
+    use_faster_model: bool = False,
 ) -> tuple[list[FileChangeRequest], str]:
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
@@ -833,6 +834,16 @@ def get_files_to_change_for_gha(
         messages.append(
             Message(role="user", content=pr_diffs, key="pr_diffs")
         )
+    if use_faster_model:
+        file_paths_in_context = "\n".join(
+            snippet.file_path for snippet in relevant_snippets + read_only_snippets
+        )
+        messages.append(
+            Message(
+                role="user",
+                content=f"Here are all the file paths in context:\n<file_paths_in_context>\n{file_paths_in_context}\n<file_paths_in_context>",
+            )
+        )
     try:
         print("messages")
         for message in messages:
@@ -850,11 +861,10 @@ def get_files_to_change_for_gha(
         MODEL = "claude-3-opus-20240229"
         files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + gha_files_to_change_prompt,
-            model=MODEL,
+            model=MODEL if not use_faster_model else "claude-3-sonnet-20240229",
             temperature=0.1
         )
-        # breakpoint()
-        max_tokens = 4096 * 3.5 * 0.9 # approx max tokens per response
+        max_tokens = 4096 * 3.5 * 0.8 # approx max tokens per response
         expected_plan_count = 1
         call_anthropic_second_time = len(files_to_change_response) > max_tokens and files_to_change_response.count("</plan>") < expected_plan_count
         if call_anthropic_second_time:
@@ -862,13 +872,14 @@ def get_files_to_change_for_gha(
             try:
                 second_response = chat_gpt.chat_anthropic(
                     content="",
-                    model=MODEL,
+                    model=MODEL if not use_faster_model else "claude-3-sonnet-20240229",
                     temperature=0.1
                 )
                 # we can simply concatenate the responses
                 files_to_change_response += second_response
             except Exception as e:
                 logger.warning(f"Failed to get second response due to {e}")
+        breakpoint()
         if chat_logger:
             chat_logger.add_chat(
                 {
