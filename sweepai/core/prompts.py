@@ -357,23 +357,29 @@ Use <create> blocks ONLY for files that do not already exist in the codebase. Do
 <modify file="file_path_2"> 
 Instructions for modifying one section of the file.
 
-1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+a. Describe the section of code that needs to be modified
+<original_code>
+Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+</original_code>
 
-2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
-
-3. (Optional) Identify whether this is a change that needs to be applied exactly in other places of this file. If so, add <replace_all>true</replace_all> to replace all instances of the <original_code> in the file with the <new_code>.
+b. Describe the changes that need to be made to the code.
+<new_code>
+Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+</new_code>
 </modify>
 
 <modify file="file_path_2">
 Instructions for modifying one section of the file.
 
-1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+a. Describe the section of code that needs to be modified
+<original_code>
+Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+</original_code>
 
-2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
-
-3. (Optional) Identify whether this is a change that needs to be applied exactly in other places of this file. If so, add <replace_all>true</replace_all> to replace all instances of the <original_code> in the file with the <new_code>.
-
-Use multiple <modify> blocks for the same file to separate distinct changes. Use <modify> blocks for ALL existing files that require changes. Do not use <create> for existing files.
+b. Describe the changes that need to be made to the code.
+<new_code>
+Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+</new_code>
 </modify>
 
 [additional modifies as needed, for the same file or different files]

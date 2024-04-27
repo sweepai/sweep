@@ -1,3 +1,18 @@
+issue_excerpt_system_prompt = """You are a tech lead helping to break down a GitHub issue for an intern to solve. Segment the GitHub issue to identify every single one of the user's requests. Be complete. The changes should be atomic."""
+
+# TODO: 2 paragraphs
+# the current issue analysis is heavily optimized, i'd like to try removing step d though
+issue_excerpt_prompt = """\
+Segment the GitHub issue to identify every single one of the user's requests. Be complete. The changes should be atomic.
+
+Respond in the following format:
+<issue_excerpts>
+<issue_excerpt>
+A very short substring from the user's issue. This should correspond to a specific change in the codebase.
+</issue_excerpt>
+</issue_excerpts>"""
+
+
 files_to_change_system_prompt = """You are an AI assistant helping an intern write code to resolve a GitHub issue. The user will provide code files, a description of the issue, and relevant parts of the codebase.
 Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
 Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.
@@ -12,8 +27,6 @@ Take these steps:
 
 3. List all of the relevant files to reference while making changes, one per line."""
 
-# TODO: 2 paragraphs
-# the current issue analysis is heavily optimized, i'd like to try removing step d though
 files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
 
 You will analyze the provided code files, repository, and GitHub issue to understand the requested change. Create a step-by-step plan for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code files and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
@@ -35,24 +48,21 @@ Please use the following XML format for your response:
 <issue_analysis>
 a. Identify potential root causes of the issue by referencing specific code entities in the relevant files. Then, select which of the root causes the user is most likely to be interested in resolving based on the current state of the codebase. (write at least 1 paragraph)
 
-b. Identify every single one of the user's requests and the related changes that must be made. Reference the provided code files, summaries, entity names, and necessary files/directories. Be complete. You must cover ALL of the user's requests and ALL additional changes that are required.
-<issue_excerpts>
-<excerpt_from_issue>
-A very short substring from the user's issue. This should correspond to a specific change in the codebase.
-</excerpt_from_issue>
-</issue_excerpts>
+b. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. For each of the excerpts here write a detailed set of code changes spanning at least one change, with possibly more depending on the preceding excerpt. Be specific and direct, using the phrases "add", "replace", and "remove". Be complete and precise. You must cover ALL changes that are required per excerpt.
+{issue_excerpts}
 
-c. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. For each of the user's requests, write the related changes that must be made. Reference the provided code files, summaries, entity names, and necessary files/directories. The format should be:
+Reference the provided code files, summaries, entity names, and necessary files/directories. The format should be:
 <issue_and_proposed_changes>
-<excerpt_from_issue>
+<issue_excerpt>
 ...
 </excerpt_from_issue>
 <proposed_changes>
-- A detailed set of code changes spanning at least one change, with possibly more depending on the preceding excerpt.
-- Be specific and direct, using the phrases "add", "replace", and "remove".
+1. For each of the excerpts here write a detailed set of code changes spanning at least one change, with possibly more depending on the preceding excerpt. This code change should describe exactly what to do, referencing specific code entities in the relevant files.
+...
 </proposed_changes>
-Be complete. You must cover ALL changes that are required per excerpt.
 </issue_and_proposed_changes>
+
+c. Detail ALL changes that do not correspond to an excerpt from the user's issue. These changes should be necessary to resolve the issue but are not explicitly mentioned in the user's request. Be complete. You must describe ALL changes that are required per this section.
 
 d. List ALL of the files we should modify to resolve the issue. Reference the provided code files, summaries, entity names, and necessary files/directories. Respond in the following format:
   - File Path 1: Detailed instructions for modifying the file.
@@ -88,4 +98,4 @@ Use multiple <modify> blocks for the same file to separate distinct changes.
 </modify>
 
 [additional modifies as needed, for the same file or different files]
-</plan>""" # + files_to_change_example TODO: test separately
+</plan>"""
