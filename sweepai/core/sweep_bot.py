@@ -89,7 +89,7 @@ Edit old_code to pass the CI/CD.
 
 def parse_patch_fcrs(fcr_patch_string: str):
     pattern = re.compile(r"""<(?P<change_type>[a-z_]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- @\{\}]*?)\"\s+index=\"(?P<index>\d+)\">(?P<instructions>.*?)\s*<\/\1>""", re.DOTALL)
-    drop_pattern = re.compile(f"<drop>(.+?)</drop>", re.DOTALL)
+    drop_pattern = re.compile("<drop>(.+?)</drop>", re.DOTALL)
     matches = []
     for match in pattern.finditer(fcr_patch_string):
         matches.append((
