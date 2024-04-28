@@ -184,11 +184,12 @@ def on_merge_conflict(
                 "user", "name", "sweep-nightly[bot]"
             ).release()
             git_repo.config_writer().set_value(
-                "user", "email", "team@sweep.dev"
+                "user", "email", "team@sweep.dev"  
             ).release()
-            git_repo.git.merge("origin/" + pr.base.ref)
+            git_repo.git.fetch()
+            git_repo.git.rebase("origin/" + pr.base.ref)
         except GitCommandError:
-            # Assume there are merge conflicts
+            # Assume there are conflicts during rebase
             pass
 
         git_repo.git.add(update=True)
