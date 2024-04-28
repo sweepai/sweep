@@ -705,6 +705,22 @@ def sanitize_string_for_github(message: str):
     return message
 
 
+def rebase_branch(git_repo: git.Repo, source_branch: str, target_branch: str) -> git.Repo:
+    git_repo.git.checkout(source_branch)
+    try:
+        git_repo.git.rebase(target_branch)
+    except git.GitCommandError:
+        # Handle rebase conflicts
+        for conflicted_file in git_repo.index.conflicts:
+            # Take the version from the target branch
+            git_repo.git.checkout("--theirs", conflicted_file[0].a_path)
+            git_repo.git.add(conflicted_file[0].a_path)
+        
+        git_repo.git.rebase("--continue")
+
+    return git_repo
+
+
 try:
     g = Github(os.environ.get("GITHUB_PAT"))
     CURRENT_USERNAME = g.get_user().login

@@ -14,7 +14,7 @@ from sweepai.handlers.on_ticket import get_branch_diff_text, sweeping_gif
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import ClonedRepo, get_github_client
+from sweepai.utils.github_utils import ClonedRepo, get_github_client, rebase_branch
 from sweepai.utils.progress import (
     PaymentContext,
     TicketContext,
@@ -171,7 +171,7 @@ def on_merge_conflict(
                 new_pull_request.branch_name += "_" + str(i)
                 break
 
-        # Merge into base branch from cloned_repo.repo_dir to pr.base.ref
+        # Rebase new branch onto base branch
         git_repo = cloned_repo.git_repo
         old_head_branch = git_repo.branches[branch]
         head_branch = git_repo.create_head(
@@ -179,6 +179,7 @@ def on_merge_conflict(
             commit=old_head_branch.commit,
         )
         head_branch.checkout()
+        git_repo = rebase_branch(git_repo, new_pull_request.branch_name, pr.base.ref)
         try:
             git_repo.config_writer().set_value(
                 "user", "name", "sweep-nightly[bot]"
@@ -186,10 +187,8 @@ def on_merge_conflict(
             git_repo.config_writer().set_value(
                 "user", "email", "team@sweep.dev"
             ).release()
-            git_repo.git.merge("origin/" + pr.base.ref)
-        except GitCommandError:
-            # Assume there are merge conflicts
-            pass
+        except Exception as e:
+            print("Exception occurred while configuring git user", e)
 
         git_repo.git.add(update=True)
         # -m and message are needed otherwise exception is thrown
