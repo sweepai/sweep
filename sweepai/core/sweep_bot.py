@@ -31,17 +31,21 @@ from sweepai.core.entities import (
     Snippet,
 )
 from sweepai.core.prompts import (
-    files_to_change_prompt,
     context_files_to_change_prompt,
     context_files_to_change_system_prompt,
     pull_request_prompt,
     subissues_prompt,
-    files_to_change_system_prompt,
     gha_files_to_change_system_prompt,
     gha_files_to_change_prompt,
     test_files_to_change_system_prompt,
     test_files_to_change_prompt,
     fix_files_to_change_prompt
+)
+from sweepai.core.planning_prompts import (
+    files_to_change_system_prompt,
+    files_to_change_prompt,
+    issue_excerpt_prompt,
+    issue_excerpt_system_prompt,
 )
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.event_logger import posthog
@@ -315,7 +319,7 @@ def get_files_to_change(
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
     messages.append(
-        Message(role="system", content=files_to_change_system_prompt, key="system")
+        Message(role="system", content=issue_excerpt_system_prompt, key="system")
     )
 
     new_relevant_snippets = []
@@ -412,6 +416,14 @@ def get_files_to_change(
             print(message.content + "\n\n")
         joint_message = "\n\n".join(message.content for message in messages[1:])
         print("messages", joint_message)
+        issue_excerpt_chat_gpt = ChatGPT(
+            messages=[
+                Message(
+                    role="system",
+                    content=issue_excerpt_system_prompt,
+                ),
+            ],
+        )
         chat_gpt = ChatGPT(
             messages=[
                 Message(
@@ -420,9 +432,22 @@ def get_files_to_change(
                 ),
             ],
         )
+        ISSUE_EXCERPT_MODEL = "claude-3-haiku-20240307"
         MODEL = "claude-3-opus-20240229"
+        issue_excerpt_response = issue_excerpt_chat_gpt.chat_anthropic(
+            content=joint_message + "\n\n" + (issue_excerpt_prompt),
+            model=ISSUE_EXCERPT_MODEL,
+            temperature=0.1,
+            images=images
+        )
+        issue_excerpt_pattern = re.compile(r"<issue_excerpts>(.*?)</issue_excerpts>", re.DOTALL)
+        issue_excerpt_match = issue_excerpt_pattern.search(issue_excerpt_response)
+        if not issue_excerpt_match:
+            raise Exception("Failed to match issue excerpts")
+        issue_excerpts = issue_excerpt_match.group(1)
+        issue_excerpts = issue_excerpts.strip("\n")
         files_to_change_response = chat_gpt.chat_anthropic(
-            content=joint_message + "\n\n" + (files_to_change_prompt),
+            content=joint_message + "\n\n" + (files_to_change_prompt.format(issue_excerpts=issue_excerpts)),
             model=MODEL,
             temperature=0.1,
             images=images
@@ -509,7 +534,7 @@ def context_get_files_to_change(
 ):
     messages: list[Message] = []
     messages.append(
-        Message(role="system", content=files_to_change_system_prompt, key="system")
+        Message(role="system", content=issue_excerpt_system_prompt, key="system")
     )
 
     interleaved_snippets = []
@@ -678,7 +703,7 @@ def get_files_to_change_for_test(
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
     messages.append(
-        Message(role="system", content=files_to_change_system_prompt, key="system")
+        Message(role="system", content=issue_excerpt_system_prompt, key="system")
     )
 
     # keep order but move all files without tests to read only snippets
@@ -881,7 +906,7 @@ def get_files_to_change_for_gha(
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
     messages.append(
-        Message(role="system", content=files_to_change_system_prompt, key="system")
+        Message(role="system", content=issue_excerpt_system_prompt, key="system")
     )
 
     for relevant_snippet in relevant_snippets:

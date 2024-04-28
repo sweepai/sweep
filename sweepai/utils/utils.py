@@ -7,7 +7,6 @@ import re
 import subprocess
 from tempfile import TemporaryDirectory
 import tempfile
-import time
 import traceback
 from dataclasses import dataclass
 from typing import Optional
@@ -447,6 +446,7 @@ def get_pylint_check_results(file_path: str, code: str) -> CheckResults:
         error_message = f"> pylint {file_path}\n\n" + error_message
     return CheckResults(pylint=error_message if not succeeded else "")
 
+@file_cache()
 def get_check_results(file_path: str, code: str) -> CheckResults:
     is_valid, error_message = check_syntax(file_path, code)
     if not is_valid:
