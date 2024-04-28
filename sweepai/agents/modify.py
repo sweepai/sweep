@@ -581,6 +581,22 @@ def find_best_match(needle: str, haystack: str, threshold: int = 70, verbose=Tru
         return best_match, best_score
     return "", 0
 
+def contains_ignoring_whitespace(needle: str, haystack: str):
+    needle = "\n".join([line.rstrip() for line in needle.splitlines()])
+    haystack = "\n".join([line.rstrip() for line in haystack.splitlines()])
+    max_indent = 0
+    for line in haystack:
+        if len(line) == 0:
+            continue
+        indent = len(line) - len(line.lstrip())
+        if indent > max_indent:
+            max_indent = indent
+    for indent in range(0, max_indent + 1, 2):
+        indented_needle = indent(needle, indent)
+        if indented_needle in haystack:
+            return True
+    return False
+
 MODEL = "claude-3-haiku-20240307"
 SLOW_MODEL = "claude-3-opus-20240229" # try haiku
 
@@ -1197,7 +1213,7 @@ def handle_function_call(
                 correct_indent, rstrip_original_code = manual_code_check(file_contents, original_code)
                 # if the original_code couldn't be found in the chunk we need to let the llm know
                 if original_code not in file_contents and correct_indent == -1:
-                    if new_code in file_contents and new_code.strip(): # TODO: this should go after checking if it's in a different file
+                    if new_code.strip() and contains_ignoring_whitespace(new_code, file_contents): # TODO: this should go after checking if it's in a different file
                         error_message = "Your original_code was not found in the file but your new_code was found. This is likely because this fix has already been applied. Validate that this requested feature has already been applied. If so, call the submit_task tool."
                         break
                     # TODO: add weighted ratio to the choices, penalize whitespace less
