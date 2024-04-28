@@ -183,7 +183,7 @@ def get_error_message(
                 file_contents = cloned_repo.get_file_contents(file_change_request.filename)
                 parsed_fcr = parse_fcr(file_change_request)
                 if not parsed_fcr["original_code"]:
-                    breakpoint()
+                    # breakpoint()
                     error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to provide both an <original_code> block. If you would like to drop this task use the <drop> marker.\n</error>\n\n"
                     error_indices.append(i)
                     continue
