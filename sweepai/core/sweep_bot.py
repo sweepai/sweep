@@ -182,8 +182,13 @@ def get_error_message(
             try:
                 file_contents = cloned_repo.get_file_contents(file_change_request.filename)
                 parsed_fcr = parse_fcr(file_change_request)
-                if not parsed_fcr or not parsed_fcr["original_code"]:
-                    error_message += f"<error index=\"{len(error_indices)}\">\nThere must be an <original_code> block and a <new_code> block. If you would like to drop this task use the <drop> marker.\n</error>\n\n"
+                if not parsed_fcr["original_code"]:
+                    breakpoint()
+                    error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to provide both an <original_code> block. If you would like to drop this task use the <drop> marker.\n</error>\n\n"
+                    error_indices.append(i)
+                    continue
+                if not parsed_fcr["new_code"]:
+                    error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to a <new_code> block. If you would like to drop this task use the <drop> marker.\n</error>\n\n"
                     error_indices.append(i)
                     continue
                 original_code = parsed_fcr["original_code"][0].strip("\n")
@@ -203,16 +208,17 @@ def get_error_message(
                             best_match = ""
                             best_score = 0
                             best_indent = 0
+                            threshold = 50
                             # Check all indents
                             for indent_count in tqdm(range(0, 20, 2)):
-                                current_best_match, current_best_score = find_best_match(indent(original_code, indent_count), file_contents, verbose=False)
+                                current_best_match, current_best_score = find_best_match(indent(original_code, indent_count), file_contents, verbose=False, threshold=threshold)
                                 if current_best_score > best_score:
                                     best_match = current_best_match
                                     best_score = current_best_score
                                     best_indent = indent_count
                                 if current_best_score > 99:
                                     break
-                            if best_score > 70:
+                            if best_score > threshold:
                                 if best_score > 90:
                                     error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match)}\n```\n</error>\n\n"
                                 else:
@@ -459,15 +465,30 @@ def get_files_to_change(
             file_change_requests.append(file_change_request)
         
         error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
-        
+
         if error_message:
-            # breakpoint()
-            fix_attempts = chat_gpt.chat_anthropic(
-                content=f"The following errors have appeared:\n```\n{error_message}\n```\nPlease fix the errors and try again.",
+            fix_attempt = chat_gpt.chat_anthropic(
+                content=fix_files_to_change_prompt.format(error_message=error_message),
                 model=MODEL,
+                # model="claude-3-opus-20240229",
                 temperature=0.1,
             )
-        
+            drops, matches = parse_patch_fcrs(fix_attempt)
+            for index, new_fcr in matches:
+                if index >= len(error_indices):
+                    logger.warning(f"Index {index} not in error indices")
+                    continue
+                file_change_requests[error_indices[index]] = new_fcr
+            for drop in sorted(drops, reverse=True):
+                if drop >= len(error_indices):
+                    logger.warning(f"Index {drop} not in error indices")
+                    continue
+                file_change_requests.pop(error_indices[drop])
+            new_error_message, new_error_indices = get_error_message(file_change_requests, cloned_repo)
+            logger.debug("Old indices", error_indices)
+            logger.debug("New indices", new_error_indices)
+
+        validate_file_change_requests(file_change_requests, cloned_repo)
         return file_change_requests, files_to_change_response
     except RegexMatchError as e:
         print("RegexMatchError", e)
@@ -1020,7 +1041,7 @@ def get_files_to_change_for_gha(
 
         # Auto-fix plan, should do this multiple times but once works for now.
         error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
-        
+
         if error_message:
             fix_attempt = chat_gpt.chat_anthropic(
                 content=fix_files_to_change_prompt.format(error_message=error_message),
