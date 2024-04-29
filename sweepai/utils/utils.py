@@ -430,7 +430,6 @@ def get_pylint_check_results(file_path: str, code: str) -> CheckResults:
             "--disable=R",
             "--disable=import-error",
             "--disable=no-member",
-            "--disable=unused-import" # we have a workaround for this tbh
         ],
         reporter=reporter,
         exit=False,

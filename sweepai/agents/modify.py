@@ -446,7 +446,7 @@ d. Indicate the minimum amount of changes required to resolve the linter warning
 
 Then, call the make_change function to fix the linter warnings. If the warning cannot be resolved, call submit_task with an explanation of the issue."""
 
-fix_syntax_prompt = """You must resolve the issue by following these steps:
+fix_syntax_prompt = """You MUST resolve the issue by following these steps:
 
 # 1. Thinking
 <thinking>
@@ -457,7 +457,7 @@ d. Explain how we can correct the original_code or new_code in the make_change f
 </thinking>
 
 # 2. Function call
-Reinvoke the make_change function call with different changes that yields valid code."""
+Then, reinvoke the make_change function call with different changes that yields valid code."""
 
 ORIGINAL_CODE_NOT_FOUND_PROMPT = """The original_code provided does not appear to be present in file {file_path}. Your provided original_code erroneously contains:
 ```
@@ -554,7 +554,7 @@ def rstrip_lines(text: str) -> str:
     return "\n".join([line.rstrip() for line in text.split("\n")])
 
 def indent(text: str, spaces: int) -> str:
-    return "\n".join([f"{' ' * spaces}{line}" for line in text.split("\n")])
+    return "\n".join([f"{' ' * spaces}{line}" if line.strip() else "" for line in text.split("\n")])
 
 def tokenize_code(code: str):
     cleaned_code = ""
@@ -675,7 +675,11 @@ def contains_ignoring_whitespace(needle: str, haystack: str):
     for indent_size in range(0, max_indent + 2, 2):
         indented_needle = indent(needle, indent_size)
         if indented_needle in haystack:
-            return True
+            start_char = haystack.index(indented_needle)
+            start_line = haystack[:start_char].count("\n")
+            end_char = start_char + len(indented_needle) + 1
+            end_line = haystack[:end_char].count("\n")
+            return start_line, end_line
     return False
 
 MODEL = "claude-3-haiku-20240307"
@@ -1318,8 +1322,6 @@ def handle_function_call(
                         second_diff_text = surrounding_lines_before + START_MARKER + best_match + END_MARKER + surrounding_lines_after
                         best_match_diff = generate_diff(first_diff_text, second_diff_text, n=20) # this is bounded to 14 * 2 lines of context
                         error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the difference between the original_code and the most similar existing code from the file, along with its surrounding code:\n```\n{best_match_diff}\n```\n" + DID_YOU_MEAN_PROMPT
-                        # error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
-                        manual_code_check(file_contents, original_code)
                     else:
                         # check other files, this code should skip if there are no other files
                         all_file_contents = list(dict.fromkeys([get_latest_contents(fcr.filename, cloned_repo, modify_files_dict) for fcr in llm_state["fcrs"] if fcr.filename != file_name]))
@@ -1356,7 +1358,10 @@ def handle_function_call(
                 else:
                     original_code_lines = original_code.split("\n")
                 if len(original_code_lines) > 1:
-                    original_code = "\n".join(f'{correct_indent * " "}{line}' for line in original_code_lines)
+                    """This will match the whitespace from the code file itself"""
+                    best_span = contains_ignoring_whitespace(original_code, file_contents)
+                    start_line, end_line = best_span
+                    original_code = "\n".join(file_contents.split("\n")[start_line:end_line])
                 else:
                     original_code = f'{correct_indent * " "}{original_code.lstrip()}'
                 # before we apply changes make sure original_code is unique inside current_chunk
@@ -1407,7 +1412,7 @@ def handle_function_call(
                 if original_code not in file_contents:
                     new_correct_indent, new_rstrip_original_code = manual_code_check(file_contents, new_code)
                     if new_correct_indent == -1:
-                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
+                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file."
                     else:
                         error_message = f"The original_code provided does not appear to be present in file {file_name}. However, the new_code provided is present in the file. If you would like to apply this change, please provide the correct original_code. Otherwise, call submit_task to move on to the next task."
                     break
@@ -1437,6 +1442,8 @@ def handle_function_call(
                     )
                     if failing_parse:
                         error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n```\n{failing_parse}\n```\n\n" + fix_syntax_prompt
+                        print(error_message)
+                        breakpoint()
                         break
                     elif check_results_message:
                         warning_message = check_results_message
