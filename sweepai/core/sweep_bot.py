@@ -12,7 +12,7 @@ from networkx import Graph
 from pydantic import BaseModel
 from tqdm import tqdm
 
-from sweepai.agents.modify import find_best_match, parse_fcr, indent, rstrip_lines
+from sweepai.agents.modify import contains_ignoring_whitespace, find_best_match, parse_fcr, indent, rstrip_lines
 from sweepai.agents.modify_file import modify_file
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
@@ -179,6 +179,9 @@ def get_error_message(
     file_change_requests: list[FileChangeRequest],
     cloned_repo: ClonedRepo,
 ):
+    """
+    TODO: 
+    """
     error_message = ""
     error_indices = []
     for i, file_change_request in enumerate(file_change_requests):
@@ -200,36 +203,28 @@ def get_error_message(
                     error_message += f"<error index=\"{len(error_indices)}\">\nThe <original_code> can not be empty. If you would like to append code, copy the code you want to append the new code after into the <original_code>, then copy the same code into <new_code>, then finally append the new code after <new_code>.\n</error>\n\n"
                     error_indices.append(i)
                 else:
-                    if original_code not in file_contents:
+                    if not contains_ignoring_whitespace(original_code, file_contents):
+                        best_match = ""
+                        best_score = 0
+                        best_indent = 0
+                        threshold = 50
                         # Check all indents
-                        for indent_count in range(0, 20, 2):
-                            if indent(original_code, indent_count) in file_contents:
+                        for indent_count in tqdm(range(0, 20, 2)):
+                            current_best_match, current_best_score = find_best_match(indent(original_code, indent_count), file_contents, verbose=False, threshold=threshold)
+                            if current_best_score > best_score:
+                                best_match = current_best_match
+                                best_score = current_best_score
+                                best_indent = indent_count
+                            if current_best_score > 99:
                                 break
-                        for indent_count in range(0, 20, 2):
-                            if rstrip_lines(indent(original_code, indent_count)) in file_contents:
-                                break
-                        else:
-                            best_match = ""
-                            best_score = 0
-                            best_indent = 0
-                            threshold = 50
-                            # Check all indents
-                            for indent_count in tqdm(range(0, 20, 2)):
-                                current_best_match, current_best_score = find_best_match(indent(original_code, indent_count), file_contents, verbose=False, threshold=threshold)
-                                if current_best_score > best_score:
-                                    best_match = current_best_match
-                                    best_score = current_best_score
-                                    best_indent = indent_count
-                                if current_best_score > 99:
-                                    break
-                            if best_score > threshold:
-                                if best_score > 90:
-                                    error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match)}\n```\n</error>\n\n"
-                                else:
-                                    error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\n</error>\n\n"
+                        if best_score > threshold:
+                            if best_score > 90:
+                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match)}\n```\n</error>\n\n"
                             else:
-                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{original_code}\n```\nPlease ensure the code you want to modify is present in `{file_change_request.filename}`. Could this code be in another file?\n</error>\n\n"
-                            error_indices.append(i)
+                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\n</error>\n\n"
+                        else:
+                            error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{original_code}\n```\nPlease ensure the code you want to modify is present in `{file_change_request.filename}`. Could this code be in another file?\n</error>\n\n"
+                        error_indices.append(i)
             except FileNotFoundError as e:
                 logger.warning(f"Failed to get file contents for {file_change_request.filename} due to {e}")
                 for file_path in cloned_repo.get_file_list():
@@ -240,6 +235,8 @@ def get_error_message(
                 else:
                     error_message += f"<error index=\"#{len(error_indices)}\">\nThe file `{file_change_request.filename}` does not exist. Double-check your spelling.\n</error>\n\n"
                     error_indices.append(i)
+    # if error_message:
+    #     breakpoint()
     return error_message, error_indices
         
 def sort_and_fuse_snippets(

@@ -585,13 +585,11 @@ def contains_ignoring_whitespace(needle: str, haystack: str):
     needle = "\n".join([line.rstrip() for line in needle.splitlines()])
     haystack = "\n".join([line.rstrip() for line in haystack.splitlines()])
     max_indent = 0
-    for line in haystack:
+    for line in haystack.splitlines():
         if len(line) == 0:
             continue
-        indent_size = len(line) - len(line.lstrip())
-        if indent_size > max_indent:
-            max_indent = indent_size
-    for indent_size in range(0, max_indent + 1, 2):
+        max_indent = max(max_indent, len(line) - len(line.lstrip()))
+    for indent_size in range(0, max_indent + 2, 2):
         indented_needle = indent(needle, indent_size)
         if indented_needle in haystack:
             return True
