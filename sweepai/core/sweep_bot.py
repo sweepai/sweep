@@ -1026,7 +1026,6 @@ def get_files_to_change_for_gha(
             ],
         )
         MODEL = "claude-3-opus-20240229" if not use_faster_model else "claude-3-sonnet-20240229"
-        # MODEL = "claude-3-opus-20240229" if not use_faster_model else "claude-3-haiku-20240307"
         files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + gha_files_to_change_prompt,
             model=MODEL,
