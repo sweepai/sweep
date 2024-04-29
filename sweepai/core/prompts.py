@@ -316,9 +316,11 @@ If you determine that this task is not needed, you may drop the task like so:
 
 Otherwise, you must patch the task to resolve the error like so:
 
-<modify file="file_path_1" index="index of error to fix">
+<modify file="file_path_1" index="1">
 Rewritten instructions to resolve the error. Update the original_code and new_code blocks as required, ensuring that the <original_code> block contains the actual code from the file.
 </modify>
+
+The index should be equivalent to the error number.
 </error_resolution>
 
 [additional <error_resolution> blocks as needed, for the same file or different files]
@@ -443,7 +445,7 @@ Take these steps:
         Step 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file, with correct indentation and whitespace.
             - Do NOT paraphrase or abbreviate the source code.
             - Placeholder comments like "# existing code" are not permitted.
-            - Minimum one function for context.
+            - Start with a function header.
         Step 2. Write the new code in <new_code> tags, specifying necessary imports and including relevant type definitions, interfaces, and schemas.
             - BE EXACT as this code will replace the mentioned <original_code>.
         Step 3. Determine if this is a change that occurs EXACTLY in other parts of the same file. If so, add a <replace_all>true</replace_all> flag.
@@ -498,12 +500,12 @@ Error message 1: Copy the full error message here VERBOSE, abbreviations, paraph
 
 Then, based on the analysis, propose a fix by following the format below. If the error has already been fixed, you can skip this step.
 
-<modify file="file_path_2"> 
+<modify file="file_path"> 
 Instructions for modifying one section of the file. Each block must have exactly one original_code and one new_code block. Do not make a change that has already been made by the intern.
 
 a. Describe the section of code that needs to be modified, i.e. the test case that checks if `foo` == `bar`.
 <original_code>
-Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. Minimum one function.
+Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. Start with a function header.
 </original_code>
 
 b. Describe the changes that need to be made to the code, i.e. the test case should instead check if `foo` != `baz`.
