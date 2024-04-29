@@ -1086,7 +1086,7 @@ def modify(
                         ))
                 # if previous things go wrong we make llm call
                 if not function_calls_string:
-                    model = MODEL if llm_state["attempt_count"] < 5 else SLOW_MODEL
+                    model = MODEL if llm_state["attempt_count"] < 3 else SLOW_MODEL
                     logger.info(f"Using model: {model}")
                     function_calls_string = chat_gpt.chat_anthropic(
                         content=function_output,
@@ -1095,9 +1095,9 @@ def modify(
                         use_openai=use_openai,
                     )
                     if function_calls_string in llm_state["visited_set"]:
-                        if llm_state["attempt_count"] < 5:
+                        if llm_state["attempt_count"] < 3:
                             logger.warning(f"Function call {function_calls_string} has already been visited, retrying with a different model.")
-                            llm_state["attempt_count"] = 5
+                            llm_state["attempt_count"] = 3
                             function_calls_string = chat_gpt.chat_anthropic(
                                 content=SLOW_MODEL,
                                 model=model,
