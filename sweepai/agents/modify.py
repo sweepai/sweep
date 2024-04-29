@@ -568,38 +568,38 @@ def tokenize_code(code: str):
 def code_processor(code: str):
     return " ".join(tokenize_code(code))
 
-def find_best_match(needle: str, haystack: str, threshold: int = 60, verbose=True, tokenized=False):
-    best_match = 0
-    best_score = 0
-    file_contents_lines = haystack.split("\n")
-    num_lines = len(file_contents_lines)
-    num_match_lines = len(needle.split("\n"))
-    for start_line in tqdm(range(num_lines), total=num_lines) if verbose else range(num_lines):
-        potential_choices = []
-        for end_line in range(start_line + max(1, num_match_lines - 10), start_line + num_match_lines + 10):
-            if end_line > num_lines:
-                break
-            potential_choice = "\n".join(file_contents_lines[start_line:end_line])
-            potential_choices.append(potential_choice)
+# def find_best_match(needle: str, haystack: str, threshold: int = 60, verbose=True, tokenized=False):
+#     best_match = 0
+#     best_score = 0
+#     file_contents_lines = haystack.split("\n")
+#     num_lines = len(file_contents_lines)
+#     num_match_lines = len(needle.split("\n"))
+#     for start_line in tqdm(range(num_lines), total=num_lines) if verbose else range(num_lines):
+#         potential_choices = []
+#         for end_line in range(start_line + max(1, num_match_lines - 10), start_line + num_match_lines + 10):
+#             if end_line > num_lines:
+#                 break
+#             potential_choice = "\n".join(file_contents_lines[start_line:end_line])
+#             potential_choices.append(potential_choice)
 
-        results = process.extractOne(
-            needle,
-            potential_choices,
-            scorer=fuzz.QRatio,
-            score_cutoff=threshold,
-            processor=tokenize_code if tokenized else None,
-        )
+#         results = process.extractOne(
+#             needle,
+#             potential_choices,
+#             scorer=fuzz.QRatio,
+#             score_cutoff=threshold,
+#             processor=tokenize_code if tokenized else None,
+#         )
             
-        if results is not None:
-            choice, score, _index = results
+#         if results is not None:
+#             choice, score, _index = results
 
-            if score > best_score:
-                best_score = score
-                best_match = choice
+#             if score > best_score:
+#                 best_score = score
+#                 best_match = choice
     
-    if best_score > threshold:
-        return best_match, best_score
-    return "", 0
+#     if best_score > threshold:
+#         return best_match, best_score
+#     return "", 0
 
 def find_best_matches(
     needle: str,
@@ -653,6 +653,12 @@ def find_best_matches(
         covered_spans |= set(range(start_line, end_line))
         deduped_best_matches.append((match, score))
     return deduped_best_matches[:num_matches]
+
+def find_best_match(*args, **kwargs):
+    results = find_best_matches(*args, **kwargs)
+    if len(results) > 0:
+        return results[0]
+    return "", 0
 
 def find_max_indentation(needle: str):
     max_indent = 0
