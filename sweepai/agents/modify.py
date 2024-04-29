@@ -651,8 +651,7 @@ def contains_ignoring_whitespace(needle: str, haystack: str):
         if indented_needle in haystack:
             start_char = haystack.index(indented_needle)
             start_line = haystack[:start_char].count("\n")
-            end_char = start_char + len(indented_needle) + 1
-            end_line = haystack[:end_char].count("\n")
+            end_line = start_line + indented_needle.count("\n") + 1
             return start_line, end_line
     return False
 
@@ -1457,6 +1456,7 @@ def handle_function_call(
                 # breakpoint()
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
+                # breakpoint()
             elif llm_state["completed_changes_per_fcr"][current_fcr_index] + 1 < llm_state["changes_per_fcr"][current_fcr_index]:
                 # Incomplete changes, should use a different prompt realistically
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
