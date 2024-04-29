@@ -859,8 +859,8 @@ def get_replaces_per_fcr(fcr: FileChangeRequest) -> int:
 def parse_fcr(fcr: FileChangeRequest):
     flags = ""
     justification, *_ = fcr.instructions.split("<original_code>", 1)
-    original_code_pattern = r"<original_code>\n(.*?)\n</original_code>"
-    new_code_pattern = r"<new_code>\n(.*?)\n</new_code>"
+    original_code_pattern = r"<original_code>\n(.*?)</original_code>"
+    new_code_pattern = r"<new_code>\n(.*?)</new_code>"
     original_code_matches = list(re.finditer(original_code_pattern, fcr.instructions, re.DOTALL))
     new_code_matches = list(re.finditer(new_code_pattern, fcr.instructions, re.DOTALL))
     replace_all_pattern = r"<replace_all>true</replace_all>"
