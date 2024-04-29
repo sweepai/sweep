@@ -63,6 +63,9 @@ suffix_adjustment = {
 }
 
 substring_adjustment = {
+    "tests/": 0.5,
+    "test/": 0.5,
+    "/test": 0.5,
     "_test": 0.5,
     "egg-info": 0.5,
     "LICENSE": 0.5,

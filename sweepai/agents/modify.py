@@ -547,16 +547,38 @@ def english_join(items: list[str]) -> str:
         return f"{items[0]} and {items[1]}"
     return ", ".join(items[:-1]) + f", and {items[-1]}"
 
+def rstrip_lines(text: str) -> str:
+    """Claude likes to put trailing spaces at the end of lines. This function removes them."""
+    return "\n".join([line.rstrip() for line in text.split("\n")])
+
 def indent(text: str, spaces: int) -> str:
     return "\n".join([f"{' ' * spaces}{line}" for line in text.split("\n")])
 
-def find_best_match(needle: str, haystack: str, threshold: int = 60):
+def tokenize_code(code: str):
+    # Split on all non-alphanumeric characters
+    tokens = []
+    current_token = ""
+    available_set = ("(", ")", "{", "}", "[", "]", "_")
+    for char in code:
+        if char.isalnum() or char in available_set:
+            current_token += char
+        elif current_token:
+            tokens.append(current_token)
+            current_token = ""
+    if current_token:
+        tokens.append(current_token)
+    return tokens
+
+def code_processor(code: str):
+    return " ".join(tokenize_code(code))
+
+def find_best_match(needle: str, haystack: str, threshold: int = 60, verbose=True, tokenized=False):
     best_match = 0
     best_score = 0
     file_contents_lines = haystack.split("\n")
     num_lines = len(file_contents_lines)
     num_match_lines = len(needle.split("\n"))
-    for start_line in tqdm(range(num_lines), total=num_lines):
+    for start_line in tqdm(range(num_lines), total=num_lines) if verbose else range(num_lines):
         potential_choices = []
         for end_line in range(start_line + max(1, num_match_lines - 5), start_line + num_match_lines + 5):
             if end_line > num_lines:
@@ -564,7 +586,13 @@ def find_best_match(needle: str, haystack: str, threshold: int = 60):
             potential_choice = "\n".join(file_contents_lines[start_line:end_line])
             potential_choices.append(potential_choice)
 
-        results = process.extractOne(needle, potential_choices, scorer=fuzz.QRatio, score_cutoff=threshold)
+        results = process.extractOne(
+            needle,
+            potential_choices,
+            scorer=fuzz.QRatio,
+            score_cutoff=threshold,
+            processor=code_processor if tokenized else None,
+        )
             
         if results is not None:
             choice, score, _index = results
@@ -576,6 +604,77 @@ def find_best_match(needle: str, haystack: str, threshold: int = 60):
     if best_score > threshold:
         return best_match, best_score
     return "", 0
+
+def find_best_matches(
+    needle: str,
+    haystack: str,
+    threshold: int = 50,
+    verbose=True,
+    num_matches=5,
+    tokenized=False,
+    **kwargs
+):
+    best_matches = []
+    file_contents_lines = haystack.split("\n")
+    num_lines = len(file_contents_lines)
+    num_non_whitespace_chars = sum([not char.isspace() for char in needle])
+    max_char_diff = 300
+    for start_line in tqdm(range(num_lines), total=num_lines) if verbose else range(num_lines):
+        potential_choices = []
+        end_lines = []
+        end_line = start_line
+        current_string = ""
+        num_chars = 0
+        while num_chars < num_non_whitespace_chars + max_char_diff and end_line < num_lines:
+            current_string += file_contents_lines[end_line] + "\n"
+            num_chars += sum([not char.isspace() for char in file_contents_lines[end_line]])
+            end_line += 1
+            if num_chars > num_non_whitespace_chars - max_char_diff:
+                potential_choices.append(current_string.rstrip('\n'))
+                end_lines.append(end_line)
+
+        # This can deadlock somehow
+        results = process.extract(
+            needle,
+            potential_choices,
+            scorer=fuzz.QRatio, 
+            score_cutoff=threshold, 
+            limit=num_matches,
+            processor=code_processor if tokenized else None,
+            **kwargs
+        )
+
+        for _choice, score, index in results:
+            if score >= threshold:
+                best_matches.append((score, (potential_choices[index], start_line, end_lines[index])))
+        best_matches = sorted(best_matches, key=lambda x: x[0], reverse=True)[:num_matches]
+    
+    deduped_best_matches = []
+    covered_spans = set()
+    for score, (match, start_line, end_line) in best_matches:
+        if set(range(start_line, end_line)) & covered_spans:
+            continue
+        covered_spans |= set(range(start_line, end_line))
+        deduped_best_matches.append((match, score))
+    return deduped_best_matches[:num_matches]
+
+def find_max_indentation(needle: str):
+    max_indent = 0
+    for line in needle.splitlines():
+        if len(line) == 0:
+            continue
+        max_indent = max(max_indent, len(line) - len(line.lstrip()))
+    return max_indent
+
+def contains_ignoring_whitespace(needle: str, haystack: str):
+    needle = "\n".join([line.rstrip() for line in needle.splitlines()])
+    haystack = "\n".join([line.rstrip() for line in haystack.splitlines()])
+    max_indent = find_max_indentation(needle)
+    for indent_size in range(0, max_indent + 2, 2):
+        indented_needle = indent(needle, indent_size)
+        if indented_needle in haystack:
+            return True
+    return False
 
 MODEL = "claude-3-haiku-20240307"
 SLOW_MODEL = "claude-3-opus-20240229" # try haiku
@@ -767,9 +866,7 @@ def get_replaces_per_fcr(fcr: FileChangeRequest) -> int:
         return -1
     return len(original_code_matches)
 
-# returns the old/new code change as a function call
-def compile_fcr(fcr: FileChangeRequest, index: int) -> str:
-    # justification is wrong, fix this later!
+def parse_fcr(fcr: FileChangeRequest):
     flags = ""
     justification, *_ = fcr.instructions.split("<original_code>", 1)
     original_code_pattern = r"<original_code>(.*?)</original_code>"
@@ -780,16 +877,23 @@ def compile_fcr(fcr: FileChangeRequest, index: int) -> str:
     replace_all_matches = list(re.finditer(replace_all_pattern, fcr.instructions, re.DOTALL))
     if replace_all_matches:
         flags += "\n<replace_all>true</replace_all>"
-    if original_code_matches and new_code_matches:
-        try:
-            if len(original_code_matches) != len(new_code_matches):
-                raise Exception(f"Mismatch between original_code and new_code sections: {len(original_code_matches)} to {len(new_code_matches)}")
-            original_code = original_code_matches[index].group(1).strip("\n")
-            new_code = new_code_matches[index].group(1).strip("\n")
-        except Exception as e:
-            logger.error(f"Error while running compile_fcr: {e}")
-            return ""
-        return DEFAULT_FUNCTION_CALL.format(justification=justification.strip(), file_path=fcr.filename, original_code=original_code, new_code=new_code, flags=flags)
+    return {
+        "justification": justification.strip(),
+        "file_path": fcr.filename,
+        "original_code": [original_code_match.group(1).strip("\n") for original_code_match in original_code_matches],
+        "new_code": [new_code_match.group(1).strip("\n") for new_code_match in new_code_matches],
+        "replace_all": bool(replace_all_matches),
+    }
+
+# returns the old/new code change as a function call
+def compile_fcr(fcr: FileChangeRequest, index: int) -> str:
+    # justification is wrong, fix this later!
+    parsed_fcr = parse_fcr(fcr)
+    if parsed_fcr["replace_all"]:
+        flags = "\n<replace_all>true</replace_all>"
+    else:
+        flags = ""
+    return DEFAULT_FUNCTION_CALL.format(justification=parsed_fcr["justification"], file_path=parsed_fcr["file_path"], original_code=parsed_fcr["original_code"][index], new_code=parsed_fcr["new_code"][index], flags=flags)
 
 # return the number of tasks completed
 def tasks_completed(fcrs: list[FileChangeRequest]):
@@ -1188,7 +1292,7 @@ def handle_function_call(
                 correct_indent, rstrip_original_code = manual_code_check(file_contents, original_code)
                 # if the original_code couldn't be found in the chunk we need to let the llm know
                 if original_code not in file_contents and correct_indent == -1:
-                    if new_code in file_contents and new_code.strip(): # TODO: this should go after checking if it's in a different file
+                    if new_code.strip() and contains_ignoring_whitespace(new_code, file_contents): # TODO: this should go after checking if it's in a different file
                         error_message = "Your original_code was not found in the file but your new_code was found. This is likely because this fix has already been applied. Validate that this requested feature has already been applied. If so, call the submit_task tool."
                         break
                     # TODO: add weighted ratio to the choices, penalize whitespace less

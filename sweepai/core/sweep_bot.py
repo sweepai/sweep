@@ -11,7 +11,9 @@ from loguru import logger
 from networkx import Graph
 from pydantic import BaseModel
 from tqdm import tqdm
+from rapidfuzz import fuzz
 
+from sweepai.agents.modify import contains_ignoring_whitespace, find_best_match, find_best_matches, find_max_indentation, parse_fcr, indent
 from sweepai.agents.modify_file import modify_file
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
@@ -38,6 +40,7 @@ from sweepai.core.prompts import (
     gha_files_to_change_prompt,
     test_files_to_change_system_prompt,
     test_files_to_change_prompt,
+    fix_files_to_change_prompt
 )
 from sweepai.core.planning_prompts import (
     files_to_change_system_prompt,
@@ -84,6 +87,23 @@ Edit old_code to pass the CI/CD.
 1. Analyze the business logic and tests. Identify whether the failure is in the unit tests or business logic.
 2a. If the business logic is correct fix the test to return the expected output.
 2b. If the business logic has a bug or you are unsure, skip the failing tests with an explanation."""
+
+def parse_patch_fcrs(fcr_patch_string: str):
+    pattern = re.compile(r"""<(?P<change_type>[a-z_]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- @\{\}]*?)\"\s+index=\"(?P<index>\d+)\">(?P<instructions>.*?)\s*<\/\1>""", re.DOTALL)
+    drop_pattern = re.compile("<drop>(.+?)</drop>", re.DOTALL)
+    matches = []
+    for match in pattern.finditer(fcr_patch_string):
+        matches.append((
+            int(match.group("index")),
+            FileChangeRequest(
+                change_type=match.group("change_type"),
+                filename=match.group("filename"),
+                instructions=match.group("instructions"),
+            )
+        ))
+    drops = [int(drop.group(1).strip()) for drop in drop_pattern.finditer(fcr_patch_string)]
+    matches.sort(key=lambda x: x[0])
+    return drops, [match for match in matches]
 
 def safe_decode(
     repo: Repository,
@@ -155,6 +175,78 @@ def validate_file_change_requests(
                 fcr.change_type = "modify" # need better handling
             except FileNotFoundError:
                 pass
+
+def get_error_message(
+    file_change_requests: list[FileChangeRequest],
+    cloned_repo: ClonedRepo,
+):
+    """
+    TODO: 
+    """
+    error_message = ""
+    error_indices = []
+    for i, file_change_request in enumerate(file_change_requests):
+        if file_change_request.change_type == "modify":
+            try:
+                file_contents = cloned_repo.get_file_contents(file_change_request.filename)
+                parsed_fcr = parse_fcr(file_change_request)
+                if not parsed_fcr["original_code"]:
+                    # breakpoint()
+                    error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to provide both an <original_code> block. If you would like to drop this task use the <drop> marker.\n</error>\n\n"
+                    error_indices.append(i)
+                    continue
+                if not parsed_fcr["new_code"]:
+                    error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to a <new_code> block. If you would like to drop this task use the <drop> marker.\n</error>\n\n"
+                    error_indices.append(i)
+                    continue
+                original_code = parsed_fcr["original_code"][0].strip("\n")
+                if not original_code:
+                    error_message += f"<error index=\"{len(error_indices)}\">\nThe <original_code> can not be empty. If you would like to append code, copy the code you want to append the new code after into the <original_code>, then copy the same code into <new_code>, then finally append the new code after <new_code>.\n</error>\n\n"
+                    error_indices.append(i)
+                else:
+                    if not contains_ignoring_whitespace(original_code, file_contents):
+                        threshold = 50
+                        best_match, current_best_score = find_best_match(original_code, file_contents, threshold=threshold, tokenized=True)
+                        max_indentation = find_max_indentation(file_contents)
+
+                        best_score = 0
+                        best_indent = 0
+                        for indent_count in range(0, max_indentation, 2):
+                            match_score = fuzz.ratio(indent(original_code, indent_count), best_match)
+                            if match_score > best_score:
+                                best_score = match_score
+                                best_indent = indent_count
+                        if best_score == 100:
+                            continue
+                        if best_score > threshold:
+                            if best_score > 80:
+                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match)}\n```\n</error>\n\n"
+                            elif best_score > 50:
+                                best_matches = find_best_matches(original_code, file_contents, threshold=60, tokenized=True)
+                                if len(best_matches) > 1:
+                                    best_matches_string = "\n\n".join([f"Code match {i}:\n```\n{match_}\n```" for i, (match_, score) in enumerate(best_matches)])
+                                    error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify one of the following pieces of code instead?\n{best_matches_string}\n</error>\n\n"
+                                else:
+                                    # Same as case > 80
+                                    error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match)}\n```\n</error>\n\n"
+                            else:
+                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\n</error>\n\n"
+                        else:
+                            error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{original_code}\n```\nPlease ensure the code you want to modify is present in `{file_change_request.filename}`. Could this code be in another file?\n</error>\n\n"
+                        error_indices.append(i)
+            except FileNotFoundError as e:
+                logger.warning(f"Failed to get file contents for {file_change_request.filename} due to {e}")
+                for file_path in cloned_repo.get_file_list():
+                    if file_path.endswith(file_change_request.filename):
+                        logger.info(f"Found similar file {file_change_request.filename} at {file_path}")
+                        cloned_repo.get_file_contents(file_path)
+                        file_change_request.filename = file_path
+                else:
+                    error_message += f"<error index=\"#{len(error_indices)}\">\nThe file `{file_change_request.filename}` does not exist. Double-check your spelling.\n</error>\n\n"
+                    error_indices.append(i)
+    # if error_message:
+    #     breakpoint()
+    return error_message, error_indices
         
 def sort_and_fuse_snippets(
     snippets: list[Snippet],
@@ -402,6 +494,32 @@ def get_files_to_change(
             file_change_request = FileChangeRequest.from_string(re_match.group(0))
             file_change_request.raw_relevant_files = " ".join(relevant_modules)
             file_change_requests.append(file_change_request)
+        
+        error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
+
+        if error_message:
+            fix_attempt = chat_gpt.chat_anthropic(
+                content=fix_files_to_change_prompt.format(error_message=error_message),
+                model=MODEL,
+                # model="claude-3-opus-20240229",
+                temperature=0.1,
+            )
+            drops, matches = parse_patch_fcrs(fix_attempt)
+            for index, new_fcr in matches:
+                if index >= len(error_indices):
+                    logger.warning(f"Index {index} not in error indices")
+                    continue
+                file_change_requests[error_indices[index]] = new_fcr
+            for drop in sorted(drops, reverse=True):
+                if drop >= len(error_indices):
+                    logger.warning(f"Index {drop} not in error indices")
+                    continue
+                file_change_requests.pop(error_indices[drop])
+            new_error_message, new_error_indices = get_error_message(file_change_requests, cloned_repo)
+            logger.debug("Old indices", error_indices)
+            logger.debug("New indices", new_error_indices)
+
+        validate_file_change_requests(file_change_requests, cloned_repo)
         return file_change_requests, files_to_change_response
     except RegexMatchError as e:
         print("RegexMatchError", e)
@@ -584,6 +702,7 @@ def get_files_to_change_for_test(
     read_only_snippets: list[Snippet],
     problem_statement: str,
     updated_files: dict[str, dict[str, str]],
+    cloned_repo: ClonedRepo,
     import_graph: Graph | None = None,
     chat_logger: ChatLogger = None,
 ) -> tuple[list[FileChangeRequest], str]:
@@ -785,6 +904,7 @@ def get_files_to_change_for_gha(
     read_only_snippets: list[Snippet],
     problem_statement: str,
     updated_files: dict[str, dict[str, str]],
+    cloned_repo: ClonedRepo,
     pr_diffs: str = "",
     chat_logger: ChatLogger = None,
     use_faster_model: bool = False,
@@ -803,7 +923,17 @@ def get_files_to_change_for_gha(
         if read_only_snippet.file_path in updated_files:
             read_only_snippet.content = updated_files[read_only_snippet.file_path]["contents"]
 
-    # relevant_snippets = relevant_snippets[::-1]
+    new_relevant_snippets = []
+    new_read_only_snippets = []
+    for snippet in relevant_snippets + read_only_snippets:
+        if snippet in new_relevant_snippets or snippet in new_read_only_snippets:
+            continue
+        if "test" not in snippet.file_path:
+            new_read_only_snippets.append(snippet)
+        else:
+            new_relevant_snippets.append(snippet)
+    relevant_snippets = new_relevant_snippets
+    read_only_snippets = new_read_only_snippets
 
     interleaved_snippets = []
     for i in range(max(len(relevant_snippets), len(read_only_snippets))):
@@ -816,23 +946,7 @@ def get_files_to_change_for_gha(
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
     read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
 
-    relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
     read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
-    joined_relevant_snippets = "\n".join(
-        relevant_snippet_template.format(
-            i=i,
-            file_path=snippet.file_path,
-            content=snippet.expand(300).get_snippet(add_lines=False),
-        ) for i, snippet in enumerate(relevant_snippets)
-    )
-    relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
-    messages.append(
-        Message(
-            role="user",
-            content=relevant_snippets_message,
-            key="relevant_snippets",
-        )
-    )
     joined_relevant_read_only_snippets = "\n".join(
         read_only_snippet_template.format(
             i=i,
@@ -849,6 +963,23 @@ def get_files_to_change_for_gha(
                 key="relevant_snippets",
             )
         )
+
+    relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
+    joined_relevant_snippets = "\n".join(
+        relevant_snippet_template.format(
+            i=i,
+            file_path=snippet.file_path,
+            content=snippet.expand(300).get_snippet(add_lines=False),
+        ) for i, snippet in enumerate(relevant_snippets)
+    )
+    relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
+    messages.append(
+        Message(
+            role="user",
+            content=relevant_snippets_message,
+            key="relevant_snippets",
+        )
+    )
     # previous_diffs = get_previous_diffs(
     #     problem_statement,
     #     cloned_repo=cloned_repo,
@@ -894,10 +1025,11 @@ def get_files_to_change_for_gha(
                 ),
             ],
         )
-        MODEL = "claude-3-opus-20240229"
+        MODEL = "claude-3-opus-20240229" if not use_faster_model else "claude-3-sonnet-20240229"
+        # MODEL = "claude-3-opus-20240229" if not use_faster_model else "claude-3-haiku-20240307"
         files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + gha_files_to_change_prompt,
-            model=MODEL if not use_faster_model else "claude-3-sonnet-20240229",
+            model=MODEL,
             temperature=0.1
         )
         max_tokens = 4096 * 3.5 * 0.8 # approx max tokens per response
@@ -908,11 +1040,12 @@ def get_files_to_change_for_gha(
             try:
                 second_response = chat_gpt.chat_anthropic(
                     content="",
-                    model=MODEL if not use_faster_model else "claude-3-sonnet-20240229",
+                    model=MODEL,
                     temperature=0.1
                 )
                 # we can simply concatenate the responses
                 files_to_change_response += second_response
+                chat_gpt.messages[-1].content += second_response
             except Exception as e:
                 logger.warning(f"Failed to get second response due to {e}")
         if chat_logger:
@@ -936,6 +1069,33 @@ def get_files_to_change_for_gha(
             file_change_request = FileChangeRequest.from_string(re_match.group(0))
             file_change_request.raw_relevant_files = " ".join(relevant_modules)
             file_change_requests.append(file_change_request)
+
+        # Auto-fix plan, should do this multiple times but once works for now.
+        error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
+
+        if error_message:
+            fix_attempt = chat_gpt.chat_anthropic(
+                content=fix_files_to_change_prompt.format(error_message=error_message),
+                model=MODEL,
+                # model="claude-3-opus-20240229",
+                temperature=0.1,
+            )
+            drops, matches = parse_patch_fcrs(fix_attempt)
+            for index, new_fcr in matches:
+                if index >= len(error_indices):
+                    logger.warning(f"Index {index} not in error indices")
+                    continue
+                file_change_requests[error_indices[index]] = new_fcr
+            for drop in sorted(drops, reverse=True):
+                if drop >= len(error_indices):
+                    logger.warning(f"Index {drop} not in error indices")
+                    continue
+                file_change_requests.pop(error_indices[drop])
+            new_error_message, new_error_indices = get_error_message(file_change_requests, cloned_repo)
+            logger.debug("Old indices", error_indices)
+            logger.debug("New indices", new_error_indices)
+
+        validate_file_change_requests(file_change_requests, cloned_repo)
         return file_change_requests, files_to_change_response
     except RegexMatchError as e:
         print("RegexMatchError", e)
