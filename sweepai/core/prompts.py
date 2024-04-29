@@ -293,11 +293,7 @@ Analyze what went wrong, including the file path and the specific code block tha
 
 Then, let's resolve the errors in your proposed plan:
 
-If you determine that this task is not needed, you may drop the task like so:
-
-<drop>Index of the task to drop</drop>
-
-Otherwise, you must patch the task to resolve the error like so:
+If you would like patch the corresponding task of the plan, create a modify block with an index. The index should be equivalent to the error number of this error_resolution block.
 
 <modify file="file_path_1" index="1">
 Rewritten instructions to resolve the error. Update the original_code and new_code blocks as required, ensuring that the <original_code> block contains the actual code from the file.
@@ -313,7 +309,9 @@ Updated new code, based on the corrections in <original_code>. Ensure all newly 
 </new_code>
 </modify>
 
-The index should be equivalent to the error number.
+Otherwise, if you absolutely cannot resolve the error, drop the task like so:
+
+<drop>Index of the task to drop</drop>
 </error_resolution>
 
 [additional <error_resolution> blocks as needed, for the same file or different files]
