@@ -1415,8 +1415,8 @@ def handle_function_call(
                     )
                     if failing_parse:
                         error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n```\n{failing_parse}\n```\n\n" + fix_syntax_prompt
-                        print(error_message)
-                        breakpoint()
+                        # print(error_message)
+                        # breakpoint()
                         break
                     elif check_results_message:
                         warning_message = check_results_message
