@@ -677,7 +677,7 @@ def contains_ignoring_whitespace(needle: str, haystack: str):
     return False
 
 MODEL = "claude-3-haiku-20240307"
-SLOW_MODEL = "claude-3-opus-20240229" # try haiku
+SLOW_MODEL = "claude-3-opus-20240229"
 
 def validate_and_parse_function_call_openai(
     function_calls_string: str, chat_gpt: ChatGPT

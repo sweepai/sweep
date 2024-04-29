@@ -26,6 +26,7 @@ from tqdm import tqdm
 from yamllint import linter
 
 from sweepai.agents.pr_description_bot import PRDescriptionBot
+from sweepai.agents.image_description_bot import ImageDescriptionBot
 from sweepai.config.client import (
     DEFAULT_RULES,
     RESET_FILE,
@@ -480,7 +481,6 @@ def on_ticket(
             "### Details\n\n_No response_", "", summary, flags=re.DOTALL
         )
         summary = re.sub("\n\n", "\n", summary, flags=re.DOTALL)
-
         repo_name = repo_full_name
         user_token, g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
@@ -807,12 +807,6 @@ def on_ticket(
                     "error_message": "We deprecated supporting GPT 3.5.",
                 }
 
-            if sandbox_mode:
-                handle_sandbox_mode(
-                    title, repo_full_name, repo, ticket_progress, edit_sweep_comment
-                )
-                return {"success": True}
-
             if len(title + summary) < 20:
                 logger.info("Issue too short")
                 edit_sweep_comment(
@@ -849,6 +843,8 @@ def on_ticket(
             try:
                 # search/context manager
                 logger.info("Searching for relevant snippets...")
+                if image_contents: # doing it here to avoid editing the original issue
+                    message_summary += ImageDescriptionBot().describe_images(text=title + message_summary, images=image_contents)
                 snippets, tree, _, repo_context_manager = fetch_relevant_files(
                     cloned_repo,
                     title,
@@ -891,10 +887,6 @@ def on_ticket(
                 repo_description = "No description provided."
 
             message_summary += replies_text
-            # removed external search as it provides no real value and only adds noise
-            # external_results = ExternalSearcher.extract_summaries(message_summary)
-            # if external_results:
-            #     message_summary += "\n\n" + external_results
 
             get_documentation_dict(repo)
             docs_results = ""
@@ -993,7 +985,7 @@ def on_ticket(
                 file_change_requests, plan = get_files_to_change(
                     relevant_snippets=repo_context_manager.current_top_snippets,
                     read_only_snippets=repo_context_manager.read_only_snippets,
-                    problem_statement=f"{title}\n\n{summary}",
+                    problem_statement=f"{title}\n\n{message_summary}",
                     repo_name=repo_full_name,
                     cloned_repo=cloned_repo,
                     images=image_contents
@@ -1522,10 +1514,10 @@ def on_ticket(
                                 branch=pr.head.ref,
                             )
                             diffs = get_branch_diff_text(repo=repo, branch=pr.head.ref, base_branch=pr.base.ref)
-                            problem_statement = f"{title}\n{summary}\n{replies_text}"
+                            problem_statement = f"{title}\n{message_summary}\n{replies_text}"
                             all_information_prompt = f"While trying to address the user request:\n<user_request>\n{problem_statement}\n</user_request>\n{failed_gha_logs}\nThese are the changes that were previously made:\n<diffs>\n{diffs}\n</diffs>\n\nFix the failing logs."
                             
-                            repo_context_manager = prep_snippets(cloned_repo=cloned_repo, query=(title + summary + replies_text).strip("\n"), ticket_progress=ticket_progress) # need to do this, can use the old query for speed
+                            repo_context_manager = prep_snippets(cloned_repo=cloned_repo, query=(title + message_summary + replies_text).strip("\n"), ticket_progress=ticket_progress) # need to do this, can use the old query for speed
                             sweep_bot: SweepBot = construct_sweep_bot(
                                 repo=repo,
                                 repo_name=repo_name,
