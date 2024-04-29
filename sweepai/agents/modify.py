@@ -4,6 +4,7 @@ import os
 import re
 
 from rapidfuzz import fuzz, process
+import stringzilla as sz
 
 from loguru import logger
 import rapidfuzz
@@ -554,23 +555,13 @@ def rstrip_lines(text: str) -> str:
 def indent(text: str, spaces: int) -> str:
     return "\n".join([f"{' ' * spaces}{line}" for line in text.split("\n")])
 
+pattern = sz.regex(r"[^\w(){}\[\]_]+")
+
 def tokenize_code(code: str):
-    # Split on all non-alphanumeric characters
-    tokens = []
-    current_token = ""
-    available_set = ("(", ")", "{", "}", "[", "]", "_")
-    for char in code:
-        if char.isalnum() or char in available_set:
-            current_token += char
-        elif current_token:
-            tokens.append(current_token)
-            current_token = ""
-    if current_token:
-        tokens.append(current_token)
-    return tokens
+    return pattern.split(code)
 
 def code_processor(code: str):
-    return " ".join(tokenize_code(code))
+    return " ".join(pattern.split(code))
 
 def find_best_match(needle: str, haystack: str, threshold: int = 60, verbose=True, tokenized=False):
     best_match = 0
@@ -869,11 +860,11 @@ def get_replaces_per_fcr(fcr: FileChangeRequest) -> int:
 def parse_fcr(fcr: FileChangeRequest):
     flags = ""
     justification, *_ = fcr.instructions.split("<original_code>", 1)
-    original_code_pattern = r"<original_code>(.*?)</original_code>"
-    new_code_pattern = r"<new_code>(.*?)</new_code>"
+    original_code_pattern = r"<original_code>\n(.*?)\n</original_code>"
+    new_code_pattern = r"<new_code>\n(.*?)\n</new_code>"
     original_code_matches = list(re.finditer(original_code_pattern, fcr.instructions, re.DOTALL))
     new_code_matches = list(re.finditer(new_code_pattern, fcr.instructions, re.DOTALL))
-    replace_all_pattern = r"<replace_all>(.*?)</replace_all>"
+    replace_all_pattern = r"<replace_all>true</replace_all>"
     replace_all_matches = list(re.finditer(replace_all_pattern, fcr.instructions, re.DOTALL))
     if replace_all_matches:
         flags += "\n<replace_all>true</replace_all>"
