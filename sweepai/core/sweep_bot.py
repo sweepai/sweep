@@ -180,9 +180,6 @@ def get_error_message(
     file_change_requests: list[FileChangeRequest],
     cloned_repo: ClonedRepo,
 ):
-    """
-    TODO: 
-    """
     error_message = ""
     error_indices = []
     for i, file_change_request in enumerate(file_change_requests):
@@ -192,11 +189,11 @@ def get_error_message(
                 parsed_fcr = parse_fcr(file_change_request)
                 if not parsed_fcr["original_code"]:
                     # breakpoint()
-                    error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to provide both an <original_code> block. If you would like to drop this task use the <drop> marker.\n</error>\n\n"
+                    error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to provide both an <original_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task use the <drop> marker.\n</error>\n\n"
                     error_indices.append(i)
                     continue
                 if not parsed_fcr["new_code"]:
-                    error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to a <new_code> block. If you would like to drop this task use the <drop> marker.\n</error>\n\n"
+                    error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to a <new_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task use the <drop> marker.\n</error>\n\n"
                     error_indices.append(i)
                     continue
                 original_code = parsed_fcr["original_code"][0].strip("\n")
@@ -220,15 +217,16 @@ def get_error_message(
                             continue
                         if best_score > threshold:
                             if best_score > 80:
-                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match)}\n```\n</error>\n\n"
+                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```\n</error>\n\n"
                             elif best_score > 50:
-                                best_matches = find_best_matches(original_code, file_contents, threshold=60, tokenized=True)
+                                best_matches = find_best_matches(original_code, file_contents, threshold=threshold, tokenized=True)
+                                ellipses_message = "You must copy code out in full and may not use ellipses, abbreviations, or any short-hand notation in your code." if "... " in original_code else ""
                                 if len(best_matches) > 1:
                                     best_matches_string = "\n\n".join([f"Code match {i}:\n```\n{match_}\n```" for i, (match_, score) in enumerate(best_matches)])
-                                    error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify one of the following pieces of code instead?\n{best_matches_string}\n</error>\n\n"
+                                    error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify one of the following pieces of code instead?\n{best_matches_string}\n</error>{ellipses_message}\n\n"
                                 else:
                                     # Same as case > 80
-                                    error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match)}\n```\n</error>\n\n"
+                                    error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```\n</error>{ellipses_message}\n\n"
                             else:
                                 error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\n</error>\n\n"
                         else:
@@ -498,7 +496,9 @@ def get_files_to_change(
         
         error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
 
-        if error_message:
+        for _ in range(3):
+            if not error_message:
+                break
             fix_attempt = chat_gpt.chat_anthropic(
                 content=fix_files_to_change_prompt.format(error_message=error_message),
                 model=MODEL,
@@ -517,9 +517,9 @@ def get_files_to_change(
                     logger.warning(f"Index {drop} not in error indices")
                     continue
                 file_change_requests.pop(error_indices[drop])
-            new_error_message, new_error_indices = get_error_message(file_change_requests, cloned_repo)
             logger.debug("Old indices", error_indices)
-            logger.debug("New indices", new_error_indices)
+            error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
+            logger.debug("New indices", error_indices)
 
         validate_file_change_requests(file_change_requests, cloned_repo)
         return file_change_requests, files_to_change_response
@@ -1028,7 +1028,6 @@ def get_files_to_change_for_gha(
             ],
         )
         MODEL = "claude-3-opus-20240229" if not use_faster_model else "claude-3-sonnet-20240229"
-        # MODEL = "claude-3-opus-20240229" if not use_faster_model else "claude-3-haiku-20240307"
         files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + gha_files_to_change_prompt,
             model=MODEL,
@@ -1072,10 +1071,11 @@ def get_files_to_change_for_gha(
             file_change_request.raw_relevant_files = " ".join(relevant_modules)
             file_change_requests.append(file_change_request)
 
-        # Auto-fix plan, should do this multiple times but once works for now.
         error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
 
-        if error_message:
+        for _ in range(3):
+            if not error_message:
+                break
             fix_attempt = chat_gpt.chat_anthropic(
                 content=fix_files_to_change_prompt.format(error_message=error_message),
                 model=MODEL,
@@ -1093,9 +1093,10 @@ def get_files_to_change_for_gha(
                     logger.warning(f"Index {drop} not in error indices")
                     continue
                 file_change_requests.pop(error_indices[drop])
-            new_error_message, new_error_indices = get_error_message(file_change_requests, cloned_repo)
             logger.debug("Old indices", error_indices)
-            logger.debug("New indices", new_error_indices)
+            error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
+            logger.debug("New indices", error_indices)
+            breakpoint()
 
         validate_file_change_requests(file_change_requests, cloned_repo)
         return file_change_requests, files_to_change_response

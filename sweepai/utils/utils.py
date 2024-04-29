@@ -222,7 +222,7 @@ def get_new_lint_errors_for_pylint(new_errors: str, old_errors: str) -> str:
     results = []
     for line in additional_errors:
         _file_delimiter, error_type, *_ = line.split(" ")
-        if not error_type.startswith("E") and old_error_types.count(error_type) < 2: # if there are more than 1 of the same error, we consider it new
+        if error_type.startswith("E") or old_error_types.count(error_type) < 2: # if there are more than 1 of the same error, we consider it new
             results.append(line)
     return "\n".join(results)
 
@@ -414,6 +414,7 @@ DEFAULT_ESLINTRC = """{
 
 @file_cache()
 def get_pylint_check_results(file_path: str, code: str) -> CheckResults:
+    logger.debug(f"Running pylint on {file_path}...")
     file_hash = uuid.uuid4().hex
     new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
     stem = os.path.splitext(os.path.basename(file_path))[0]
@@ -429,7 +430,6 @@ def get_pylint_check_results(file_path: str, code: str) -> CheckResults:
             "--disable=R",
             "--disable=import-error",
             "--disable=no-member",
-            "--disable=unused-import" # we have a workaround for this tbh
         ],
         reporter=reporter,
         exit=False,
@@ -444,18 +444,19 @@ def get_pylint_check_results(file_path: str, code: str) -> CheckResults:
         error_message = error_message.replace(new_file, file_path).replace(f"{file_hash}_" + stem, stem)
         error_message = error_message.split("-----------------------------------", 1)[0].strip()
         error_message = f"> pylint {file_path}\n\n" + error_message
+    logger.debug("Done running pylint.")
     return CheckResults(pylint=error_message if not succeeded else "")
 
-@file_cache()
 def get_check_results(file_path: str, code: str) -> CheckResults:
     is_valid, error_message = check_syntax(file_path, code)
     if not is_valid:
         return CheckResults(parse_error_message=error_message)
-    ext = file_path.split(".")[-1] # noqa
+    ext = file_path.rsplit(".")[-1] # noqa
     if ext == "py":
         try:
             return get_pylint_check_results(file_path, code)
         except Exception as e:
+            breakpoint()
             logger.exception(e)
     elif ext in ["js", "jsx", "ts", "tsx"]:
         # see if eslint is installed

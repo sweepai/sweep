@@ -283,19 +283,20 @@ You must resolve these errors before proceeding. Respond in the following format
 For each error, identify what went wrong and what the fix is. Analyze the contents of the provided file path to find the correct code block that needs to be modified. Update the <original_code> block with the actual code from the file, and then provide the necessary changes in the <new_code> block. Follow the format:
 
 <error_resolution>
-Error #1: Description of the error
+Error #0: Description of the error
 
 You will first think step-by-step about the error, and then either rewrite the instructions with the corrected fix, or drop the task.
 
 <thinking>
-Analyze what went wrong, including the file path and the specific code block that needs to be modified. The fix for error #1.
+Analyze extremely carefully in great detail what went wrong, including the file path and the specific code block that needs to be modified. If you have failed to copy code verbatim, indicate precisely what is different between the code you provided and the code in the actual file.
+</thinking>
 
-Strategies:
-- For "<original_code> does not exist in the file" errors:
-  - Look closely and carefully at the actual contents of the file. Are there any missing indentation, whitespace or comments?
-  - Look closely at similar files, could you have selected the wrong file?
-- For empty <original_code> blocks:
-  - First, look closely at the file to determine where to make the change. Then, copy that code into the <original_code>. Then, copy the code into <new_code> with the code you would like to add before or after the code in the <new_code> block to prepend or append code.
+Then, let's resolve the errors in your proposed plan:
+
+If you would like patch the corresponding task of the plan, create a modify block with an index. The index should be equivalent to the error number of this error_resolution block.
+
+<modify file="file_path" index="0">
+Rewritten instructions to resolve the error. Update the original_code and new_code blocks as required, ensuring that the <original_code> block contains the actual code from the file.
 
 Update <original_code> with the necessary changes:
 <original_code>
@@ -306,19 +307,11 @@ Update <new_code> block with the necessary changes:
 <new_code>
 Updated new code, based on the corrections in <original_code>. Ensure all newly introduced indents and comments are propagated here.
 </new_code>
-</thinking>
+</modify>
 
-Let's resolve the errors in your proposed plan:
-
-If you determine that this task is not needed, you may drop the task like so:
+Otherwise, if you absolutely cannot resolve the error, drop the task like so:
 
 <drop>Index of the task to drop</drop>
-
-Otherwise, you must patch the task to resolve the error like so:
-
-<modify file="file_path_1" index="index of error to fix">
-Rewritten instructions to resolve the error. Update the original_code and new_code blocks as required, ensuring that the <original_code> block contains the actual code from the file.
-</modify>
 </error_resolution>
 
 [additional <error_resolution> blocks as needed, for the same file or different files]
@@ -443,6 +436,7 @@ Take these steps:
         Step 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file, with correct indentation and whitespace.
             - Do NOT paraphrase or abbreviate the source code.
             - Placeholder comments like "# existing code" are not permitted.
+            - Start with a function header.
         Step 2. Write the new code in <new_code> tags, specifying necessary imports and including relevant type definitions, interfaces, and schemas.
             - BE EXACT as this code will replace the mentioned <original_code>.
         Step 3. Determine if this is a change that occurs EXACTLY in other parts of the same file. If so, add a <replace_all>true</replace_all> flag.
@@ -497,12 +491,12 @@ Error message 1: Copy the full error message here VERBOSE, abbreviations, paraph
 
 Then, based on the analysis, propose a fix by following the format below. If the error has already been fixed, you can skip this step.
 
-<modify file="file_path_2"> 
+<modify file="file_path"> 
 Instructions for modifying one section of the file. Each block must have exactly one original_code and one new_code block. Do not make a change that has already been made by the intern.
 
 a. Describe the section of code that needs to be modified, i.e. the test case that checks if `foo` == `bar`.
 <original_code>
-Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. Start with a function header.
 </original_code>
 
 b. Describe the changes that need to be made to the code, i.e. the test case should instead check if `foo` != `baz`.

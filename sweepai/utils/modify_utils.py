@@ -85,14 +85,14 @@ def manual_code_check(file_contents: str, code_snippet: str) -> tuple[int, bool]
                 
     # assume one indent is two spaces and check max 10 indents
     for indent in range(0, 40, 2):
-        new_code_lines = [f"{' ' * indent}{line}" for line in code_lines]
+        new_code_lines = [f"{' ' * indent}{line}" if line.strip() else "" for line in code_lines]
         new_code = "\n".join(new_code_lines)
         if new_code in file_contents:
             return indent, False
     # sometimes llm returns code with trailing whitespace, if we have reached here check again but strip all trailing whitespace
     code_lines = [line.rstrip() for line in code_snippet.split("\n")]
     for indent in range(0, 40, 2):
-        new_code_lines = [f"{' ' * indent}{line}" for line in code_lines]
+        new_code_lines = [f"{' ' * indent}{line}" if line.strip() else "" for line in code_lines]
         new_code = "\n".join(new_code_lines)
         if new_code in file_contents:
             return indent, True

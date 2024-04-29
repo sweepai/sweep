@@ -2,8 +2,10 @@ import copy
 from math import inf
 import os
 import re
+import sys
 
 from rapidfuzz import fuzz, process
+import stringzilla as sz
 
 from loguru import logger
 import rapidfuzz
@@ -444,7 +446,7 @@ d. Indicate the minimum amount of changes required to resolve the linter warning
 
 Then, call the make_change function to fix the linter warnings. If the warning cannot be resolved, call submit_task with an explanation of the issue."""
 
-fix_syntax_prompt = """You must resolve the issue by following these steps:
+fix_syntax_prompt = """You MUST resolve the issue by following these steps:
 
 # 1. Thinking
 <thinking>
@@ -455,7 +457,7 @@ d. Explain how we can correct the original_code or new_code in the make_change f
 </thinking>
 
 # 2. Function call
-Reinvoke the make_change function call with different changes that yields valid code."""
+Then, reinvoke the make_change function call with different changes that yields valid code."""
 
 ORIGINAL_CODE_NOT_FOUND_PROMPT = """The original_code provided does not appear to be present in file {file_path}. Your provided original_code erroneously contains:
 ```
@@ -487,14 +489,21 @@ The most similar section of the ACTUAL contents of {file_path}
 # Function call
 Then, follow up with a make_change function call with the corrected parameters. If you are unable to find the correct section of code, call the submit_task function with an explanation of the issue."""
 
-MULTIPLE_OCCURRENCES_PROMPT = """Resolve this error by following these steps:
+MULTIPLE_OCCURRENCES_PROMPT = """You MUST resolve this error by following these steps:
 
 # 1. Thinking
 <thinking>
 a. Identify whether you want to replace all occurrences of the original code or only a specific one. If you want to replace all occurrences, you can use the replace_all flag by adding <replace_all>true</replace_all> to the function arguments.
 b. If you want to replace only a specific occurrence, which occurrence you want to replace and the corresponding surrounding context, following this format:
+
+Corrected original code:
 ```
 The original_code block you want to replace with surrounding context.
+```
+
+Corrected new code:
+```
+The new_code block you want to replace with the same surrounding context.
 ```
 </thinking>
 
@@ -552,58 +561,19 @@ def rstrip_lines(text: str) -> str:
     return "\n".join([line.rstrip() for line in text.split("\n")])
 
 def indent(text: str, spaces: int) -> str:
-    return "\n".join([f"{' ' * spaces}{line}" for line in text.split("\n")])
+    return "\n".join([f"{' ' * spaces}{line}" if line.strip() else "" for line in text.split("\n")])
 
 def tokenize_code(code: str):
-    # Split on all non-alphanumeric characters
-    tokens = []
-    current_token = ""
-    available_set = ("(", ")", "{", "}", "[", "]", "_")
-    for char in code:
-        if char.isalnum() or char in available_set:
-            current_token += char
-        elif current_token:
-            tokens.append(current_token)
-            current_token = ""
-    if current_token:
-        tokens.append(current_token)
-    return tokens
+    cleaned_code = ""
+    for line in code.split("\n"):
+        stripped_line = line.strip()
+        if stripped_line.startswith("#") or stripped_line.startswith("//") or len(stripped_line) == 0:
+            continue
+        cleaned_code += line + "\n"
+    return [str(token) for token in sz.Str(cleaned_code).split_charset(separator=' \n\t\r()\{\}\[\]', maxsplit=sys.maxsize, keepseparator=True) if str(token).strip()]
 
 def code_processor(code: str):
     return " ".join(tokenize_code(code))
-
-def find_best_match(needle: str, haystack: str, threshold: int = 60, verbose=True, tokenized=False):
-    best_match = 0
-    best_score = 0
-    file_contents_lines = haystack.split("\n")
-    num_lines = len(file_contents_lines)
-    num_match_lines = len(needle.split("\n"))
-    for start_line in tqdm(range(num_lines), total=num_lines) if verbose else range(num_lines):
-        potential_choices = []
-        for end_line in range(start_line + max(1, num_match_lines - 5), start_line + num_match_lines + 5):
-            if end_line > num_lines:
-                break
-            potential_choice = "\n".join(file_contents_lines[start_line:end_line])
-            potential_choices.append(potential_choice)
-
-        results = process.extractOne(
-            needle,
-            potential_choices,
-            scorer=fuzz.QRatio,
-            score_cutoff=threshold,
-            processor=code_processor if tokenized else None,
-        )
-            
-        if results is not None:
-            choice, score, _index = results
-
-            if score > best_score:
-                best_score = score
-                best_match = choice
-    
-    if best_score > threshold:
-        return best_match, best_score
-    return "", 0
 
 def find_best_matches(
     needle: str,
@@ -640,7 +610,7 @@ def find_best_matches(
             scorer=fuzz.QRatio, 
             score_cutoff=threshold, 
             limit=num_matches,
-            processor=code_processor if tokenized else None,
+            processor=tokenize_code if tokenized else None,
             **kwargs
         )
 
@@ -658,6 +628,12 @@ def find_best_matches(
         deduped_best_matches.append((match, score))
     return deduped_best_matches[:num_matches]
 
+def find_best_match(*args, **kwargs):
+    results = find_best_matches(*args, **kwargs)
+    if len(results) > 0:
+        return results[0]
+    return "", 0
+
 def find_max_indentation(needle: str):
     max_indent = 0
     for line in needle.splitlines():
@@ -673,7 +649,10 @@ def contains_ignoring_whitespace(needle: str, haystack: str):
     for indent_size in range(0, max_indent + 2, 2):
         indented_needle = indent(needle, indent_size)
         if indented_needle in haystack:
-            return True
+            start_char = haystack.index(indented_needle)
+            start_line = haystack[:start_char].count("\n")
+            end_line = start_line + indented_needle.count("\n") + 1
+            return start_line, end_line
     return False
 
 MODEL = "claude-3-haiku-20240307"
@@ -869,11 +848,11 @@ def get_replaces_per_fcr(fcr: FileChangeRequest) -> int:
 def parse_fcr(fcr: FileChangeRequest):
     flags = ""
     justification, *_ = fcr.instructions.split("<original_code>", 1)
-    original_code_pattern = r"<original_code>(.*?)</original_code>"
-    new_code_pattern = r"<new_code>(.*?)</new_code>"
+    original_code_pattern = r"<original_code>\s*\n(.*?)</original_code>"
+    new_code_pattern = r"<new_code>\s*\n(.*?)</new_code>"
     original_code_matches = list(re.finditer(original_code_pattern, fcr.instructions, re.DOTALL))
     new_code_matches = list(re.finditer(new_code_pattern, fcr.instructions, re.DOTALL))
-    replace_all_pattern = r"<replace_all>(.*?)</replace_all>"
+    replace_all_pattern = r"<replace_all>true</replace_all>"
     replace_all_matches = list(re.finditer(replace_all_pattern, fcr.instructions, re.DOTALL))
     if replace_all_matches:
         flags += "\n<replace_all>true</replace_all>"
@@ -1107,7 +1086,7 @@ def modify(
                         ))
                 # if previous things go wrong we make llm call
                 if not function_calls_string:
-                    model = MODEL if llm_state["attempt_count"] < 5 else SLOW_MODEL
+                    model = MODEL if llm_state["attempt_count"] < 3 else SLOW_MODEL
                     logger.info(f"Using model: {model}")
                     function_calls_string = chat_gpt.chat_anthropic(
                         content=function_output,
@@ -1116,9 +1095,9 @@ def modify(
                         use_openai=use_openai,
                     )
                     if function_calls_string in llm_state["visited_set"]:
-                        if llm_state["attempt_count"] < 5:
+                        if llm_state["attempt_count"] < 3:
                             logger.warning(f"Function call {function_calls_string} has already been visited, retrying with a different model.")
-                            llm_state["attempt_count"] = 5
+                            llm_state["attempt_count"] = 3
                             function_calls_string = chat_gpt.chat_anthropic(
                                 content=SLOW_MODEL,
                                 model=model,
@@ -1316,8 +1295,6 @@ def handle_function_call(
                         second_diff_text = surrounding_lines_before + START_MARKER + best_match + END_MARKER + surrounding_lines_after
                         best_match_diff = generate_diff(first_diff_text, second_diff_text, n=20) # this is bounded to 14 * 2 lines of context
                         error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nDid you mean the following?\n```\n{best_match}\n```\nHere is the difference between the original_code and the most similar existing code from the file, along with its surrounding code:\n```\n{best_match_diff}\n```\n" + DID_YOU_MEAN_PROMPT
-                        # error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nHere is the diff and surrounding code:\n```\n{best_match_diff}\n```"
-                        manual_code_check(file_contents, original_code)
                     else:
                         # check other files, this code should skip if there are no other files
                         all_file_contents = list(dict.fromkeys([get_latest_contents(fcr.filename, cloned_repo, modify_files_dict) for fcr in llm_state["fcrs"] if fcr.filename != file_name]))
@@ -1354,7 +1331,10 @@ def handle_function_call(
                 else:
                     original_code_lines = original_code.split("\n")
                 if len(original_code_lines) > 1:
-                    original_code = "\n".join(f'{correct_indent * " "}{line}' for line in original_code_lines)
+                    """This will match the whitespace from the code file itself"""
+                    best_span = contains_ignoring_whitespace(original_code, file_contents)
+                    start_line, end_line = best_span
+                    original_code = "\n".join(file_contents.split("\n")[start_line:end_line])
                 else:
                     original_code = f'{correct_indent * " "}{original_code.lstrip()}'
                 # before we apply changes make sure original_code is unique inside current_chunk
@@ -1405,7 +1385,7 @@ def handle_function_call(
                 if original_code not in file_contents:
                     new_correct_indent, new_rstrip_original_code = manual_code_check(file_contents, new_code)
                     if new_correct_indent == -1:
-                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file. DOUBLE CHECK that the change you are trying to make is not already implemented in the code!"
+                        error_message = f"The original_code provided does not appear to be present in file {file_name}. Your provided original_code contains:\n```\n{tool_call['original_code']}\n```\nBut this section of code was not found anywhere inside the current file."
                     else:
                         error_message = f"The original_code provided does not appear to be present in file {file_name}. However, the new_code provided is present in the file. If you would like to apply this change, please provide the correct original_code. Otherwise, call submit_task to move on to the next task."
                     break
@@ -1435,6 +1415,8 @@ def handle_function_call(
                     )
                     if failing_parse:
                         error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n```\n{failing_parse}\n```\n\n" + fix_syntax_prompt
+                        # print(error_message)
+                        # breakpoint()
                         break
                     elif check_results_message:
                         warning_message = check_results_message
@@ -1474,6 +1456,7 @@ def handle_function_call(
                 # breakpoint()
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
+                # breakpoint()
             elif llm_state["completed_changes_per_fcr"][current_fcr_index] + 1 < llm_state["changes_per_fcr"][current_fcr_index]:
                 # Incomplete changes, should use a different prompt realistically
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
