@@ -11,8 +11,9 @@ from loguru import logger
 from networkx import Graph
 from pydantic import BaseModel
 from tqdm import tqdm
+from rapidfuzz import fuzz
 
-from sweepai.agents.modify import contains_ignoring_whitespace, find_best_match, parse_fcr, indent, rstrip_lines
+from sweepai.agents.modify import contains_ignoring_whitespace, find_best_match, find_best_matches, find_max_indentation, parse_fcr, indent, rstrip_lines
 from sweepai.agents.modify_file import modify_file
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
@@ -204,22 +205,26 @@ def get_error_message(
                     error_indices.append(i)
                 else:
                     if not contains_ignoring_whitespace(original_code, file_contents):
-                        best_match = ""
+                        threshold = 50
+                        best_match, current_best_score = find_best_match(original_code, file_contents, threshold=threshold, tokenized=True)
+                        max_indentation = find_max_indentation(file_contents)
+
                         best_score = 0
                         best_indent = 0
-                        threshold = 50
-                        # Check all indents
-                        for indent_count in tqdm(range(0, 20, 2)):
-                            current_best_match, current_best_score = find_best_match(indent(original_code, indent_count), file_contents, verbose=False, threshold=threshold)
-                            if current_best_score > best_score:
-                                best_match = current_best_match
-                                best_score = current_best_score
+                        for indent_count in range(0, max_indentation, 2):
+                            match_score = fuzz.ratio(indent(original_code, indent_count), best_match)
+                            if match_score > best_score:
+                                best_score = match_score
                                 best_indent = indent_count
-                            if current_best_score > 99:
-                                break
+                        if best_score == 100:
+                            continue
                         if best_score > threshold:
                             if best_score > 90:
                                 error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match)}\n```\n</error>\n\n"
+                            elif best_score > 70:
+                                best_matches = find_best_matches(original_code, file_contents, threshold=60, tokenized=True)
+                                best_matches_string = "\n\n".join([f"Code match {i}:\n```\n{match_}\n```" for i, (match_, score) in enumerate(best_matches)])
+                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify one of the following pieces of code instead?\n{best_matches_string}\n</error>\n\n"
                             else:
                                 error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\n</error>\n\n"
                         else:

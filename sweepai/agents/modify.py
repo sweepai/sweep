@@ -554,7 +554,25 @@ def rstrip_lines(text: str) -> str:
 def indent(text: str, spaces: int) -> str:
     return "\n".join([f"{' ' * spaces}{line}" for line in text.split("\n")])
 
-def find_best_match(needle: str, haystack: str, threshold: int = 70, verbose=True):
+def tokenize_code(code: str):
+    # Split on all non-alphanumeric characters
+    tokens = []
+    current_token = ""
+    available_set = ("(", ")", "{", "}", "[", "]", "_")
+    for char in code:
+        if char.isalnum() or char in available_set:
+            current_token += char
+        elif current_token:
+            tokens.append(current_token)
+            current_token = ""
+    if current_token:
+        tokens.append(current_token)
+    return tokens
+
+def code_processor(code: str):
+    return " ".join(tokenize_code(code))
+
+def find_best_match(needle: str, haystack: str, threshold: int = 60, verbose=True, tokenized=False):
     best_match = 0
     best_score = 0
     file_contents_lines = haystack.split("\n")
@@ -568,7 +586,13 @@ def find_best_match(needle: str, haystack: str, threshold: int = 70, verbose=Tru
             potential_choice = "\n".join(file_contents_lines[start_line:end_line])
             potential_choices.append(potential_choice)
 
-        results = process.extractOne(needle, potential_choices, scorer=fuzz.QRatio, score_cutoff=threshold)
+        results = process.extractOne(
+            needle,
+            potential_choices,
+            scorer=fuzz.QRatio,
+            score_cutoff=threshold,
+            processor=code_processor if tokenized else None,
+        )
             
         if results is not None:
             choice, score, _index = results
@@ -581,14 +605,71 @@ def find_best_match(needle: str, haystack: str, threshold: int = 70, verbose=Tru
         return best_match, best_score
     return "", 0
 
-def contains_ignoring_whitespace(needle: str, haystack: str):
-    needle = "\n".join([line.rstrip() for line in needle.splitlines()])
-    haystack = "\n".join([line.rstrip() for line in haystack.splitlines()])
+def find_best_matches(
+    needle: str,
+    haystack: str,
+    threshold: int = 50,
+    verbose=True,
+    num_matches=5,
+    tokenized=False,
+    **kwargs
+):
+    best_matches = []
+    file_contents_lines = haystack.split("\n")
+    num_lines = len(file_contents_lines)
+    num_non_whitespace_chars = sum([not char.isspace() for char in needle])
+    max_char_diff = 300
+    for start_line in tqdm(range(num_lines), total=num_lines) if verbose else range(num_lines):
+        potential_choices = []
+        end_lines = []
+        end_line = start_line
+        current_string = ""
+        num_chars = 0
+        while num_chars < num_non_whitespace_chars + max_char_diff and end_line < num_lines:
+            current_string += file_contents_lines[end_line] + "\n"
+            num_chars += sum([not char.isspace() for char in file_contents_lines[end_line]])
+            end_line += 1
+            if num_chars > num_non_whitespace_chars - max_char_diff:
+                potential_choices.append(current_string.rstrip('\n'))
+                end_lines.append(end_line)
+
+        # This can deadlock somehow
+        results = process.extract(
+            needle,
+            potential_choices,
+            scorer=fuzz.QRatio, 
+            score_cutoff=threshold, 
+            limit=num_matches,
+            processor=code_processor if tokenized else None,
+            **kwargs
+        )
+
+        for _choice, score, index in results:
+            if score >= threshold:
+                best_matches.append((score, (potential_choices[index], start_line, end_lines[index])))
+        best_matches = sorted(best_matches, key=lambda x: x[0], reverse=True)[:num_matches]
+    
+    deduped_best_matches = []
+    covered_spans = set()
+    for score, (match, start_line, end_line) in best_matches:
+        if set(range(start_line, end_line)) & covered_spans:
+            continue
+        covered_spans |= set(range(start_line, end_line))
+        deduped_best_matches.append((match, score))
+    return deduped_best_matches[:num_matches]
+
+def find_max_indentation(needle: str):
     max_indent = 0
-    for line in haystack.splitlines():
+    for line in needle.splitlines():
         if len(line) == 0:
             continue
         max_indent = max(max_indent, len(line) - len(line.lstrip()))
+    return max_indent
+
+def contains_ignoring_whitespace(needle: str, haystack: str):
+    needle = "\n".join([line.rstrip() for line in needle.splitlines()])
+    haystack = "\n".join([line.rstrip() for line in haystack.splitlines()])
+    max_indent = find_max_indentation(needle)
     for indent_size in range(0, max_indent + 2, 2):
         indented_needle = indent(needle, indent_size)
         if indented_needle in haystack:
