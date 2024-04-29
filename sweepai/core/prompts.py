@@ -443,6 +443,7 @@ Take these steps:
         Step 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file, with correct indentation and whitespace.
             - Do NOT paraphrase or abbreviate the source code.
             - Placeholder comments like "# existing code" are not permitted.
+            - Minimum one function for context.
         Step 2. Write the new code in <new_code> tags, specifying necessary imports and including relevant type definitions, interfaces, and schemas.
             - BE EXACT as this code will replace the mentioned <original_code>.
         Step 3. Determine if this is a change that occurs EXACTLY in other parts of the same file. If so, add a <replace_all>true</replace_all> flag.
@@ -502,7 +503,7 @@ Instructions for modifying one section of the file. Each block must have exactly
 
 a. Describe the section of code that needs to be modified, i.e. the test case that checks if `foo` == `bar`.
 <original_code>
-Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. Minimum one function.
 </original_code>
 
 b. Describe the changes that need to be made to the code, i.e. the test case should instead check if `foo` != `baz`.

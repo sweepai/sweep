@@ -414,6 +414,7 @@ DEFAULT_ESLINTRC = """{
 
 @file_cache()
 def get_pylint_check_results(file_path: str, code: str) -> CheckResults:
+    logger.debug(f"Running pylint on {file_path}...")
     file_hash = uuid.uuid4().hex
     new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
     stem = os.path.splitext(os.path.basename(file_path))[0]
@@ -444,6 +445,7 @@ def get_pylint_check_results(file_path: str, code: str) -> CheckResults:
         error_message = error_message.replace(new_file, file_path).replace(f"{file_hash}_" + stem, stem)
         error_message = error_message.split("-----------------------------------", 1)[0].strip()
         error_message = f"> pylint {file_path}\n\n" + error_message
+    logger.debug("Done running pylint.")
     return CheckResults(pylint=error_message if not succeeded else "")
 
 @file_cache()
