@@ -442,7 +442,7 @@ def get_files_to_change(
             content=joint_message + "\n\n" + (issue_excerpt_prompt),
             model=ISSUE_EXCERPT_MODEL,
             temperature=0.1,
-            images=images
+            images=images,
         )
         issue_excerpt_pattern = re.compile(r"<issue_excerpts>(.*?)</issue_excerpts>", re.DOTALL)
         issue_excerpt_match = issue_excerpt_pattern.search(issue_excerpt_response)
@@ -454,7 +454,7 @@ def get_files_to_change(
             content=joint_message + "\n\n" + (files_to_change_prompt.format(issue_excerpts=issue_excerpts)),
             model=MODEL,
             temperature=0.1,
-            images=images
+            images=images,
         )
         expected_plan_count = 1
         calls = 0
@@ -464,7 +464,8 @@ def get_files_to_change(
                 next_response = chat_gpt.chat_anthropic(
                     content="",
                     model=MODEL,
-                    temperature=0.1
+                    temperature=0.1,
+                    images=images,
                 )
                 # we can simply concatenate the responses
                 files_to_change_response += next_response
@@ -503,6 +504,7 @@ def get_files_to_change(
                 model=MODEL,
                 # model="claude-3-opus-20240229",
                 temperature=0.1,
+                images=images,
             )
             drops, matches = parse_patch_fcrs(fix_attempt)
             for index, new_fcr in matches:

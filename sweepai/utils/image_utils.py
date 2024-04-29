@@ -131,8 +131,9 @@ def create_message_with_images(message: dict[str, str], images: dict[str, dict[s
 
     last_pos = 0
     for pos, marker, image_url in positions:
+        if image_url not in image_url_to_image_raw_urls:
+            continue
         image_data = images[image_url_to_image_raw_urls[image_url]]
-
         if use_openai:
             new_contents.append({
                 "type": "text",
