@@ -288,14 +288,19 @@ Error #1: Description of the error
 You will first think step-by-step about the error, and then either rewrite the instructions with the corrected fix, or drop the task.
 
 <thinking>
-Analyze what went wrong, including the file path and the specific code block that needs to be modified. The fix for error #1.
+Analyze what went wrong, including the file path and the specific code block that needs to be modified in great detail. If you have failed to copy code verbatim, indicate precisely what is different between the code you provided and the code in the actual file.
+</thinking>
 
-Strategies:
-- For "<original_code> does not exist in the file" errors:
-  - Look closely and carefully at the actual contents of the file. Are there any missing indentation, whitespace or comments?
-  - Look closely at similar files, could you have selected the wrong file?
-- For empty <original_code> blocks:
-  - First, look closely at the file to determine where to make the change. Then, copy that code into the <original_code>. Then, copy the code into <new_code> with the code you would like to add before or after the code in the <new_code> block to prepend or append code.
+Then, let's resolve the errors in your proposed plan:
+
+If you determine that this task is not needed, you may drop the task like so:
+
+<drop>Index of the task to drop</drop>
+
+Otherwise, you must patch the task to resolve the error like so:
+
+<modify file="file_path_1" index="1">
+Rewritten instructions to resolve the error. Update the original_code and new_code blocks as required, ensuring that the <original_code> block contains the actual code from the file.
 
 Update <original_code> with the necessary changes:
 <original_code>
@@ -306,18 +311,6 @@ Update <new_code> block with the necessary changes:
 <new_code>
 Updated new code, based on the corrections in <original_code>. Ensure all newly introduced indents and comments are propagated here.
 </new_code>
-</thinking>
-
-Let's resolve the errors in your proposed plan:
-
-If you determine that this task is not needed, you may drop the task like so:
-
-<drop>Index of the task to drop</drop>
-
-Otherwise, you must patch the task to resolve the error like so:
-
-<modify file="file_path_1" index="1">
-Rewritten instructions to resolve the error. Update the original_code and new_code blocks as required, ensuring that the <original_code> block contains the actual code from the file.
 </modify>
 
 The index should be equivalent to the error number.
