@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from tqdm import tqdm
 from rapidfuzz import fuzz
 
-from sweepai.agents.modify import contains_ignoring_whitespace, find_best_match, find_best_matches, find_max_indentation, parse_fcr, indent, rstrip_lines
+from sweepai.agents.modify import contains_ignoring_whitespace, find_best_match, find_best_matches, find_max_indentation, parse_fcr, indent
 from sweepai.agents.modify_file import modify_file
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
