@@ -2,6 +2,7 @@ import copy
 from math import inf
 import os
 import re
+import sys
 
 from rapidfuzz import fuzz, process
 import stringzilla as sz
@@ -555,13 +556,11 @@ def rstrip_lines(text: str) -> str:
 def indent(text: str, spaces: int) -> str:
     return "\n".join([f"{' ' * spaces}{line}" for line in text.split("\n")])
 
-pattern = sz.regex(r"[^\w(){}\[\]_]+")
-
 def tokenize_code(code: str):
-    return pattern.split(code)
+    return [str(token) for token in sz.Str(code).split_charset(separator=' \n\t\r()\{\}\[\]_', maxsplit=sys.maxsize, keepseparator=False) if token]
 
 def code_processor(code: str):
-    return " ".join(pattern.split(code))
+    return " ".join(tokenize_code(code))
 
 def find_best_match(needle: str, haystack: str, threshold: int = 60, verbose=True, tokenized=False):
     best_match = 0
