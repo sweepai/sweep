@@ -320,7 +320,6 @@ def construct_sweep_bot(
         title=title,
         summary=message_summary,
         snippets=snippets,
-        tree=tree,
     )
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message,
@@ -849,7 +848,7 @@ def on_ticket(
             try:
                 # search/context manager
                 logger.info("Searching for relevant snippets...")
-                snippets, tree, _, repo_context_manager = fetch_relevant_files(
+                snippets, repo_context_manager = fetch_relevant_files(
                     cloned_repo,
                     title,
                     message_summary,
@@ -909,7 +908,6 @@ def on_ticket(
                 ticket_progress=ticket_progress,
                 chat_logger=chat_logger,
                 snippets=snippets,
-                tree=tree,
                 comments=comments,
             )
             # Check repository for sweep.yml file.
@@ -1537,7 +1535,6 @@ def on_ticket(
                                 ticket_progress=ticket_progress,
                                 chat_logger=chat_logger,
                                 snippets=snippets,
-                                tree=tree,
                                 comments=comments,
                             )
                             file_change_requests, plan = get_files_to_change(

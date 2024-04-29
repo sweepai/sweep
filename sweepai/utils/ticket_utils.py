@@ -407,8 +407,6 @@ def fetch_relevant_files(
         snippets = repo_context_manager.current_top_snippets
         ticket_progress.search_progress.final_snippets = snippets
         ticket_progress.save()
-        dir_obj = repo_context_manager.dir_obj
-        tree = str(dir_obj)
     except Exception as e:
         trace = traceback.format_exc()
         logger.exception(f"{trace} (tracking ID: `{tracking_id}`)")
@@ -431,7 +429,7 @@ def fetch_relevant_files(
             },
         )
         raise e
-    return snippets, tree, dir_obj, repo_context_manager
+    return snippets, repo_context_manager
 
 
 SLOW_MODE = False

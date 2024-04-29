@@ -13,7 +13,7 @@ class HumanMessagePrompt(BaseModel):
     title: str
     summary: str
     snippets: list
-    tree: str
+    tree: str = ""
     repo_description: str = ""
     snippet_text: str = ""
     commit_history: list = []
