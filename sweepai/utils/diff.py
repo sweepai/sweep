@@ -30,10 +30,14 @@ def generate_diff(old_code, new_code, **kwargs):
         **kwargs
     )
 
-    diff_text = "".join(diff)
+    diff_result = ""
 
-    return diff_text
+    for line in diff:
+        if not line.endswith("\n"):
+            line += "\n"
+        diff_result += line
 
+    return diff_result
 
 def generate_ndiff(old_code, new_code, **kwargs):
     if old_code == new_code:
