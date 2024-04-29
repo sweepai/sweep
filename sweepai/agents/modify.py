@@ -489,14 +489,21 @@ The most similar section of the ACTUAL contents of {file_path}
 # Function call
 Then, follow up with a make_change function call with the corrected parameters. If you are unable to find the correct section of code, call the submit_task function with an explanation of the issue."""
 
-MULTIPLE_OCCURRENCES_PROMPT = """Resolve this error by following these steps:
+MULTIPLE_OCCURRENCES_PROMPT = """You MUST resolve this error by following these steps:
 
 # 1. Thinking
 <thinking>
 a. Identify whether you want to replace all occurrences of the original code or only a specific one. If you want to replace all occurrences, you can use the replace_all flag by adding <replace_all>true</replace_all> to the function arguments.
 b. If you want to replace only a specific occurrence, which occurrence you want to replace and the corresponding surrounding context, following this format:
+
+Corrected original code:
 ```
 The original_code block you want to replace with surrounding context.
+```
+
+Corrected new code:
+```
+The new_code block you want to replace with the same surrounding context.
 ```
 </thinking>
 
