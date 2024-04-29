@@ -217,7 +217,7 @@ def get_error_message(
                             continue
                         if best_score > threshold:
                             if best_score > 80:
-                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match)}\n```\n</error>\n\n"
+                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```\n</error>\n\n"
                             elif best_score > 50:
                                 best_matches = find_best_matches(original_code, file_contents, threshold=threshold, tokenized=True)
                                 ellipses_message = "You must copy code out in full and may not use ellipses, abbreviations, or any short-hand notation in your code." if "... " in original_code else ""
@@ -226,7 +226,7 @@ def get_error_message(
                                     error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify one of the following pieces of code instead?\n{best_matches_string}\n</error>{ellipses_message}\n\n"
                                 else:
                                     # Same as case > 80
-                                    error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match)}\n```\n</error>{ellipses_message}\n\n"
+                                    error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```\n</error>{ellipses_message}\n\n"
                             else:
                                 error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\n</error>\n\n"
                         else:
