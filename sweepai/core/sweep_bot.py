@@ -180,9 +180,6 @@ def get_error_message(
     file_change_requests: list[FileChangeRequest],
     cloned_repo: ClonedRepo,
 ):
-    """
-    TODO: 
-    """
     error_message = ""
     error_indices = []
     for i, file_change_request in enumerate(file_change_requests):
@@ -192,11 +189,11 @@ def get_error_message(
                 parsed_fcr = parse_fcr(file_change_request)
                 if not parsed_fcr["original_code"]:
                     # breakpoint()
-                    error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to provide both an <original_code> block. If you would like to drop this task use the <drop> marker.\n</error>\n\n"
+                    error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to provide both an <original_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task use the <drop> marker.\n</error>\n\n"
                     error_indices.append(i)
                     continue
                 if not parsed_fcr["new_code"]:
-                    error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to a <new_code> block. If you would like to drop this task use the <drop> marker.\n</error>\n\n"
+                    error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to a <new_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task use the <drop> marker.\n</error>\n\n"
                     error_indices.append(i)
                     continue
                 original_code = parsed_fcr["original_code"][0].strip("\n")
@@ -244,6 +241,8 @@ def get_error_message(
                 else:
                     error_message += f"<error index=\"#{len(error_indices)}\">\nThe file `{file_change_request.filename}` does not exist. Double-check your spelling.\n</error>\n\n"
                     error_indices.append(i)
+    # if error_message:
+    #     breakpoint()
     return error_message, error_indices
         
 def sort_and_fuse_snippets(
