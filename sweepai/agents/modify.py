@@ -557,7 +557,13 @@ def indent(text: str, spaces: int) -> str:
     return "\n".join([f"{' ' * spaces}{line}" for line in text.split("\n")])
 
 def tokenize_code(code: str):
-    return [str(token) for token in sz.Str(code).split_charset(separator=' \n\t\r()\{\}\[\]_', maxsplit=sys.maxsize, keepseparator=False) if token]
+    cleaned_code = ""
+    for line in code.split("\n"):
+        stripped_line = line.strip()
+        if stripped_line.startswith("#") or stripped_line.startswith("//") or len(stripped_line) == 0:
+            continue
+        cleaned_code += line + "\n"
+    return [str(token) for token in sz.Str(cleaned_code).split_charset(separator=' \n\t\r()\{\}\[\]', maxsplit=sys.maxsize, keepseparator=True) if str(token).strip()]
 
 def code_processor(code: str):
     return " ".join(tokenize_code(code))
@@ -570,7 +576,7 @@ def find_best_match(needle: str, haystack: str, threshold: int = 60, verbose=Tru
     num_match_lines = len(needle.split("\n"))
     for start_line in tqdm(range(num_lines), total=num_lines) if verbose else range(num_lines):
         potential_choices = []
-        for end_line in range(start_line + max(1, num_match_lines - 5), start_line + num_match_lines + 5):
+        for end_line in range(start_line + max(1, num_match_lines - 10), start_line + num_match_lines + 10):
             if end_line > num_lines:
                 break
             potential_choice = "\n".join(file_contents_lines[start_line:end_line])
@@ -581,7 +587,7 @@ def find_best_match(needle: str, haystack: str, threshold: int = 60, verbose=Tru
             potential_choices,
             scorer=fuzz.QRatio,
             score_cutoff=threshold,
-            processor=code_processor if tokenized else None,
+            processor=tokenize_code if tokenized else None,
         )
             
         if results is not None:
@@ -630,7 +636,7 @@ def find_best_matches(
             scorer=fuzz.QRatio, 
             score_cutoff=threshold, 
             limit=num_matches,
-            processor=code_processor if tokenized else None,
+            processor=tokenize_code if tokenized else None,
             **kwargs
         )
 
