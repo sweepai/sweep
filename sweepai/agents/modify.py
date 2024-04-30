@@ -441,10 +441,11 @@ linter_warning_prompt = """There is a linter warning in the code changes. Resolv
 a. Look closely at the changes made to identify any syntax errors that may have caused the linter errors. Does the number of indents in the changed code compare to the number of indents in the surrounding code?
 b. Critique the change(s) you have made for any potential logical errors.
 c. Identify what the linter warning is, and what may be causing it. Keep in mind that the actual cause of the error may be different from what the linter is suggesting, such as inconsistent indentation.
-d. Indicate the minimum amount of changes required to resolve the linter warning.
+d. Identify whether the linter warning should be resolved, or is intentional. For example, if you import a new module that you will use later, you may safely ignore the linter warning.
+e. Indicate the minimum amount of changes required to resolve the linter warning if required.
 </thinking>
 
-Then, call the make_change function to fix the linter warnings. If the warning cannot be resolved, call submit_task with an explanation of the issue."""
+Then, call the make_change function to fix the linter warnings. If the warning cannot or should not be resolved, call submit_task with an explanation of the issue."""
 
 fix_syntax_prompt = """You MUST resolve the issue by following these steps:
 
