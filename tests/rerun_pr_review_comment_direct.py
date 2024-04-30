@@ -72,7 +72,6 @@ def update_pr_review_comments(
 
 
     better_stack_link = f"{better_stack_prefix}{html.escape(pr_url)}"
-    print(f"Track the logs at the following link:\n\n{better_stack_link}")
 
 # NOTE CURRENTLY THIS SCRIPT DOES NOT IGNORE RESOLVED COMMENTS
 if __name__ == "__main__":
