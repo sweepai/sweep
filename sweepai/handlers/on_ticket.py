@@ -25,6 +25,7 @@ from tabulate import tabulate
 from tqdm import tqdm
 from yamllint import linter
 
+from benchmark.swe_bench import GHA_PROMPT
 from sweepai.agents.pr_description_bot import PRDescriptionBot
 from sweepai.agents.image_description_bot import ImageDescriptionBot
 from sweepai.config.client import (
@@ -1532,10 +1533,14 @@ def on_ticket(
                                 tree=tree,
                                 comments=comments,
                             )
-                            file_change_requests, plan = get_files_to_change(
+                            file_change_requests, plan = get_files_to_change_for_gha(
                                 relevant_snippets=repo_context_manager.current_top_snippets,
                                 read_only_snippets=repo_context_manager.read_only_snippets,
-                                problem_statement=all_information_prompt,
+                                problem_statement=GHA_PROMPT.format(
+                                    problem_statement=problem_statement,
+                                    failed_gha_logs=failed_gha_logs,
+                                    diffs=diffs,
+                                ),
                                 repo_name=repo_full_name,
                                 cloned_repo=cloned_repo,
                             )

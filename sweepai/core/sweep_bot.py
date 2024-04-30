@@ -88,6 +88,25 @@ Edit old_code to pass the CI/CD.
 2a. If the business logic is correct fix the test to return the expected output.
 2b. If the business logic has a bug or you are unsure, skip the failing tests with an explanation."""
 
+GHA_PROMPT = """You're working on resolving a GitHub issue but the code changes fail the GitHub Actions.
+
+You are trying to resolve the following GitHub issue:
+<original_github_issue>
+{problem_statement}
+</original_github_issue>
+
+You made some changes, but GitHub Actions failed with the following logs:
+<github_actions_logs>
+{github_actions_logs}
+</github_actions_logs>
+
+You have previously already made the following changes:
+<changes_made>
+{changes_made}
+</changes_made>
+
+Fix the above GitHub Actions."""
+
 def parse_patch_fcrs(fcr_patch_string: str):
     pattern = re.compile(r"""<(?P<change_type>[a-z_]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- @\{\}]*?)\"\s+index=\"(?P<index>\d+)\">(?P<instructions>.*?)\s*<\/\1>""", re.DOTALL)
     drop_pattern = re.compile("<drop>(.+?)</drop>", re.DOTALL)

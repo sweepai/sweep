@@ -656,7 +656,7 @@ def contains_ignoring_whitespace(needle: str, haystack: str):
     return False
 
 MODEL = "claude-3-haiku-20240307"
-SLOW_MODEL = "claude-3-opus-20240229"
+SLOW_MODEL = "claude-3-opus-20240229" # try haiku
 
 def validate_and_parse_function_call_openai(
     function_calls_string: str, chat_gpt: ChatGPT
@@ -1415,8 +1415,8 @@ def handle_function_call(
                     )
                     if failing_parse:
                         error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n```\n{failing_parse}\n```\n\n" + fix_syntax_prompt
-                        # print(error_message)
-                        # breakpoint()
+                        print(error_message)
+                        breakpoint()
                         break
                     elif check_results_message:
                         warning_message = check_results_message
