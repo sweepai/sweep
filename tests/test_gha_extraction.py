@@ -17,4 +17,3 @@ RUN_ID = 8576903108
 REPO_FULL_NAME = "sweepai/sweep"
 
 logs = test_clean_gh_logs(RUN_ID, INSTALLATION_ID, REPO_FULL_NAME)
-breakpoint()

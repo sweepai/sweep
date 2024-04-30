@@ -1051,7 +1051,7 @@ def get_files_to_change_for_gha(
             model=MODEL,
             temperature=0.1
         )
-        breakpoint()
+        # breakpoint()
         max_tokens = 4096 * 3.5 * 0.8 # approx max tokens per response
         expected_plan_count = 1
         call_anthropic_second_time = len(files_to_change_response) > max_tokens and files_to_change_response.count("</plan>") < expected_plan_count
@@ -1115,7 +1115,7 @@ def get_files_to_change_for_gha(
             logger.debug("Old indices", error_indices)
             error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
             logger.debug("New indices", error_indices)
-            breakpoint()
+            # breakpoint()
 
         validate_file_change_requests(file_change_requests, cloned_repo)
         return file_change_requests, files_to_change_response

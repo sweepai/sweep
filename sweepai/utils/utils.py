@@ -456,7 +456,6 @@ def get_check_results(file_path: str, code: str) -> CheckResults:
         try:
             return get_pylint_check_results(file_path, code)
         except Exception as e:
-            breakpoint()
             logger.exception(e)
     elif ext in ["js", "jsx", "ts", "tsx"]:
         # see if eslint is installed
