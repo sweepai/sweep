@@ -480,13 +480,16 @@ def get_check_results(file_path: str, code: str) -> CheckResults:
     elif ext in ["js", "jsx", "ts", "tsx"]:
         # see if eslint is installed
         npx_commands = ["npx", "eslint", "--version"]
-        result = subprocess.run(
-            " ".join(npx_commands),
-            timeout=5,
-            capture_output=True,
-            text=True,
-            shell=True,
-        )
+        try:
+            result = subprocess.run(
+                " ".join(npx_commands),
+                timeout=5,
+                capture_output=True,
+                text=True,
+                shell=True,
+            )
+        except subprocess.TimeoutExpired:
+            raise Exception("ESLint timed out after 5s. You need eslint to edit js/ts files. Run `npm i -g eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin eslint-plugin-import eslint-plugin-react`.")
         # Check eslint < v9 and all the plugins exist
         if result.returncode == 0:
             with TemporaryDirectory(dir=os.getcwd()) as temp_dir:
