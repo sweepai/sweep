@@ -172,6 +172,19 @@ def escape_ripgrep(text):
         text = text.replace(s, "\\" + s)
     return text
 
+def run_ripgrep_command(code_entity, repo_dir):
+    rg_command = [
+        "rg",
+        "-n",
+        "-i",
+        code_entity,
+        repo_dir,
+    ]
+    result = subprocess.run(
+        " ".join(rg_command), text=True, shell=True, capture_output=True
+    )
+    return result.stdout
+
 @staticmethod
 def can_add_snippet(snippet: Snippet, current_snippets: list[Snippet]):
     return (
@@ -752,18 +765,8 @@ def handle_function_call(
     if function_name == "code_search":
         code_entity = f'"{function_input["code_entity"]}"'  # handles cases with two words
         code_entity = escape_ripgrep(code_entity) # escape special characters
-        rg_command = [
-            "rg",
-            "-n",
-            "-i",
-            code_entity,
-            repo_context_manager.cloned_repo.repo_dir,
-        ]
         try:
-            result = subprocess.run(
-                " ".join(rg_command), text=True, shell=True, capture_output=True
-            )
-            rg_output = result.stdout
+            rg_output = run_ripgrep_command(code_entity, repo_context_manager.cloned_repo.repo_dir)
             if rg_output:
                 # post process rip grep output to be more condensed
                 rg_output_pretty, file_output_dict, file_to_num_occurrences = post_process_rg_output(
