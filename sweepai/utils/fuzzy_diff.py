@@ -7,11 +7,15 @@
 # Minimize the product of the fuzziness scores. We can take the negative
 # log of the fuzziness scores and use that as the cost matrix.
 
+import re
 from rapidfuzz import fuzz
 
 THRESHOLD = 95
 
-def similar(a, b):
+def similar(a: str, b: str):
+    # Replace all runs of over 3 spaces to 3 spaces using regex
+    a = re.sub(r"\s{4,}", "   ", a)
+    b = re.sub(r"\s{4,}", "   ", b)
     return fuzz.ratio(a, b) > THRESHOLD
 
 def lis(lst: list):
@@ -136,6 +140,23 @@ sweepai/handlers/on_ticket.py:251:24: W3101: Missing timeout argument for method
 sweepai/handlers/on_ticket.py:268:34: W0612: Unused variable 'user_message' (unused-variable)
 sweepai/handlers/on_ticket.py:525:16: W0719: Raising too general exception: Exception (broad-exception-raised)"""
 
+old_lint_results = """src/components/CallToAction.tsx
+    1:1   error  Definition for rule 'import/first' was not found  import/first
+   16:14  error  Require statement not part of import statement    @typescript-eslint/no-var-requires
+   24:5   error  'React' must be in scope when using JSX           react/react-in-jsx-scope
+   25:7   error  'React' must be in scope when using JSX           react/react-in-jsx-scope
+   33:9   error  'React' must be in scope when using JSX           react/react-in-jsx-scope
+   81:9   error  'React' must be in scope when using JSX           react/react-in-jsx-scope
+   87:18  error  'React' must be in scope when using JSX           react/react-in-jsx-scope
+  117:9   error  'React' must be in scope when using JSX           react/react-in-jsx-scope
+  125:9   error  'React' must be in scope when using JSX           react/react-in-jsx-scope
+  137:9   error  'React' must be in scope when using JSX           react/react-in-jsx-scope
+  149:9   error  'React' must be in scope when using JSX           react/react-in-jsx-scope
+  150:11  error  'React' must be in scope when using JSX           react/react-in-jsx-scope
+  151:13  error  'React' must be in scope when using JSX           react/react-in-jsx-scope
+
+✖ 13 problems (13 errors, 0 warnings)"""
+
 new_lint_results = """> pylint sweepai/handlers/on_ticket.py
 
 ************* Module on_ticket
@@ -146,6 +167,29 @@ sweepai/handlers/on_ticket.py:245:21: E0602: Undefined variable 'Logger' (undefi
 sweepai/handlers/on_ticket.py:252:24: W3101: Missing timeout argument for method 'requests.get' can cause your program to hang indefinitely (missing-timeout)
 sweepai/handlers/on_ticket.py:269:34: W0612: Unused variable 'user_message' (unused-variable)
 sweepai/handlers/on_ticket.py:526:16: W0719: Raising too general exception: Exception (broad-exception-raised)"""
+
+new_lint_results = """src/components/CallToAction.tsx
+    1:1   error  Definition for rule 'import/first' was not found                 import/first
+   16:14  error  Require statement not part of import statement                   @typescript-eslint/no-var-requires
+   24:5   error  'React' must be in scope when using JSX                          react/react-in-jsx-scope
+   25:7   error  'React' must be in scope when using JSX                          react/react-in-jsx-scope
+   33:9   error  'React' must be in scope when using JSX                          react/react-in-jsx-scope
+   81:9   error  'React' must be in scope when using JSX                          react/react-in-jsx-scope
+   87:18  error  'React' must be in scope when using JSX                          react/react-in-jsx-scope
+  117:9   error  'React' must be in scope when using JSX                          react/react-in-jsx-scope
+  125:10  error  'FaPhone' is not defined                                         no-undef
+  125:25  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  125:40  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  127:9   error  'React' must be in scope when using JSX                          react/react-in-jsx-scope
+  136:21  error  'React' must be in scope when using JSX                          react/react-in-jsx-scope
+  136:22  error  'FaPhone' is not defined                                         react/jsx-no-undef
+  136:22  error  'FaPhone' is not defined                                         no-undef
+  140:9   error  'React' must be in scope when using JSX                          react/react-in-jsx-scope
+  152:9   error  'React' must be in scope when using JSX                          react/react-in-jsx-scope
+  153:11  error  'React' must be in scope when using JSX                          react/react-in-jsx-scope
+  154:13  error  'React' must be in scope when using JSX                          react/react-in-jsx-scope
+
+✖ 19 problems (19 errors, 0 warnings)"""
 
 # old_lint_results = """David Axelrod
 # Electric Prunes
@@ -170,12 +214,12 @@ stress_test_new = "AAGTCCGTAACCTGACATCTGAGGCTAATCACTGAGGCGTATGCGCGATATGCGTATGCGC
 if __name__ == "__main__":
     import time
     start = time.time()
-    print(patience_fuzzy_diff(
+    # print(patience_fuzzy_diff(
+    #     old_lint_results,
+    #     new_lint_results
+    # ))
+    print(patience_fuzzy_additions(
         old_lint_results,
         new_lint_results
     ))
-    # print(patience_fuzzy_diff_lines(
-    #     stress_test_old,
-    #     stress_test_new
-    # ))
     print(f"Time taken: {time.time() - start} seconds.")
