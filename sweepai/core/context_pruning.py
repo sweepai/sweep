@@ -679,7 +679,9 @@ def get_relevant_context(
             )
         except openai.BadRequestError as e:  # sometimes means that run has expired
             logger.exception(e)
-        repo_context_manager.current_top_snippets.extend(old_relevant_snippets)
+        except Exception as e:
+            logger.exception(e)
+        repo_context_manager.current_top_snippets.extend(old_relevant_snippets) 
         repo_context_manager.read_only_snippets.extend(old_read_only_snippets)
         return repo_context_manager
     except Exception as e:
