@@ -63,7 +63,6 @@ def test_issue_url(
             request_process.join()  # Ensure process has terminated before proceeding
 
     better_stack_link = f"{better_stack_prefix}{html.escape(issue_url)}"
-    print(f"Track the logs at the following link:\n\n{better_stack_link}")
 
 
 if __name__ == "__main__":

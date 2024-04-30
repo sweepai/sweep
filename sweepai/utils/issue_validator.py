@@ -4,7 +4,13 @@ from sweepai.core.chat import ChatGPT
 
 issue_validator_instructions_prompt = """# Instructions
 
-A good issue for Sweep is specific, actionable and there is sufficient information to resolve it. B bad issue is one that is vague or unclear. Issues involving the following should also not pass, as they are outside the scope of Sweep:
+A good issue for Sweep is actionable and it is clear how to resolve it. Here is what Sweep is currently capable of:
+- Access to the entire codebase, with a high-quality search engine to find specific code snippets. Sweep is able to pinpoint the exact location of the code that needs to be changed based on vague descriptions.
+- Making code changes to fix bugs or add features.
+- Reading the GitHub Action logs to run tests and check the results.
+- Ability to read images such as screenshots and charts.
+
+Here are some examples of things Sweep does not currently support:
 - Large-scale changes like migrations and large version upgrades.
 - Tasks requiring accessing outside information like AWS consoles or retrieving API keys.
 - Tasks requiring fixes outside of code changes
@@ -32,14 +38,18 @@ issue_validator_user_prompt = """<issue>
 </issue>""" + issue_validator_instructions_prompt
 
 def validate_issue(issue: str) -> str:
+    """
+    Somehow haiku and GPT-4 can't do this consistently.
+    """
     chat_gpt = ChatGPT.from_system_message_string(
         prompt_string=issue_validator_system_prompt,
     )
 
-    response = chat_gpt.chat(
+    response = chat_gpt.chat_anthropic(
         issue_validator_user_prompt.format(
             issue=issue
         ),
+        model="claude-3-opus-20240229",
         temperature=0.0,
     )
     
