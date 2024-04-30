@@ -1300,8 +1300,6 @@ def on_ticket(
 
                 try:
                     fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
-                except SystemExit:
-                    raise SystemExit
                 except Exception:
                     pass
 
@@ -1318,18 +1316,6 @@ def on_ticket(
                         3,
                     )
 
-                pr_actions_message = (
-                    create_action_buttons(
-                        [
-                            SWEEP_GOOD_FEEDBACK,
-                            SWEEP_BAD_FEEDBACK,
-                        ],
-                        header="### PR Feedback (click)\n",
-                    )
-                    + "\n"
-                    if DISCORD_FEEDBACK_WEBHOOK_URL is not None
-                    else ""
-                )
                 revert_buttons = []
                 for changed_file in set(changed_files):
                     revert_buttons.append(
@@ -1338,35 +1324,6 @@ def on_ticket(
                 revert_buttons_list = ButtonList(
                     buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
                 )
-
-                rule_buttons = []
-                repo_rules = get_rules(repo) or []
-                if repo_rules != [""] and repo_rules != []:
-                    for rule in repo_rules or []:
-                        if rule:
-                            rule_buttons.append(
-                                Button(label=f"{RULES_LABEL} {rule}")
-                            )
-                    if len(repo_rules) == 0:
-                        for rule in DEFAULT_RULES:
-                            rule_buttons.append(
-                                Button(label=f"{RULES_LABEL} {rule}")
-                            )
-
-                rules_buttons_list = ButtonList(
-                    buttons=rule_buttons, title=RULES_TITLE
-                )
-
-                sandbox_passed = None
-                for file_change_request in file_change_requests:
-                    if file_change_request.change_type == "check":
-                        if (
-                            file_change_request.sandbox_response
-                            and file_change_request.sandbox_response.error_messages
-                        ):
-                            sandbox_passed = False
-                        elif sandbox_passed is None:
-                            sandbox_passed = True
 
                 # delete failing sweep yaml if applicable
                 if sweep_yml_failed:
@@ -1383,7 +1340,7 @@ def on_ticket(
                 # create draft pr, then convert to regular pr later
                 pr: GithubPullRequest = repo.create_pull(
                     title=pr_changes.title,
-                    body=pr_actions_message + pr_changes.body,
+                    body=pr_changes.body,
                     head=pr_changes.pr_head,
                     base=overrided_branch_name or SweepConfig.get_branch(repo),
                     # removed draft PR
@@ -1405,10 +1362,6 @@ def on_ticket(
                 if revert_buttons:
                     pr.create_issue_comment(
                         revert_buttons_list.serialize() + BOT_SUFFIX
-                    )
-                if rule_buttons:
-                    pr.create_issue_comment(
-                        rules_buttons_list.serialize() + BOT_SUFFIX
                     )
 
                 # add comments before labelling
@@ -1474,7 +1427,8 @@ def on_ticket(
                 total_edit_attempts = 0
                 SLEEP_DURATION_SECONDS = 15
                 GITHUB_ACTIONS_ENABLED = get_gha_enabled(repo=repo) and DEPLOYMENT_GHA_ENABLED
-                GHA_MAX_EDIT_ATTEMPTS = 1 # max number of times to edit PR
+                GHA_MAX_EDIT_ATTEMPTS = 5 # max number of times to edit PR
+                current_commit = pr.head.sha
                 while True and GITHUB_ACTIONS_ENABLED:
                     logger.info(
                         f"Polling to see if Github Actions have finished... {total_poll_attempts}"
@@ -1488,7 +1442,7 @@ def on_ticket(
                         from time import sleep
 
                         sleep(SLEEP_DURATION_SECONDS)
-                    runs = list(repo.get_workflow_runs(branch=pr.head.ref, head_sha=pr.head.sha))
+                    runs = list(repo.get_workflow_runs(branch=pr.head.ref, head_sha=current_commit))
                     # if all runs have succeeded, break
                     if all([run.conclusion == "success" for run in runs]):
                         break
@@ -1545,7 +1499,7 @@ def on_ticket(
                             )
                             validate_file_change_requests(file_change_requests, cloned_repo)
                             previous_modify_files_dict: dict[str, dict[str, str | list[str]]] | None = None
-                            sweep_bot.handle_modify_file_main(
+                            _, commit, _ = sweep_bot.handle_modify_file_main(
                                 branch=pr.head.ref,
                                 assistant_conversation=None,
                                 additional_messages=[],
@@ -1553,6 +1507,7 @@ def on_ticket(
                                 file_change_requests=file_change_requests,
                                 username=username
                             )
+                            current_commit = commit.sha
                             pr = repo.get_pull(pr.number) # IMPORTANT: resync PR otherwise you'll fetch old GHA runs
                             total_edit_attempts += 1
                             if total_edit_attempts >= GHA_MAX_EDIT_ATTEMPTS:
