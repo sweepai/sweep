@@ -62,6 +62,7 @@ from sweepai.handlers.create_pr import (
 )
 from sweepai.handlers.on_check_suite import clean_gh_logs
 from sweepai.utils.image_utils import get_image_contents_from_urls, get_image_urls_from_issue
+from sweepai.utils.issue_validator import validate_issue
 from sweepai.utils.validate_license import validate_license
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
@@ -165,7 +166,7 @@ Propose a fix to the failing github actions. You must edit the source code, not 
 # Add :eyes: emoji to ticket
 def add_emoji(issue: Issue, comment_id: int = None, reaction_content="eyes"):
     item_to_react_to = issue.get_comment(comment_id) if comment_id else issue
-    item_to_react_to.create_reaction("eyes")
+    item_to_react_to.create_reaction(reaction_content)
 
 
 # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
@@ -600,6 +601,9 @@ def on_ticket(
             fire_and_forget_wrapper(remove_emoji)(
                 current_issue, comment_id, content_to_delete="rocket"
             )
+            fire_and_forget_wrapper(remove_emoji)(
+                current_issue, comment_id, content_to_delete="confused"
+            )
             fire_and_forget_wrapper(current_issue.edit)(body=summary)
 
             replies_text = ""
@@ -665,6 +669,10 @@ def on_ticket(
                     )
                 else:
                     issue_comment.edit(first_comment + BOT_SUFFIX)
+                fire_and_forget_wrapper(add_emoji)(
+                    current_issue, comment_id, reaction_content="confused"
+                )
+                fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
                 return {"success": False}
             indexing_message = (
                 "I'm searching for relevant snippets in your repository. If this is your first"
@@ -796,23 +804,31 @@ def on_ticket(
                         "duration": round(time() - on_ticket_start_time),
                     },
                 )
+                fire_and_forget_wrapper(add_emoji)(
+                    current_issue, comment_id, reaction_content="confused"
+                )
+                fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
                 return {
                     "success": False,
                     "error_message": "We deprecated supporting GPT 3.5.",
                 }
-
-            if len(title + summary) < 20:
-                logger.info("Issue too short")
+            
+            error_message = validate_issue(title + summary)
+            if error_message:
+                logger.warning(f"Validation error: {error_message}")
                 edit_sweep_comment(
                     (
-                        f"Please add more details to your issue. I need at least 20 characters"
-                        f" to generate a plan. Please join our Discord server for support (tracking_id={tracking_id})"
+                        f"The issue was rejected with the following response:\n\n{blockquote(error_message)}"
                     ),
                     -1,
                 )
+                fire_and_forget_wrapper(add_emoji)(
+                    current_issue, comment_id, reaction_content="confused"
+                )
+                fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
                 posthog.capture(
                     username,
-                    "issue_too_short",
+                    "invalid_issue",
                     properties={
                         **metadata,
                         "duration": round(time() - on_ticket_start_time),
@@ -1691,8 +1707,6 @@ def on_ticket(
                         raise Exception(
                             f"Branch name {pull_request.branch_name} does not start with sweep/"
                         )
-                except SystemExit:
-                    raise SystemExit
                 except Exception as e:
                     logger.error(e)
                     logger.error(traceback.format_exc())

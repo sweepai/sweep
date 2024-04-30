@@ -237,7 +237,7 @@ def get_new_lint_errors_for_eslint(new_errors: str, old_errors: str) -> str:
     results = []
     for line in additional_errors:
         *_, error_type = line.split(" ")
-        if old_error_types.count(error_type) < 2: # if there are more than 1 of the same error, we consider it new
+        if not line.startswith("✖") and old_error_types.count(error_type) < 2: # if there are more than 1 of the same error, we consider it new
             results.append(line)
     return "\n".join(results)
 
