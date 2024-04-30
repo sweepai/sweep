@@ -259,11 +259,11 @@ def get_error_message(
                         cloned_repo.get_file_contents(file_path)
                         file_change_request.filename = file_path
                 else:
-                    error_message += f"<error index=\"#{len(error_indices)}\">\nThe file `{file_change_request.filename}` does not exist. Double-check your spelling.\n</error>\n\n"
+                    error_message += f"<error index=\"{len(error_indices)}\">\nThe file `{file_change_request.filename}` does not exist. Double-check your spelling. Did you mean to create a file with <create>?\n</error>\n\n"
                     error_indices.append(i)
     # if error_message:
     #     breakpoint()
-    return error_message, error_indices
+    return error_message.strip('\n\n'), error_indices
         
 def sort_and_fuse_snippets(
     snippets: list[Snippet],
@@ -469,6 +469,7 @@ def get_files_to_change(
             raise Exception("Failed to match issue excerpts")
         issue_excerpts = issue_excerpt_match.group(1)
         issue_excerpts = issue_excerpts.strip("\n")
+        breakpoint()
         files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + (files_to_change_prompt.format(issue_excerpts=issue_excerpts)),
             model=MODEL,
