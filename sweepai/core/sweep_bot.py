@@ -233,7 +233,7 @@ def get_error_message(
                                 best_score = match_score
                                 best_indent = indent_count
                         
-                        too_long_message = "\nThe code you provided is quite long. Consider isolating to only the section you want to edit." if len(original_code.splitlines()) > 30 else ""
+                        too_long_message = f"\nAlso, the <original_code> block you provided is quite long, with {len(original_code.splitlines())} lines of code. Consider isolating <original_code> and <updated_code> to only the section you want to edit to avoid errors copying the code." if len(original_code.splitlines()) > 30 else ""
 
                         if best_score == 100:
                             continue
