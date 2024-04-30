@@ -25,6 +25,7 @@ from tabulate import tabulate
 from tqdm import tqdm
 from yamllint import linter
 
+from sweepai.core.sweep_bot import GHA_PROMPT
 from sweepai.agents.pr_description_bot import PRDescriptionBot
 from sweepai.agents.image_description_bot import ImageDescriptionBot
 from sweepai.config.client import (
@@ -60,7 +61,7 @@ from sweepai.core.entities import (
 )
 from sweepai.core.entities import create_error_logs as entities_create_error_logs
 from sweepai.core.pr_reader import PRReader
-from sweepai.core.sweep_bot import SweepBot, get_files_to_change, validate_file_change_requests
+from sweepai.core.sweep_bot import SweepBot, get_files_to_change, get_files_to_change_for_gha, validate_file_change_requests
 from sweepai.handlers.create_pr import (
     create_config_pr,
     create_pr_changes,
@@ -943,8 +944,6 @@ def on_ticket(
                     config_pr = create_config_pr(sweep_bot, cloned_repo=cloned_repo)
                     config_pr_url = config_pr.html_url
                     edit_sweep_comment(message="", index=-2)
-                except SystemExit:
-                    raise SystemExit
                 except Exception as e:
                     logger.error(
                         "Failed to create new branch for sweep.yaml file.\n",
@@ -1475,7 +1474,7 @@ def on_ticket(
                 total_edit_attempts = 0
                 SLEEP_DURATION_SECONDS = 15
                 GITHUB_ACTIONS_ENABLED = get_gha_enabled(repo=repo) and DEPLOYMENT_GHA_ENABLED
-                GHA_MAX_EDIT_ATTEMPTS = 2 # max number of times to edit PR
+                GHA_MAX_EDIT_ATTEMPTS = 1 # max number of times to edit PR
                 while True and GITHUB_ACTIONS_ENABLED:
                     logger.info(
                         f"Polling to see if Github Actions have finished... {total_poll_attempts}"
@@ -1515,7 +1514,11 @@ def on_ticket(
                             )
                             diffs = get_branch_diff_text(repo=repo, branch=pr.head.ref, base_branch=pr.base.ref)
                             problem_statement = f"{title}\n{message_summary}\n{replies_text}"
-                            all_information_prompt = f"While trying to address the user request:\n<user_request>\n{problem_statement}\n</user_request>\n{failed_gha_logs}\nThese are the changes that were previously made:\n<diffs>\n{diffs}\n</diffs>\n\nFix the failing logs."
+                            all_information_prompt = GHA_PROMPT.format(
+                                problem_statement=problem_statement,
+                                github_actions_logs=failed_gha_logs,
+                                changes_made=diffs,
+                            )
                             
                             repo_context_manager = prep_snippets(cloned_repo=cloned_repo, query=(title + message_summary + replies_text).strip("\n"), ticket_progress=ticket_progress) # need to do this, can use the old query for speed
                             sweep_bot: SweepBot = construct_sweep_bot(
@@ -1532,12 +1535,13 @@ def on_ticket(
                                 tree=tree,
                                 comments=comments,
                             )
-                            file_change_requests, plan = get_files_to_change(
+                            file_change_requests, plan = get_files_to_change_for_gha(
                                 relevant_snippets=repo_context_manager.current_top_snippets,
                                 read_only_snippets=repo_context_manager.read_only_snippets,
                                 problem_statement=all_information_prompt,
-                                repo_name=repo_full_name,
+                                updated_files=new_file_contents,
                                 cloned_repo=cloned_repo,
+                                chat_logger=chat_logger,
                             )
                             validate_file_change_requests(file_change_requests, cloned_repo)
                             previous_modify_files_dict: dict[str, dict[str, str | list[str]]] | None = None

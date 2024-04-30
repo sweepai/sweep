@@ -241,7 +241,13 @@ e. List ALL relevant read-only utility modules from the provided set and specify
 # 2. Plan:
 <plan>  
 <create file="file_path_1">
-Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, and schemas.
+Detailed explanation of the contents of the new file. Reference imports and entity names. Include relevant type definitions, interfaces, and schemas.
+
+Then, write the new code in <new_code> tags:
+
+<new_code>
+All the new code required to be added to the file.
+</new_code>
 </create>
 [additional creates]
 
@@ -291,9 +297,9 @@ You will first think step-by-step about the error, and then either rewrite the i
 Analyze extremely carefully in great detail what went wrong, including the file path and the specific code block that needs to be modified. If you have failed to copy code verbatim, indicate precisely what is different between the code you provided and the code in the actual file.
 </thinking>
 
-Then, let's resolve the errors in your proposed plan:
+Then, let's resolve the errors in your proposed plan. If you would like patch the corresponding task of the plan, create a modify or create block with an index. The index should be equivalent to the error number of this error_resolution block. Otherwise, if you absolutely cannot resolve the error, drop the task. You must pick exactly ONE of the three options. Follow this format:
 
-If you would like patch the corresponding task of the plan, create a modify block with an index. The index should be equivalent to the error number of this error_resolution block.
+Option a: To patch the error as a modify block, follow this format:
 
 <modify file="file_path" index="0">
 Rewritten instructions to resolve the error. Update the original_code and new_code blocks as required, ensuring that the <original_code> block contains the actual code from the file.
@@ -309,7 +315,16 @@ Updated new code, based on the corrections in <original_code>. Ensure all newly 
 </new_code>
 </modify>
 
-Otherwise, if you absolutely cannot resolve the error, drop the task like so:
+Option b: To patch a task to create a file instead, create a create block like so:
+
+<create file="file_path">
+Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, and schemas. You may only have one new_code block in this section.
+<new_code>
+All the new code required to be added to the file.
+</new_code>
+</create>
+
+Option c: Otherwise, if you absolutely cannot resolve the error, drop the task like so:
 
 <drop>Index of the task to drop</drop>
 </error_resolution>
@@ -423,7 +438,7 @@ Use multiple <modify> blocks for the same file to separate distinct changes.
 [List of all relevant files to reference while making changes, one per line] 
 </relevant_modules>""" # + files_to_change_example TODO: test separately
 
-gha_files_to_change_system_prompt = """You are an AI assistant helping an intern write a plan to fix failing errors in his code. The intern will provide code files, a description of the issue, the error log, relevant parts of the codebase, and the changes he's made.
+gha_files_to_change_system_prompt = """You are an AI assistant helping an intern write a plan to fix failing errors in his code. The intern will provide code files, a description of the issue, the error log, relevant parts of the codebase, and the changes he's made. You may only modify code files to resolve the issue.
 
 Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to fix the errors. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
 Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.

@@ -88,6 +88,25 @@ Edit old_code to pass the CI/CD.
 2a. If the business logic is correct fix the test to return the expected output.
 2b. If the business logic has a bug or you are unsure, skip the failing tests with an explanation."""
 
+GHA_PROMPT = """You're working on resolving a GitHub issue but the code changes fail the GitHub Actions.
+
+You are trying to resolve the following GitHub issue:
+<original_github_issue>
+{problem_statement}
+</original_github_issue>
+
+You made some changes, but GitHub Actions failed with the following logs:
+<github_actions_logs>
+{github_actions_logs}
+</github_actions_logs>
+
+You have previously already made the following changes:
+<changes_made>
+{changes_made}
+</changes_made>
+
+Fix the above GitHub Actions."""
+
 def parse_patch_fcrs(fcr_patch_string: str):
     pattern = re.compile(r"""<(?P<change_type>[a-z_]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- @\{\}]*?)\"\s+index=\"(?P<index>\d+)\">(?P<instructions>.*?)\s*<\/\1>""", re.DOTALL)
     drop_pattern = re.compile("<drop>(.+?)</drop>", re.DOTALL)
@@ -213,24 +232,22 @@ def get_error_message(
                             if match_score > best_score:
                                 best_score = match_score
                                 best_indent = indent_count
+                        
+                        too_long_message = f"\nAlso, the <original_code> block you provided is quite long, with {len(original_code.splitlines())} lines of code. Consider isolating <original_code> and <updated_code> to only the section you want to edit to avoid errors copying the code." if len(original_code.splitlines()) > 30 else ""
+
                         if best_score == 100:
                             continue
-                        if best_score > threshold:
-                            if best_score > 80:
-                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```\n</error>\n\n"
-                            elif best_score > 50:
-                                best_matches = find_best_matches(original_code, file_contents, threshold=threshold, tokenized=True)
-                                ellipses_message = "You must copy code out in full and may not use ellipses, abbreviations, or any short-hand notation in your code." if "... " in original_code else ""
-                                if len(best_matches) > 1:
-                                    best_matches_string = "\n\n".join([f"Code match {i}:\n```\n{match_}\n```" for i, (match_, score) in enumerate(best_matches)])
-                                    error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify one of the following pieces of code instead?\n{best_matches_string}\n</error>{ellipses_message}\n\n"
-                                else:
-                                    # Same as case > 80
-                                    error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```\n</error>{ellipses_message}\n\n"
-                            else:
-                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\n</error>\n\n"
+                        if best_score > 80:
+                            error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}\n</error>\n\n"
                         else:
-                            error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{original_code}\n```\nPlease ensure the code you want to modify is present in `{file_change_request.filename}`. Could this code be in another file?\n</error>\n\n"
+                            best_matches = find_best_matches(original_code, file_contents, threshold=threshold, tokenized=True)
+                            ellipses_message = "\nYou must copy code out in full and may not use ellipses, abbreviations, or any short-hand notation in your code." if "... " in original_code else ""
+                            if len(best_matches) > 1:
+                                best_matches_string = "\n\n".join([f"Code match {i}:\n```\n{match_}\n```" for i, (match_, score) in enumerate(best_matches)])
+                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify one of the following pieces of code instead?\n{best_matches_string}\n</error>{too_long_message}{ellipses_message}\n\n"
+                            else:
+                                # Same as case > 80
+                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```\n</error>{too_long_message}{ellipses_message}\n\n"
                         error_indices.append(i)
             except FileNotFoundError as e:
                 logger.warning(f"Failed to get file contents for {file_change_request.filename} due to {e}")
@@ -240,11 +257,11 @@ def get_error_message(
                         cloned_repo.get_file_contents(file_path)
                         file_change_request.filename = file_path
                 else:
-                    error_message += f"<error index=\"#{len(error_indices)}\">\nThe file `{file_change_request.filename}` does not exist. Double-check your spelling.\n</error>\n\n"
+                    error_message += f"<error index=\"{len(error_indices)}\">\nThe file `{file_change_request.filename}` does not exist. Double-check your spelling. Did you mean to create a file with <create>?\n</error>\n\n"
                     error_indices.append(i)
     # if error_message:
     #     breakpoint()
-    return error_message, error_indices
+    return error_message.strip('\n\n'), error_indices
         
 def sort_and_fuse_snippets(
     snippets: list[Snippet],
@@ -450,6 +467,7 @@ def get_files_to_change(
             raise Exception("Failed to match issue excerpts")
         issue_excerpts = issue_excerpt_match.group(1)
         issue_excerpts = issue_excerpts.strip("\n")
+        # breakpoint()
         files_to_change_response = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + (files_to_change_prompt.format(issue_excerpts=issue_excerpts)),
             model=MODEL,
@@ -1033,6 +1051,7 @@ def get_files_to_change_for_gha(
             model=MODEL,
             temperature=0.1
         )
+        # breakpoint()
         max_tokens = 4096 * 3.5 * 0.8 # approx max tokens per response
         expected_plan_count = 1
         call_anthropic_second_time = len(files_to_change_response) > max_tokens and files_to_change_response.count("</plan>") < expected_plan_count
@@ -1096,7 +1115,7 @@ def get_files_to_change_for_gha(
             logger.debug("Old indices", error_indices)
             error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
             logger.debug("New indices", error_indices)
-            breakpoint()
+            # breakpoint()
 
         validate_file_change_requests(file_change_requests, cloned_repo)
         return file_change_requests, files_to_change_response

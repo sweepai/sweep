@@ -656,7 +656,7 @@ def contains_ignoring_whitespace(needle: str, haystack: str):
     return False
 
 MODEL = "claude-3-haiku-20240307"
-SLOW_MODEL = "claude-3-opus-20240229"
+SLOW_MODEL = "claude-3-opus-20240229" # try haiku
 
 def validate_and_parse_function_call_openai(
     function_calls_string: str, chat_gpt: ChatGPT
@@ -868,6 +868,10 @@ def parse_fcr(fcr: FileChangeRequest):
 def compile_fcr(fcr: FileChangeRequest, index: int) -> str:
     # justification is wrong, fix this later!
     parsed_fcr = parse_fcr(fcr)
+    if not parsed_fcr["new_code"]:
+        return ""
+    if not parsed_fcr["original_code"] and fcr.change_type == "modify":
+        return ""
     if parsed_fcr["replace_all"]:
         flags = "\n<replace_all>true</replace_all>"
     else:
