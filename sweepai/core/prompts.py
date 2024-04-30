@@ -241,7 +241,13 @@ e. List ALL relevant read-only utility modules from the provided set and specify
 # 2. Plan:
 <plan>  
 <create file="file_path_1">
-Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, and schemas.
+Detailed explanation of the contents of the new file. Reference imports and entity names. Include relevant type definitions, interfaces, and schemas.
+
+Then, write the new code in <new_code> tags:
+
+<new_code>
+All the new code required to be added to the file.
+</new_code>
 </create>
 [additional creates]
 
