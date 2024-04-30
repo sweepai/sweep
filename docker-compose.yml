@@ -18,23 +18,3 @@ services:
     ports:
       - "${PORT:-8080}:8080"
     restart: unless-stopped
-  hosted-legacy:
-    env_file:
-      - .env
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: base
-    image: sweepai/sweep.hosted
-    container_name: github_app
-    # network_mode: "host"
-    volumes:
-      - .:/app
-    command: >
-      sh -c ". bin/startup.hosted.sh"
-    stdin_open: true
-    tty: true
-    restart: unless-stopped
-    ports:
-      - "${PORT:-8080}:8080"
-    # scale: 0
