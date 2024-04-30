@@ -67,7 +67,7 @@ Summarize the code changes made and explain how they fulfill the user's original
 modify_tools = """<tool_description>
 <tool_name>make_change</tool_name>
 <description>
-Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments, and style. Changes should be minimal, self-contained, and address only one specific modification. If a change affects multiple separate code sections, use this tool for one change at a time, one for each section.
+Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments, and style. Changes should be minimal, self-contained, and address only one specific modification. If a change affects multiple separate code sections, use this tool for one change at a time, one for each section. For multiple changes, make them in separate calls.
 </description>
 <parameters>
 <parameter>
@@ -1090,6 +1090,8 @@ def modify(
                         ))
                 # if previous things go wrong we make llm call
                 if not function_calls_string:
+                    if linter_warning_prompt in function_output:
+                        llm_state["attempt_count"] = 3 # skip to opus if there is a linter warning
                     model = MODEL if llm_state["attempt_count"] < 3 else SLOW_MODEL
                     logger.info(f"Using model: {model}")
                     function_calls_string = chat_gpt.chat_anthropic(

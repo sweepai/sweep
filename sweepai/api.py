@@ -23,16 +23,13 @@ from fastapi.templating import Jinja2Templates
 from github.Commit import Commit
 
 from sweepai.config.client import (
-    DEFAULT_RULES,
     RESTART_SWEEP_BUTTON,
     REVERT_CHANGED_FILES_TITLE,
-    RULES_LABEL,
     RULES_TITLE,
     SWEEP_BAD_FEEDBACK,
     SWEEP_GOOD_FEEDBACK,
     SweepConfig,
     get_gha_enabled,
-    get_rules,
 )
 from sweepai.config.server import (
     BLACKLISTED_USERS,
@@ -63,8 +60,6 @@ from sweepai.handlers.on_jira_ticket import handle_jira_ticket
 from sweepai.handlers.on_ticket import on_ticket
 from sweepai.handlers.stack_pr import stack_pr
 from sweepai.utils.buttons import (
-    Button,
-    ButtonList,
     check_button_activated,
     check_button_title_match,
 )
@@ -507,20 +502,6 @@ def handle_event(request_dict, event):
                         "success": True,
                         "reason": "PR already has a comment from sweep bot",
                     }
-                rule_buttons = []
-                repo_rules = get_rules(repo) or []
-                if repo_rules != [""] and repo_rules != []:
-                    for rule in repo_rules or []:
-                        if rule:
-                            rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
-                    if len(repo_rules) == 0:
-                        for rule in DEFAULT_RULES:
-                            rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
-                if rule_buttons:
-                    rules_buttons_list = ButtonList(
-                        buttons=rule_buttons, title=RULES_TITLE
-                    )
-                    pr.create_issue_comment(rules_buttons_list.serialize() + BOT_SUFFIX)
             case "issues", "opened":
                 request = IssueRequest(**request_dict)
                 issue_title_lower = request.issue.title.lower()

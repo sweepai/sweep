@@ -226,6 +226,22 @@ def get_new_lint_errors_for_pylint(new_errors: str, old_errors: str) -> str:
             results.append(line)
     return "\n".join(results)
 
+def get_new_lint_errors_for_eslint(new_errors: str, old_errors: str) -> str:
+    # Example of error: "main.py:1585:12: W0612: Unused variable 'command' (unused-variable)"
+    additional_errors = patience_fuzzy_additions(old_errors, new_errors).splitlines()
+    old_error_types = []
+    for line in old_errors.splitlines():
+        if line.count(" ") > 2:
+            *_, error_type = line.split(" ")
+            old_error_types.append(error_type)
+    results = []
+    for line in additional_errors:
+        *_, error_type = line.split(" ")
+        if old_error_types.count(error_type) < 2: # if there are more than 1 of the same error, we consider it new
+            results.append(line)
+    return "\n".join(results)
+
+
 @dataclass
 class CheckResults:
     # Experimental feature, we'll see how this does.
@@ -257,9 +273,13 @@ class CheckResults:
                 return ""
             return f"The following new pylint errors have appeared:\n\n{new_pylint_errors}"
         if len(self.eslint.splitlines()) > len(other.eslint.splitlines()):
+            new_eslint_errors = get_new_lint_errors_for_eslint(self.eslint, other.eslint)
             if not other.eslint:
                 return f"The code has the following eslint errors:\n\n{self.eslint}"
-            return f"The following new eslint errors have appeared:\n\n{patience_fuzzy_additions(other.eslint, self.eslint)}"
+            elif not new_eslint_errors:
+                # All the errors are invalid
+                return ""
+            return f"The following new eslint errors have appeared:\n\n{new_eslint_errors}"
         return ""
 
 def strip_ansi_codes(text: str) -> str:
@@ -467,6 +487,7 @@ def get_check_results(file_path: str, code: str) -> CheckResults:
             text=True,
             shell=True,
         )
+        # Check eslint < v9 and all the plugins exist
         if result.returncode == 0:
             with TemporaryDirectory(dir=os.getcwd()) as temp_dir:
                 file_name = file_path.split(os.path.sep)[-1]
