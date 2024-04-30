@@ -60,8 +60,6 @@ from sweepai.handlers.on_jira_ticket import handle_jira_ticket
 from sweepai.handlers.on_ticket import on_ticket
 from sweepai.handlers.stack_pr import stack_pr
 from sweepai.utils.buttons import (
-    Button,
-    ButtonList,
     check_button_activated,
     check_button_title_match,
 )

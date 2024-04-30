@@ -29,22 +29,15 @@ from sweepai.core.sweep_bot import GHA_PROMPT
 from sweepai.agents.pr_description_bot import PRDescriptionBot
 from sweepai.agents.image_description_bot import ImageDescriptionBot
 from sweepai.config.client import (
-    DEFAULT_RULES,
     RESET_FILE,
     RESTART_SWEEP_BUTTON,
     REVERT_CHANGED_FILES_TITLE,
-    RULES_LABEL,
-    RULES_TITLE,
-    SWEEP_BAD_FEEDBACK,
-    SWEEP_GOOD_FEEDBACK,
     SweepConfig,
     get_documentation_dict,
     get_gha_enabled,
-    get_rules,
 )
 from sweepai.config.server import (
     DEPLOYMENT_GHA_ENABLED,
-    DISCORD_FEEDBACK_WEBHOOK_URL,
     ENV,
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
