@@ -1516,7 +1516,11 @@ def on_ticket(
                             )
                             diffs = get_branch_diff_text(repo=repo, branch=pr.head.ref, base_branch=pr.base.ref)
                             problem_statement = f"{title}\n{message_summary}\n{replies_text}"
-                            all_information_prompt = f"While trying to address the user request:\n<user_request>\n{problem_statement}\n</user_request>\n{failed_gha_logs}\nThese are the changes that were previously made:\n<diffs>\n{diffs}\n</diffs>\n\nFix the failing logs."
+                            all_information_prompt = GHA_PROMPT.format(
+                                problem_statement=problem_statement,
+                                failed_gha_logs=failed_gha_logs,
+                                diffs=diffs,
+                            )
                             
                             repo_context_manager = prep_snippets(cloned_repo=cloned_repo, query=(title + message_summary + replies_text).strip("\n"), ticket_progress=ticket_progress) # need to do this, can use the old query for speed
                             sweep_bot: SweepBot = construct_sweep_bot(
@@ -1536,11 +1540,7 @@ def on_ticket(
                             file_change_requests, plan = get_files_to_change_for_gha(
                                 relevant_snippets=repo_context_manager.current_top_snippets,
                                 read_only_snippets=repo_context_manager.read_only_snippets,
-                                problem_statement=GHA_PROMPT.format(
-                                    problem_statement=problem_statement,
-                                    failed_gha_logs=failed_gha_logs,
-                                    diffs=diffs,
-                                ),
+                                problem_statement=all_information_prompt,
                                 repo_name=repo_full_name,
                                 cloned_repo=cloned_repo,
                             )
