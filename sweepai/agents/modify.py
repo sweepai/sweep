@@ -571,6 +571,7 @@ def tokenize_code(code: str):
         if stripped_line.startswith("#") or stripped_line.startswith("//") or len(stripped_line) == 0:
             continue
         cleaned_code += line + "\n"
+    # cleaned_code = re.sub(r'\n\s*(#|//).*?\n', '\n', code)
     return [str(token) for token in sz.Str(cleaned_code).split_charset(separator=' \n\t\r()\{\}\[\]', maxsplit=sys.maxsize, keepseparator=True) if str(token).strip()]
 
 def code_processor(code: str):
