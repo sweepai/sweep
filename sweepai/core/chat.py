@@ -557,3 +557,29 @@ class ChatGPT(MessageList):
         if len(self.prev_message_states) > 0:
             self.messages = self.prev_message_states.pop()
         return self.messages
+
+def call_llm(
+    system_prompt: str,
+    user_prompt: str,
+    params: dict,
+    use_anthropic: bool = True,
+    *args,
+    **kwargs,
+):
+    chat_gpt = ChatGPT.from_system_message_string(
+        prompt_string=system_prompt,
+    )
+
+    if use_anthropic:
+        return chat_gpt.chat_anthropic(
+            user_prompt.format(**params),
+            *args,
+            **kwargs,
+        )
+    else:
+        return chat_gpt.chat(
+            user_prompt.format(**params),
+            *args,
+            **kwargs,
+        )
+
