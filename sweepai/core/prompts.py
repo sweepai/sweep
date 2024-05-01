@@ -299,7 +299,7 @@ You will first think step-by-step about the error, and then either rewrite the i
 Analyze extremely carefully in great detail what went wrong, including the file path and the specific code block that needs to be modified. If you have failed to copy code verbatim, indicate precisely what is different between the code you provided and the code in the actual file.
 </thinking>
 
-Then, let's resolve the errors in your proposed plan. If you would like patch the corresponding task of the plan, create a modify or create block with an index. The index should be equivalent to the error number of this error_resolution block. Otherwise, if you absolutely cannot resolve the error, drop the task. You must pick exactly ONE of the three options. Follow this format:
+Then, let's resolve the errors in your proposed plan. If you would like patch the corresponding task of the plan, create a modify or create block with an index. The index should be equivalent to the error number of this error_resolution block, so it must be one of the following integers: {allowed_indices}. Otherwise, if you absolutely cannot resolve the error, drop the task. You must pick exactly ONE of the three options. Follow this format:
 
 Option a: To patch the error as a modify block, follow this format:
 
@@ -501,6 +501,7 @@ There are a total of X errors in the error logs:
 
 <error_analysis index="1">
 Error message 1: Copy the full error message here VERBOSE, abbreviations, paraphrasing, ellipses, and placeholder comments are not permitted.
+- This is for one type of error message. If multiple errors are occurring due to the same root cause, group them together.
 - Count the number of occurrences of this error and list all of the particular tests that raised it.
 - Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code. Most of the time, the test case has yet to be updated.
 - Explain how to resolve the error in the test case. Be complete and precise.
@@ -522,6 +523,8 @@ Write the new code in <new_code> tags, specifying necessary imports and referenc
 </new_code>
 
 c. (Optional) Identify whether this is a change that needs to be applied exactly in other places of this file. If so, add <replace_all>true</replace_all> to replace all instances of the <original_code> in the file with the <new_code>.
+
+Use multiple <modify> blocks for the same file to separate distinct changes, such as for imports.
 </modify>
 </error_analysis>
 [additional <error_analysis> blocks as needed, for ALL error messages in the error logs]
