@@ -264,8 +264,8 @@ def get_error_message(
                 else:
                     error_message += f"<error index=\"{len(error_indices)}\">\nThe file `{file_change_request.filename}` does not exist. Double-check your spelling. Did you mean to create a file with <create>?\n</error>\n\n"
                     error_indices.append(i)
-    if error_message:
-        breakpoint()
+    # if error_message:
+    #     breakpoint()
     return error_message.strip('\n\n'), error_indices
         
 def sort_and_fuse_snippets(
