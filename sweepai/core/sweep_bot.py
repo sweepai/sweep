@@ -1126,8 +1126,8 @@ def get_files_to_change_for_gha(
             logger.debug("Old indices", error_indices)
             error_message, error_indices = get_error_message(file_change_requests, cloned_repo, updated_files)
             logger.debug("New indices", error_indices)
-            # breakpoint()
 
+        # breakpoint()
         validate_file_change_requests(file_change_requests, cloned_repo)
         return file_change_requests, files_to_change_response
     except RegexMatchError as e:
