@@ -175,6 +175,8 @@ def get_pointwise_reranked_snippet_scores(
     query: str,
     snippets: list[Snippet],
     snippet_scores: dict[str, float],
+    NUM_SNIPPETS_TO_KEEP=5,
+    NUM_SNIPPETS_TO_RERANK=100,
 ):
     """
     Ranks 1-5 snippets are frozen. They're just passed into Cohere since it helps with reranking. We multiply the scores by 1_000 to make them more significant.
@@ -189,9 +191,6 @@ def get_pointwise_reranked_snippet_scores(
         key=lambda snippet: snippet_scores[snippet.denotation],
         reverse=True,
     )
-
-    NUM_SNIPPETS_TO_KEEP = 5
-    NUM_SNIPPETS_TO_RERANK = 100
 
     response = cohere_rerank_call(
         model='rerank-english-v3.0',
@@ -224,6 +223,8 @@ def multi_prep_snippets(
     k: int = 15,
     skip_reranking: bool = False, # This is only for pointwise reranking
     skip_pointwise_reranking: bool = False,
+    NUM_SNIPPETS_TO_KEEP=5,
+    NUM_SNIPPETS_TO_RERANK=100,
 ) -> RepoContextManager:
     """
     Assume 0th index is the main query.
@@ -241,7 +242,7 @@ def multi_prep_snippets(
                 content_to_lexical_score[snippet.denotation] += content_to_lexical_score_list[i][snippet.denotation] * (1 / 2 ** (rank_fusion_offset + j))
         if not skip_pointwise_reranking:
             content_to_lexical_score = get_pointwise_reranked_snippet_scores(
-                queries[0], snippets, content_to_lexical_score
+                queries[0], snippets, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK
             )
         ranked_snippets = sorted(
             snippets,
@@ -254,7 +255,7 @@ def multi_prep_snippets(
         )
         if not skip_pointwise_reranking:
             content_to_lexical_score = get_pointwise_reranked_snippet_scores(
-                queries[0], snippets, content_to_lexical_score
+                queries[0], snippets, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK
             )
         ranked_snippets = sorted(
             snippets,
@@ -297,13 +298,15 @@ def prep_snippets(
     k: int = 15,
     skip_reranking: bool = False,
     use_multi_query: bool = True,
+    *args,
+    **kwargs,
 ) -> RepoContextManager:
     if use_multi_query:
         queries = [query, *generate_multi_queries(query)]
     else:
         queries = [query]
     return multi_prep_snippets(
-        cloned_repo, queries, ticket_progress, k, skip_reranking
+        cloned_repo, queries, ticket_progress, k, skip_reranking, *args, **kwargs
     )
 
 def get_relevant_context(
