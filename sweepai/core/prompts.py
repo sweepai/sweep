@@ -299,7 +299,7 @@ You will first think step-by-step about the error, and then either rewrite the i
 Analyze extremely carefully in great detail what went wrong, including the file path and the specific code block that needs to be modified. If you have failed to copy code verbatim, indicate precisely what is different between the code you provided and the code in the actual file.
 </thinking>
 
-Then, let's resolve the errors in your proposed plan. If you would like patch the corresponding task of the plan, create a modify or create block with an index. The index should be equivalent to the error number of this error_resolution block. Otherwise, if you absolutely cannot resolve the error, drop the task. You must pick exactly ONE of the three options. Follow this format:
+Then, let's resolve the errors in your proposed plan. If you would like patch the corresponding task of the plan, create a modify or create block with an index. The index should be equivalent to the error number of this error_resolution block, so it must be one of the following integers: {allowed_indices}. Otherwise, if you absolutely cannot resolve the error, drop the task. You must pick exactly ONE of the three options. Follow this format:
 
 Option a: To patch the error as a modify block, follow this format:
 

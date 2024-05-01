@@ -434,18 +434,30 @@ e. Finally decide whether additional changes are needed or if the task is comple
 
 If additional changes are needed, make the necessary changes and call the make_change function again. If the task is complete, call the submit_task function."""
 
-linter_warning_prompt = """There is a linter warning in the code changes. Resolve the warnings by following these steps:
+linter_warning_prompt = """There is a linter warning in the code changes. Resolve the warnings by following this format:
+
+# Thinking
+<thinking>
+a. Look closely at the changes made and critique the change(s) you have made for any potential logical errors.
+b. Identify what the linter warning is, and what may be causing it. Keep in mind that the actual cause of the error may be different from what the linter is suggesting, such as inconsistent indentation.
+c. Indicate the minimum amount of changes required to resolve the linter warnings.
+</thinking>
+
+Then, call the make_change function to fix the linter warnings. If the warning absolutely cannot or should not be resolved, call submit_task with an explanation of the issue."""
+
+linter_indentation_warning_prompt = """There is a linter warning in the code changes. It also looks like you have changed the indentation of the code, which may be the cause of the error.
+
+Resolve the warnings by following this format:
 
 # Thinking
 <thinking>
 a. Look closely at the changes made to identify any syntax errors that may have caused the linter errors. Does the number of indents in the changed code compare to the number of indents in the surrounding code?
 b. Critique the change(s) you have made for any potential logical errors.
 c. Identify what the linter warning is, and what may be causing it. Keep in mind that the actual cause of the error may be different from what the linter is suggesting, such as inconsistent indentation.
-d. Identify whether the linter warning should be resolved, or is intentional. For example, if you import a new module that you will use later, you may safely ignore the linter warning.
-e. Indicate the minimum amount of changes required to resolve the linter warning if required.
+d. Indicate the minimum amount of changes required to resolve the linter warnings.
 </thinking>
 
-Then, call the make_change function to fix the linter warnings. If the warning cannot or should not be resolved, call submit_task with an explanation of the issue."""
+Then, call the make_change function to fix the linter warnings. If the warning absolutely cannot or should not be resolved, call submit_task with an explanation of the issue."""
 
 fix_syntax_prompt = """You MUST resolve the issue by following these steps:
 
@@ -571,8 +583,13 @@ def tokenize_code(code: str):
         if stripped_line.startswith("#") or stripped_line.startswith("//") or len(stripped_line) == 0:
             continue
         cleaned_code += line + "\n"
-    # cleaned_code = re.sub(r'\n\s*(#|//).*?\n', '\n', code)
-    return [str(token) for token in sz.Str(cleaned_code).split_charset(separator=' \n\t\r()\{\}\[\]', maxsplit=sys.maxsize, keepseparator=True) if str(token).strip()]
+    tokens = []
+    for token in sz.Str(cleaned_code).split_charset(separator=' \n\t\r()\{\}\[\]', maxsplit=sys.maxsize, keepseparator=True):
+        stringified_token = str(token)
+        if stringified_token.strip():
+            tokens.append(stringified_token)
+    return tokens
+
 
 def code_processor(code: str):
     return " ".join(tokenize_code(code))
@@ -631,7 +648,7 @@ def find_best_matches(
     return deduped_best_matches[:num_matches]
 
 def find_best_match(*args, **kwargs):
-    results = find_best_matches(*args, **kwargs)
+    results = find_best_matches(*args, **kwargs, num_matches=1)
     if len(results) > 0:
         return results[0]
     return "", 0
@@ -1459,10 +1476,14 @@ def handle_function_call(
                     "original_contents": file_contents,
                 }
             if warning_message:
-                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\nThe code changes also yield the following warnings:\n```\n{warning_message}\n```\n\n{linter_warning_prompt.format(current_task=llm_state['current_task'])}"
-                # print(llm_response)
-                # breakpoint()
-                modify_files_dict[file_name]['contents'] = new_file_contents
+                original_code_indents = len(original_code) - len(original_code.lstrip())
+                new_code_indents = len(new_code) - len(new_code.lstrip())
+                if original_code_indents > new_code_indents:
+                    llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\nThe code changes also yield the following warnings:\n```\n{warning_message}\n```\n\n{linter_indentation_warning_prompt.format(current_task=llm_state['current_task'])}"
+                else:
+                    llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\nThe code changes also yield the following warnings:\n```\n{warning_message}\n```\n\n{linter_warning_prompt.format(current_task=llm_state['current_task'])}"
+
+                 #dify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
                 # breakpoint()
             elif llm_state["completed_changes_per_fcr"][current_fcr_index] + 1 < llm_state["changes_per_fcr"][current_fcr_index]:

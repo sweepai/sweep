@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from tqdm import tqdm
 from rapidfuzz import fuzz
 
-from sweepai.agents.modify import contains_ignoring_whitespace, find_best_match, find_best_matches, find_max_indentation, parse_fcr, indent
+from sweepai.agents.modify import contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, parse_fcr, indent
 from sweepai.agents.modify_file import modify_file
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
@@ -198,13 +198,18 @@ def validate_file_change_requests(
 def get_error_message(
     file_change_requests: list[FileChangeRequest],
     cloned_repo: ClonedRepo,
+    updated_files: dict[str, dict[str, str]] = {},
 ):
+    def get_file_contents(file_path):
+        if file_path in updated_files:
+            return updated_files[file_path]["contents"]
+        return cloned_repo.get_file_contents(file_path)
     error_message = ""
     error_indices = []
     for i, file_change_request in enumerate(file_change_requests):
         if file_change_request.change_type == "modify":
             try:
-                file_contents = cloned_repo.get_file_contents(file_change_request.filename)
+                file_contents = get_file_contents(file_change_request.filename)
                 parsed_fcr = parse_fcr(file_change_request)
                 if not parsed_fcr["original_code"]:
                     # breakpoint()
@@ -254,13 +259,13 @@ def get_error_message(
                 for file_path in cloned_repo.get_file_list():
                     if file_path.endswith(file_change_request.filename):
                         logger.info(f"Found similar file {file_change_request.filename} at {file_path}")
-                        cloned_repo.get_file_contents(file_path)
+                        get_file_contents(file_path)
                         file_change_request.filename = file_path
                 else:
                     error_message += f"<error index=\"{len(error_indices)}\">\nThe file `{file_change_request.filename}` does not exist. Double-check your spelling. Did you mean to create a file with <create>?\n</error>\n\n"
                     error_indices.append(i)
-    # if error_message:
-    #     breakpoint()
+    if error_message:
+        breakpoint()
     return error_message.strip('\n\n'), error_indices
         
 def sort_and_fuse_snippets(
@@ -518,7 +523,10 @@ def get_files_to_change(
             if not error_message:
                 break
             fix_attempt = chat_gpt.chat_anthropic(
-                content=fix_files_to_change_prompt.format(error_message=error_message),
+                content=fix_files_to_change_prompt.format(
+                    error_message=error_message,
+                    allowed_indices=english_join([str(index) for index in range(len(error_indices))]),
+                ),
                 model=MODEL,
                 # model="claude-3-opus-20240229",
                 temperature=0.1,
@@ -1090,13 +1098,16 @@ def get_files_to_change_for_gha(
             file_change_request.raw_relevant_files = " ".join(relevant_modules)
             file_change_requests.append(file_change_request)
 
-        error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
+        error_message, error_indices = get_error_message(file_change_requests, cloned_repo, updated_files)
 
         for _ in range(3):
             if not error_message:
                 break
             fix_attempt = chat_gpt.chat_anthropic(
-                content=fix_files_to_change_prompt.format(error_message=error_message),
+                content=fix_files_to_change_prompt.format(
+                    error_message=error_message,
+                    allowed_indices=english_join([str(index) for index in range(len(error_indices))]),
+                ),
                 model=MODEL,
                 # model="claude-3-opus-20240229",
                 temperature=0.1,
@@ -1113,7 +1124,7 @@ def get_files_to_change_for_gha(
                     continue
                 file_change_requests.pop(error_indices[drop])
             logger.debug("Old indices", error_indices)
-            error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
+            error_message, error_indices = get_error_message(file_change_requests, cloned_repo, updated_files)
             logger.debug("New indices", error_indices)
             # breakpoint()
 
