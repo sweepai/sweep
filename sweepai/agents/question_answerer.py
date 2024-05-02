@@ -60,9 +60,8 @@ Firstly, analyze all search results so far to determine the final answer. Then, 
 <type>str</type>
 <description>
 Provide a precise, detailed response to the user's question.
-
+Be sure to copy and paste the relevant code snippets from the codebase into the response to explain implementations, usages and examples.
 Make reference to entities in the codebase, and provide examples of usages and implementations whenever possible. 
-
 When you mention an entity, be precise and clear by indicating the file they are from. For example, you may say: this functionality is accomplished by calling `foo.bar(x, y)` (from the `Foo` class in `src/modules/foo.py`). If you do not know where it is from, you need use the search_codebase tool to find it.
 </description>
 </parameter>
@@ -71,8 +70,8 @@ When you mention an entity, be precise and clear by indicating the file they are
 <type>str</type>
 <description>
 Code files you referenced in your <answer>. Only include sources that are DIRECTLY REFERENCED in your answer, do not provide anything vaguely related. Keep this section MINIMAL. These must be full paths and not symlinks of aliases to files. Follow this format:
-path/to/file.ext
-path/to/other/file.ext
+path/to/file.ext:a-b - justification and the section of the file that is relevant
+path/to/other/file.ext:c-d - justification and the section of the file that is relevant
 </description>
 </parameter>
 </parameters>
@@ -174,8 +173,8 @@ When you mention an entity, be precise and clear by indicating the file they are
 </answer>
 <sources>
 Code files you referenced in your <answer>. Only include sources that are DIRECTLY REFERENCED in your answer, do not provide anything vaguely related. Keep this section MINIMAL. These must be full paths and not symlinks of aliases to files. Follow this format:
-path/to/file.ext
-path/to/other/file.ext
+path/to/file.ext:a-b - justification and the section of the file that is relevant
+path/to/other/file.ext:c-d - justification and the section of the file that is relevant
 </sources>
 </parameters>
 </invoke>
@@ -191,6 +190,22 @@ DEFAULT_FUNCTION_CALL = """<function_call>
 </parameters>
 </invoke>
 </function_call>"""
+
+DUPLICATE_QUESTION_MESSAGE = """You've already asked this question: {question}
+
+Please ask a different question. If you can not find the answer in the search results, you need to ask more specific questions or ask questions about tangentially related topics. For example, if you find that a certain functionality is handled in another utilty module, you may need to search for that utility module to find the relevant information."""
+
+SEARCH_RESULT_INSTRUCTIONS = """
+
+First, think step-by-step in a scratchpad to analyze the search results and determine whether the answers provided here are sufficient or if there are additional relevant modules that we may need, such as referenced utility files, docs or tests.
+
+Then, determine if the results are sufficient to answer the user's request:
+
+{request}
+
+If the search results are insufficient, you need to ask more specific questions or ask questions about tangentially related topics. For example, if you find that a certain functionality is handled in another utilty module, you may need to search for that utility module to find the relevant information.
+
+Otherwise, if you have found all the relevant information to answer the user's request, submit the task using submit_task. If you submit, ensure that the <answer> includes relevant implementations, usages and examples of code wherever possible and be sure that the <sources> section is MINIMAL and only includes all files you reference in your answer. Be sure to use the valid function call format."""
 
 def search_codebase(
     question: str,
@@ -225,7 +240,9 @@ def rag(
 
     user_message = search_agent_user_message.format(question=question)
     llm_state = {
-        "visited_snippets": set()
+        "visited_snippets": set(),
+        "visited_questions": set(),
+        "request": question,
     }
 
     for iter_num in range(10):
@@ -257,7 +274,13 @@ def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: Clon
     if function_call.function_name == "search_codebase":
         if "question" not in function_call.function_parameters:
             return "Please provide a question to search the codebase."
-        question = function_call.function_parameters["question"]
+        question = function_call.function_parameters["question"].strip()
+        previously_asked_question = deepcopy(llm_state["visited_questions"])
+        if not question.strip():
+            return "Question cannot be empty. Please provide a detailed, specific natural language search question to search the codebase for relevant snippets."
+        if question in llm_state["visited_questions"]:
+            return DUPLICATE_QUESTION_MESSAGE.format(question=question)
+        llm_state["visited_questions"].add(question)
         rcm = search_codebase(
             question=question,
             cloned_repo=cloned_repo,
@@ -270,7 +293,7 @@ def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: Clon
             if snippet.denotation not in llm_state["visited_snippets"]:
                 snippets.append(SNIPPET_FORMAT.format(
                     denotation=snippet.denotation,
-                    contents=snippet.content,
+                    contents=snippet.get_snippet(add_lines=False),
                 ))
                 llm_state["visited_snippets"].add(snippet.denotation)
             else:
@@ -280,13 +303,13 @@ def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: Clon
         if prev_visited_snippets:
             snippets_string += "\n\nHere is a list of all the files retrieved previously:\n" + "\n".join([f"- {snippet}" for snippet in sorted(list(prev_visited_snippets))])
         snippets_string += f"\n\nThe above are the snippets that are found in decreasing order of relevance to the search query \"{function_call.function_parameters.get('question')}\"."
-        for snippet in rcm.current_top_snippets:
-            print(snippet.denotation, snippet.score)
-        return snippets_string + "\n\nFirst, think step-by-step in a scratchpad to analyze the search results and determine whether the answers provided here are sufficient or if there are additional relevant modules that we may need, such as referenced utility files, docs or tests.\n\nThen, if the search results are insufficient, you must make additional more highly specified different but related search queries using search_codebase. Otherwise, if you have found all the relevant information, submit the task using submit_task. If you submit, be sure that the <sources> section is MINIMAL and only includes all files you reference in your answer. Be sure to use the valid function call format."
+        if previously_asked_question:
+            snippets_string += f"\n\nYou have already asked the following questions so do not ask them again:\n" + "\n".join([f"- {question}" for question in previously_asked_question])
+        return snippets_string + SEARCH_RESULT_INSTRUCTIONS.format(request=llm_state["request"])
     if function_call.function_name == "submit_task":
         for key in ("analysis", "answer", "sources"):
             if key not in function_call.function_parameters:
-                return f"Please provide a {key} to submit the task."
+                return f"Please provide a {key} parameter to submit the task. You must provide an analysis, answer, and sources to submit the task as three separate parameters."
         return "DONE"
     else:
         return "ERROR\n\nInvalid tool name."
@@ -297,6 +320,6 @@ if __name__ == "__main__":
         repo_full_name="sweepai/sweep",
     )
     rag(
-        question="What version of django are we using?",
+        question="What version of tree-sitter are we using?",
         cloned_repo=cloned_repo,
     )
