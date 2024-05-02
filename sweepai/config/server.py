@@ -174,6 +174,8 @@ AWS_SECRET_KEY=os.environ.get("AWS_SECRET_KEY")
 AWS_REGION=os.environ.get("AWS_REGION")
 ANTHROPIC_AVAILABLE = AWS_ACCESS_KEY and AWS_SECRET_KEY and AWS_REGION
 
+SLACK_API_KEY = os.environ.get("SLACK_API_KEY", None)
+
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", None)
 
 COHERE_API_KEY = os.environ.get("COHERE_API_KEY", None)
