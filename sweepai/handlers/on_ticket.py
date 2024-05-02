@@ -25,6 +25,9 @@ from tabulate import tabulate
 from tqdm import tqdm
 from yamllint import linter
 
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
+
 from sweepai.core.sweep_bot import GHA_PROMPT
 from sweepai.agents.pr_description_bot import PRDescriptionBot
 from sweepai.agents.image_description_bot import ImageDescriptionBot
@@ -111,6 +114,8 @@ from sweepai.utils.ticket_utils import (
     prep_snippets,
 )
 from sweepai.utils.user_settings import UserSettings
+
+from sweepai.config.server import SLACK_API_KEY
 
 # from sandbox.sandbox_utils import Sandbox
 
