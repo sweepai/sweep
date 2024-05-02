@@ -87,7 +87,7 @@ def generate_multi_queries(input_query: str):
     stripped_input = input_query.strip('\n')
     response = chatgpt.chat(
         content=f"<github_issue>\n{stripped_input}\n</github_issue>",
-        model="gpt-4-turbo-2024-04-09",
+        model="gpt-4-0125-preview",
         temperature=0.7, # I bumped this and it improved the benchmarks
     )
     pattern = re.compile(r"<query>(?P<query>.*?)</query>", re.DOTALL)

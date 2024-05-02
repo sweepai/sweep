@@ -35,7 +35,7 @@ issue_validator_system_prompt = """You are an AI assistant tasked with determini
 
 issue_validator_user_prompt = """<issue>
 {issue}
-</issue>""" + issue_validator_instructions_prompt
+</issue>\n\n""" + issue_validator_instructions_prompt
 
 def validate_issue(issue: str) -> str:
     """
