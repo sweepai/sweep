@@ -34,62 +34,87 @@ files such as tests, docs and localization files. Therefore,
 we add adjustment scores to compensate for this bias.
 """
 
-prefix_adjustment = {
-    ".": 0.5,
-    "doc": 0.3,
-    "example": 0.7,
-}
-
-suffix_adjustment = {
-    ".cfg": 0.8,
-    ".ini": 0.8,
-    ".txt": 0.8,
-    ".rst": 0.8,
-    ".md": 0.8,
-    ".html": 0.8,
-    ".po": 0.5,
-    ".json": 0.8,
-    ".toml": 0.8,
-    ".yaml": 0.8,
-    ".yml": 0.8,
-    ".1": 0.5, # man pages
-    ".spec.ts": 0.6,
-    ".spec.js": 0.6,
-    ".test.ts": 0.6,
-    ".generated.ts": 0.5,
-    ".generated.graphql": 0.5,
-    ".generated.js": 0.5,
-    "ChangeLog": 0.5,
-}
-
-substring_adjustment = {
-    "tests/": 0.5,
-    "test/": 0.5,
-    "/test": 0.5,
-    "_test": 0.5,
-    "egg-info": 0.5,
-    "LICENSE": 0.5,
+adjustment_scores = {
+    "all": {
+        "prefix": {
+            ".": 0.5,
+        },
+        "suffix": {
+            ".cfg": 0.8,
+            ".ini": 0.8,
+            ".po": 0.5,
+            ".json": 0.8,
+            ".toml": 0.8,
+            ".yaml": 0.8,
+            ".yml": 0.8,
+        },
+        "substring": {
+            "egg-info": 0.5,
+        }
+    },
+    "docs": {
+        "prefix": {
+            ".": 0.5,
+            "doc": 0.3,
+            "example": 0.7,
+        },
+        "suffix": {
+            ".txt": 0.8,
+            ".rst": 0.8,
+            ".md": 0.8,
+            ".html": 0.8,
+            ".1": 0.5, # man page
+            "ChangeLog": 0.5,
+        },
+        "substring": {
+            "LICENSE": 0.5,
+        },
+    },
+    "tests": {
+        "suffix": {
+            ".spec.ts": 0.6,
+            ".spec.js": 0.6,
+            ".test.ts": 0.6,
+            ".generated.ts": 0.5,
+            ".generated.graphql": 0.5,
+            ".generated.js": 0.5,
+        },
+        "substring": {
+            "tests/": 0.5,
+            "test/": 0.5,
+            "/test": 0.5,
+            "_test": 0.5,
+        },
+    }
 }
 
 def apply_adjustment_score(
     snippet: str,
     old_score: float,
+    include_docs: bool = False,
+    include_tests: bool = False,
 ):
     snippet_score = old_score
     file_path, *_ = snippet.rsplit(":", 1)
     file_path = file_path.lower()
-    for prefix, adjustment in prefix_adjustment.items():
-        if file_path.startswith(prefix):
-            snippet_score *= adjustment
-            break
-    for suffix, adjustment in suffix_adjustment.items():
-        if file_path.endswith(suffix):
-            snippet_score *= adjustment
-            break
-    for substring, adjustment in substring_adjustment.items():
-        if substring in file_path:
-            snippet_score *= adjustment
-            break
+    adjustments_to_apply = [adjustment_scores["all"]]
+    if not include_docs:
+        adjustments_to_apply.append(adjustment_scores["docs"])
+    if not include_tests:
+        adjustments_to_apply.append(adjustment_scores["tests"])
+    for adjustment_dict in adjustments_to_apply:
+        for prefix, adjustment in adjustment_dict.get("prefix", {}).items():
+            if file_path.startswith(prefix):
+                snippet_score *= adjustment
+                break
+        for suffix, adjustment in adjustment_dict.get("suffix", {}).items():
+            if file_path.endswith(suffix):
+                snippet_score *= adjustment
+                break
+        for substring, adjustment in adjustment_dict.get("substring").items():
+            if substring in file_path:
+                snippet_score *= adjustment
+                break
     # Penalize numbers as they are usually examples of:
     # 1. Test files (e.g. test_utils_3*.py)
     # 2. Generated files (from builds or snapshot tests)
@@ -102,12 +127,16 @@ def apply_adjustment_score(
 
 NUM_SNIPPETS_TO_RERANK = 100
 
-@file_cache()
+# @file_cache()
 def multi_get_top_k_snippets(
     cloned_repo: ClonedRepo,
     queries: list[str],
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
+    include_docs: bool = False,
+    include_tests: bool = False,
+    *args,
+    **kwargs,
 ):
     """
     Handles multiple queries at once now. Makes the vector search faster.
@@ -147,7 +176,7 @@ def multi_get_top_k_snippets(
             else:
                 content_to_lexical_score_list[i][snippet.denotation] = snippet_score * vector_score
             content_to_lexical_score_list[i][snippet.denotation] = apply_adjustment_score(
-                snippet.denotation, content_to_lexical_score_list[i][snippet.denotation]
+                snippet.denotation, content_to_lexical_score_list[i][snippet.denotation], include_docs, include_tests
             )
     
     ranked_snippets_list = [
@@ -165,9 +194,11 @@ def get_top_k_snippets(
     query: str,
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
+    *args,
+    **kwargs,
 ):
     ranked_snippets_list, snippets, content_to_lexical_score_list = multi_get_top_k_snippets(
-        cloned_repo, [query], ticket_progress, k
+        cloned_repo, [query], ticket_progress, k, *args, **kwargs
     )
     return ranked_snippets_list[0], snippets, content_to_lexical_score_list[0]
 
@@ -177,6 +208,8 @@ def get_pointwise_reranked_snippet_scores(
     snippet_scores: dict[str, float],
     NUM_SNIPPETS_TO_KEEP=5,
     NUM_SNIPPETS_TO_RERANK=100,
+    include_docs: bool = False,
+    include_tests: bool = False,
 ):
     """
     Ranks 1-5 snippets are frozen. They're just passed into Cohere since it helps with reranking. We multiply the scores by 1_000 to make them more significant.
@@ -205,6 +238,8 @@ def get_pointwise_reranked_snippet_scores(
         new_snippet_scores[sorted_snippets[document.index].denotation] = apply_adjustment_score(
             sorted_snippets[document.index].denotation,
             document.relevance_score,
+            include_docs=include_docs,
+            include_tests=include_tests
         )
 
     for snippet in sorted_snippets[:NUM_SNIPPETS_TO_KEEP]:
@@ -225,6 +260,8 @@ def multi_prep_snippets(
     skip_pointwise_reranking: bool = False,
     NUM_SNIPPETS_TO_KEEP=5,
     NUM_SNIPPETS_TO_RERANK=100,
+    include_docs: bool = False,
+    include_tests: bool = False,
 ) -> RepoContextManager:
     """
     Assume 0th index is the main query.
@@ -233,7 +270,7 @@ def multi_prep_snippets(
     if len(queries) > 1:
         logger.info("Using multi query...")
         ranked_snippets_list, snippets, content_to_lexical_score_list = multi_get_top_k_snippets(
-            cloned_repo, queries, ticket_progress, k * 3 # k * 3 to have enough snippets to rerank
+            cloned_repo, queries, ticket_progress, k * 3, include_docs, include_tests # k * 3 to have enough snippets to rerank
         )
         # Use RRF to rerank snippets
         content_to_lexical_score = defaultdict(float)
@@ -242,7 +279,7 @@ def multi_prep_snippets(
                 content_to_lexical_score[snippet.denotation] += content_to_lexical_score_list[i][snippet.denotation] * (1 / 2 ** (rank_fusion_offset + j))
         if not skip_pointwise_reranking:
             content_to_lexical_score = get_pointwise_reranked_snippet_scores(
-                queries[0], snippets, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK
+                queries[0], snippets, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK, include_docs, include_tests
             )
         ranked_snippets = sorted(
             snippets,
@@ -251,11 +288,11 @@ def multi_prep_snippets(
         )[:k]
     else:
         ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
-            cloned_repo, queries[0], ticket_progress, k
+            cloned_repo, queries[0], ticket_progress, k, include_docs, include_tests
         )
         if not skip_pointwise_reranking:
             content_to_lexical_score = get_pointwise_reranked_snippet_scores(
-                queries[0], snippets, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK
+                queries[0], snippets, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK, include_docs, include_tests
             )
         ranked_snippets = sorted(
             snippets,
