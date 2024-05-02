@@ -2,7 +2,7 @@ import re
 import traceback
 from typing import TypeVar
 
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL
+from sweepai.config.server import DEFAULT_GPT4_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
 from loguru import logger
@@ -114,7 +114,7 @@ class PostMerge(ChatGPT):
             ]
             if self.chat_logger and not self.chat_logger.is_paying_user():
                 raise ValueError("User is not a paying user")
-            self.model = DEFAULT_GPT4_32K_MODEL
+            self.model = DEFAULT_GPT4_MODEL
             response = self.chat(
                 user_message.format(
                     rule=rule,

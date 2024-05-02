@@ -19,29 +19,8 @@ if os.environ["GITHUB_APP_PEM"]:
         .strip('"')
     )
 
-os.environ["TRANSFORMERS_CACHE"] = os.environ.get(
-    "TRANSFORMERS_CACHE", "/tmp/cache/model"
-)  # vector_db.py
-os.environ["TIKTOKEN_CACHE_DIR"] = os.environ.get(
-    "TIKTOKEN_CACHE_DIR", "/tmp/cache/tiktoken"
-)  # utils.py
-
-SENTENCE_TRANSFORMERS_MODEL = os.environ.get(
-    "SENTENCE_TRANSFORMERS_MODEL",
-    "sentence-transformers/all-MiniLM-L6-v2",  # "all-mpnet-base-v2"
-)
-
 TEST_BOT_NAME = "sweep-nightly[bot]"
 ENV = os.environ.get("ENV", "dev")
-# ENV = os.environ.get("MODAL_ENVIRONMENT", "dev")
-
-# ENV = PREFIX
-# ENVIRONMENT = PREFIX
-
-DB_MODAL_INST_NAME = "db"
-DOCS_MODAL_INST_NAME = "docs"
-API_MODAL_INST_NAME = "api"
-UTILS_MODAL_INST_NAME = "utils"
 
 BOT_TOKEN_NAME = "bot-token"
 
@@ -132,35 +111,13 @@ POSTHOG_API_KEY = os.environ.get(
     "POSTHOG_API_KEY", "phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n"
 )
 
-E2B_API_KEY = os.environ.get("E2B_API_KEY")
-
 SUPPORT_COUNTRY = os.environ.get("GDRP_LIST", "").split(",")
 
 WHITELISTED_REPOS = os.environ.get("WHITELISTED_REPOS", "").split(",")
 BLACKLISTED_USERS = os.environ.get("BLACKLISTED_USERS", "").split(",")
 
-
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
-ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
-
-VECTOR_EMBEDDING_SOURCE = os.environ.get(
-    "VECTOR_EMBEDDING_SOURCE", "openai"
-)  # Alternate option is openai or huggingface and set the corresponding env vars
-
-BASERUN_API_KEY = os.environ.get("BASERUN_API_KEY", None)
-
-# Huggingface settings, only checked if VECTOR_EMBEDDING_SOURCE == "huggingface"
-HUGGINGFACE_URL = os.environ.get("HUGGINGFACE_URL", None)
-HUGGINGFACE_TOKEN = os.environ.get("HUGGINGFACE_TOKEN", None)
-
-# Replicate settings, only checked if VECTOR_EMBEDDING_SOURCE == "replicate"
-REPLICATE_API_KEY = os.environ.get("REPLICATE_API_KEY", None)
-REPLICATE_URL = os.environ.get("REPLICATE_URL", None)
-REPLICATE_DEPLOYMENT_URL = os.environ.get("REPLICATE_DEPLOYMENT_URL", None)
-
 # Default OpenAI
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", None)
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", None) # this may be none, and it will use azure
 
 OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", "anthropic")
 assert OPENAI_API_TYPE in ["anthropic", "azure", "openai"], "Invalid OPENAI_API_TYPE"
@@ -175,9 +132,6 @@ OPENAI_EMBEDDINGS_API_TYPE = os.environ.get("OPENAI_EMBEDDINGS_API_TYPE", "opena
 OPENAI_EMBEDDINGS_AZURE_ENDPOINT = os.environ.get(
     "OPENAI_EMBEDDINGS_AZURE_ENDPOINT", None
 )
-OPENAI_EMBEDDINGS_AZURE_API_KEY = os.environ.get(
-    "OPENAI_EMBEDDINGS_AZURE_API_KEY", None
-)
 OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT = os.environ.get(
     "OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT", None
 )
@@ -187,7 +141,6 @@ OPENAI_EMBEDDINGS_AZURE_API_VERSION = os.environ.get(
 
 OPENAI_API_ENGINE_GPT35 = os.environ.get("OPENAI_API_ENGINE_GPT35", None)
 OPENAI_API_ENGINE_GPT4 = os.environ.get("OPENAI_API_ENGINE_GPT4", None)
-OPENAI_API_ENGINE_GPT4_32K = os.environ.get("OPENAI_API_ENGINE_GPT4_32K", None)
 MULTI_REGION_CONFIG = os.environ.get("MULTI_REGION_CONFIG", None)
 if isinstance(MULTI_REGION_CONFIG, str):
     MULTI_REGION_CONFIG = MULTI_REGION_CONFIG.strip("'").replace("\\n", "\n")
@@ -198,8 +151,7 @@ if WHITELISTED_USERS:
     WHITELISTED_USERS = WHITELISTED_USERS.split(",")
     WHITELISTED_USERS.append(GITHUB_BOT_USERNAME)
 
-DEFAULT_GPT4_32K_MODEL = os.environ.get("DEFAULT_GPT4_32K_MODEL", "gpt-4-turbo-2024-04-09")
-DEFAULT_GPT35_MODEL = os.environ.get("DEFAULT_GPT35_MODEL", "gpt-3.5-turbo-1106")
+DEFAULT_GPT4_MODEL = os.environ.get("DEFAULT_GPT4_MODEL", "gpt-4-0125-preview")
 
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", None)
 LOKI_URL = None
@@ -222,7 +174,6 @@ AWS_SECRET_KEY=os.environ.get("AWS_SECRET_KEY")
 AWS_REGION=os.environ.get("AWS_REGION")
 ANTHROPIC_AVAILABLE = AWS_ACCESS_KEY and AWS_SECRET_KEY and AWS_REGION
 
-USE_ASSISTANT = os.environ.get("USE_ASSISTANT", "true").lower() == "true"
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", None)
 
 COHERE_API_KEY = os.environ.get("COHERE_API_KEY", None)

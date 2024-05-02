@@ -16,7 +16,7 @@ from rapidfuzz import fuzz
 from sweepai.agents.modify import contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, parse_fcr, indent
 from sweepai.agents.modify_file import modify_file
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
+from sweepai.config.server import DEFAULT_GPT4_MODEL
 from sweepai.core.annotate_code_openai import get_annotated_source_code
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import (
@@ -1159,23 +1159,12 @@ class CodeGenBot(ChatGPT):
 
     def generate_pull_request(self, retries=2) -> PullRequest:
         for count in range(retries):
-            too_long = False
             try:
-                logger.info(f"Generating for the {count}th time...")
-                if (
-                    too_long or count >= retries - 1
-                ):  # if on last try, use gpt4-32k (improved context window)
-                    pr_text_response = self.chat(
-                        pull_request_prompt,
-                        message_key="pull_request",
-                        model=DEFAULT_GPT35_MODEL,
-                    )
-                else:
-                    pr_text_response = self.chat(
-                        pull_request_prompt,
-                        message_key="pull_request",
-                        model=DEFAULT_GPT4_32K_MODEL,
-                    )
+                pr_text_response = self.chat(
+                    pull_request_prompt,
+                    message_key="pull_request",
+                    model=DEFAULT_GPT4_MODEL,
+                )
 
                 # Add triple quotes if not present
                 if not pr_text_response.strip().endswith('"""'):
@@ -1186,8 +1175,6 @@ class CodeGenBot(ChatGPT):
                 raise SystemExit
             except Exception as e:
                 e_str = str(e)
-                if "too long" in e_str:
-                    too_long = True
                 logger.warning(f"Exception {e_str}. Failed to parse! Retrying...")
                 self.messages = self.messages[:-1]
                 continue

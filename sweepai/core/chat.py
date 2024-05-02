@@ -19,7 +19,7 @@ from sweepai.config.server import (
     AWS_ACCESS_KEY,
     AWS_REGION,
     AWS_SECRET_KEY,
-    DEFAULT_GPT4_32K_MODEL,
+    DEFAULT_GPT4_MODEL,
     PAREA_API_KEY
 )
 from sweepai.core.entities import Message
@@ -190,7 +190,7 @@ def add_images_to_messages(message_dicts: list[dict[str, str]], images: list[tup
 
 class ChatGPT(MessageList):
     prev_message_states: list[list[Message]] = []
-    model: ChatModel = DEFAULT_GPT4_32K_MODEL
+    model: ChatModel = DEFAULT_GPT4_MODEL
     chat_logger: ChatLogger | None = None
     human_message: HumanMessagePrompt | None = None
     file_change_paths: list[str] = []
