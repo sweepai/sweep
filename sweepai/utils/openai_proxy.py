@@ -4,6 +4,7 @@ import random
 import backoff
 from loguru import logger
 from openai import APITimeoutError, AzureOpenAI, InternalServerError, OpenAI, RateLimitError
+from openai.types.chat.chat_completion import ChatCompletion
 
 from sweepai.config.server import (
     AZURE_API_KEY,
@@ -198,7 +199,7 @@ class OpenAIProxy:
             )
         return response
 
-    def call_azure_api(self, model, messages, tools, max_tokens, temperature):
+    def call_azure_api(self, model, messages, tools, max_tokens, temperature) -> ChatCompletion:
         client = AzureOpenAI(
             api_key=AZURE_API_KEY,
             azure_endpoint=OPENAI_API_BASE,
