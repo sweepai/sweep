@@ -20,9 +20,7 @@ from sweepai.config.server import DEFAULT_GPT4_MODEL
 from sweepai.core.annotate_code_openai import get_annotated_source_code
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import (
-    AssistantRaisedException,
     FileChangeRequest,
-    MaxTokensExceeded,
     Message,
     NoFilesException,
     ProposedIssue,
@@ -48,7 +46,7 @@ from sweepai.core.planning_prompts import (
     issue_excerpt_prompt,
     issue_excerpt_system_prompt,
 )
-from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 # from sweepai.utils.previous_diff_utils import get_relevant_commits
 from sweepai.utils.diff import generate_diff
@@ -1269,7 +1267,7 @@ class GithubBot(BaseModel):
                 new_branch = self.repo.get_branch(branch)
                 if new_branch:
                     return new_branch.name
-            discord_log_error(
+            logger.error(
                 f"Error: {e}, could not create branch name {branch} on {self.repo.full_name}"
             )
             raise e
@@ -1566,8 +1564,6 @@ class SweepBot(CodeGenBot, GithubBot):
                         },
                     )
                 result = commit_multi_file_changes(self.repo, new_file_contents_to_commit, commit_message, branch)
-            except AssistantRaisedException as e:
-                raise e
             except Exception as e:
                 logger.info(f"Error in updating file, repulling and trying again {e}")
                 # file = self.get_file(file_change_request.filename, branch=branch)
@@ -1580,8 +1576,6 @@ class SweepBot(CodeGenBot, GithubBot):
                 # )
                 raise e
             return True, result, new_file_contents
-        except (MaxTokensExceeded, AssistantRaisedException) as e:
-            raise e
         except Exception:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")

@@ -11,7 +11,6 @@ from loguru import logger
 from pyflakes.api import check
 from pyflakes.reporter import Reporter
 
-from sweepai.utils.chat_logger import discord_log_error
 
 
 def get_module_of_entity(
@@ -59,7 +58,7 @@ def add_auto_imports(
         return code
     except Exception as e:
         logger.exception(e)
-        discord_log_error(e)
+        logger.error(e)
         return code
 
 

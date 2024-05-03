@@ -46,7 +46,6 @@ from sweepai.config.server import (
     PROGRESS_BASE_URL,
 )
 from sweepai.core.entities import (
-    AssistantRaisedException,
     FileChangeRequest,
     MaxTokensExceeded,
     NoFilesException,
@@ -67,7 +66,6 @@ from sweepai.utils.issue_validator import validate_issue
 from sweepai.utils.validate_license import validate_license
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
     CURRENT_USERNAME,
@@ -76,13 +74,6 @@ from sweepai.utils.github_utils import (
     get_github_client,
     get_token,
     sanitize_string_for_github,
-)
-from sweepai.utils.progress import (
-    AssistantConversation,
-    PaymentContext,
-    TicketContext,
-    TicketProgress,
-    TicketProgressStatus,
 )
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.slack_utils import add_slack_context
@@ -109,7 +100,6 @@ from sweepai.utils.ticket_utils import (
     center,
     fetch_relevant_files,
     fire_and_forget_wrapper,
-    log_error,
     prep_snippets,
 )
 from sweepai.utils.user_settings import UserSettings
@@ -306,7 +296,6 @@ def construct_sweep_bot(
         title: str,
         message_summary: str,
         cloned_repo: ClonedRepo,
-        ticket_progress: TicketProgress,
         chat_logger: ChatLogger,
         snippets: Any = None,
         tree: Any = None,
@@ -327,7 +316,6 @@ def construct_sweep_bot(
         is_reply=bool(comments),
         chat_logger=chat_logger,
         cloned_repo=cloned_repo,
-        ticket_progress=ticket_progress,
     )
     return sweep_bot
 
@@ -459,60 +447,7 @@ def on_ticket(
             fast_mode,
             lint_mode,
         ) = strip_sweep(title)
-        # fetch images from body of issue
-        image_urls = get_image_urls_from_issue(issue_number, repo_full_name, installation_id)
-        image_contents = get_image_contents_from_urls(image_urls)
-        summary = summary or ""
-        summary = re.sub(
-            "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
-            "",
-            summary,
-            flags=re.DOTALL,
-        ).strip()
-        summary = re.sub(
-            "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*",
-            "",
-            summary,
-            flags=re.DOTALL,
-        ).strip()
-        summary = re.sub(
-            "### Details\n\n_No response_", "", summary, flags=re.DOTALL
-        )
-        summary = re.sub("\n\n", "\n", summary, flags=re.DOTALL)
-        repo_name = repo_full_name
-        user_token, g = get_github_client(installation_id)
-        repo = g.get_repo(repo_full_name)
-        current_issue: Issue = repo.get_issue(number=issue_number)
-        assignee = current_issue.assignee.login if current_issue.assignee else None
-        if assignee is None:
-            assignee = current_issue.user.login
-
-        ticket_progress = TicketProgress(
-            tracking_id=tracking_id,
-            username=username,
-            context=TicketContext(
-                title=title,
-                description=summary,
-                repo_full_name=repo_full_name,
-                issue_number=issue_number,
-                is_public=repo.private is False,
-                start_time=int(time()),
-            ),
-        )
-        branch_match = re.search(
-            r"([B|b]ranch:) *(?P<branch_name>.+?)(\s|$)", summary
-        )
-        overrided_branch_name = None
-        if branch_match and "branch_name" in branch_match.groupdict():
-            overrided_branch_name = (
-                branch_match.groupdict()["branch_name"].strip().strip("`\"'")
-            )
-            # TODO: this code might be finicky, might have missed edge cases
-            if overrided_branch_name.startswith("https://github.com/"):
-                overrided_branch_name = overrided_branch_name.split("?")[0].split(
-                    "tree/"
-                )[-1]
-            SweepConfig.get_branch(repo, overrided_branch_name)
+        summary, repo_name, user_token, g, repo, current_issue, assignee, overrided_branch_name = process_summary(summary, issue_number, repo_full_name, installation_id)
 
         chat_logger = (
             ChatLogger(
@@ -542,11 +477,9 @@ def on_ticket(
 
         if chat_logger and not IS_SELF_HOSTED:
             is_paying_user = chat_logger.is_paying_user()
-            is_consumer_tier = chat_logger.is_consumer_tier()
             use_faster_model = chat_logger.use_faster_model()
         else:
             is_paying_user = True
-            is_consumer_tier = False
             use_faster_model = False
 
         if use_faster_model:
@@ -614,38 +547,17 @@ def on_ticket(
 
             fire_and_forget_wrapper(delete_old_prs)(repo, issue_number)
 
-            if not sandbox_mode:
-                progress_headers = [
-                    None,
-                    "Step 1: 🔎 Searching",
-                    "Step 2: ⌨️ Coding",
-                    "Step 3: 🔁 Code Review",
-                ]
-            else:
-                progress_headers = [
-                    None,
-                    "📖 Reading File",
-                    "🛠️ Executing Sandbox",
-                ]
+            progress_headers = [
+                None,
+                "Step 1: 🔎 Searching",
+                "Step 2: ⌨️ Coding",
+                "Step 3: 🔁 Code Review",
+            ]
 
             issue_comment = None
             payment_message, payment_message_start = get_payment_messages(
                 chat_logger
             )
-
-            ticket_progress.context.payment_context = PaymentContext(
-                use_faster_model=use_faster_model,
-                pro_user=is_paying_user,
-                daily_tickets_used=(
-                    chat_logger.get_ticket_count(use_date=True)
-                    if chat_logger
-                    else 0
-                ),
-                monthly_tickets_used=(
-                    chat_logger.get_ticket_count() if chat_logger else 0
-                ),
-            )
-            ticket_progress.save()
 
             config_pr_url = None
             user_settings = UserSettings.from_username(username=username)
@@ -660,22 +572,7 @@ def on_ticket(
             )
             # check that repo's directory is non-empty
             if os.listdir(cloned_repo.cached_dir) == []:
-                logger.info("Empty repo")
-                first_comment = (
-                    "Sweep is currently not supported on empty repositories. Please add some"
-                    f" code to your repository and try again.\n{sep}##"
-                    f" {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
-                )
-                if issue_comment is None:
-                    issue_comment = current_issue.create_comment(
-                        first_comment + BOT_SUFFIX
-                    )
-                else:
-                    issue_comment.edit(first_comment + BOT_SUFFIX)
-                fire_and_forget_wrapper(add_emoji)(
-                    current_issue, comment_id, reaction_content="confused"
-                )
-                fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
+                handle_empty_repository(comment_id, current_issue, progress_headers, issue_comment)
                 return {"success": False}
             indexing_message = (
                 "I'm searching for relevant snippets in your repository. If this is your first"
@@ -857,6 +754,9 @@ def on_ticket(
             try:
                 # search/context manager
                 logger.info("Searching for relevant snippets...")
+                # fetch images from body of issue
+                image_urls = get_image_urls_from_issue(issue_number, repo_full_name, installation_id)
+                image_contents = get_image_contents_from_urls(image_urls)
                 if image_contents: # doing it here to avoid editing the original issue
                     internal_message_summary += ImageDescriptionBot().describe_images(text=title + internal_message_summary, images=image_contents)
                 
@@ -870,10 +770,8 @@ def on_ticket(
                     on_ticket_start_time,
                     tracking_id,
                     is_paying_user,
-                    is_consumer_tier,
                     issue_url,
                     chat_logger,
-                    ticket_progress,
                     images=image_contents
                 )
                 cloned_repo = repo_context_manager.cloned_repo
@@ -891,11 +789,6 @@ def on_ticket(
             user_token, g, repo = refresh_token()
             cloned_repo.token = user_token
             repo = g.get_repo(repo_full_name)
-            ticket_progress.search_progress.indexing_progress = (
-                ticket_progress.search_progress.indexing_total
-            )
-            ticket_progress.status = TicketProgressStatus.PLANNING
-            ticket_progress.save()
 
             # Fetch git commit history
             if not repo_description:
@@ -913,7 +806,6 @@ def on_ticket(
                 title=title,
                 message_summary=internal_message_summary,
                 cloned_repo=cloned_repo,
-                ticket_progress=ticket_progress,
                 chat_logger=chat_logger,
                 snippets=snippets,
                 tree=tree,
@@ -1004,50 +896,13 @@ def on_ticket(
                     images=image_contents
                 )
                 validate_file_change_requests(file_change_requests, cloned_repo)
-                ticket_progress.planning_progress.file_change_requests = (
-                    file_change_requests
-                )
-                ticket_progress.coding_progress.file_change_requests = (
-                    file_change_requests
-                )
-                ticket_progress.coding_progress.assistant_conversations = [
-                    AssistantConversation() for fcr in file_change_requests
-                ]
-                ticket_progress.status = TicketProgressStatus.CODING
-                ticket_progress.save()
-
-                if not file_change_requests:
-                    if len(title + summary) < 60:
-                        edit_sweep_comment(
-                            (
-                                "Sorry, I could not find any files to modify, can you please"
-                                " provide more details? Please make sure that the title and"
-                                " summary of the issue are at least 60 characters."
-                            ),
-                            -1,
-                        )
-                    else:
-                        edit_sweep_comment(
-                            (
-                                "Sorry, I could not find any files to modify, can you please"
-                                " provide more details?"
-                            ),
-                            -1,
-                        )
-                    raise Exception("No files to modify.")
+                raise_on_no_file_change_requests(title, summary, edit_sweep_comment, file_change_requests)
 
                 file_change_requests: list[
                     FileChangeRequest
                 ] = sweep_bot.validate_file_change_requests(
                     file_change_requests,
                 )
-                ticket_progress.planning_progress.file_change_requests = (
-                    file_change_requests
-                )
-                ticket_progress.coding_progress.assistant_conversations = [
-                    AssistantConversation() for fcr in file_change_requests
-                ]
-                ticket_progress.save()
 
                 table = tabulate(
                     [
@@ -1071,9 +926,6 @@ def on_ticket(
                     content="",
                 )
                 logger.info("Making PR...")
-
-                ticket_progress.context.branch_name = pull_request.branch_name
-                ticket_progress.save()
 
                 files_progress: list[tuple[str, str, str, str]] = [
                     (
@@ -1281,27 +1133,10 @@ def on_ticket(
                         break
                     except Exception:
                         from time import sleep
-
                         sleep(1)
                 edit_sweep_comment(checkboxes_contents, 2)
 
-                pr_changes = response["pull_request"]
-                # change the body here
-                diff_text = get_branch_diff_text(
-                    repo=repo,
-                    branch=pull_request.branch_name,
-                    base_branch=overrided_branch_name,
-                )
-                new_description = PRDescriptionBot().describe_diffs(
-                    diff_text,
-                    pull_request.title,
-                )
-                # TODO: update the title as well
-                if new_description:
-                    pr_changes.body = (
-                        f"{new_description}\n\nFixes"
-                        f" #{issue_number}.\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}{BOT_SUFFIX}"
-                    )
+                pr_changes = rewrite_pr_description(issue_number, repo, overrided_branch_name, pull_request, response)
 
                 edit_sweep_comment(
                     "I have finished coding the issue. I am now reviewing it for completeness.",
@@ -1368,11 +1203,6 @@ def on_ticket(
                         f"Failed to add assignee {username}: {e}, probably a bot."
                     )
 
-                ticket_progress.status = TicketProgressStatus.COMPLETE
-                ticket_progress.context.done_time = time()
-                ticket_progress.context.pr_id = pr.number
-                ticket_progress.save()
-
                 if revert_buttons:
                     pr.create_issue_comment(
                         revert_buttons_list.serialize() + BOT_SUFFIX
@@ -1392,49 +1222,7 @@ def on_ticket(
                     done=True,
                 )
 
-                user_settings = UserSettings.from_username(username=username)
-                user = g.get_user(username)
-                full_name = user.name or user.login
-                name = full_name.split(" ")[0]
-                files_changed = []
-                for fcr in file_change_requests:
-                    if fcr.change_type in ("create", "modify"):
-                        diff = list(
-                            difflib.unified_diff(
-                                (fcr.old_content or "").splitlines() or [],
-                                (fcr.new_content or "").splitlines() or [],
-                                lineterm="",
-                            )
-                        )
-                        added = sum(
-                            1
-                            for line in diff
-                            if line.startswith("+") and not line.startswith("+++")
-                        )
-                        removed = sum(
-                            1
-                            for line in diff
-                            if line.startswith("-") and not line.startswith("---")
-                        )
-                        files_changed.append(
-                            f"<code>{fcr.filename}</code> (+{added}/-{removed})"
-                        )
-                user_settings.send_email(
-                    subject=f"Sweep Pull Request Complete for {repo_name}#{issue_number} {title}",
-                    html=email_template.format(
-                        name=name,
-                        pr_url=pr.html_url,
-                        issue_number=issue_number,
-                        repo_full_name=repo_full_name,
-                        pr_number=pr.number,
-                        progress_url=f"{PROGRESS_BASE_URL}/issues/{tracking_id}",
-                        summary=markdown.markdown(pr_changes.body),
-                        files_changed="\n".join(
-                            [f"<li>{item}</li>" for item in files_changed]
-                        ),
-                        sweeping_gif=sweeping_gif,
-                    ),
-                )
+                send_email_to_user(title, issue_number, username, repo_full_name, tracking_id, repo_name, g, file_change_requests, pr_changes, pr)
 
                 # poll for github to check when gha are done
                 total_poll_attempts = 0
@@ -1488,7 +1276,7 @@ def on_ticket(
                                 changes_made=diffs,
                             )
                             
-                            repo_context_manager = prep_snippets(cloned_repo=cloned_repo, query=(title + internal_message_summary + replies_text).strip("\n"), ticket_progress=ticket_progress) # need to do this, can use the old query for speed
+                            repo_context_manager = prep_snippets(cloned_repo=cloned_repo, query=(title + internal_message_summary + replies_text).strip("\n"), ticket_progress=None) # need to do this, can use the old query for speed
                             sweep_bot: SweepBot = construct_sweep_bot(
                                 repo=repo,
                                 repo_name=repo_name,
@@ -1497,7 +1285,6 @@ def on_ticket(
                                 title="Fix the following errors to complete the user request.",
                                 message_summary=all_information_prompt,
                                 cloned_repo=cloned_repo,
-                                ticket_progress=ticket_progress,
                                 chat_logger=chat_logger,
                                 snippets=snippets,
                                 tree=tree,
@@ -1535,18 +1322,6 @@ def on_ticket(
                 convert_pr_draft_field(pr, is_draft=False, installation_id=installation_id)
             except MaxTokensExceeded as e:
                 logger.info("Max tokens exceeded")
-                ticket_progress.status = TicketProgressStatus.ERROR
-                ticket_progress.error_message = "Max tokens exceeded. Feel free to add more details to the issue descript for Sweep to better address it, or alternatively, reach out to Kevin or William for help at https://discord.gg/sweep."
-                ticket_progress.save()
-                log_error(
-                    is_paying_user,
-                    is_consumer_tier,
-                    username,
-                    issue_url,
-                    "Max Tokens Exceeded",
-                    str(e) + "\n" + traceback.format_exc(),
-                    priority=2,
-                )
                 if chat_logger and chat_logger.is_paying_user():
                     edit_sweep_comment(
                         (
@@ -1570,20 +1345,7 @@ def on_ticket(
                 delete_branch = True
                 raise e
             except NoFilesException as e:
-                ticket_progress.status = TicketProgressStatus.ERROR
-                ticket_progress.error_message = "Sweep could not find files to modify to address this issue. Feel free to add more details to the issue descript for Sweep to better address it, or alternatively, reach out to Kevin or William for help at https://discord.gg/sweep."
-                ticket_progress.save()
-
                 logger.info("Sweep could not find files to modify")
-                log_error(
-                    is_paying_user,
-                    is_consumer_tier,
-                    username,
-                    issue_url,
-                    "Sweep could not find files to modify",
-                    str(e) + "\n" + traceback.format_exc(),
-                    priority=2,
-                )
                 edit_sweep_comment(
                     (
                         "Sorry, Sweep could not find any appropriate files to edit to address"
@@ -1597,10 +1359,6 @@ def on_ticket(
                 delete_branch = True
                 raise e
             except openai.BadRequestError as e:
-                ticket_progress.status = TicketProgressStatus.ERROR
-                ticket_progress.error_message = "Sorry, it looks like there is an error with communicating with OpenAI. If this error persists, reach out to Kevin or William for help at https://discord.gg/sweep."
-                ticket_progress.save()
-
                 logger.error(traceback.format_exc())
                 logger.error(e)
                 edit_sweep_comment(
@@ -1611,15 +1369,6 @@ def on_ticket(
                         " https://discord.gg/sweep."
                     ),
                     -1,
-                )
-                log_error(
-                    is_paying_user,
-                    is_consumer_tier,
-                    username,
-                    issue_url,
-                    "Context Length",
-                    str(e) + "\n" + traceback.format_exc(),
-                    priority=2,
                 )
                 posthog.capture(
                     username,
@@ -1634,32 +1383,7 @@ def on_ticket(
                 )
                 delete_branch = True
                 raise e
-            except AssistantRaisedException as e:
-                if ticket_progress is not None:
-                    ticket_progress.status = TicketProgressStatus.ERROR
-                    ticket_progress.error_message = f"Sweep raised an error with the following message: {e.message}. Feel free to add more details to the issue descript for Sweep to better address it, or alternatively, reach out to Kevin or William for help at https://discord.gg/sweep."
-                    ticket_progress.save()
-
-                logger.exception(e)
-                edit_sweep_comment(
-                    f"Sweep raised an error with the following message:\n{blockquote(e.message)}",
-                    -1,
-                )
-                log_error(
-                    is_paying_user,
-                    is_consumer_tier,
-                    username,
-                    issue_url,
-                    "Workflow",
-                    str(e) + "\n" + traceback.format_exc(),
-                    priority=1,
-                )
-                raise e
             except Exception as e:
-                ticket_progress.status = TicketProgressStatus.ERROR
-                ticket_progress.error_message = f"Internal server error: {str(e)}. Feel free to add more details to the issue descript for Sweep to better address it, or alternatively, reach out to Kevin or William for help at https://discord.gg/sweep."
-                ticket_progress.save()
-
                 logger.error(traceback.format_exc())
                 logger.error(e)
                 # title and summary are defined elsewhere
@@ -1683,15 +1407,6 @@ def on_ticket(
                         ),
                         -1,
                     )
-                log_error(
-                    is_paying_user,
-                    is_consumer_tier,
-                    username,
-                    issue_url,
-                    "Workflow",
-                    str(e) + "\n" + traceback.format_exc(),
-                    priority=1,
-                )
                 raise e
             else:
                 try:
@@ -1736,70 +1451,148 @@ def on_ticket(
         logger.info("on_ticket success in " + str(round(time() - on_ticket_start_time)))
         return {"success": True}
 
-
-def handle_sandbox_mode(
-    title, repo_full_name, repo, ticket_progress, edit_sweep_comment
-):
-    logger.info("Running in sandbox mode")
-    sweep_bot = SweepBot(repo=repo, ticket_progress=ticket_progress)
-    logger.info("Getting file contents")
-    file_name = title.split(":")[1].strip()
-    file_contents = sweep_bot.get_contents(file_name).decoded_content.decode("utf-8")
-    try:
-        ext = file_name.split(".")[-1]
-    except Exception:
-        ext = ""
-    file_contents.replace("```", "\`\`\`")
-    sha = repo.get_branch(repo.default_branch).commit.sha
-    permalink = f"https://github.com/{repo_full_name}/blob/{sha}/{file_name}#L1-L{len(file_contents.splitlines())}"
-    logger.info("Running sandbox")
-    edit_sweep_comment(
-        f"Running sandbox for {file_name}. Current Code:\n\n{permalink}",
-        1,
-    )
-    updated_contents, sandbox_response = sweep_bot.check_sandbox(
-        file_name, file_contents
-    )
-    logger.info("Sandbox finished")
-    logs = (
-        (
-            "<br/>"
-            + create_collapsible(
-                "Sandbox logs",
-                blockquote(
-                    "\n\n".join(
-                        [
-                            create_collapsible(
-                                f"<code>{output}</code> {i + 1}/{len(sandbox_response.outputs)} {format_sandbox_success(sandbox_response.success)}",
-                                f"<pre>{clean_logs(output)}</pre>",
-                                i == len(sandbox_response.outputs) - 1,
-                            )
-                            for i, output in enumerate(sandbox_response.outputs)
-                            if len(sandbox_response.outputs) > 0
-                        ]
-                    )
-                ),
-                opened=True,
-            )
+def process_summary(summary, issue_number, repo_full_name, installation_id):
+    summary = summary or ""
+    summary = re.sub(
+            "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
+            "",
+            summary,
+            flags=re.DOTALL,
+        ).strip()
+    summary = re.sub(
+            "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*",
+            "",
+            summary,
+            flags=re.DOTALL,
+        ).strip()
+    summary = re.sub(
+            "### Details\n\n_No response_", "", summary, flags=re.DOTALL
         )
-        if sandbox_response
-        else ""
-    )
+    summary = re.sub("\n\n", "\n", summary, flags=re.DOTALL)
+    repo_name = repo_full_name
+    user_token, g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
+    current_issue: Issue = repo.get_issue(number=issue_number)
+    assignee = current_issue.assignee.login if current_issue.assignee else None
+    if assignee is None:
+        assignee = current_issue.user.login
+    branch_match = re.search(
+            r"([B|b]ranch:) *(?P<branch_name>.+?)(\s|$)", summary
+        )
+    overrided_branch_name = None
+    if branch_match and "branch_name" in branch_match.groupdict():
+        overrided_branch_name = (
+                branch_match.groupdict()["branch_name"].strip().strip("`\"'")
+            )
+            # TODO: this code might be finicky, might have missed edge cases
+        if overrided_branch_name.startswith("https://github.com/"):
+            overrided_branch_name = overrided_branch_name.split("?")[0].split(
+                    "tree/"
+                )[-1]
+        SweepConfig.get_branch(repo, overrided_branch_name)
+    return summary,repo_name,user_token,g,repo,current_issue,assignee,overrided_branch_name
 
-    updated_contents = updated_contents.replace("```", "\`\`\`")
-    diff = generate_diff(file_contents, updated_contents).replace("```", "\`\`\`")
-    diff_display = (
-        f"Updated Code:\n\n```{ext}\n{updated_contents}```\nDiff:\n```diff\n{diff}\n```"
-        if diff
-        else f"Sandbox made no changes to {file_name} (formatters were not configured or Sweep didn't make changes)."
-    )
+def raise_on_no_file_change_requests(title, summary, edit_sweep_comment, file_change_requests):
+    if not file_change_requests:
+        if len(title + summary) < 60:
+            edit_sweep_comment(
+                            (
+                                "Sorry, I could not find any files to modify, can you please"
+                                " provide more details? Please make sure that the title and"
+                                " summary of the issue are at least 60 characters."
+                            ),
+                            -1,
+                        )
+        else:
+            edit_sweep_comment(
+                            (
+                                "Sorry, I could not find any files to modify, can you please"
+                                " provide more details?"
+                            ),
+                            -1,
+                        )
+        raise Exception("No files to modify.")
 
-    edit_sweep_comment(
-        f"{logs}\n{diff_display}",
-        2,
-    )
-    edit_sweep_comment("N/A", 3)
-    logger.info("Sandbox comments updated")
+def rewrite_pr_description(issue_number, repo, overrided_branch_name, pull_request, response):
+    pr_changes = response["pull_request"]
+                # change the body here
+    diff_text = get_branch_diff_text(
+                    repo=repo,
+                    branch=pull_request.branch_name,
+                    base_branch=overrided_branch_name,
+                )
+    new_description = PRDescriptionBot().describe_diffs(
+        diff_text,
+        pull_request.title,
+    ) # TODO: update the title as well
+    if new_description:
+        pr_changes.body = (
+            f"{new_description}\n\nFixes"
+            f" #{issue_number}.\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}{BOT_SUFFIX}"
+        )
+    return pr_changes
+
+def send_email_to_user(title, issue_number, username, repo_full_name, tracking_id, repo_name, g, file_change_requests, pr_changes, pr):
+    user_settings = UserSettings.from_username(username=username)
+    user = g.get_user(username)
+    full_name = user.name or user.login
+    name = full_name.split(" ")[0]
+    files_changed = []
+    for fcr in file_change_requests:
+        if fcr.change_type in ("create", "modify"):
+            diff = list(
+                            difflib.unified_diff(
+                                (fcr.old_content or "").splitlines() or [],
+                                (fcr.new_content or "").splitlines() or [],
+                                lineterm="",
+                            )
+                        )
+            added = sum(
+                            1
+                            for line in diff
+                            if line.startswith("+") and not line.startswith("+++")
+                        )
+            removed = sum(
+                            1
+                            for line in diff
+                            if line.startswith("-") and not line.startswith("---")
+                        )
+            files_changed.append(
+                            f"<code>{fcr.filename}</code> (+{added}/-{removed})"
+                        )
+    user_settings.send_email(
+                    subject=f"Sweep Pull Request Complete for {repo_name}#{issue_number} {title}",
+                    html=email_template.format(
+                        name=name,
+                        pr_url=pr.html_url,
+                        issue_number=issue_number,
+                        repo_full_name=repo_full_name,
+                        pr_number=pr.number,
+                        progress_url=f"{PROGRESS_BASE_URL}/issues/{tracking_id}",
+                        summary=markdown.markdown(pr_changes.body),
+                        files_changed="\n".join(
+                            [f"<li>{item}</li>" for item in files_changed]
+                        ),
+                        sweeping_gif=sweeping_gif,
+                    ),
+                )
+
+def handle_empty_repository(comment_id, current_issue, progress_headers, issue_comment):
+    first_comment = (
+                    "Sweep is currently not supported on empty repositories. Please add some"
+                    f" code to your repository and try again.\n{sep}##"
+                    f" {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
+                )
+    if issue_comment is None:
+        issue_comment = current_issue.create_comment(
+                        first_comment + BOT_SUFFIX
+                    )
+    else:
+        issue_comment.edit(first_comment + BOT_SUFFIX)
+    fire_and_forget_wrapper(add_emoji)(
+                    current_issue, comment_id, reaction_content="confused"
+                )
+    fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
 
 
 def get_branch_diff_text(repo, branch, base_branch=None):

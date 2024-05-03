@@ -4,13 +4,14 @@ import time
 from enum import Enum
 from threading import Thread
 
+from loguru import logger
 from openai import OpenAI
 from pydantic import BaseModel, ConfigDict, Field
 
 from sweepai.config.server import MONGODB_URI, OPENAI_API_KEY
 from sweepai.core.entities import FileChangeRequest, Snippet
 from sweepai.global_threads import global_threads
-from sweepai.utils.chat_logger import discord_log_error, global_mongo_client
+from sweepai.utils.chat_logger import global_mongo_client
 
 
 class AssistantAPIMessageRole(Enum):
@@ -210,7 +211,7 @@ class TicketProgress(BaseModel):
             # convert status back to enum object
             self.status = TicketProgressStatus(self.status)
         except Exception as e:
-            discord_log_error(str(e) + "\n\n" + str(self.tracking_id))
+            logger.error(str(e) + "\n\n" + str(self.tracking_id))
 
     def save(self, do_async: bool = True):
         if do_async:
@@ -253,7 +254,7 @@ class TicketProgress(BaseModel):
             #         logger.info(f"Waiting for user for {self.tracking_id}...")
             # raise Exception("Timeout")
         except Exception as e:
-            discord_log_error(
+            logger.error(
                 "wait() method crashed with:\n\n"
                 + str(e)
                 + "\n\n"

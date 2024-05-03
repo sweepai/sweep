@@ -6,7 +6,6 @@ from pydantic import BaseModel
 
 from loguru import logger
 from sweepai.config.client import SweepConfig
-from sweepai.utils.chat_logger import discord_log_error
 
 summary_format_brief = """# Pull Request #{id_}
 ## Title: {pr_title}
@@ -114,5 +113,4 @@ class PRReader(BaseModel):
             return result[:sweep_config.max_github_comment_body_length] # enforce hard cut off
         except Exception as e:
             logger.error(f"Failed to extract PRs from content: {e}")
-            discord_log_error(f"Failed to extract PRs from content: {e}")
             return ""

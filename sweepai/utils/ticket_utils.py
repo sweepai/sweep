@@ -18,7 +18,6 @@ from sweepai.core.lexical_search import (
 )
 from sweepai.core.sweep_bot import context_get_files_to_change
 from sweepai.logn.cache import file_cache
-from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.cohere_utils import cohere_rerank_call
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
@@ -378,10 +377,8 @@ def fetch_relevant_files(
     on_ticket_start_time,
     tracking_id,
     is_paying_user,
-    is_consumer_tier,
     issue_url,
     chat_logger,
-    ticket_progress: TicketProgress,
     images = None
 ):
     logger.info("Fetching relevant files...")
@@ -391,11 +388,11 @@ def fetch_relevant_files(
         formatted_query = (f"{title.strip()}\n{summary.strip()}" + replies_text).strip(
             "\n"
         )
+        ticket_progress = None # refactor later
         repo_context_manager = prep_snippets(cloned_repo, search_query, ticket_progress)
 
         repo_context_manager, import_graph = integrate_graph_retrieval(search_query, repo_context_manager)
 
-        ticket_progress.save()
         repo_context_manager = get_relevant_context(
             formatted_query,
             repo_context_manager,
@@ -405,22 +402,11 @@ def fetch_relevant_files(
             images=images
         )
         snippets = repo_context_manager.current_top_snippets
-        ticket_progress.search_progress.final_snippets = snippets
-        ticket_progress.save()
         dir_obj = repo_context_manager.dir_obj
         tree = str(dir_obj)
     except Exception as e:
         trace = traceback.format_exc()
         logger.exception(f"{trace} (tracking ID: `{tracking_id}`)")
-        log_error(
-            is_paying_user,
-            is_consumer_tier,
-            username,
-            issue_url,
-            "File Fetch",
-            str(e) + "\n" + traceback.format_exc(),
-            priority=1,
-        )
         posthog.capture(
             username,
             "failed",
@@ -436,35 +422,6 @@ def fetch_relevant_files(
 
 SLOW_MODE = False
 SLOW_MODE = True
-
-
-def log_error(
-    is_paying_user,
-    is_trial_user,
-    username,
-    issue_url,
-    error_type,
-    exception,
-    priority=0,
-):
-    if is_paying_user or is_trial_user:
-        if priority == 1:
-            priority = 0
-        elif priority == 2:
-            priority = 1
-
-    prefix = ""
-    if is_trial_user:
-        prefix = " (TRIAL)"
-    if is_paying_user:
-        prefix = " (PRO)"
-
-    content = (
-        f"**{error_type} Error**{prefix}\n{username}:"
-        f" {issue_url}\n```{exception}```"
-    )
-    discord_log_error(content, priority=2)
-
 
 def center(text: str) -> str:
     return f"<div align='center'>{text}</div>"

@@ -310,11 +310,6 @@ def handle_request(request_dict, event=None):
             )
         except Exception as e:
             logger.exception(f"Failed to send event to Hatchet: {e}")
-
-        # try:
-        #     worker()
-        # except Exception as e:
-        #     discord_log_error(str(e), priority=1)
         logger.info(f"Done handling {event}, {action}")
         return {"success": True}
 

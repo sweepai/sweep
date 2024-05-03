@@ -1,19 +1,12 @@
-import json
-import traceback
 from datetime import datetime, timedelta
 from threading import Thread
 from typing import Any
 
-import requests
 from loguru import logger
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
 
 from sweepai.config.server import (
-    DISCORD_LOW_PRIORITY_URL,
-    DISCORD_MEDIUM_PRIORITY_URL,
-    DISCORD_WEBHOOK_URL,
-    GITHUB_BOT_USERNAME,
     IS_SELF_HOSTED,
     MONGODB_URI,
 )
@@ -192,33 +185,6 @@ class ChatLogger(BaseModel):
             (self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) > 3)
             and purchased_tickets == 0
         ) or not self.active
-
-
-def discord_log_error(content, priority=0):
-    """
-    priority: 0 (high), 1 (medium), 2 (low)
-    """
-    logger.error(content)
-    if GITHUB_BOT_USERNAME != "sweep-ai[bot]":  # disable for dev
-        return
-    try:
-        url = DISCORD_WEBHOOK_URL
-        if priority == 1:
-            url = DISCORD_MEDIUM_PRIORITY_URL
-        if priority == 2:
-            url = DISCORD_LOW_PRIORITY_URL
-
-        data = {
-            "content": f"Traceback:\n\n{traceback.format_exc()}\n\nMessage:\n\n```\n{content}\n```"
-        }
-        headers = {"Content-Type": "application/json"}
-        requests.post(url, data=json.dumps(data), headers=headers)
-        # Success: response.status_code == 204:
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
-        logger.error(f"Could not log to Discord: {e}")
-
 
 if __name__ == "__main__":
     chat_logger = ChatLogger(

@@ -11,7 +11,7 @@ from sweepai.core.entities import FileChangeRequest
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.create_pr import create_pr_changes
 from sweepai.handlers.on_ticket import get_branch_diff_text, sweeping_gif
-from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
@@ -350,7 +350,7 @@ def on_merge_conflict(
         edit_comment(
             f"> [!CAUTION]\n> \nAn error has occurred: {str(e)} (tracking ID: {tracking_id})"
         )
-        discord_log_error(
+        logger.error(
             "Error occured in on_merge_conflict.py"
             + traceback.format_exc()
             + "\n\n"
