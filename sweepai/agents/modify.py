@@ -48,8 +48,7 @@ def modify(
     full_instructions = instructions + (modify_tools_openai if use_openai else modify_tools)
     chat_gpt.messages = [Message(role="system", content=full_instructions)]
     try:
-        compiled_fcr = compile_fcr(fcrs[0], 0)
-        if compiled_fcr:
+        if compiled_fcr := compile_fcr(fcrs[0], 0):
             chat_gpt.messages.append(Message(role="user", content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}"))
             function_calls_string = compiled_fcr
             chat_gpt.messages.append(Message( # this will happen no matter what
@@ -120,8 +119,10 @@ def modify(
                 if chat_logger:
                     final_message = "DONE\nHere is a summary of all the files changed:\n\n"
                     for file_name, file_data in modify_files_dict.items():
-                        file_diff = generate_diff(file_data['original_contents'], file_data['contents'])
-                        if file_diff:
+                        if file_diff := generate_diff(
+                            file_data['original_contents'],
+                            file_data['contents'],
+                        ):
                             final_message += f"\nChanges made to {file_name}:\n{file_diff}"
                     chat_logger.add_chat({
                         "model": chat_gpt.model,
@@ -176,14 +177,14 @@ def modify(
             current_fcr_index = get_current_task_index(fcrs)
             change_in_fcr_index = llm_state["completed_changes_per_fcr"][current_fcr_index]
             max_changes = llm_state["changes_per_fcr"][current_fcr_index]
-            lazy_change = llm_state["attempt_lazy_change"]
-            # on first attempt of a new task we use the first fcr
             if change_in_fcr_index >= max_changes:
                 function_calls_string = SUBMIT_TASK_MOCK_FUNCTION_CALL.format(justification=f"Task {current_fcr_index} is now complete.")
             else:
-                if lazy_change:
-                    compiled_fcr = compile_fcr(fcrs[current_fcr_index], change_in_fcr_index)
-                    if compiled_fcr:
+                # on first attempt of a new task we use the first fcr
+                if llm_state["attempt_lazy_change"]:
+                    if     compiled_fcr := compile_fcr(
+                        fcrs[current_fcr_index], change_in_fcr_index
+                    ):
                         function_calls_string = compiled_fcr
                         function_call = validate_and_parse_function_call(function_calls_string, chat_gpt) # this will raise if it's bad but compile_fcr should guarantee it's good
                         if function_call.function_parameters["original_code"] == function_call.function_parameters["new_code"]:
@@ -193,7 +194,9 @@ def modify(
                                 if not fcr.is_completed:
                                     fcr.is_completed = True # incrementing because we should skip bad calls
                                     break
-                            if all([fcr.is_completed for fcr in llm_state["fcrs"]]):
+                            if all(
+                                fcr.is_completed for fcr in llm_state["fcrs"]
+                            ):
                                 return modify_files_dict
                             llm_state["attempt_count"] = 0
                             llm_state['current_task'] = render_current_task(llm_state["fcrs"]) # rerender the current task
@@ -260,8 +263,9 @@ def modify(
         logger.error("Max iterations reached")
     diff_string = ""
     for file_name, file_data in modify_files_dict.items():
-        diff = generate_diff(file_data['original_contents'], file_data['contents'])
-        if diff:
+        if diff := generate_diff(
+            file_data['original_contents'], file_data['contents']
+        ):
             diff_string += f"\nChanges made to {file_name}:\n{diff}"
     # print("\n".join([generate_diff(file_data["original_contents"], file_data["contents"]) for file_name, file_data in modify_files_dict.items()])) # adding this as a useful way to render the diffs
     return modify_files_dict
