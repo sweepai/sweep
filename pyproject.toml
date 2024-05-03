@@ -78,6 +78,7 @@ dependencies = [
   "boto3==1.34.70",
   "scipy==1.12.0",
   "jira==3.8.0",
+  "slack-sdk==3.27.1",
 ]
 
 [tool.isort]
