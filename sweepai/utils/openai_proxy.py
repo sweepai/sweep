@@ -4,16 +4,21 @@ import random
 import backoff
 from loguru import logger
 from openai import APITimeoutError, AzureOpenAI, InternalServerError, OpenAI, RateLimitError
+from openai.types.chat.chat_completion import ChatCompletion
 
 from sweepai.config.server import (
     AZURE_API_KEY,
     AZURE_OPENAI_DEPLOYMENT,
-    DEFAULT_GPT4_32K_MODEL,
+    DEFAULT_GPT4_MODEL,
     MULTI_REGION_CONFIG,
     OPENAI_API_BASE,
     OPENAI_API_KEY,
     OPENAI_API_TYPE,
     OPENAI_API_VERSION,
+    OPENAI_EMBEDDINGS_API_TYPE,
+    OPENAI_EMBEDDINGS_AZURE_API_VERSION,
+    OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT,
+    OPENAI_EMBEDDINGS_AZURE_ENDPOINT,
 )
 from sweepai.core.entities import Message
 from sweepai.logn.cache import file_cache
@@ -79,7 +84,7 @@ class OpenAIProxy:
                 or len(MULTI_REGION_CONFIG) == 0
                 or not isinstance(MULTI_REGION_CONFIG[0], list)
             ):
-                if OPENAI_API_TYPE == "azure":
+                if OPENAI_API_TYPE == "azure" or not OPENAI_API_KEY:
                     logger.info(
                         f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
                     )
@@ -163,8 +168,6 @@ class OpenAIProxy:
             or model == "gpt-4-0125-preview"
         ):
             engine = model
-        elif model == "gpt-4-32k" or model == "gpt-4-32k-0613":
-            engine = model
         return engine
 
     def create_openai_chat_completion(
@@ -195,7 +198,7 @@ class OpenAIProxy:
             )
         return response
 
-    def call_azure_api(self, model, messages, tools, max_tokens, temperature):
+    def call_azure_api(self, model, messages, tools, max_tokens, temperature) -> ChatCompletion:
         client = AzureOpenAI(
             api_key=AZURE_API_KEY,
             azure_endpoint=OPENAI_API_BASE,
@@ -288,9 +291,9 @@ def get_client():
     if OPENAI_API_TYPE == "anthropic":
         client = Anthropic()
         model="claude-3-opus-20240229"
-    if OPENAI_API_TYPE == "openai" or True: # only supported endpoint for now for assistant
+    if OPENAI_API_TYPE == "openai":
         client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
-        model = DEFAULT_GPT4_32K_MODEL
+        model = DEFAULT_GPT4_MODEL
     elif OPENAI_API_TYPE == "azure":
         client = AzureOpenAI(
             azure_endpoint=OPENAI_API_BASE,
@@ -302,11 +305,19 @@ def get_client():
         raise ValueError(f"Invalid OPENAI_API_TYPE: {OPENAI_API_TYPE}")
     return model, client
 
-def get_embeddings_client():
-    # Only supports OpenAI for now
-
-    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-    client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
+def get_embeddings_client() -> OpenAI | AzureOpenAI:
+    client = None
+    if OPENAI_EMBEDDINGS_API_TYPE == "openai":
+        client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None
+    elif OPENAI_EMBEDDINGS_API_TYPE == "azure":
+        client = AzureOpenAI(
+            azure_endpoint=OPENAI_EMBEDDINGS_AZURE_ENDPOINT,
+            api_key=AZURE_API_KEY,
+            azure_deployment=OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT,
+            api_version=OPENAI_EMBEDDINGS_AZURE_API_VERSION,
+        )
+    if not client:
+        raise ValueError("No Valid API key found for OpenAI or Azure!")
     return client
 
 def test_openai_proxy():

@@ -4,7 +4,7 @@ from anthropic import Anthropic
 from loguru import logger
 from openai import OpenAI
 from sweepai.config.server import (
-    DEFAULT_GPT4_32K_MODEL,
+    DEFAULT_GPT4_MODEL,
     OPENAI_API_KEY,
     OPENAI_API_TYPE,
     PAREA_API_KEY,
@@ -41,7 +41,7 @@ class AnthropicClient:
         OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", "anthropic")
         if OPENAI_API_TYPE != "anthropic":
             self.client = OpenAI(api_key=OPENAI_API_KEY, timeout=90)
-            self.model = DEFAULT_GPT4_32K_MODEL
+            self.model = DEFAULT_GPT4_MODEL
             logger.info(f"Using OpenAI model: {self.model}")
         else:
             self.client = Anthropic()

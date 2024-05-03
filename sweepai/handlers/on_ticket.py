@@ -25,6 +25,7 @@ from tabulate import tabulate
 from tqdm import tqdm
 from yamllint import linter
 
+
 from sweepai.core.sweep_bot import GHA_PROMPT
 from sweepai.agents.pr_description_bot import PRDescriptionBot
 from sweepai.agents.image_description_bot import ImageDescriptionBot
@@ -84,6 +85,7 @@ from sweepai.utils.progress import (
     TicketProgressStatus,
 )
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
+from sweepai.utils.slack_utils import add_slack_context
 from sweepai.utils.str_utils import (
     BOT_SUFFIX,
     FASTER_MODEL_MESSAGE,
@@ -111,6 +113,7 @@ from sweepai.utils.ticket_utils import (
     prep_snippets,
 )
 from sweepai.utils.user_settings import UserSettings
+
 
 # from sandbox.sandbox_utils import Sandbox
 
@@ -813,7 +816,9 @@ def on_ticket(
                     "error_message": "We deprecated supporting GPT 3.5.",
                 }
             
-            error_message = validate_issue(title + summary)
+            internal_message_summary = summary
+            internal_message_summary += add_slack_context(internal_message_summary)
+            error_message = validate_issue(title + internal_message_summary)
             if error_message:
                 logger.warning(f"Validation error: {error_message}")
                 edit_sweep_comment(
@@ -837,9 +842,8 @@ def on_ticket(
                 return {"success": True}
 
             prs_extracted = PRReader.extract_prs(repo, summary)
-            message_summary = summary
             if prs_extracted:
-                message_summary += "\n\n" + prs_extracted
+                internal_message_summary += "\n\n" + prs_extracted
                 edit_sweep_comment(
                     create_collapsible(
                         "I found that you mentioned the following Pull Requests that might be important:",
@@ -854,11 +858,12 @@ def on_ticket(
                 # search/context manager
                 logger.info("Searching for relevant snippets...")
                 if image_contents: # doing it here to avoid editing the original issue
-                    message_summary += ImageDescriptionBot().describe_images(text=title + message_summary, images=image_contents)
+                    internal_message_summary += ImageDescriptionBot().describe_images(text=title + internal_message_summary, images=image_contents)
+                
                 snippets, tree, _, repo_context_manager = fetch_relevant_files(
                     cloned_repo,
                     title,
-                    message_summary,
+                    internal_message_summary,
                     replies_text,
                     username,
                     metadata,
@@ -896,7 +901,7 @@ def on_ticket(
             if not repo_description:
                 repo_description = "No description provided."
 
-            message_summary += replies_text
+            internal_message_summary += replies_text
 
             get_documentation_dict(repo)
             docs_results = ""
@@ -906,7 +911,7 @@ def on_ticket(
                 issue_url=issue_url,
                 repo_description=repo_description,
                 title=title,
-                message_summary=message_summary,
+                message_summary=internal_message_summary,
                 cloned_repo=cloned_repo,
                 ticket_progress=ticket_progress,
                 chat_logger=chat_logger,
@@ -993,7 +998,7 @@ def on_ticket(
                 file_change_requests, plan = get_files_to_change(
                     relevant_snippets=repo_context_manager.current_top_snippets,
                     read_only_snippets=repo_context_manager.read_only_snippets,
-                    problem_statement=f"{title}\n\n{message_summary}",
+                    problem_statement=f"{title}\n\n{internal_message_summary}",
                     repo_name=repo_full_name,
                     cloned_repo=cloned_repo,
                     images=image_contents
@@ -1476,14 +1481,14 @@ def on_ticket(
                                 branch=pr.head.ref,
                             )
                             diffs = get_branch_diff_text(repo=repo, branch=pr.head.ref, base_branch=pr.base.ref)
-                            problem_statement = f"{title}\n{message_summary}\n{replies_text}"
+                            problem_statement = f"{title}\n{internal_message_summary}\n{replies_text}"
                             all_information_prompt = GHA_PROMPT.format(
                                 problem_statement=problem_statement,
                                 github_actions_logs=failed_gha_logs,
                                 changes_made=diffs,
                             )
                             
-                            repo_context_manager = prep_snippets(cloned_repo=cloned_repo, query=(title + message_summary + replies_text).strip("\n"), ticket_progress=ticket_progress) # need to do this, can use the old query for speed
+                            repo_context_manager = prep_snippets(cloned_repo=cloned_repo, query=(title + internal_message_summary + replies_text).strip("\n"), ticket_progress=ticket_progress) # need to do this, can use the old query for speed
                             sweep_bot: SweepBot = construct_sweep_bot(
                                 repo=repo,
                                 repo_name=repo_name,

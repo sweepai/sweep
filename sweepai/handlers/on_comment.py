@@ -12,7 +12,7 @@ from tabulate import tabulate
 
 from sweepai.config.client import get_blocked_dirs, get_documentation_dict
 from sweepai.config.server import (
-    DEFAULT_GPT4_32K_MODEL,
+    DEFAULT_GPT4_MODEL,
     ENV,
     GITHUB_BOT_USERNAME,
     MONGODB_URI,
@@ -304,7 +304,7 @@ def on_comment(
                 human_message=human_message,
                 repo=repo,
                 chat_logger=chat_logger,
-                model=DEFAULT_GPT4_32K_MODEL,
+                model=DEFAULT_GPT4_MODEL,
                 cloned_repo=cloned_repo,
             )
         except Exception as e:
