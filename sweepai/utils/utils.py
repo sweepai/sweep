@@ -432,8 +432,27 @@ DEFAULT_ESLINTRC = """{
   }
   """
 
+pylint_args_non_last_fcr = [
+    "--disable=C",
+    "--enable=C0413", # Enable only the check for imports not at the top
+    "--disable=W0611", # Don't check unused import
+    "--disable=R",
+    "--disable=import-error",
+    "--disable=no-member",
+]
+
+# add a comment to all lines which are changed
+pylint_args_last_fcr = [
+    "--disable=C",
+    "--enable=C0413",
+    "--enable=W0611", # Check unused import
+    "--disable=R",
+    "--disable=import-error",
+    "--disable=no-member",
+]
+
 @file_cache()
-def get_pylint_check_results(file_path: str, code: str) -> CheckResults:
+def get_pylint_check_results(file_path: str, code: str, last_fcr_for_file=False) -> CheckResults:
     logger.debug(f"Running pylint on {file_path}...")
     file_hash = uuid.uuid4().hex
     new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
@@ -442,15 +461,10 @@ def get_pylint_check_results(file_path: str, code: str) -> CheckResults:
         f.write(code)
     pylint_output = StringIO()
     reporter = TextReporter(pylint_output)
+    # this allows us to have a more rigorous check for the last file change request
+    pylint_args = [new_file] + (pylint_args_last_fcr if last_fcr_for_file else pylint_args_non_last_fcr)
     Run(
-        [
-            new_file,
-            "--disable=C",
-            "--enable=C0413",  # Enable only the check for imports not at the top
-            "--disable=R",
-            "--disable=import-error",
-            "--disable=no-member",
-        ],
+        pylint_args,
         reporter=reporter,
         exit=False,
     )
@@ -467,14 +481,14 @@ def get_pylint_check_results(file_path: str, code: str) -> CheckResults:
     logger.debug("Done running pylint.")
     return CheckResults(pylint=error_message if not succeeded else "")
 
-def get_check_results(file_path: str, code: str) -> CheckResults:
+def get_check_results(file_path: str, code: str, last_fcr_for_file=False) -> CheckResults:
     is_valid, error_message = check_syntax(file_path, code)
     if not is_valid:
         return CheckResults(parse_error_message=error_message)
     ext = file_path.rsplit(".")[-1] # noqa
     if ext == "py":
         try:
-            return get_pylint_check_results(file_path, code)
+            return get_pylint_check_results(file_path, code, last_fcr_for_file=last_fcr_for_file)
         except Exception as e:
             logger.exception(e)
     elif ext in ["js", "jsx", "ts", "tsx"]:
@@ -751,7 +765,9 @@ export default function CallToAction() {
 """
    
 if __name__ == "__main__":
-    python_code = """import math
+    python_code = """\
+import math
+import pandas
 
 def get_circle_area(radius: float) -> float:
     return math.pi * radius ** 2
@@ -763,6 +779,7 @@ def get_circle_area(radius: float) -> float:
     # new_code = """console.log("hello world")"""
     # check_results = check_syntax("test.js", new_code)
     check_results = get_check_results("test.tsx", code)
-    import pdb
-    # pylint: disable=no-member
-    pdb.set_trace()
+    check_results = get_check_results("test.py", python_code)
+    assert check_results.pylint == "" # this should pass
+    check_results = get_check_results("test.py", python_code, last_fcr_for_file=True)
+    assert "Unused import pandas" in check_results.pylint # this should warn about unused imports

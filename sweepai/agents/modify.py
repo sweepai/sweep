@@ -1153,12 +1153,12 @@ def modify(
             break
     else:
         logger.error("Max iterations reached")
-        # breakpoint()
     diff_string = ""
     for file_name, file_data in modify_files_dict.items():
         diff = generate_diff(file_data['original_contents'], file_data['contents'])
         if diff:
             diff_string += f"\nChanges made to {file_name}:\n{diff}"
+    # print("\n".join([generate_diff(file_data["original_contents"], file_data["contents"]) for file_name, file_data in modify_files_dict.items()])) # adding this as a useful way to render the diffs
     return modify_files_dict
 
 
@@ -1432,7 +1432,8 @@ def handle_function_call(
                 
                 # Check if the changes are valid
                 if not error_message:
-                    check_results = get_check_results(file_name, new_file_contents)
+                    is_last_fcr_for_file = False # TODO: check if this is the last fcr for this file
+                    check_results = get_check_results(file_name, new_file_contents, last_fcr_for_file=is_last_fcr_for_file)
                     check_results_message = check_results.is_worse_than_message(llm_state['initial_check_results'][file_name])
                     failing_parse = check_results.parse_error_message if not llm_state['initial_check_results'][file_name].parse_error_message else ""
                     current_diff = generate_diff(
@@ -1441,7 +1442,6 @@ def handle_function_call(
                     if failing_parse:
                         error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n```\n{failing_parse}\n```\n\n" + fix_syntax_prompt
                         # print(error_message)
-                        # breakpoint()
                         break
                     elif check_results_message:
                         warning_message = check_results_message
@@ -1483,9 +1483,8 @@ def handle_function_call(
                 else:
                     llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\nThe code changes also yield the following warnings:\n```\n{warning_message}\n```\n\n{linter_warning_prompt.format(current_task=llm_state['current_task'])}"
 
-                 #dify_files_dict[file_name]['contents'] = new_file_contents
+                modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
-                # breakpoint()
             elif llm_state["completed_changes_per_fcr"][current_fcr_index] + 1 < llm_state["changes_per_fcr"][current_fcr_index]:
                 # Incomplete changes, should use a different prompt realistically
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
@@ -1495,7 +1494,6 @@ def handle_function_call(
                 llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
             elif diff_string.count("\n+") + diff_string.count("\n-") > 10:
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
-                # breakpoint()
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
             else:
