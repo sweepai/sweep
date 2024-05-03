@@ -228,7 +228,7 @@ def get_pointwise_reranked_snippet_scores(
     response = cohere_rerank_call(
         model='rerank-english-v3.0',
         query=query,
-        documents=[snippet.xml for snippet in sorted_snippets[:NUM_SNIPPETS_TO_RERANK]],
+        documents=[f"{snippet.file_path}\n```\n{snippet.get_snippet(add_lines=False, add_ellipsis=False)}\n```" for snippet in sorted_snippets[:NUM_SNIPPETS_TO_RERANK]],
         max_chunks_per_doc=900 // NUM_SNIPPETS_TO_RERANK,
     )
 
