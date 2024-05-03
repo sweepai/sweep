@@ -875,8 +875,6 @@ def parse_fcr(fcr: FileChangeRequest):
     new_code_matches = list(re.finditer(new_code_pattern, fcr.instructions, re.DOTALL))
     replace_all_pattern = r"<replace_all>true</replace_all>"
     replace_all_matches = list(re.finditer(replace_all_pattern, fcr.instructions, re.DOTALL))
-    if replace_all_matches:
-        flags = "" + "\n<replace_all>true</replace_all>"
     return {
         "justification": justification.strip(),
         "file_path": fcr.filename,
