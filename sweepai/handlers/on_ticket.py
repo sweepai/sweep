@@ -714,11 +714,17 @@ def on_ticket(
             def edit_sweep_comment(
                 message: str,
                 index: int,
+                current_index: int,
+                g: Github,
+                repo: Repository,
+                issue_comment: IssueComment,
+                initial_sandbox_response: int | SandboxResponse,
+                initial_sandbox_response_file: str | None,
                 pr_message="",
                 done=False,
                 add_bonus_message=True,
             ):
-                nonlocal current_index, user_token, g, repo, issue_comment, initial_sandbox_response, initial_sandbox_response_file
+                
                 message = sanitize_string_for_github(message)
                 if pr_message:
                     pr_message = sanitize_string_for_github(pr_message)
@@ -993,6 +999,13 @@ def on_ticket(
                     )
                     + (f"\n\n{docs_results}\n\n" if docs_results else ""),
                     1,
+                    current_index,
+                    user_token,
+                    g,
+                    repo,
+                    issue_comment,
+                    initial_sandbox_response,
+                    initial_sandbox_response_file,
                 )
                 logger.info("Fetching files to modify/create...")
                 file_change_requests, plan = get_files_to_change(
