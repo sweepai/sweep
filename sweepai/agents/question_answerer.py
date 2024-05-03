@@ -49,13 +49,6 @@ Once you have collected and analyzed the relevant snippets, use this tool to sub
 </description>
 <parameters>
 <parameter>
-<name>analysis</name>
-<type>str</type>
-<description>
-Firstly, analyze all search results so far to determine the final answer. Then, for each retrieved snippet so far, summarize the contents, what it deals with, and how it can help answer the user's question. Indicate all sections of code that are relevant to the user's question. Think step-by-step to reason about how the snippets relate to the question.
-</description>
-</parameter>
-<parameter>
 <name>answer</name>
 <type>str</type>
 <description>
@@ -161,9 +154,6 @@ If you have sufficient sources to answer the question, call the submit_task func
 <invoke>
 <tool_name>submit_task</tool_name>
 <parameters>
-<analysis>
-For each snippet, summarize the contents and what it deals with. Indicate all sections of code that are relevant to the user's question. Think step-by-step to reason about how the snippets relate to the question.
-</analysis>
 <answer>
 Provide a detailed response to the user's question.
 
@@ -201,11 +191,22 @@ First, think step-by-step in a scratchpad to analyze the search results and dete
 
 Then, determine if the results are sufficient to answer the user's request:
 
+<request>
 {request}
+<request>
 
 If the search results are insufficient, you need to ask more specific questions or ask questions about tangentially related topics. For example, if you find that a certain functionality is handled in another utilty module, you may need to search for that utility module to find the relevant information.
 
-Otherwise, if you have found all the relevant information to answer the user's request, submit the task using submit_task. If you submit, ensure that the <answer> includes relevant implementations, usages and examples of code wherever possible and be sure that the <sources> section is MINIMAL and only includes all files you reference in your answer. Be sure to use the valid function call format."""
+Otherwise, if you have found all the relevant information to answer the user's request, submit the task using submit_task. If you submit, ensure that the <answer> includes relevant implementations, usages and examples of code wherever possible. Ensure that the <sources> section is MINIMAL and only includes all files you reference in your answer, and is correctly formatted, with each line contains a file path, start line, end line, and justification. Be sure to use the valid function call format."""
+
+CORRECTED_SUBMIT_SOURCES_FORMAT = """ERROR
+
+Invalid sources format. Please provide the sources in the following format, including a file path, start and end lines, and a justification for each snippet referenced in your answer:
+
+<sources>
+path/to/file.ext:a-b - justification and the section of the file that is relevant
+path/to/other/file.ext:c-d - justification and the section of the file that is relevant
+</sources>"""
 
 def search_codebase(
     question: str,
@@ -267,8 +268,7 @@ def rag(
         
         if "DONE" == function_call_response:
             return function_call.function_parameters.get("answer"), function_call.function_parameters.get("sources")
-
-    return response
+    raise ValueError("Could not complete the task.")
 
 def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: ClonedRepo, llm_state: dict):
     if function_call.function_name == "search_codebase":
@@ -307,10 +307,36 @@ def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: Clon
             snippets_string += f"\n\nYou have already asked the following questions so do not ask them again:\n" + "\n".join([f"- {question}" for question in previously_asked_question])
         return snippets_string + SEARCH_RESULT_INSTRUCTIONS.format(request=llm_state["request"])
     if function_call.function_name == "submit_task":
-        for key in ("analysis", "answer", "sources"):
+        for key in ("answer", "sources"):
             if key not in function_call.function_parameters:
                 return f"Please provide a {key} parameter to submit the task. You must provide an analysis, answer, and sources to submit the task as three separate parameters."
-        return "DONE"
+
+        error_message = ""
+        sources = function_call.function_parameters["sources"]
+        for line in sources.splitlines():
+            if not line.strip():
+                continue
+            if " - " not in line:
+                error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + "\n\nYour sources are missing the ' - ' delimiter before the justification block."
+                break
+            snippet_denotation  = line.split(" - ")[0]
+            if ":" not in snippet_denotation:
+                error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + "\n\nSnippet denotations must be in the format 'path/to/file.ext:a-b', containing the file path and line numbers deliminated by a ':'."
+                break
+            file_path, line_numbers = snippet_denotation.split(":")
+            if "-" not in line_numbers:
+                error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + "\n\nSnippet denotations must be in the format 'path/to/file.ext:a-b', and the line numbers must include a start and end line deliminated by a '-'."
+                break
+            start_line, end_line = line_numbers.split("-")
+            try:
+                cloned_repo.get_file_contents(file_path)
+            except FileNotFoundError:
+                error_message = f"ERROR\n\nThe file path '{file_path}' does not exist in the codebase."
+                break
+        if error_message:
+            return error_message
+        else:
+            return "DONE"
     else:
         return "ERROR\n\nInvalid tool name."
 
