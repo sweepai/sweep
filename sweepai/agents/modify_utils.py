@@ -1182,10 +1182,6 @@ def handle_function_call(
                     llm_response = "DONE"
                 llm_state["attempt_lazy_change"] = True # successful application with no warning message means we can attempt lazy change again
         if not error_message:
-            success_message = (
-                f"SUCCESS\n\nThe following changes have been applied to {file_name}:\n\n"
-                + generate_diff(file_contents, new_file_contents, n=10)
-            ) + f"{warning_message}\n\nYou can continue to make changes to the file {file_name} and call the make_change tool again, or handle the rest of the plan. REMEMBER to add all necessary imports at the top of the file, if the import is not already there!"
             diff_string = generate_diff(file_contents, new_file_contents)
             current_fcr_index = get_current_task_index(llm_state["fcrs"])
             # set contents
