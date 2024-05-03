@@ -976,13 +976,7 @@ def handle_function_call(
             llm_response = NO_TOOL_CALL_PROMPT
     elif tool_name == "make_change":
         error_message = ""
-        for key in ["file_name", "original_code", "new_code"]:
-            if key not in tool_call:
-                error_message += f"Missing {key} in tool call. Call the tool again but this time provide the {key}.\n"
-                if key == "new_code" or key == "original_code":
-                    error_message += "\n\nIt is likely the reason why you have missed these keys is because the original_code block you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
-        if not tool_call["original_code"].strip():
-            error_message = EMPTY_ORIGINAL_CODE_PROMPT
+        error_message = check_make_change_tool_call(tool_call, error_message)
         warning_message = ""
         if not error_message:
             for _ in range(1): # this is super jank code but it works for now - only for easier error message handling
@@ -994,7 +988,6 @@ def handle_function_call(
                         error_message += f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!\n"
                         break
                 llm_state['initial_check_results'][file_name] = get_check_results(file_name, get_latest_contents(file_name, cloned_repo, modify_files_dict))
-                success_message = ""
                 original_code = tool_call["original_code"].strip("\n")
                 new_code = tool_call["new_code"].strip("\n")
                 if tool_call.get("append", "false").strip() == "true":
@@ -1064,23 +1057,7 @@ def handle_function_call(
                             )
                     break
                 # ensure original_code and new_code has the correct indents
-                new_code_lines = new_code.split("\n")
-                original_code_lines = original_code.split("\n")
-                if len(original_code_lines) > 1:
-                    new_code = "\n".join(f'{correct_indent * " "}{line}' for line in new_code_lines)
-                else:
-                    new_code = f'{correct_indent * " "}{new_code.lstrip()}'
-                if rstrip_original_code:
-                    original_code_lines = [line.rstrip() for line in original_code.split("\n")]
-                else:
-                    original_code_lines = original_code.split("\n")
-                if len(original_code_lines) > 1:
-                    """This will match the whitespace from the code file itself"""
-                    best_span = contains_ignoring_whitespace(original_code, file_contents)
-                    start_line, end_line = best_span
-                    original_code = "\n".join(file_contents.split("\n")[start_line:end_line])
-                else:
-                    original_code = f'{correct_indent * " "}{original_code.lstrip()}'
+                original_code, new_code, original_code_lines = validate_indents(original_code, new_code, file_contents, correct_indent, rstrip_original_code)
                 # before we apply changes make sure original_code is unique inside current_chunk
                 current_chunk_occurences = file_contents.count(original_code)
                 if current_chunk_occurences > 1 and not replace_all:
@@ -1238,6 +1215,36 @@ def handle_function_call(
     else:
         llm_response = f"ERROR\nUnexpected tool name: {tool_name}"
     return llm_response, modify_files_dict, llm_state
+
+def check_make_change_tool_call(tool_call, error_message):
+    for key in ["file_name", "original_code", "new_code"]:
+        if key not in tool_call:
+            error_message += f"Missing {key} in tool call. Call the tool again but this time provide the {key}.\n"
+            if key == "new_code" or key == "original_code":
+                error_message += "\n\nIt is likely the reason why you have missed these keys is because the original_code block you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
+    if not tool_call["original_code"].strip():
+        error_message = EMPTY_ORIGINAL_CODE_PROMPT
+    return error_message
+
+def validate_indents(original_code, new_code, file_contents, correct_indent, rstrip_original_code):
+    new_code_lines = new_code.split("\n")
+    original_code_lines = original_code.split("\n")
+    if len(original_code_lines) > 1:
+        new_code = "\n".join(f'{correct_indent * " "}{line}' for line in new_code_lines)
+    else:
+        new_code = f'{correct_indent * " "}{new_code.lstrip()}'
+    if rstrip_original_code:
+        original_code_lines = [line.rstrip() for line in original_code.split("\n")]
+    else:
+        original_code_lines = original_code.split("\n")
+    if len(original_code_lines) > 1:
+        """This will match the whitespace from the code file itself"""
+        best_span = contains_ignoring_whitespace(original_code, file_contents)
+        start_line, end_line = best_span
+        original_code = "\n".join(file_contents.split("\n")[start_line:end_line])
+    else:
+        original_code = f'{correct_indent * " "}{original_code.lstrip()}'
+    return original_code, new_code, original_code_lines
 
 def handle_submit_task(modify_files_dict, llm_state):
     current_fcr_index = get_current_task_index(llm_state["fcrs"])
