@@ -1319,8 +1319,7 @@ The user is attempting to solve the following problem:
 {problem}
 \'\'\'
 
-Provide a summary of the page relevant to the problem, including all code snippets.
-"""
+Provide a relevant summary of the page. In addition, copy all relevant code or instructions."""
 
 
 docs_qa_system_prompt = """You are an expert at summarizing documentation for programming-related to help the user solve the problem. You will be given a question and relevant snippets of documentation, and be asked to provide a summary of relevant snippets for solving the problem."""

@@ -27,6 +27,7 @@ from yamllint import linter
 
 
 from sweepai.core.sweep_bot import GHA_PROMPT
+from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.agents.pr_description_bot import PRDescriptionBot
 from sweepai.agents.image_description_bot import ImageDescriptionBot
 from sweepai.config.client import (
@@ -818,6 +819,9 @@ def on_ticket(
             
             internal_message_summary = summary
             internal_message_summary += add_slack_context(internal_message_summary)
+            internal_message_summary += ExternalSearcher.extract_summaries(title + internal_message_summary)
+            if image_contents: # doing it here to avoid editing the original issue
+                internal_message_summary += ImageDescriptionBot().describe_images(text=title + internal_message_summary, images=image_contents)
             error_message = validate_issue(title + internal_message_summary)
             if error_message:
                 logger.warning(f"Validation error: {error_message}")
@@ -840,7 +844,7 @@ def on_ticket(
                     },
                 )
                 return {"success": True}
-
+            fire_and_forget_wrapper(remove_emoji)(content_to_delete="confused")
             prs_extracted = PRReader.extract_prs(repo, summary)
             if prs_extracted:
                 internal_message_summary += "\n\n" + prs_extracted
@@ -857,9 +861,6 @@ def on_ticket(
             try:
                 # search/context manager
                 logger.info("Searching for relevant snippets...")
-                if image_contents: # doing it here to avoid editing the original issue
-                    internal_message_summary += ImageDescriptionBot().describe_images(text=title + internal_message_summary, images=image_contents)
-                
                 snippets, tree, _, repo_context_manager = fetch_relevant_files(
                     cloned_repo,
                     title,
