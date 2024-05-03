@@ -25,6 +25,9 @@ from tabulate import tabulate
 from tqdm import tqdm
 from yamllint import linter
 
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
+
 from sweepai.core.sweep_bot import GHA_PROMPT
 from sweepai.agents.pr_description_bot import PRDescriptionBot
 from sweepai.agents.image_description_bot import ImageDescriptionBot
@@ -111,6 +114,8 @@ from sweepai.utils.ticket_utils import (
     prep_snippets,
 )
 from sweepai.utils.user_settings import UserSettings
+
+from sweepai.config.server import SLACK_API_KEY
 
 # from sandbox.sandbox_utils import Sandbox
 
@@ -476,6 +481,32 @@ def on_ticket(
             "### Details\n\n_No response_", "", summary, flags=re.DOTALL
         )
         summary = re.sub("\n\n", "\n", summary, flags=re.DOTALL)
+    
+        slack_link_match = re.search(r'(https://\w+\.slack\.com/archives/\w+/p\d+)', summary)
+        if slack_link_match:
+            slack_link = slack_link_match.group(1)
+            slack_client = WebClient(token=SLACK_API_KEY)
+            
+            try:
+                slack_permalink_data = slack_client.chat_getPermalink(
+                    link=slack_link
+                )
+                slack_channel_id = slack_permalink_data['channel']
+                slack_message_ts = slack_permalink_data['message_ts']
+    
+                slack_thread_replies = slack_client.conversations_replies(
+                    channel=slack_channel_id,
+                    ts=slack_message_ts
+                )
+    
+                slack_thread_messages = [message['text'] for message in slack_thread_replies['messages']]
+                slack_thread_text = '\n'.join(slack_thread_messages)
+    
+                summary += f"\n\nSlack Thread:\n{slack_thread_text}"
+    
+            except SlackApiError as e:
+                logger.error(f"Error fetching Slack thread: {e}")
+    
         repo_name = repo_full_name
         user_token, g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
