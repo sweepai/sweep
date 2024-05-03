@@ -6,7 +6,6 @@ from sweepai.core.prompts import external_search_prompt, external_search_system_
 from loguru import logger
 from sweepai.utils.html_extractor import extract_info
 
-
 class ExternalSearcher(ChatGPT):
     @staticmethod
     def extract_links(content: str) -> list[str]:
@@ -15,7 +14,6 @@ class ExternalSearcher(ChatGPT):
 
     def extract_summary_from_link(self, url: str, problem: str) -> str:
         page_metadata = extract_info(url)
-
         self.messages = [Message(role="system", content=external_search_system_prompt)]
         response = self.chat(
             external_search_prompt.format(
@@ -44,3 +42,8 @@ class ExternalSearcher(ChatGPT):
             except Exception as e:
                 logger.error(f"External search error: {e}")
         return result
+
+if __name__ == "__main__":
+    content = "add a new webhook endpoint to receive events from Linear. Users should be allowed to tag a linear ticket with the Sweep label and invoke Sweep. https://developers.linear.app/docs/graphql/webhooks"
+    result = ExternalSearcher.extract_summaries(content)
+    print(result)

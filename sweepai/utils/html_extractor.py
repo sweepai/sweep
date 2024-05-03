@@ -31,7 +31,12 @@ def parse_html(html):
         ignore_tag.decompose()
 
     title = soup.title.string if soup.title else ""
-    content = soup.body.get_text() if soup.body else ""
+    content = ""
+    if soup.body:
+        for element in soup.body.findAll(text=True):
+            if element.parent.name in ['style', 'script', '[document]', 'head', 'title']:
+                continue
+            content += element.strip() + "\n"
     links = []
 
     for a in soup.find_all("a", href=True):
@@ -39,10 +44,11 @@ def parse_html(html):
 
     content = re.sub(r"[\n\r\t]+", "\n", content)
     content = re.sub(r" +", " ", content)
-    content = re.sub(r"[\n ]{3,}", "\n\n", content)
+    content = re.sub(r"\n{3,}", "\n\n", content)
+    content = re.sub(r"[/\$\n]+", "\n", content)
     content = content.strip()
 
-    return {"meta": meta, "title": title, "content": content}
+    return f"{meta}\n{title}\n{content}"
 
 
 def download_html(url: str) -> str:
