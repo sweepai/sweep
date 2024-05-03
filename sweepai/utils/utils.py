@@ -220,10 +220,16 @@ def get_new_lint_errors_for_pylint(new_errors: str, old_errors: str) -> str:
             _file_delimiter, error_type, *_ = line.split(" ")
             old_error_types.append(error_type)
     results = []
-    for line in additional_errors:
-        _file_delimiter, error_type, *_ = line.split(" ")
-        if error_type.startswith("E") or old_error_types.count(error_type) < 2: # if there are more than 1 of the same error, we consider it new
-            results.append(line)
+    try:
+        for line in additional_errors:
+            if line.count(" ") >= 2: # sometimes the error doesn't have enough spaces, which raises an error
+                _file_delimiter, error_type, *_ = line.split(" ")
+            else:
+                _file_delimiter, error_type = line.split(" ")
+            if error_type.startswith("E") or old_error_types.count(error_type) < 2: # if there are more than 1 of the same error, we consider it new
+                results.append(line)
+    except Exception as e:
+        logger.info(f"Error in get_new_lint_errors_for_pylint: {e}")
     return "\n".join(results)
 
 def get_new_lint_errors_for_eslint(new_errors: str, old_errors: str) -> str:

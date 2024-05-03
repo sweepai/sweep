@@ -216,3 +216,5 @@ eval/**/*.ans
 eval/**/*.txt
 eval/**/*.ipynb
 eval/**/*.json
+# be cautious that txt files are now ignored
+**.txt
