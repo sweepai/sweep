@@ -8,8 +8,8 @@ from sweepai.agents.pr_description_bot import PRDescriptionBot
 from sweepai.config.server import PROGRESS_BASE_URL
 from sweepai.core import entities
 from sweepai.core.sweep_bot import SweepBot
-from sweepai.handlers.create_pr import create_pr_changes
-from sweepai.handlers.on_ticket import get_branch_diff_text, sweeping_gif
+from sweepai.handlers.create_pr import handle_file_change_requests
+from sweepai.utils.ticket_rendering_utils import get_branch_diff_text, sweeping_gif
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
@@ -137,7 +137,7 @@ def stack_pr(
             edit_comment(
                 "It looks like an issue has occurred around fetching the files."
                 " Perhaps the repo failed to initialized. If this error persists"
-                f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our Discord server for support (tracking_id={tracking_id})"
+                f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our Discourse (https://community.sweep.dev/) server for support (tracking_id={tracking_id})"
             )
             raise Exception("Failed to fetch files") from e
 
@@ -175,7 +175,7 @@ def stack_pr(
             branch_name="sweep/" + to_branch_name(request),
             content="",
         )
-        generator = create_pr_changes(
+        generator = handle_file_change_requests(
             file_change_requests,
             pull_request,
             sweep_bot,

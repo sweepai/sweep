@@ -9,8 +9,8 @@ from sweepai.config.server import PROGRESS_BASE_URL
 from sweepai.core import entities
 from sweepai.core.entities import FileChangeRequest
 from sweepai.core.sweep_bot import SweepBot
-from sweepai.handlers.create_pr import create_pr_changes
-from sweepai.handlers.on_ticket import get_branch_diff_text, sweeping_gif
+from sweepai.handlers.create_pr import handle_file_change_requests
+from sweepai.utils.ticket_rendering_utils import get_branch_diff_text, sweeping_gif
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
@@ -295,7 +295,7 @@ def on_merge_conflict(
         ticket_progress.status = TicketProgressStatus.CODING
         ticket_progress.save()
         edit_comment("Resolving merge conflicts...")
-        generator = create_pr_changes(
+        generator = handle_file_change_requests(
             file_change_requests,
             new_pull_request,
             sweep_bot,

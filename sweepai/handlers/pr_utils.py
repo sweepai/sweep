@@ -13,7 +13,7 @@ from sweepai.core.entities import NoFilesException, SandboxResponse
 from sweepai.core.sweep_bot import SweepBot, get_files_to_change, validate_file_change_requests
 
 # from sandbox.sandbox_utils import Sandbox
-from sweepai.handlers.create_pr import GITHUB_LABEL_NAME, create_pr_changes
+from sweepai.handlers.create_pr import GITHUB_LABEL_NAME, handle_file_change_requests
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
@@ -86,7 +86,7 @@ def make_pr(
         file_change_requests, branch_name
     )
     pull_request = sweep_bot.generate_pull_request()
-    generator = create_pr_changes(
+    generator = handle_file_change_requests(
         file_change_requests,
         pull_request,
         sweep_bot,
