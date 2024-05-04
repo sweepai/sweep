@@ -858,6 +858,8 @@ def render_current_task(fcrs: list[FileChangeRequest]) -> str:
 
 # return replaces per fcr, -1 if there are any issues
 def get_replaces_per_fcr(fcr: FileChangeRequest) -> int:
+    if fcr.change_type == "create":
+        return 1
     original_code_pattern = r"<original_code>(.*?)</original_code>"
     new_code_pattern = r"<new_code>(.*?)</new_code>"
     original_code_matches = list(re.finditer(original_code_pattern, fcr.instructions, re.DOTALL))
@@ -1071,7 +1073,6 @@ def handle_function_call(
     chat_logger_messages: list[dict[str, str]] | None = None,
     use_openai: bool = False,
 ):
-    breakpoint()
     llm_response = ""
     tool_name = function_call.function_name
     tool_call = function_call.function_parameters
@@ -1301,8 +1302,7 @@ def handle_function_call(
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_response, llm_state = finish_applying_changes(modify_files_dict, llm_state, current_fcr_index)
     elif tool_name == "create_file":
-        handle_create_file(cloned_repo, modify_files_dict, tool_name, tool_call)
+        llm_response, modify_files_dict = handle_create_file(cloned_repo, modify_files_dict, tool_name, tool_call)
     else:
         llm_response = f"ERROR\nUnexpected tool name: {tool_name}"
-    breakpoint()
     return llm_response, modify_files_dict, llm_state
