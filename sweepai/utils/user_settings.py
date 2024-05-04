@@ -1,5 +1,6 @@
 import traceback
 
+from loguru import logger
 import resend
 from github import Github
 from github.AppAuthentication import AppAuthentication
@@ -12,7 +13,7 @@ from sweepai.config.server import (
     PROGRESS_BASE_URL,
     RESEND_API_KEY,
 )
-from sweepai.utils.chat_logger import discord_log_error, global_mongo_client
+from sweepai.utils.chat_logger import global_mongo_client
 from sweepai.utils.github_utils import get_installation_id
 
 resend.api_key = RESEND_API_KEY
@@ -50,7 +51,7 @@ class UserSettings(BaseModel):
                     g.get_user(username).email or ""
                 )  # Some user's have private emails
             except Exception as e:
-                discord_log_error(
+                logger.error(
                     str(e)
                     + "\n\n"
                     + traceback.format_exc()

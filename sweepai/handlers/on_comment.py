@@ -10,7 +10,7 @@ from typing import Any
 from loguru import logger
 from tabulate import tabulate
 
-from sweepai.config.client import get_blocked_dirs, get_documentation_dict
+from sweepai.config.client import get_documentation_dict
 from sweepai.config.server import (
     DEFAULT_GPT4_MODEL,
     ENV,
@@ -19,6 +19,7 @@ from sweepai.config.server import (
 )
 from sweepai.core.entities import FileChangeRequest, MockPR, NoFilesException
 from sweepai.core.sweep_bot import SweepBot, get_files_to_change, validate_file_change_requests
+from sweepai.handlers.create_pr import handle_file_change_requests
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -33,7 +34,7 @@ total_number_of_snippet_tokens = 15_000
 num_full_files = 2
 num_extended_snippets = 2
 
-ERROR_FORMAT = "❌ {title}\n\nPlease join our [Discord](https://discord.gg/sweep) to report this issue."
+ERROR_FORMAT = "❌ {title}\n\nPlease join our [Discourse](https://community.sweep.dev/) to report this issue."
 
 
 def on_comment(
@@ -375,24 +376,23 @@ def on_comment(
             if pr_number:
                 edit_comment(response_for_user)
 
-            blocked_dirs = get_blocked_dirs(sweep_bot.repo)
-
             sweep_bot.comment_pr_diff_str = pr_diff_string
             sweep_bot.comment_pr_files_modified = pr_files_modified
-            changes_made = sum(
-                [
-                    change_made
-                    for _, change_made, _, _ in sweep_bot.change_files_in_github_iterator(
-                        file_change_requests, branch_name, blocked_dirs
-                    )
-                ]
+            _, change_made, _, _ = handle_file_change_requests(
+                file_change_requests=file_change_requests,
+                branch_name=branch_name,
+                sweep_bot=sweep_bot,
+                username=username,
+                installation_id=installation_id,
+                chat_logger=chat_logger,
             )
+            changes_made = sum(change_made)
             try:
                 if comment_id:
                     if changes_made:
                         response_for_user = "Done."
                     else:
-                        response_for_user = 'I wasn\'t able to make changes. This could be due to an unclear request or a bug in my code.\n As a reminder, comments on a file only modify that file. Comments on a PR (at the bottom of the "conversation" tab) can modify the entire PR. Please try again or contact us on [Discord](https://discord.gg/sweep)'
+                        response_for_user = 'I wasn\'t able to make changes. This could be due to an unclear request or a bug in my code.\n As a reminder, comments on a file only modify that file. Comments on a PR (at the bottom of the "conversation" tab) can modify the entire PR. Please try again or contact us on [Discourse](https://community.sweep.dev/)'
             except Exception as e:
                 logger.error(f"Failed to reply to comment: {e}")
 

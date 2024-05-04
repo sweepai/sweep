@@ -548,8 +548,3 @@ class MatchingError(Exception):
 class EmptyRepository(Exception):
     def __init__(self):
         pass
-
-
-@dataclass
-class AssistantRaisedException(Exception):
-    message: str

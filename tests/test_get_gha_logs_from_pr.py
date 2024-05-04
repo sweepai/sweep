@@ -1,6 +1,6 @@
 
 import os
-from sweepai.handlers.on_ticket import get_failing_gha_logs
+from sweepai.utils.ticket_rendering_utils import get_failing_gha_logs
 from sweepai.utils.github_utils import get_github_client, get_installation_id
 
 

@@ -8,7 +8,7 @@
     <a href="https://github.com/apps/sweep-ai">
         <img alt="Install Sweep Github App" src="https://img.shields.io/badge/Install Sweep-GitHub App-purple?link=https://github.com/apps/sweep-ai">
     </a>
-    <a href="https://discord.gg/sweep">
+    <a href="https://community.sweep.dev/">
         <img src="https://dcbadge.vercel.app/api/server/sweep?style=flat" />
     </a>
     <a href="https://hub.docker.com/r/sweepai/sweep">
