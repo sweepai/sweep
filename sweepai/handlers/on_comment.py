@@ -380,12 +380,11 @@ def on_comment(
             sweep_bot.comment_pr_files_modified = pr_files_modified
             _, change_made, _, _ = handle_file_change_requests(
                 file_change_requests=file_change_requests,
-                pull_request=pr,
+                branch_name=branch_name,
                 sweep_bot=sweep_bot,
                 username=username,
                 installation_id=installation_id,
                 chat_logger=chat_logger,
-                base_branch=branch_name,
             )
             changes_made = sum(change_made)
             try:

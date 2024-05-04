@@ -11,12 +11,14 @@ import openai
 import yaml
 import yamllint.config as yamllint_config
 from github import BadCredentialsException
+from github.WorkflowRun import WorkflowRun
 from github.PullRequest import PullRequest as GithubPullRequest
 from loguru import logger
 from tabulate import tabulate
 from yamllint import linter
 
 
+from sweepai.core.context_pruning import RepoContextManager
 from sweepai.core.sweep_bot import GHA_PROMPT
 from sweepai.agents.image_description_bot import ImageDescriptionBot
 from sweepai.config.client import (
@@ -118,7 +120,7 @@ def on_ticket(
         ) = strip_sweep(title)
         summary, repo_name, user_token, g, repo, current_issue, assignee, overrided_branch_name = process_summary(summary, issue_number, repo_full_name, installation_id)
 
-        chat_logger = (
+        chat_logger: ChatLogger = (
             ChatLogger(
                 {
                     "repo_name": repo_name,
@@ -229,10 +231,10 @@ def on_ticket(
             )
 
             config_pr_url = None
-            user_settings = UserSettings.from_username(username=username)
+            user_settings: UserSettings = UserSettings.from_username(username=username)
             user_settings_message = user_settings.get_message()
 
-            cloned_repo = ClonedRepo(
+            cloned_repo: ClonedRepo = ClonedRepo(
                 repo_full_name,
                 installation_id=installation_id,
                 token=user_token,
@@ -588,14 +590,6 @@ def on_ticket(
                     tablefmt="pipe",
                 )
 
-                logger.info("Generating PR...")
-                pull_request = PullRequest(
-                    title="Sweep: " + title,
-                    branch_name="sweep/" + to_branch_name(title),
-                    content="",
-                )
-                logger.info("Making PR...")
-
                 files_progress: list[tuple[str, str, str, str]] = [
                     (
                         file_change_request.entity_display,
@@ -643,14 +637,22 @@ def on_ticket(
                 )
 
                 delete_branch = False
+                pull_request: PullRequest = PullRequest(
+                    title="Sweep: " + title,
+                    branch_name="sweep/" + to_branch_name(title),
+                    content="",
+                )
+                logger.info("Making PR...")
+                pull_request.branch_name = sweep_bot.create_branch(
+                    pull_request.branch_name, base_branch=overrided_branch_name
+                )
                 new_file_contents, changed_file, commit, file_change_requests = handle_file_change_requests(
                     file_change_requests=file_change_requests,
-                    pull_request=pull_request,
+                    branch_name=pull_request.branch_name,
                     sweep_bot=sweep_bot,
                     username=username,
                     installation_id=installation_id,
                     chat_logger=chat_logger,
-                    base_branch=overrided_branch_name,
                 )
                 edit_sweep_comment(checkboxes_contents, 2)
                 if not file_change_requests:
@@ -903,7 +905,7 @@ def on_ticket(
                         from time import sleep
 
                         sleep(SLEEP_DURATION_SECONDS)
-                    runs = list(repo.get_workflow_runs(branch=pr.head.ref, head_sha=current_commit))
+                    runs: list[WorkflowRun] = list(repo.get_workflow_runs(branch=pr.head.ref, head_sha=current_commit))
                     # if all runs have succeeded, break
                     if all([run.conclusion == "success" for run in runs]):
                         break
@@ -934,8 +936,7 @@ def on_ticket(
                                 github_actions_logs=failed_gha_logs,
                                 changes_made=diffs,
                             )
-                            
-                            repo_context_manager = prep_snippets(cloned_repo=cloned_repo, query=(title + internal_message_summary + replies_text).strip("\n"), ticket_progress=None) # need to do this, can use the old query for speed
+                            repo_context_manager: RepoContextManager = prep_snippets(cloned_repo=cloned_repo, query=(title + internal_message_summary + replies_text).strip("\n"), ticket_progress=None) # need to do this, can use the old query for speed
                             sweep_bot: SweepBot = construct_sweep_bot(
                                 repo=repo,
                                 repo_name=repo_name,
@@ -961,13 +962,11 @@ def on_ticket(
                             previous_modify_files_dict: dict[str, dict[str, str | list[str]]] | None = None
                             new_file_contents, changed_file, commit, file_change_requests = handle_file_change_requests(
                                 file_change_requests=file_change_requests,
-                                pull_request=pr,
+                                branch_name=pull_request.branch_name,
                                 sweep_bot=sweep_bot,
                                 username=username,
                                 installation_id=installation_id,
-                                issue_number=issue_number,
                                 chat_logger=chat_logger,
-                                base_branch=overrided_branch_name,
                                 previous_modify_files_dict=previous_modify_files_dict,
                             )
                             current_commit = commit.sha

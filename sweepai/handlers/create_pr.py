@@ -22,7 +22,6 @@ from sweepai.config.server import (
 from sweepai.core.entities import (
     FileChangeRequest,
     MaxTokensExceeded,
-    PullRequest,
 )
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.utils.chat_logger import ChatLogger
@@ -41,12 +40,11 @@ INSTRUCTIONS_FOR_REVIEW = """\
 # this should be the only modification function
 def handle_file_change_requests(
     file_change_requests: list[FileChangeRequest],
-    pull_request: PullRequest,
+    branch_name: str,
     sweep_bot: SweepBot,
     username: str,
     installation_id: int,
     chat_logger: ChatLogger = None,
-    base_branch: str = None,
     previous_modify_files_dict: dict = {},
 ):
     sweep_bot.chat_logger = chat_logger
@@ -64,10 +62,6 @@ def handle_file_change_requests(
     posthog.capture(username, "started", properties=metadata)
 
     try:
-        logger.info("Making PR...")
-        pull_request.branch_name = sweep_bot.create_branch(
-            pull_request.branch_name, base_branch=base_branch
-        )
         completed_count, fcr_count = 0, len(file_change_requests)
 
         relevant_filepaths = []
@@ -109,7 +103,7 @@ def handle_file_change_requests(
                         "new_keys": ",".join(new_file_contents_to_commit.keys()) 
                     },
                 )
-            commit = commit_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, commit_message, pull_request.branch_name)
+            commit = commit_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, commit_message, branch_name)
         except Exception as e:
             logger.info(f"Error in updating file{e}")
             raise e
@@ -145,9 +139,9 @@ def handle_file_change_requests(
             )
 
             # If no changes were made, delete branch
-            commits = sweep_bot.repo.get_commits(pull_request.branch_name)
-            if commits.totalCount == 0:
-                branch = sweep_bot.repo.get_git_ref(f"heads/{pull_request.branch_name}")
+            commits = sweep_bot.repo.get_commits(branch_name)
+            if commits.totalCount == 0 and branch_name.startswith("sweep"):
+                branch = sweep_bot.repo.get_git_ref(f"heads/{branch_name}")
                 branch.delete()
         return modify_files_dict, True, commit, file_change_requests
     except MaxTokensExceeded as e:
