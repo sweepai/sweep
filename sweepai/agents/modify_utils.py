@@ -1071,7 +1071,7 @@ def handle_function_call(
     chat_logger_messages: list[dict[str, str]] | None = None,
     use_openai: bool = False,
 ):
-    # iterate through modify_files_dict and generate diffs
+    breakpoint()
     llm_response = ""
     tool_name = function_call.function_name
     tool_call = function_call.function_parameters
@@ -1095,7 +1095,7 @@ def handle_function_call(
                     if not os.path.exists(os.path.join(cloned_repo.repo_dir, file_name)) and file_name not in modify_files_dict:
                         error_message += f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!\n"
                         break
-                llm_state['initial_check_results'][file_name] = get_check_results(file_name, get_latest_contents(file_name, cloned_repo, modify_files_dict))
+                llm_state['initial_check_results'][file_name] = get_check_results(file_name, get_latest_contents(file_name, cloned_repo, modify_files_dict)) # TODO: consider not overriding this when we see the same file twice
                 original_code = tool_call["original_code"].strip("\n")
                 new_code = tool_call["new_code"].strip("\n")
                 if tool_call.get("append", "false").strip() == "true":
@@ -1304,4 +1304,5 @@ def handle_function_call(
         handle_create_file(cloned_repo, modify_files_dict, tool_name, tool_call)
     else:
         llm_response = f"ERROR\nUnexpected tool name: {tool_name}"
+    breakpoint()
     return llm_response, modify_files_dict, llm_state

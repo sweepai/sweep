@@ -48,7 +48,7 @@ def modify(
     full_instructions = instructions + (modify_tools_openai if use_openai else modify_tools)
     chat_gpt.messages = [Message(role="system", content=full_instructions)]
     try:
-        if compiled_fcr := compile_fcr(fcrs[0], 0):
+        if fcrs[0].change_type == "modify" and (compiled_fcr := compile_fcr(fcrs[0], 0)):
             chat_gpt.messages.append(Message(role="user", content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}"))
             function_calls_string = compiled_fcr
             chat_gpt.messages.append(Message( # this will happen no matter what
@@ -182,9 +182,7 @@ def modify(
             else:
                 # on first attempt of a new task we use the first fcr
                 if llm_state["attempt_lazy_change"]:
-                    if     compiled_fcr := compile_fcr(
-                        fcrs[current_fcr_index], change_in_fcr_index
-                    ):
+                    if fcrs[current_fcr_index].change_type == "modify" and (compiled_fcr := compile_fcr(fcrs[current_fcr_index], change_in_fcr_index)):
                         function_calls_string = compiled_fcr
                         function_call = validate_and_parse_function_call(function_calls_string, chat_gpt) # this will raise if it's bad but compile_fcr should guarantee it's good
                         if function_call.function_parameters["original_code"] == function_call.function_parameters["new_code"]:
