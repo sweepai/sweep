@@ -56,7 +56,7 @@ from sweepai.handlers.on_check_suite import (  # type: ignore
     on_check_suite,
 )
 from sweepai.handlers.on_comment import on_comment
-from sweepai.handlers.on_jira_ticket import handle_jira_ticket
+
 from sweepai.handlers.on_linear_ticket import handle_linear_ticket
 from sweepai.handlers.on_ticket import on_ticket
 from sweepai.handlers.stack_pr import stack_pr
