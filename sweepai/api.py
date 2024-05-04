@@ -57,6 +57,7 @@ from sweepai.handlers.on_check_suite import (  # type: ignore
 )
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_jira_ticket import handle_jira_ticket
+from sweepai.handlers.on_linear_ticket import handle_linear_ticket
 from sweepai.handlers.on_ticket import on_ticket
 from sweepai.utils.buttons import (
     check_button_activated,
@@ -333,13 +334,22 @@ def jira_webhook(
         thread.start()
     call_jira_ticket(event=request_dict)
 
-# Set up cronjob for this
+@app.post("/linear")  
+def linear_webhook(
+    request_dict: dict = Body(...),
+) -> None:
+    def call_linear_ticket(*args, **kwargs):
+        thread = threading.Thread(target=handle_linear_ticket, args=args, kwargs=kwargs)
+        thread.start()
+    call_linear_ticket(event=request_dict)
+
+# Set up cronjob for this  
 @app.get("/update_sweep_prs_v2")
 def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
     # Get a Github client
     _, g = get_github_client(installation_id)
 
-    # Get the repository
+    # Get the repository  
     repo = g.get_repo(repo_full_name)
     config = SweepConfig.get_config(repo)
 
