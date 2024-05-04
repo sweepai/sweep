@@ -1,7 +1,7 @@
 from copy import deepcopy
 import re
 from sweepai.agents.modify import validate_and_parse_function_call
-from sweepai.agents.question_answerer import rag
+from sweepai.agents.question_answerer import CORRECTED_SUBMIT_SOURCES_FORMAT, rag
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Snippet
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
@@ -47,10 +47,17 @@ You will use actionable terms like "change" and "add" to describe the changes yo
 </description>
 </parameter>
 <parameter>
+<name>explanation</name>
+<type>str</type>
+<description>
+List each snippet mentioned in the plan and the role it plays in the plan. Do NOT actually advise the user to make the changes, just explain how each particular snippet could be used.
+</description>
+</parameter>
+<parameter>
 <name>sources</name>
 <type>str</type>
 <description>
-Code files you referenced in your <answer>. Only include sources that are DIRECTLY REFERENCED in your answer, do not provide anything vaguely related. Keep this section MINIMAL. These must be full paths and not symlinks of aliases to files. Follow this format:
+Code files you referenced in your <answer>. Only include sources that are DIRECTLY REFERENCED in your answer, do not provide anything vaguely related. Keep this section MINIMAL. These must be full paths and not symlinks of aliases to files. Include all referenced utility functions and type definitions. Follow this format:
 path/to/file.ext - justification and which section of the file is needed
 path/to/other/file.ext - justification and which section of the file is needed
 </description>
@@ -216,7 +223,7 @@ Reference all relevant entities in the codebase, and provide examples of usages 
 When you mention an entity, be precise and clear by indicating the file they are from. For example, you may say: this functionality is accomplished by calling `foo.bar(x, y)` (from the `Foo` class in `src/modules/foo.py`).
 </answer>
 <sources>
-Code files you referenced in your <answer>. Only include sources that are DIRECTLY REFERENCED in your answer, do not provide anything vaguely related. Keep this section MINIMAL. These must be full paths and not symlinks of aliases to files. Follow this format:
+Code files you referenced in your <answer>. Only include sources that are DIRECTLY REFERENCED in your answer, do not provide anything vaguely related. Keep this section MINIMAL. These must be full paths and not symlinks of aliases to files. Include all referenced utility functions and type definitions. Follow this format:
 path/to/file.ext
 path/to/other/file.ext
 </sources>
@@ -309,7 +316,7 @@ def search(
     for _ in range(10):
         response = chat_gpt.chat_anthropic(
             user_message,
-            # model="claude-3-opus-20240229",
+            model="claude-3-opus-20240229",
             stop_sequences=["</function_call>"],
         ) + "</function_call>"
 
@@ -369,7 +376,32 @@ def handle_function_call(function_call: AnthropicFunctionCall, scratchpad: str, 
         for key in ("plan", "sources"):
             if key not in function_call.function_parameters:
                 return f"Please provide a {key} to submit the task."
-        return "DONE"
+        error_message = ""
+        sources = function_call.function_parameters["sources"]
+        for line in sources.splitlines():
+            if not line.strip():
+                continue
+            if " - " not in line:
+                error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + "\n\nYour sources are missing the ' - ' delimiter before the justification block."
+                break
+            snippet_denotation  = line.split(" - ")[0]
+            if ":" not in snippet_denotation:
+                error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + "\n\nSnippet denotations must be in the format 'path/to/file.ext:a-b', containing the file path and line numbers deliminated by a ':'."
+                break
+            file_path, line_numbers = snippet_denotation.split(":")
+            if "-" not in line_numbers:
+                error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + "\n\nSnippet denotations must be in the format 'path/to/file.ext:a-b', and the line numbers must include a start and end line deliminated by a '-'."
+                break
+            start_line, end_line = line_numbers.split("-")
+            try:
+                cloned_repo.get_file_contents(file_path)
+            except FileNotFoundError:
+                error_message = f"ERROR\n\nThe file path '{file_path}' does not exist in the codebase."
+                break
+        if error_message:
+            return error_message
+        else:
+            return "DONE"
     else:
         return "ERROR\n\nInvalid tool name."
 

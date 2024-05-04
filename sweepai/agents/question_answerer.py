@@ -70,9 +70,11 @@ path/to/other/file.ext:c-d - justification and the section of the file that is r
 </parameters>
 </tool_description>"""
 
-example_tool_calls = """Here are examples of how to use the tools:
+example_tool_calls = """Here are a list of illustrative examples of how to use the tools:
 
+<examples>
 To search the codebase for relevant snippets:
+
 <function_call>
 <invoke>
 <tool_name>search_codebase</tool_name>
@@ -93,10 +95,13 @@ Notice that the `query` parameter is an extremely detailed, specific natural lan
 </parameters>
 </invoke>
 </function_call>
+</examples>
 
 Notice that `include_docs` is set to true since we are retrieving documentation in this case. Also notice how the question is very specific, directed, with references to specific files or modules.
 
-The above are just illustrative examples. Make sure to provide detailed, specific questions to search for relevant snippets in the codebase and only make one function call."""
+The above are just illustrative examples and you should tailor your search queries to the specific user request.
+
+Make sure to provide detailed, specific questions to search for relevant snippets in the codebase and only make one function call."""
 
 search_agent_instructions = """You are an expert software developer tasked with finding relevant information in the codebase to resolve the user's request.
 
@@ -135,7 +140,7 @@ search_agent_user_message = """Here is the user's question:
 Now find the relevant code snippets in the codebase to answer the question. Use the `search_codebase` tool to search for snippets. Provide the query to search for relevant snippets in the codebase."""
 
 NO_TOOL_CALL_PROMPT = """FAILURE
-Your last function call was incorrectly formatted. Here is are examples of correct function calls:
+Your last function call was incorrectly formatted. Here are illustrative examples of validly formatted function calls:
 
 For example, to search the codebase for relevant snippets:
 
@@ -170,6 +175,8 @@ path/to/other/file.ext:c-d - justification and the section of the file that is r
 </invoke>
 </function_call>
 
+The above are just illustrative examples and you should tailor your search queries to the specific user request.
+
 First, in a scratchpad, think step-by-step to analyze the search results and determine whether the source results retrieved so far are sufficient. Also determine why your last function call weas incorrectly formatted. Then, you may make additional search queries using search_codebase or submit the task using submit_task."""
 
 DEFAULT_FUNCTION_CALL = """<function_call>
@@ -197,7 +204,14 @@ Then, determine if the results are sufficient to answer the user's request:
 
 If the search results are insufficient, you need to ask more specific questions or ask questions about tangentially related topics. For example, if you find that a certain functionality is handled in another utilty module, you may need to search for that utility module to find the relevant information.
 
-Otherwise, if you have found all the relevant information to answer the user's request, submit the task using submit_task. If you submit, ensure that the <answer> includes relevant implementations, usages and examples of code wherever possible. Ensure that the <sources> section is MINIMAL and only includes all files you reference in your answer, and is correctly formatted, with each line contains a file path, start line, end line, and justification. Be sure to use the valid function call format."""
+Otherwise, if you have found all the relevant information to answer the user's request, submit the task using submit_task. If you submit, ensure that the <answer> includes relevant implementations, usages and examples of code wherever possible. Ensure that the <sources> section is MINIMAL and only includes all files you reference in your answer, and is correctly formatted, with each line contains a file path, start line, end line, and justification like this:
+
+<sources>
+path/to/file.ext:a-b - justification and the section of the file that is relevant
+path/to/other/file.ext:c-d - justification and the section of the file that is relevant
+</sources>
+
+Remember to use the valid function call format."""
 
 CORRECTED_SUBMIT_SOURCES_FORMAT = """ERROR
 
