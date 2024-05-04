@@ -19,9 +19,10 @@ def handle_linear_ticket(event: Dict):
         logger.info(f"Linear ticket {ticket_id} has the Sweep label, invoking Sweep workflow")
         from sweepai.handlers.on_ticket import on_ticket
 
+        ticket_description = event["data"]["description"]
         on_ticket(
             title=f"Linear Ticket {ticket_id}: {event['data']['title']}",
-            summary=event["data"]["description"], 
+            summary=ticket_description,
             issue_number=ticket_id,
             issue_url=event["url"],
             username=event["data"]["creator"]["name"],
