@@ -58,7 +58,6 @@ from sweepai.handlers.on_check_suite import (  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_jira_ticket import handle_jira_ticket
 from sweepai.handlers.on_ticket import on_ticket
-from sweepai.handlers.stack_pr import stack_pr
 from sweepai.utils.buttons import (
     check_button_activated,
     check_button_title_match,
@@ -462,7 +461,6 @@ def handle_event(request_dict, event):
                                     "success": False,
                                     "error_message": "The PR was created by a bot, so I won't attempt to fix it.",
                                 }
-                            tracking_id = get_hash()
                             chat_logger = ChatLogger(
                                 data={
                                     "username": attributor,
@@ -474,15 +472,15 @@ def handle_event(request_dict, event):
                                     "success": False,
                                     "error_message": "Disabled for free users",
                                 }
-                            stack_pr(
-                                request=f"[Sweep GHA Fix] The GitHub Actions run failed on {request.check_run.head_sha[:7]} ({repo.default_branch}) with the following error logs:\n\n```\n\n{logs}\n\n```",
-                                pr_number=pr.number,
-                                username=attributor,
-                                repo_full_name=repo.full_name,
-                                installation_id=request.installation.id,
-                                tracking_id=tracking_id,
-                                commit_hash=pr.head.sha,
-                            )
+                            # stack_pr(
+                            #     request=f"[Sweep GHA Fix] The GitHub Actions run failed on {request.check_run.head_sha[:7]} ({repo.default_branch}) with the following error logs:\n\n```\n\n{logs}\n\n```",
+                            #     pr_number=pr.number,
+                            #     username=attributor,
+                            #     repo_full_name=repo.full_name,
+                            #     installation_id=request.installation.id,
+                            #     tracking_id=tracking_id,
+                            #     commit_hash=pr.head.sha,
+                            # )
             case "pull_request", "opened":
                 _, g = get_github_client(request_dict["installation"]["id"])
                 repo = g.get_repo(request_dict["repository"]["full_name"])

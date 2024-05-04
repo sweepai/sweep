@@ -93,7 +93,6 @@ def make_pr(
         username,
         installation_id,
         chat_logger=chat_logger,
-        base_branch=branch_name,
     )
     response = {"error": NoFilesException()}
     changed_files = []
