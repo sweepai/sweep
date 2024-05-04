@@ -331,7 +331,7 @@ def webhook(
         logger.info(f"Received event: {x_github_event}, {action}")
         return handle_request(request_dict, event=x_github_event)
 
-@app.post("/linear")  
+@app.post("/linear")
 def linear_webhook(
     request_dict: dict = Body(...),
 ) -> None:
