@@ -202,6 +202,8 @@ JIRA_URL = os.environ.get("JIRA_URL", None)
 
 LINEAR_API_KEY = os.environ.get("LINEAR_API_KEY", None)
 LINEAR_LABEL_NAME = os.environ.get("LINEAR_LABEL_NAME", "sweep")
+LINEAR_GITHUB_REPO = os.environ.get("LINEAR_GITHUB_REPO", None)
+LINEAR_GITHUB_INSTALLATION_ID = os.environ.get("LINEAR_GITHUB_INSTALLATION_ID", None)
 
 SLACK_API_KEY = os.environ.get("SLACK_API_KEY", None)
 
