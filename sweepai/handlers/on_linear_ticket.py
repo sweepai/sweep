@@ -9,9 +9,9 @@ LINEAR_LABEL_NAME = os.environ.get("LINEAR_LABEL_NAME", "sweep")
 def handle_linear_ticket(event: Dict[str, Any]):
     try:
         ticket_data = event["data"]["issue"]
-        ticket_labels = ticket_data.get("labels", {})
+        ticket_labels = ticket_data.get("labels", {}).get("nodes", [])
 
-        if any(label["name"].lower() == LINEAR_LABEL_NAME.lower() for label in ticket_labels.get("nodes", [])):
+        if any(label["name"].lower() == LINEAR_LABEL_NAME.lower() for label in ticket_labels):
             logger.info(f"Sweep label detected on Linear ticket {ticket_data['id']}")
             
             on_ticket(
