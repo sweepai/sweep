@@ -117,6 +117,23 @@ Notice that the `query` parameter is an extremely detailed, specific natural lan
 
 Notice that `include_docs` is set to true since we are retrieving documentation in this case. Also notice how the question is very specific, directed, with references to specific files or modules.
 
+To submit the final response to the user's question:
+
+<function_call>
+<invoke>
+<tool_name>submit_task</tool_name>
+<parameters>
+<answer>
+The push notification configurations and registration logic using the Firebase Cloud Messaging library in the mobile app codebase are implemented in the `PushNotificationService` class in `src/services/push_notification_service.py`. The registration logic is implemented in the `register_device` method. Here is an example of how the registration logic is used in the `register_device` method.
+</answer>
+<sources>
+src/services/push_notification_service.ts:10-20 - The `PushNotificationService` class that implements the push notification configurations and registration logic
+src/services/push_notification_service.ts:30-40 - The `register_device` method that implements the registration logic
+</sources>
+</parameters>
+</invoke>
+</function_call>
+
 The above are just illustrative examples and you should tailor your search queries to the specific user request.
 
 Make sure to provide detailed, specific questions to search for relevant snippets in the codebase and only make one function call."""
@@ -166,7 +183,11 @@ Your last function call was incorrectly formatted.
 
 Make sure you provide XML tags for function_call, invoke, tool_name and parameters for all function calls. Check the examples section for reference.
 
-First, in a scratchpad, summarize your last assistant messasge. Then, based on that, determine the last function call you we're trying to make. Then, describe why your last function call was incorrectly formatted. Then, you may make additional search queries using search_codebase or submit the task using submit_task."""
+Resolve this error by following these steps:
+1. In a scratchpad, list the tag name of each XML blocks of your last assistant message.
+2. Based on the XML blocks and the contents, determine the last function call you we're trying to make.
+3. Describe why your last function call was incorrectly formatted.
+4. Finally, re-invoke your last function call with the corrected format, with the contents copied over."""
 
 DEFAULT_FUNCTION_CALL = """<function_call>
 <invoke>
