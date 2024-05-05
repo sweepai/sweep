@@ -8,6 +8,8 @@ from tree_sitter import Node
 from sweepai.config.client import SweepConfig
 from sweepai.core.entities import Snippet
 from sweepai.core.repo_parsing_utils import FILE_THRESHOLD, filter_file, read_file
+from sweepai.logn.cache import file_cache
+from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
 from sweepai.utils.timer import Timer
 from sweepai.utils.utils import AVG_CHAR_IN_LINE, Span, get_line_number, get_parser, non_whitespace_len, naive_chunker, extension_to_language
 
@@ -149,6 +151,7 @@ def chunk_code(
         logger.error(traceback.format_exc())
         return []
 
+@file_cache()
 def directory_to_chunks(
     directory: str, sweep_config: SweepConfig
 ) -> tuple[list[Snippet], list[str]]:
@@ -197,36 +200,55 @@ def directory_to_chunks(
 
 ext_to_language_builtins = {"py": set(dir(str) + dir(list) + dir(__builtins__) + [attr for attr in dir(object)])}
 
-def populate_function_definitions(file_path: str, node: Node, definitions_to_calls: dict[str, set[str]]):
+def populate_function_definitions(snippet: str, node: Node, definitions_to_calls: dict[str, set[str]]):
+    file_path = snippet.file_path
     language_builtins = ext_to_language_builtins.get(file_path.split(".")[-1], set())
     if node.type == 'function_definition':
         function_name = node.child_by_field_name('name').text.decode()
         if function_name not in language_builtins:
-            definition_location = f"{file_path}::{function_name}"
-            definitions_to_calls[function_name] = set([definition_location])
+            definitions_to_calls[function_name] = (snippet, set())
         else:
             return
     # Recursively traverse child nodes
     for child in node.children:
-        populate_function_definitions(file_path, child, definitions_to_calls)
+        populate_function_definitions(snippet, child, definitions_to_calls)
 
-def populate_function_usages(file_path: str, node: Node, definitions_to_calls: dict[str, set[str]]):
-    # Traverse nodes to find function/method calls
-    if node.type == 'call':
-        called_node = node.child_by_field_name('function')
-        # Function call
-        called_name = called_node.text.decode()
-        function_name = f"{called_name}"
-        function_call_location = f"{file_path}::{node.parent.text.decode()}"
+def determine_snippet_denotation(snippets: list[Snippet], file_name, line):
+    eligible_file_snippets = [snippet for snippet in snippets if snippet.file_path == file_name]
+    for snippet in eligible_file_snippets:
+        if snippet.start <= line <= snippet.end:
+            return snippet.denotation
+    return None
 
-        if function_name in definitions_to_calls:
-            definitions_to_calls[function_name].add(function_call_location)
 
-    # Recursively traverse child nodes
-    for child in node.children:
-        populate_function_usages(file_path, child, definitions_to_calls)
+def populate_function_usages(snippet: Snippet, node: Node, definitions_to_calls: dict[str, set[str]], repo_dir: str):
+    file_path = snippet.file_path
+    stack = [node]
 
-def process_snippets(snippets: list[Snippet]):
+    while stack:
+        current_node = stack.pop()
+
+        if current_node.type == 'call':
+            called_node = current_node.child_by_field_name('function')
+            called_name = called_node.text.decode()
+            function_name = f"{called_name}"
+
+            if function_name in definitions_to_calls and snippet.file_path != definitions_to_calls[function_name][0].file_path: # removes same function
+                snippet, calls = definitions_to_calls[function_name]
+                parent_text = ""
+                text_node = current_node
+                while text_node.parent and len(text_node.parent.text.decode()) < 300: # add length and count check
+                    parent_text = text_node.parent.text.decode()
+                    text_node = text_node.parent
+                file_path = file_path.replace(f"{repo_dir}/", "")
+                function_call_location = f"{file_path}::{parent_text}" # need to trim file_path later
+                calls.add(function_call_location)
+                snippet.usages = calls # this should be a reference
+                definitions_to_calls[function_name] = (snippet, calls)
+                
+        stack.extend(current_node.children)
+
+def process_snippets(snippets: list[Snippet], cloned_repo: ClonedRepo):
     # Create a Tree-sitter parser
     parser = get_parser("python")
 
@@ -235,36 +257,35 @@ def process_snippets(snippets: list[Snippet]):
 
     # first pass to populate the definitions
     for snippet in tqdm(snippets):
-        source_code = snippet.get_snippet(False, False)
         # truncate source code from snippet start to end
-        file_path = snippet.file_path
+        source_code = snippet.get_snippet(False, False)
         # Parse the source code
         tree = parser.parse(bytes(source_code, 'utf8'))
         root_node = tree.root_node
-        populate_function_definitions(file_path, root_node, definitions_to_calls)
+        populate_function_definitions(snippet, root_node, definitions_to_calls)
     # second pass to populate the usages
     for snippet in tqdm(snippets):
         source_code = snippet.get_snippet(False, False)
-        # truncate source code from snippet start to end
-        file_path = snippet.file_path
-        # Parse the source code
         tree = parser.parse(bytes(source_code, 'utf8'))
         root_node = tree.root_node
-        populate_function_usages(file_path, root_node, definitions_to_calls)
-
+        populate_function_usages(snippet, root_node, definitions_to_calls, cloned_repo.repo_dir)
     return definitions_to_calls
 
 # Example usage
-repo_path = '/root/sweep/sweepai'
+cloned_repo = MockClonedRepo(
+    _repo_dir="/root/sweep/sweepai",
+    repo_full_name="sweep/sweepai",
+)
+repo_path = cloned_repo.repo_dir
 
 all_chunks, file_list = directory_to_chunks(repo_path, SweepConfig())
 # all_chunks are the valid spans that we should match
 
-definitions_to_calls = process_snippets(all_chunks)
+definitions_to_calls = process_snippets(all_chunks, cloned_repo)
 
 print("total call nodes", len(list(definitions_to_calls.items())))
 # histogram of the value lengths
-lengths = [len(subset) for subset in definitions_to_calls.values()]
+lengths = [len(subset[1]) for subset in definitions_to_calls.values()]
 
 # Print the histogram
 print_histogram(lengths)
@@ -272,8 +293,17 @@ print_histogram(lengths)
 # show the keys with length >= 12
 sorted_keys = sorted(definitions_to_calls.keys(), key=lambda x: len(definitions_to_calls[x]))
 for key in sorted_keys:
-    if len(definitions_to_calls[key]) >= 12:
+    if len(definitions_to_calls[key][1]) >= 12:
         print(key)
+
+# print the first chunk with usages non empty
+chunks_with_usages = [chunk for chunk in all_chunks if chunk.usages]
+# count of chunks with usages over the total number of chunks
+print(len(chunks_with_usages) / len(all_chunks), "chunks with usages over total chunks", len(all_chunks), len(chunks_with_usages))
+print(chunks_with_usages[0].get_snippet(0, 0, 1))
+
+target_file = "x"
+target_chunks = [chunk for chunk in all_chunks if chunk.file_path == target_file]
 
 breakpoint()
 # for some languages, we can use the imports to determine an eligible set of source definitions

@@ -362,6 +362,7 @@ class Snippet(BaseModel):
     end: int
     file_path: str
     score: float = 0.0 # TODO: migrate all usages to use this
+    usages: list[str] = []
 
     def __eq__(self, other):
         if isinstance(other, Snippet):
@@ -375,7 +376,7 @@ class Snippet(BaseModel):
     def __hash__(self):
         return hash((self.file_path, self.start, self.end))
 
-    def get_snippet(self, add_ellipsis: bool = True, add_lines: bool = True):
+    def get_snippet(self, add_ellipsis: bool = True, add_lines: bool = True, add_usages: bool = False):
         lines = self.content.splitlines()
         snippet = "\n".join(
             (f"{i + self.start}: {line}" if add_lines else line)
@@ -386,6 +387,9 @@ class Snippet(BaseModel):
                 snippet = "...\n" + snippet
             if self.end < self.content.count("\n") + 1:
                 snippet = snippet + "\n..."
+        if add_usages:
+            joined_usages = '\n'.join(self.usages)
+            snippet += f"\n\nReferences: {joined_usages}"
         return snippet
 
     def __add__(self, other):
