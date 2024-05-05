@@ -421,11 +421,8 @@ if __name__ == "__main__":
     cloned_repo = MockClonedRepo(
         _repo_dir = "/tmp/sweep",
         repo_full_name="sweepai/sweep",
-        # _repo_dir = "/mnt/volume_sfo3_03/django__django-10213",
-        # repo_full_name="django/django",
     )
     rag(
         question="What version of django are we using in the codebase?",
-        # question="Where in the Django codebase are the unit tests located for the management commands, specifically those related to testing the BaseCommand class functionality?",
         cloned_repo=cloned_repo,
     )
