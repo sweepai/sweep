@@ -46,6 +46,22 @@ Detailed, specific natural language search question to search the codebase for r
 </parameters>
 </tool_description>
 
+<tool_description>
+<tool_name>view_file</tool_name>
+<description>
+View the contents of a file in the codebase.
+</description>
+<parameters>
+<parameter>
+<name>file_path</name>
+<type>str</type>
+<description>
+The path to the file you want to view.
+</description>
+</parameter>
+</parameters>
+</tool_description>
+
 <tool_name>submit_task</tool_name>
 <description>
 Once you have collected and analyzed the relevant snippets, use this tool to submit the final response to the user's question.
@@ -193,7 +209,7 @@ DEFAULT_FUNCTION_CALL = """<function_call>
 <invoke>
 <tool_name>search_codebase</tool_name>
 <parameters>
-<question>{question}</question>
+<question>{question}</question>{flags}
 </parameters>
 </invoke>
 </function_call>"""
@@ -220,7 +236,9 @@ If the search results are insufficient, you need to ask more specific questions 
 {visited_questions}
 </previously_searched_queries>
 
-Instead, search for more specific, targetted search queriees by analying the newly retrieved information. Think step-by-step to construct these better search queries.
+Instead, search for more specific, targetted search queries by analyzing the newly retrieved information. Think step-by-step to construct these better search queries.
+
+Alternatively, if you have found a file that seems relevant but you would like to see the rest of the file, you can use the `view_file` tool to view the contents of the file.
 
 Option B: Submit the task
 
@@ -277,7 +295,15 @@ def rag(
 
     for iter_num in range(10):
         if iter_num == 0:
-            response = DEFAULT_FUNCTION_CALL.format(question=question)
+            flags = ""
+            if "test" in question:
+                flags += "\n<include_tests>true</include_tests>"
+            if "docs" in question or "documentation" in question:
+                flags += "\n<include_docs>true</include_docs>"
+            response = DEFAULT_FUNCTION_CALL.format(
+                question=question,
+                flags=flags,
+            )
         else:
             response = chat_gpt.chat_anthropic(
                 user_message,
@@ -305,15 +331,15 @@ def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: Clon
         if "question" not in function_call.function_parameters:
             return "Please provide a question to search the codebase."
         question = function_call.function_parameters["question"].strip()
+        include_docs = function_call.function_parameters.get("include_docs", "false") == "true"
+        include_tests = function_call.function_parameters.get("include_tests", "false") == "true"
         previously_asked_question = deepcopy(llm_state["visited_questions"])
         if not question.strip():
             return "Question cannot be empty. Please provide a detailed, specific natural language search question to search the codebase for relevant snippets."
-        if question in llm_state["visited_questions"]:
+        if question in llm_state["visited_questions"] and not include_docs and not include_tests:
             # breakpoint()
             return DUPLICATE_QUESTION_MESSAGE.format(question=question)
         llm_state["visited_questions"].add(question)
-        include_docs = function_call.function_parameters.get("include_docs", "false") == "true"
-        include_tests = function_call.function_parameters.get("include_tests", "false") == "true"
         rcm = search_codebase(
             question=question,
             cloned_repo=cloned_repo,
@@ -324,9 +350,10 @@ def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: Clon
         prev_visited_snippets = deepcopy(llm_state["visited_snippets"])
         for snippet in rcm.current_top_snippets[::-1]:
             if snippet.denotation not in llm_state["visited_snippets"]:
+                expand_size = 100
                 snippets.append(SNIPPET_FORMAT.format(
-                    denotation=snippet.denotation,
-                    contents=snippet.get_snippet(add_lines=False),
+                    denotation=snippet.expand(expand_size).denotation,
+                    contents=snippet.expand(expand_size).get_snippet(add_lines=False),
                 ))
                 llm_state["visited_snippets"].add(snippet.denotation)
             else:
@@ -340,13 +367,13 @@ def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: Clon
             snippets_string += f"\n\nYou have already asked the following questions so do not ask them again:\n" + "\n".join([f"- {question}" for question in previously_asked_question])
         warning_messages = ""
         if "test" in question and not include_tests:
-            warning_messages += "WARNING\n\nThe search query contains the word 'test'. You may need to toggle the include_docs flag to find relevant information.\n\n"
+            warning_messages += "\n\nWARNING\n\nThe search query contains the word 'test'. You may need to toggle the include_tests flag to find relevant information."
         if ("docs" in question or "documentation" in question) and not include_docs:
-            warning_messages += "WARNING\n\nThe search query contains the word 'doc'. You may need to toggle the include_docs flag to find relevant information.\n\n"
+            warning_messages += "\n\nWARNING\n\nThe search query contains the word 'doc'. You may need to toggle the include_docs flag to find relevant information."
         return snippets_string + SEARCH_RESULT_INSTRUCTIONS.format(
             request=llm_state["request"],
             visited_questions="\n".join(sorted(list(llm_state["visited_questions"])))
-        )
+        ) + warning_messages
     if function_call.function_name == "submit_task":
         for key in ("answer", "sources"):
             if key not in function_call.function_parameters:
@@ -358,27 +385,31 @@ def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: Clon
             if not line.strip():
                 continue
             if " - " not in line:
-                error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + "\n\nYour sources are missing the ' - ' delimiter before the justification block."
+                error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + f"\n\nThe following line is missing the ' - ' delimiter before the justification block:\n\n{line}"
                 break
             snippet_denotation  = line.split(" - ")[0]
             if ":" not in snippet_denotation:
-                error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + "\n\nSnippet denotations must be in the format 'path/to/file.ext:a-b', containing the file path and line numbers deliminated by a ':'."
+                error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + f"\n\nSnippet denotations must be in the format 'path/to/file.ext:a-b', containing the file path and line numbers deliminated by a ':'. The following line is missing the ':' delimiter:\n\n{line}"
                 break
             file_path, line_numbers = snippet_denotation.split(":")
             line_numbers, *_ = line_numbers.split(",")
             if "-" not in line_numbers:
-                error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + "\n\nSnippet denotations must be in the format 'path/to/file.ext:a-b', and the line numbers must include a start and end line deliminated by a '-'."
+                error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + f"\n\nSnippet denotations must be in the format 'path/to/file.ext:a-b', and the line numbers must include a start and end line deliminated by a '-'. The following line is missing the '-' delimiter in the line numbers:\n\n{line}"
                 break
             start_line, end_line = line_numbers.split("-")
             try:
                 cloned_repo.get_file_contents(file_path)
             except FileNotFoundError:
-                error_message = f"ERROR\n\nThe file path '{file_path}' does not exist in the codebase."
+                error_message = f"ERROR\n\nThe file path '{file_path}' does not exist in the codebase. Please provide a valid file path."
                 break
         if error_message:
             return error_message
         else:
             return "DONE"
+    elif function_call.function_name == "view_file":
+        file_contents = cloned_repo.get_file_contents(function_call.function_parameters["file_path"])
+        num_lines = len(file_contents.splitlines())
+        return f"Here are the contents:\n\n```\n{file_contents}\n```\n\nHere is how you can denote this snippet for listing it in the sources: {function_call.function_parameters['file_path']}:0-{num_lines-1}"
     elif function_call.function_name == "raise_error":
         if "message" not in function_call.function_parameters:
             return "Please provide a message to raise an error."
@@ -390,8 +421,11 @@ if __name__ == "__main__":
     cloned_repo = MockClonedRepo(
         _repo_dir = "/tmp/sweep",
         repo_full_name="sweepai/sweep",
+        # _repo_dir = "/mnt/volume_sfo3_03/django__django-10213",
+        # repo_full_name="django/django",
     )
     rag(
         question="What version of django are we using in the codebase?",
+        # question="Where in the Django codebase are the unit tests located for the management commands, specifically those related to testing the BaseCommand class functionality?",
         cloned_repo=cloned_repo,
     )
