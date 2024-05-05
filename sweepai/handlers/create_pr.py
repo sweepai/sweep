@@ -26,7 +26,7 @@ from sweepai.core.entities import (
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, get_github_client, validate_and_sanitize_multi_file_changes
+from sweepai.utils.github_utils import ClonedRepo, get_github_client
 
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
@@ -41,6 +41,7 @@ INSTRUCTIONS_FOR_REVIEW = """\
 def handle_file_change_requests(
     file_change_requests: list[FileChangeRequest],
     branch_name: str,
+    request: str,
     sweep_bot: SweepBot,
     username: str,
     installation_id: int,
@@ -73,12 +74,11 @@ def handle_file_change_requests(
         # actual modification logic
         modify_files_dict = modify(
             fcrs=file_change_requests,
-            request=sweep_bot.human_message.get_issue_request(),
+            request=request,
             cloned_repo=sweep_bot.cloned_repo,
             relevant_filepaths=relevant_filepaths,
             previous_modify_files_dict=previous_modify_files_dict,
         )
-        commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]
         # If no files were updated, log a warning and return
         if not modify_files_dict:
             logger.warning(
@@ -90,23 +90,7 @@ def handle_file_change_requests(
                 None,
                 file_change_requests,
             )
-        try:
-            new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
-            previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
-            new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, file_change_requests)
-            if files_removed and username:
-                posthog.capture(
-                    username,
-                    "polluted_commits_error",
-                    properties={
-                        "old_keys": ",".join(previous_file_contents_to_commit.keys()),
-                        "new_keys": ",".join(new_file_contents_to_commit.keys()) 
-                    },
-                )
-            commit = commit_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, commit_message, branch_name)
-        except Exception as e:
-            logger.info(f"Error in updating file{e}")
-            raise e
+        
         # update previous_modify_files_dict
         if not previous_modify_files_dict:
             previous_modify_files_dict = {}
@@ -117,12 +101,6 @@ def handle_file_change_requests(
                 for file_change_request in file_change_requests:
                     if file_change_request.filename == file_name:
                         file_change_request.status = "succeeded"
-        # set all fcrs without a corresponding change to be failed
-        for file_change_request in file_change_requests:
-            if file_change_request.status != "succeeded":
-                file_change_request.status = "failed"
-            # also update all commit hashes associated with the fcr
-            file_change_request.commit_hash_url = commit.html_url if commit else None
 
         completed_count = len(modify_files_dict or [])
         logger.info(f"Completed {completed_count}/{fcr_count} files")
@@ -137,13 +115,7 @@ def handle_file_change_requests(
                     **metadata,
                 },
             )
-
-            # If no changes were made, delete branch
-            commits = sweep_bot.repo.get_commits(branch_name)
-            if commits.totalCount == 0 and branch_name.startswith("sweep"):
-                branch = sweep_bot.repo.get_git_ref(f"heads/{branch_name}")
-                branch.delete()
-        return modify_files_dict, True, commit, file_change_requests
+        return modify_files_dict, True, file_change_requests
     except MaxTokensExceeded as e:
         logger.error(e)
         posthog.capture(

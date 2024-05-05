@@ -978,9 +978,8 @@ def validate_indents(original_code, new_code, file_contents, correct_indent, rst
         original_code_lines = [line.rstrip() for line in original_code.split("\n")]
     else:
         original_code_lines = original_code.split("\n")
-    if len(original_code_lines) > 1:
+    if len(original_code_lines) > 1 and (best_span := contains_ignoring_whitespace(original_code, file_contents)):
         """This will match the whitespace from the code file itself"""
-        best_span = contains_ignoring_whitespace(original_code, file_contents)
         start_line, end_line = best_span
         original_code = "\n".join(file_contents.split("\n")[start_line:end_line])
     else:
