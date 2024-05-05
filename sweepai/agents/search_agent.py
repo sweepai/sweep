@@ -348,10 +348,9 @@ def search(
                 print(f"Answer:\n{answer}")
                 print(f"Sources:\n{sources}")
                 print('\n\n')
-            breakpoint()
             return {
                 "questions_and_answers": llm_state["questions_and_answers"],
-                "answer": function_call.function_parameters.get("answer"),
+                "explanation": function_call.function_parameters.get("explanation"),
                 "sources": function_call.function_parameters.get("sources")
             }
     raise Exception("Failed to complete the task.")
@@ -398,7 +397,7 @@ def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: Clon
         # breakpoint()
         return results
     elif function_call.function_name == "submit_task":
-        for key in ("plan", "sources"):
+        for key in ("plan", "explanation", "sources"):
             if key not in function_call.function_parameters:
                 return f"Please provide a {key} to submit the task."
         error_message = ""
