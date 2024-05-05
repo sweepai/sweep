@@ -1262,7 +1262,7 @@ def handle_function_call(
                 error_message += f"Missing {key} in tool call. Call the tool again but this time provide the {key}.\n"
                 if key == "new_code" or key == "original_code":
                     error_message += "\n\nIt is likely the reason why you have missed these keys is because the original_code block you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
-        if not tool_call["original_code"].strip():
+        if not error_message and not tool_call["original_code"].strip():
             error_message = EMPTY_ORIGINAL_CODE_PROMPT
         warning_message = ""
         if not error_message:
