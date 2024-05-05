@@ -5,6 +5,10 @@ from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
 from sweepai.utils.ticket_utils import prep_snippets
 
+class QuestionAnswererException(Exception):
+    def __init__(self, message):
+        self.message = message
+
 SNIPPET_FORMAT = """<snippet>
 <file_name>{denotation}</file_name>
 <source>
@@ -42,7 +46,6 @@ Detailed, specific natural language search question to search the codebase for r
 </parameters>
 </tool_description>
 
-<tool_description>
 <tool_name>submit_task</tool_name>
 <description>
 Once you have collected and analyzed the relevant snippets, use this tool to submit the final response to the user's question.
@@ -65,6 +68,21 @@ When you mention an entity, be precise and clear by indicating the file they are
 Code files you referenced in your <answer>. Only include sources that are DIRECTLY REFERENCED in your answer, do not provide anything vaguely related. Keep this section MINIMAL. These must be full paths and not symlinks of aliases to files. Follow this format:
 path/to/file.ext:a-b - justification and the section of the file that is relevant
 path/to/other/file.ext:c-d - justification and the section of the file that is relevant
+</description>
+</parameter>
+</parameters>
+</tool_description>
+
+<tool_name>raise_error</tool_name>
+<description>
+If the relevant information is not found in the codebase, use this tool to raise an error and provide a message to the user.
+</description>
+<parameters>
+<parameter>
+<name>message</name>
+<type>str</type>
+<description>
+A summary of all the search queries you have tried and the information you have found so far.
 </description>
 </parameter>
 </parameters>
@@ -139,45 +157,16 @@ search_agent_user_message = """Here is the user's question:
 
 Now find the relevant code snippets in the codebase to answer the question. Use the `search_codebase` tool to search for snippets. Provide the query to search for relevant snippets in the codebase."""
 
+"""
+Don't know why but few-shot examples confuse Haiku.
+"""
+
 NO_TOOL_CALL_PROMPT = """FAILURE
-Your last function call was incorrectly formatted. Here are illustrative examples of validly formatted function calls:
+Your last function call was incorrectly formatted.
 
-For example, to search the codebase for relevant snippets:
+Make sure you provide XML tags for function_call, invoke, tool_name and parameters for all function calls. Check the examples section for reference.
 
-<function_call>
-<invoke>
-<tool_name>search_codebase</tool_name>
-<parameters>
-<question>How is the User model defined in the authentication module for the Stripe payements webhook?</question>
-</parameters>
-</invoke>
-</function_call>
-
-If you have sufficient sources to answer the question, call the submit_task function with an extremely detailed, well-referenced response in the following format:
-
-<function_call>
-<invoke>
-<tool_name>submit_task</tool_name>
-<parameters>
-<answer>
-Provide a detailed response to the user's question.
-
-Reference all relevant entities in the codebase, and provide examples of usages and implementations whenever possible. 
-
-When you mention an entity, be precise and clear by indicating the file they are from. For example, you may say: this functionality is accomplished by calling `foo.bar(x, y)` (from the `Foo` class in `src/modules/foo.py`).
-</answer>
-<sources>
-Code files you referenced in your <answer>. Only include sources that are DIRECTLY REFERENCED in your answer, do not provide anything vaguely related. Keep this section MINIMAL. These must be full paths and not symlinks of aliases to files. Follow this format:
-path/to/file.ext:a-b - justification and the section of the file that is relevant
-path/to/other/file.ext:c-d - justification and the section of the file that is relevant
-</sources>
-</parameters>
-</invoke>
-</function_call>
-
-The above are just illustrative examples and you should tailor your search queries to the specific user request.
-
-First, in a scratchpad, think step-by-step to analyze the search results and determine whether the source results retrieved so far are sufficient. Also determine why your last function call weas incorrectly formatted. Then, you may make additional search queries using search_codebase or submit the task using submit_task."""
+First, in a scratchpad, summarize your last assistant messasge. Then, based on that, determine the last function call you we're trying to make. Then, describe why your last function call was incorrectly formatted. Then, you may make additional search queries using search_codebase or submit the task using submit_task."""
 
 DEFAULT_FUNCTION_CALL = """<function_call>
 <invoke>
@@ -202,20 +191,25 @@ Then, determine if the results are sufficient to answer the user's request:
 {request}
 <request>
 
-If the search results are insufficient, you need to ask more specific questions or ask questions about tangentially related topics. For example, if you find that a certain functionality is handled in another utilty module, you may need to search for that utility module to find the relevant information.
+Option A: Make additional search queries
 
-Otherwise, if you have found all the relevant information to answer the user's request, submit the task using submit_task. If you submit, ensure that the <answer> includes relevant implementations, usages and examples of code wherever possible. Ensure that the <sources> section is MINIMAL and only includes all files you reference in your answer, and is correctly formatted, with each line contains a file path, start line, end line, and justification like this:
+If the search results are insufficient, you need to ask more specific questions or ask questions about tangentially related topics. For example, if you find that a certain functionality is handled in another utilty module, you may need to search for that utility module to find the relevant information. Keep in mind that you have already asked the following questions, so do not ask them again:
 
-<sources>
-path/to/file.ext:a-b - justification and the section of the file that is relevant
-path/to/other/file.ext:c-d - justification and the section of the file that is relevant
-</sources>
+<previously_searched_queries>
+{visited_questions}
+</previously_searched_queries>
 
-Remember to use the valid function call format."""
+Instead, search for more specific, targetted search queriees by analying the newly retrieved information. Think step-by-step to construct these better search queries.
+
+Option B: Submit the task
+
+Otherwise, if you have found all the relevant information to answer the user's request, submit the task using submit_task. If you submit, ensure that the <answer> includes relevant implementations, usages and examples of code wherever possible. Ensure that the <sources> section is MINIMAL and only includes all files you reference in your answer, and is correctly formatted, with each line contains a file path, start line, end line, and justification like in the example in the instructions.
+
+Remember to use the valid function call format for either options."""
 
 CORRECTED_SUBMIT_SOURCES_FORMAT = """ERROR
 
-Invalid sources format. Please provide the sources in the following format, including a file path, start and end lines, and a justification for each snippet referenced in your answer:
+Invalid sources format. Please provide the sources in the following format, including a file path, start and end lines, and a justification, one per line, for each snippet referenced in your answer:
 
 <sources>
 path/to/file.ext:a-b - justification and the section of the file that is relevant
@@ -266,7 +260,7 @@ def rag(
         else:
             response = chat_gpt.chat_anthropic(
                 user_message,
-                stop_sequences=["</function_call>"],
+                stop_sequences=["\n</function_call>"],
             ) + "</function_call>"
 
         function_call = validate_and_parse_function_call(
@@ -275,14 +269,15 @@ def rag(
         )
 
         if function_call is None:
-            user_message = NO_TOOL_CALL_PROMPT
+            # breakpoint()
+            user_message = NO_TOOL_CALL_PROMPT.format(question=question, visited_questions="\n".join(sorted(list(llm_state["visited_questions"]))))
         else:
             function_call_response = handle_function_call(function_call, cloned_repo, llm_state)
             user_message = f"<function_output>\n{function_call_response}\n</function_output>"
         
         if "DONE" == function_call_response:
             return function_call.function_parameters.get("answer"), function_call.function_parameters.get("sources")
-    raise ValueError("Could not complete the task.")
+    raise QuestionAnswererException("Could not complete the task. The information may not exist in the codebase.")
 
 def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: ClonedRepo, llm_state: dict):
     if function_call.function_name == "search_codebase":
@@ -293,13 +288,16 @@ def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: Clon
         if not question.strip():
             return "Question cannot be empty. Please provide a detailed, specific natural language search question to search the codebase for relevant snippets."
         if question in llm_state["visited_questions"]:
+            # breakpoint()
             return DUPLICATE_QUESTION_MESSAGE.format(question=question)
         llm_state["visited_questions"].add(question)
+        include_docs = function_call.function_parameters.get("include_docs", "false") == "true"
+        include_tests = function_call.function_parameters.get("include_tests", "false") == "true"
         rcm = search_codebase(
             question=question,
             cloned_repo=cloned_repo,
-            include_docs=function_call.function_parameters.get("include_docs", "false") == "true",
-            include_tests=function_call.function_parameters.get("include_tests", "false") == "true",
+            include_docs=include_docs,
+            include_tests=include_tests,
         )
         snippets = []
         prev_visited_snippets = deepcopy(llm_state["visited_snippets"])
@@ -319,7 +317,15 @@ def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: Clon
         snippets_string += f"\n\nThe above are the snippets that are found in decreasing order of relevance to the search query \"{function_call.function_parameters.get('question')}\"."
         if previously_asked_question:
             snippets_string += f"\n\nYou have already asked the following questions so do not ask them again:\n" + "\n".join([f"- {question}" for question in previously_asked_question])
-        return snippets_string + SEARCH_RESULT_INSTRUCTIONS.format(request=llm_state["request"])
+        warning_messages = ""
+        if "test" in question and not include_tests:
+            warning_messages += "WARNING\n\nThe search query contains the word 'test'. You may need to toggle the include_docs flag to find relevant information.\n\n"
+        if ("docs" in question or "documentation" in question) and not include_docs:
+            warning_messages += "WARNING\n\nThe search query contains the word 'doc'. You may need to toggle the include_docs flag to find relevant information.\n\n"
+        return snippets_string + SEARCH_RESULT_INSTRUCTIONS.format(
+            request=llm_state["request"],
+            visited_questions="\n".join(sorted(list(llm_state["visited_questions"])))
+        )
     if function_call.function_name == "submit_task":
         for key in ("answer", "sources"):
             if key not in function_call.function_parameters:
@@ -338,6 +344,7 @@ def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: Clon
                 error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + "\n\nSnippet denotations must be in the format 'path/to/file.ext:a-b', containing the file path and line numbers deliminated by a ':'."
                 break
             file_path, line_numbers = snippet_denotation.split(":")
+            line_numbers, *_ = line_numbers.split(",")
             if "-" not in line_numbers:
                 error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + "\n\nSnippet denotations must be in the format 'path/to/file.ext:a-b', and the line numbers must include a start and end line deliminated by a '-'."
                 break
@@ -351,6 +358,10 @@ def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: Clon
             return error_message
         else:
             return "DONE"
+    elif function_call.function_name == "raise_error":
+        if "message" not in function_call.function_parameters:
+            return "Please provide a message to raise an error."
+        raise QuestionAnswererException(function_call.function_parameters["message"])
     else:
         return "ERROR\n\nInvalid tool name."
 
@@ -360,6 +371,6 @@ if __name__ == "__main__":
         repo_full_name="sweepai/sweep",
     )
     rag(
-        question="What version of tree-sitter are we using?",
+        question="What version of django are we using in the codebase?",
         cloned_repo=cloned_repo,
     )
