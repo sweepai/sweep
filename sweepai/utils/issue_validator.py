@@ -14,7 +14,7 @@ Here are some examples of things Sweep does not currently support:
 - Large-scale changes like migrations and large version upgrades.
 - Tasks requiring accessing outside information like AWS consoles or retrieving API keys.
 - Tasks requiring fixes outside of code changes
-- Issues that have an existing fix or duplicate issues
+- Issues that have an existing PR that resolve it or duplicate issues
 
 Respond in the following format:
 
