@@ -672,7 +672,6 @@ def on_ticket(
                                 "new_keys": ",".join(new_file_contents_to_commit.keys()) 
                             },
                         )
-                    logger.info(new_file_contents_to_commit)
                     commit = commit_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, commit_message, pull_request.branch_name)
                 except Exception as e:
                     logger.info(f"Error in updating file{e}")
@@ -936,7 +935,7 @@ def on_ticket(
                         sleep(SLEEP_DURATION_SECONDS)
                     # refresh the pr
                     pr = repo.get_pull(pr.number)
-                    current_commit = repo.get_pull(pr.number).head.sha
+                    current_commit = repo.get_pull(pr.number).head.sha # IMPORTANT: resync PR otherwise you'll fetch old GHA runs
                     runs: list[WorkflowRun] = list(repo.get_workflow_runs(branch=pr.head.ref, head_sha=current_commit))
                     # if all runs have succeeded or have no result, break
                     if all([run.conclusion in ["success", None] for run in runs]):
@@ -1002,7 +1001,24 @@ def on_ticket(
                                 chat_logger=chat_logger,
                                 previous_modify_files_dict=previous_modify_files_dict,
                             )
-                            pr = repo.get_pull(pr.number) # IMPORTANT: resync PR otherwise you'll fetch old GHA runs
+                            commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]
+                            try:
+                                new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
+                                previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
+                                new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, file_change_requests)
+                                if files_removed and username:
+                                    posthog.capture(
+                                        username,
+                                        "polluted_commits_error",
+                                        properties={
+                                            "old_keys": ",".join(previous_file_contents_to_commit.keys()),
+                                            "new_keys": ",".join(new_file_contents_to_commit.keys()) 
+                                        },
+                                    )
+                                commit = commit_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, commit_message, pull_request.branch_name)
+                            except Exception as e:
+                                logger.info(f"Error in updating file{e}")
+                                raise e
                             total_edit_attempts += 1
                             if total_edit_attempts >= GHA_MAX_EDIT_ATTEMPTS:
                                 logger.info(f"Tried to edit PR {GHA_MAX_EDIT_ATTEMPTS} times, giving up.")
