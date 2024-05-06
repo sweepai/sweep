@@ -416,7 +416,7 @@ def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: Clon
             snippets_string += "\n\nHere is a list of all the files retrieved previously:\n" + "\n".join([f"- {snippet}" for snippet in sorted(list(prev_visited_snippets))])
         snippets_string += f"\n\nThe above are the snippets that are found in decreasing order of relevance to the search query \"{function_call.function_parameters.get('question')}\"."
         if previously_asked_question:
-            snippets_string += f"\n\nYou have already asked the following questions so do not ask them again:\n" + "\n".join([f"- {question}" for question in previously_asked_question])
+            snippets_string += "\n\nYou have already asked the following questions so do not ask them again:\n" + "\n".join([f"- {question}" for question in previously_asked_question])
         warning_messages = ""
         if "test" in question and not include_tests:
             warning_messages += "\n\nWARNING\n\nThe search query contains the word 'test'. You may need to toggle the include_tests flag to find relevant information."
