@@ -17,6 +17,12 @@ The issue title should start with `Sweep: `. For issues and PRs, call Sweep usin
   </tr>
 </table>
 
+To get Sweep to work off an existing branch, add to the end of the issue description:
+
+```
+Branch: feat/name-of-branch
+```
+
 Note: The initial startup time typically takes around 3-5 minutes depending on your codebase, since we will have to index your codebase.
 
 ## Fix Sweep's PRs
