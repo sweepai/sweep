@@ -3,34 +3,30 @@ create_pr is a function that creates a pull request from a list of file change r
 It is also responsible for handling Sweep config PR creation. test
 """
 
+import copy
 import datetime
-from typing import Any, Generator
 
 import openai
 from github.Repository import Repository
 from loguru import logger
 
-from sweepai.config.client import DEFAULT_RULES_STRING, SweepConfig, get_blocked_dirs
+from sweepai.agents.modify import modify
+from sweepai.config.client import DEFAULT_RULES_STRING, SweepConfig
 from sweepai.config.server import (
     ENV,
     GITHUB_BOT_USERNAME,
     GITHUB_CONFIG_BRANCH,
     GITHUB_DEFAULT_CONFIG,
     GITHUB_LABEL_NAME,
-    MONGODB_URI,
 )
 from sweepai.core.entities import (
     FileChangeRequest,
     MaxTokensExceeded,
-    Message,
-    MockPR,
-    PullRequest,
 )
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
-from sweepai.utils.str_utils import UPDATES_MESSAGE
 
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
@@ -41,40 +37,17 @@ INSTRUCTIONS_FOR_REVIEW = """\
 * Comment on a file, Sweep will only modify the commented file
 * Edit the original issue to get Sweep to recreate the PR from scratch"""
 
-
-def create_pr_changes(
+# this should be the only modification function
+def handle_file_change_requests(
     file_change_requests: list[FileChangeRequest],
-    pull_request: PullRequest,
+    branch_name: str,
+    request: str,
     sweep_bot: SweepBot,
     username: str,
     installation_id: int,
-    issue_number: int | None = None,
     chat_logger: ChatLogger = None,
-    base_branch: str = None,
-    additional_messages: list[Message] = []
-) -> Generator[tuple[FileChangeRequest, int, Any], None, dict]:
-    # Flow:
-    # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
-    chat_logger = (
-        chat_logger
-        if chat_logger is not None
-        else ChatLogger(
-            {
-                "username": username,
-                "installation_id": installation_id,
-                "repo_full_name": sweep_bot.repo.full_name,
-                "title": pull_request.title,
-                "summary": "",
-                "issue_url": "",
-            }
-        )
-        if MONGODB_URI
-        else None
-    )
+    previous_modify_files_dict: dict = {},
+):
     sweep_bot.chat_logger = chat_logger
     organization, repo_name = sweep_bot.repo.full_name.split("/")
     metadata = {
@@ -86,34 +59,51 @@ def create_pr_changes(
         "installation_id": installation_id,
         "function": "create_pr",
         "mode": ENV,
-        "issue_number": issue_number,
     }
     posthog.capture(username, "started", properties=metadata)
 
     try:
-        logger.info("Making PR...")
-        pull_request.branch_name = sweep_bot.create_branch(
-            pull_request.branch_name, base_branch=base_branch
-        )
         completed_count, fcr_count = 0, len(file_change_requests)
 
-        blocked_dirs = get_blocked_dirs(sweep_bot.repo)
+        relevant_filepaths = []
+        for file_change_request in file_change_requests:
+            if file_change_request.relevant_files:
+                # keep all relevant_filepaths
+                for file_path in file_change_request.relevant_files:
+                    relevant_filepaths.append(file_path)
+        # actual modification logic
+        modify_files_dict = modify(
+            fcrs=file_change_requests,
+            request=request,
+            cloned_repo=sweep_bot.cloned_repo,
+            relevant_filepaths=relevant_filepaths,
+            previous_modify_files_dict=previous_modify_files_dict,
+        )
+        # If no files were updated, log a warning and return
+        if not modify_files_dict:
+            logger.warning(
+                "No changes made to any file!"
+            )
+            return (
+                modify_files_dict,
+                False,
+                None,
+                file_change_requests,
+            )
+        
+        # update previous_modify_files_dict
+        if not previous_modify_files_dict:
+            previous_modify_files_dict = {}
+        if modify_files_dict:
+            for file_name, file_content in modify_files_dict.items():
+                previous_modify_files_dict[file_name] = copy.deepcopy(file_content)
+                # update status of corresponding fcr to be succeeded
+                for file_change_request in file_change_requests:
+                    if file_change_request.filename == file_name:
+                        file_change_request.status = "succeeded"
 
-        for (
-            new_file_contents,
-            changed_file,
-            commit,
-            file_change_requests,
-        ) in sweep_bot.change_files_in_github_iterator(
-            file_change_requests,
-            pull_request.branch_name,
-            blocked_dirs,
-            additional_messages=additional_messages,
-            username=username
-        ):
-            completed_count += len(new_file_contents or [])
-            logger.info(f"Completed {completed_count}/{fcr_count} files")
-            yield new_file_contents, changed_file, commit, file_change_requests
+        completed_count = len(modify_files_dict or [])
+        logger.info(f"Completed {completed_count}/{fcr_count} files")
         if completed_count == 0 and fcr_count != 0:
             logger.info("No changes made")
             posthog.capture(
@@ -125,26 +115,7 @@ def create_pr_changes(
                     **metadata,
                 },
             )
-
-            # If no changes were made, delete branch
-            commits = sweep_bot.repo.get_commits(pull_request.branch_name)
-            if commits.totalCount == 0:
-                branch = sweep_bot.repo.get_git_ref(f"heads/{pull_request.branch_name}")
-                branch.delete()
-
-            return
-        # Include issue number in PR description
-        if issue_number:
-            # If the #issue changes, then change on_ticket (f'Fixes #{issue_number}.\n' in pr.body:)
-            pr_description = (
-                f"{pull_request.content}\n\nFixes"
-                f" #{issue_number}.\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}"
-            )
-        else:
-            pr_description = f"{pull_request.content}"
-        pr_title = pull_request.title
-        if "sweep.yaml" in pr_title:
-            pr_title = "[config] " + pr_title
+        return modify_files_dict, True, file_change_requests
     except MaxTokensExceeded as e:
         logger.error(e)
         posthog.capture(
@@ -181,25 +152,6 @@ def create_pr_changes(
             },
         )
         raise e
-
-    posthog.capture(username, "success", properties={**metadata})
-    logger.info("create_pr success")
-    result = {
-        "success": True,
-        "pull_request": MockPR(
-            file_count=completed_count,
-            title=pr_title,
-            body=pr_description,
-            pr_head=pull_request.branch_name,
-            base=sweep_bot.repo.get_branch(
-                SweepConfig.get_branch(sweep_bot.repo)
-            ).commit,
-            head=sweep_bot.repo.get_branch(pull_request.branch_name).commit,
-        ),
-    }
-    yield result # TODO: refactor this as it doesn't need to be an iterator
-    return
-
 
 def safe_delete_sweep_branch(
     pr,  # Github PullRequest
@@ -340,7 +292,7 @@ def create_config_pr(
         ## What's new?
         - **Sweep is now configurable**.
         - To configure Sweep, simply edit the `sweep.yaml` file in the root of your repository.
-        - If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.gg/sweep) for help.
+        - If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discourse](https://community.sweep.dev/) for help.
 
         If you would like me to stop creating this PR, go to issues and say "Sweep: create an empty `sweep.yaml` file".
         Thank you for using Sweep! 🧹""".replace(

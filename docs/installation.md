@@ -78,7 +78,7 @@ For professionals who want even more tickets and priority support/feature reques
 [Check out our docs](https://docs.sweep.dev/).
 
 ### Contact Us 👥
-- [Discord](https://discord.gg/invite/sweep)
+- [Discourse](https://community.sweep.dev/)
 - team@sweep.dev
 - [Star us on GitHub! ⭐](https://github.com/sweepai/sweep)
 
@@ -87,4 +87,4 @@ Note - you need to have Sweep installed and [Issues enabled in Repo](https://doc
 
 # Bug Reports
 
-If Sweep fails to solve your issue that is within the scope of Sweep (see Limitations) and you submit a high-quality bug report at our [Discord](https://discord.gg/sweep), we will reset your ticket count, giving your GPT-4 tickets back. This is only for GPT4 PRs.
+If Sweep fails to solve your issue that is within the scope of Sweep (see Limitations) and you submit a high-quality bug report at our [Discourse](https://community.sweep.dev/), we will reset your ticket count, giving your GPT-4 tickets back. This is only for GPT4 PRs.
