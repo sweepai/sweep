@@ -82,8 +82,21 @@ When you mention an entity, be precise and clear by indicating the file they are
 <type>str</type>
 <description>
 Code files you referenced in your <answer>. Only include sources that are DIRECTLY REFERENCED in your answer, do not provide anything vaguely related. Keep this section MINIMAL. These must be full paths and not symlinks of aliases to files. Follow this format:
-path/to/file.ext:a-b - justification and the section of the file that is relevant
-path/to/other/file.ext:c-d - justification and the section of the file that is relevant
+<source>
+<file_path>
+file_path
+</file_path>
+<start_line>
+start_line
+</start_line>
+<end_line>
+end_line
+</end_line>
+<justification>
+justification and the section of the file that is relevant
+</justification>
+</source>
+[additional sources...]
 </description>
 </parameter>
 </parameters>
@@ -143,8 +156,34 @@ To submit the final response to the user's question:
 The push notification configurations and registration logic using the Firebase Cloud Messaging library in the mobile app codebase are implemented in the `PushNotificationService` class in `src/services/push_notification_service.py`. The registration logic is implemented in the `register_device` method. Here is an example of how the registration logic is used in the `register_device` method.
 </answer>
 <sources>
-src/services/push_notification_service.ts:10-20 - The `PushNotificationService` class that implements the push notification configurations and registration logic
-src/services/push_notification_service.ts:30-40 - The `register_device` method that implements the registration logic
+<source>
+<file_path>
+src/services/push_notification_service.ts
+</file_path>
+<start_line>
+10
+</start_line>
+<end_line>
+20
+</end_line>
+<justification>
+The `PushNotificationService` class that implements the push notification configurations and registration logic
+</justification>
+</source>
+<source>
+<file_path>
+src/services/push_notification_service.ts
+</file_path>
+<start_line>
+30
+</start_line>
+<end_line>
+40
+</end_line>
+<justification>
+The `register_device` method that implements the registration logic
+</justification>
+</source>
 </sources>
 </parameters>
 </invoke>
@@ -251,8 +290,21 @@ CORRECTED_SUBMIT_SOURCES_FORMAT = """ERROR
 Invalid sources format. Please provide the sources in the following format, including a file path, start and end lines, and a justification, one per line, for each snippet referenced in your answer:
 
 <sources>
-path/to/file.ext:a-b - justification and the section of the file that is relevant
-path/to/other/file.ext:c-d - justification and the section of the file that is relevant
+<source>
+<file_path>
+file_path
+</file_path>
+<start_line>
+start_line
+</start_line>
+<end_line>
+end_line
+</end_line>
+<justification>
+justification and the section of the file that is relevant
+</justification>
+</source>
+[additional sources...]
 </sources>"""
 
 def search_codebase(
@@ -379,6 +431,7 @@ def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: Clon
             if key not in function_call.function_parameters:
                 return f"Please provide a {key} parameter to submit the task. You must provide an analysis, answer, and sources to submit the task as three separate parameters."
 
+        # breakpoint()
         error_message = ""
         sources = function_call.function_parameters["sources"]
         for line in sources.splitlines():
