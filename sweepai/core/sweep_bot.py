@@ -325,9 +325,10 @@ def partition_snippets_if_test(snippets: list[Snippet], include_tests=False):
 def get_files_to_change(
     relevant_snippets: list[Snippet],
     read_only_snippets: list[Snippet],
-    problem_statement,
-    repo_name,
+    problem_statement: str,
+    repo_name: str,
     cloned_repo: ClonedRepo,
+    additional_context: str = "",
     import_graph: Graph | None = None,
     pr_diffs: str = "",
     chat_logger: ChatLogger = None,
@@ -418,6 +419,13 @@ def get_files_to_change(
     #         content=previous_diffs,
     #     )
     # )
+    if additional_context:
+        messages.append(
+            Message(
+                role="user",
+                content=additional_context,
+            )
+        )
     messages.append(
         Message(
             role="user",
