@@ -611,7 +611,7 @@ def chunk_code(
         language = extension_to_language[ext]
     else:
         # Fallback to naive chunking if tree_sitter fails
-        line_count = 50
+        line_count = MAX_CHARS // AVG_CHAR_IN_LINE
         overlap = 0
         chunks = naive_chunker(code, line_count, overlap)
         snippets = []

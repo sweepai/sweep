@@ -90,12 +90,13 @@ def modify(
             )
     except Exception as e:
         logger.error(f"Error in chat_anthropic: {e}")
-        chat_logger.add_chat(
-            {
-                "model": chat_gpt.model,
-                "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
-                "output": f"ERROR:\n{e}\nEND OF ERROR",
-            })
+        if chat_logger:
+            chat_logger.add_chat(
+                {
+                    "model": chat_gpt.model,
+                    "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
+                    "output": f"ERROR:\n{e}\nEND OF ERROR",
+                })
         return {}
     if not previous_modify_files_dict:
         previous_modify_files_dict = {}
