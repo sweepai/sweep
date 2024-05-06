@@ -3,6 +3,7 @@ on_ticket is the main function that is called when a new issue is created.
 It is only called by the webhook handler in sweepai/api.py.
 """
 
+import copy
 import os
 import traceback
 from time import time
@@ -59,9 +60,11 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
     CURRENT_USERNAME,
     ClonedRepo,
+    commit_multi_file_changes,
     convert_pr_draft_field,
     get_github_client,
     sanitize_string_for_github,
+    validate_and_sanitize_multi_file_changes,
 )
 from sweepai.utils.slack_utils import add_slack_context
 from sweepai.utils.str_utils import (
@@ -646,22 +649,48 @@ def on_ticket(
                 pull_request.branch_name = sweep_bot.create_branch(
                     pull_request.branch_name, base_branch=overrided_branch_name
                 )
-                new_file_contents, changed_file, commit, file_change_requests = handle_file_change_requests(
+                modify_files_dict, changed_file, file_change_requests = handle_file_change_requests(
                     file_change_requests=file_change_requests,
+                    request=sweep_bot.human_message.get_issue_request(),
                     branch_name=pull_request.branch_name,
                     sweep_bot=sweep_bot,
                     username=username,
                     installation_id=installation_id,
                     chat_logger=chat_logger,
                 )
+                commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]
+                try:
+                    new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
+                    previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
+                    new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, file_change_requests)
+                    if files_removed and username:
+                        posthog.capture(
+                            username,
+                            "polluted_commits_error",
+                            properties={
+                                "old_keys": ",".join(previous_file_contents_to_commit.keys()),
+                                "new_keys": ",".join(new_file_contents_to_commit.keys()) 
+                            },
+                        )
+                    logger.info(new_file_contents_to_commit)
+                    commit = commit_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, commit_message, pull_request.branch_name)
+                except Exception as e:
+                    logger.info(f"Error in updating file{e}")
+                    raise e
+                # set all fcrs without a corresponding change to be failed
+                for file_change_request in file_change_requests:
+                    if file_change_request.status != "succeeded":
+                        file_change_request.status = "failed"
+                    # also update all commit hashes associated with the fcr
+                    file_change_request.commit_hash_url = commit.html_url if commit else None
                 edit_sweep_comment(checkboxes_contents, 2)
                 if not file_change_requests:
                     raise NoFilesException()
                 changed_files = []
 
                 # append all files that have been changed
-                if new_file_contents:
-                    for file_name, _ in new_file_contents.items():
+                if modify_files_dict:
+                    for file_name, _ in modify_files_dict.items():
                         changed_files.append(file_name)
                 commit_hash: str = (
                     commit
@@ -788,7 +817,7 @@ def on_ticket(
                         sleep(1)
                 edit_sweep_comment(checkboxes_contents, 2)
                 pr_changes = MockPR(
-                    file_count=len(new_file_contents),
+                    file_count=len(modify_files_dict),
                     title=pull_request.title,
                     body="", # overrided later
                     pr_head=pull_request.branch_name,
@@ -957,14 +986,15 @@ def on_ticket(
                                 relevant_snippets=repo_context_manager.current_top_snippets,
                                 read_only_snippets=repo_context_manager.read_only_snippets,
                                 problem_statement=all_information_prompt,
-                                updated_files=new_file_contents,
+                                updated_files=modify_files_dict,
                                 cloned_repo=cloned_repo,
                                 chat_logger=chat_logger,
                             )
                             validate_file_change_requests(file_change_requests, cloned_repo)
                             previous_modify_files_dict: dict[str, dict[str, str | list[str]]] | None = None
-                            new_file_contents, changed_file, commit, file_change_requests = handle_file_change_requests(
+                            modify_files_dict, changed_file, commit, file_change_requests = handle_file_change_requests(
                                 file_change_requests=file_change_requests,
+                                request=sweep_bot.human_message.get_issue_request(),
                                 branch_name=pull_request.branch_name,
                                 sweep_bot=sweep_bot,
                                 username=username,
