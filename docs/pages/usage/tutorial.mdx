@@ -1,45 +1,67 @@
+import { Steps } from 'nextra/components'
+
 # Tutorial for Getting Started with Sweep
 
-We recommend using an existing **real project** for Sweep, but if you must start from scratch, we recommend **using a template**. In particular, we recommend Vercel templates and Vercel auto-deploy, since Vercel's auto-generated previews make it **easy to review Sweep's PRs**
+We recommend using an existing **real project** for Sweep, but if you must start from scratch for testing, we recommend **using a template**. In particular, we recommend Vercel templates and Vercel auto-deploy, since Vercel's auto-generated previews make it **easy to review Sweep's PRs**
 
-We'll use [Docusaurus](https://vercel.com/templates/next.js/docusaurus-2) since it's is the easiest to set up (no backend). To see other templates see https://vercel.com/templates.
+We'll use [Docusaurus](https://vercel.com/templates/next.js/docusaurus-2) for this tutorial since it's is the easiest to set up.
 
-1. Go to https://vercel.com/templates/next.js/docusaurus-2 (or another template) and click "Deploy".
+<Steps>
+
+### Fork and deploy a Docusaurus template
+
+Go to https://vercel.com/templates/next.js/docusaurus-2 (or another template) and click "Deploy".
 
 ![Deploy](/tutorial/deployment.png)
 
-2. Vercel will prompt you to select a GitHub account and click "Clone" after. This will trigger a build and deploy which will take a few minutes. Once the build is done, you will be greeted with a congratulations message.
+Vercel will prompt you to select a GitHub account and click "Clone" after. This will trigger a build and deploy which will take a few minutes. Once the build is done, you will be greeted with a congratulations message.
 
 ![Congratulations](/tutorial/congratulations.png)
 
-3. Go to the [Sweep Installation](https://github.com/apps/sweep-ai) page and click the grey "Configure" button or the green "Install" button. Ensure that that the Vercel template (i.e. Docusaurus) is configured to use Sweep.
+### Install Sweep
 
-4. Go to your Docusaurus fork (https://github.com/USERNAME/docusaurus-2) and create an issue prefixed with "Sweep:", such as "Sweep: Add a banner at the top asking the user to star the docusaurus repo with the current number of stars".
+Go to the [Sweep Installation](https://github.com/apps/sweep-ai) page and click "Install". Ensure on the next page that you give Sweep access to the Docusaurus repo you just forked.
+
+### Create a Sweep issue
+
+Go to the issues page of your Docusaurus fork (https://github.com/USERNAME/docusaurus-2/issues) and create an issue prefixed with "Sweep:", such as "Sweep: Add a banner at the top asking the user to star the docusaurus repo with the current number of stars".
 
 ![Issue](/tutorial/issue.png)
 
-5. After about 5 minutes, Sweep will make a PR to your Docusaurus fork. If you go to the PR, you will see a Vercel preview.
+### Give Sweep feedback
+
+After about 5 minutes, Sweep will make a PR to your Docusaurus fork. If you go to the PR, you will see a Vercel preview. To give feedback to Sweep, you have a few options:
+- Edit the original issue to add more details.
+- Leave comments on the PR or code.
+- Configure Sweep to handle failing GitHub Actions.
 
 ![Initial](/tutorial/initial.png)
 
-    a. If the PR's preview looks completely wrong, you can **add more details to the issue description or title** like "Use shields.io and make sure this is at the very top of the repo. Make sure it's aesthetic, centered and set the background color of the banner to lime.". Sweep will make a new PR with a new preview like the following:
+#### Restarting the issue
+
+If the PR's preview looks completely wrong, you can **add more details to the issue description or title** like "Use shields.io and make sure this is at the very top of the repo. Make sure it's aesthetic, centered and set the background color of the banner to lime.". Sweep will make a new PR with a new preview like the following:
 
 ![New issue](/tutorial/new.png)
 
-    b. If the PR is mostly right but you want to do some tweaking, you can **leave a comments on the PR or code** and Sweep will address the comments, also generating a new preview, like the following:
+#### Tweaking the PR
+
+If the PR is mostly right but you want to do some tweaking, you can **leave a comments on the PR** and Sweep will address the comments, also generating a new preview, like the following:
 
 ![PR Comment](/tutorial/comment.png)
 
-    c. If you have GitHub Actions set up, it will automatically run the linters, build, and tests and will show any failed logs to Sweep to handle. This only works with GitHub Actions and not other CI providers, so unfortunately for Vercel we have to copy paste manually.
+#### Fixing CI/CD
+
+If you have GitHub Actions set up, you can configure Sweep to handle failing linters and type-checkers by creating a `sweep.yaml` file with `gha_enabled: True`. This only works with GitHub Actions and not other CI providers, however, so for now we will just copy paste the logs into a comment.
 
 ![GitHub Actions](/tutorial/github_actions.png)
 
-6. Once you are happy with the PR, you can merge it and it will be deployed to production via Vercel.
+### Merge the PR
 
+Once you are happy with the PR, you can merge it and it will be deployed to production via Vercel.
 
 ![Final](/tutorial/final.png)
-
 
 You can see the final example at https://github.com/kevinlu1248/docusaurus-2/pull/4 with preview https://docusaurus-2-ql4cskc5o-sweepai.vercel.app/.
 
 Now to be a Sweep power user, check out [Advanced: becoming a Sweep power user](https://docs.sweep.dev/usage/advanced).
+</Steps>
