@@ -934,9 +934,12 @@ def on_ticket(
                         from time import sleep
 
                         sleep(SLEEP_DURATION_SECONDS)
+                    # refresh the pr
+                    pr = repo.get_pull(pr.number)
+                    current_commit = repo.get_pull(pr.number).head.sha
                     runs: list[WorkflowRun] = list(repo.get_workflow_runs(branch=pr.head.ref, head_sha=current_commit))
-                    # if all runs have succeeded, break
-                    if all([run.conclusion == "success" for run in runs]):
+                    # if all runs have succeeded or have no result, break
+                    if all([run.conclusion in ["success", None] for run in runs]):
                         break
                     # if any of them have failed we retry
                     if any([run.conclusion == "failure" for run in runs]):
@@ -999,7 +1002,6 @@ def on_ticket(
                                 chat_logger=chat_logger,
                                 previous_modify_files_dict=previous_modify_files_dict,
                             )
-                            current_commit = commit.sha
                             pr = repo.get_pull(pr.number) # IMPORTANT: resync PR otherwise you'll fetch old GHA runs
                             total_edit_attempts += 1
                             if total_edit_attempts >= GHA_MAX_EDIT_ATTEMPTS:
