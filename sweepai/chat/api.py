@@ -9,10 +9,25 @@ from sweepai.agents.search_agent import extract_xml_tag
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
-from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
+from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo, get_installation_id, get_token
 from sweepai.utils.ticket_utils import prep_snippets
 
 app = FastAPI()
+
+@app.get("/repo")
+def check_repo_exists(repo_name: str):
+    org_name, repo = repo_name.split("/")
+    if os.path.exists(f"/tmp/{repo}"):
+        return {"success": True}
+    try:
+        print(f"Cloning {repo_name} to /tmp/{repo}")
+        installation_id = get_installation_id(org_name)
+        token = get_token(installation_id)
+        git.Repo.clone_from(f"https://x-access-token:{token}@github.com/{repo_name}", f"/tmp/{repo}")
+        print(f"Cloned {repo_name} to /tmp/{repo}")
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 def search_codebase(
     repo_name: str,
@@ -20,7 +35,11 @@ def search_codebase(
 ):
     org_name, repo = repo_name.split("/")
     if not os.path.exists(f"/tmp/{repo}"):
-        git.clone(f"https://github.com/{repo_name}", f"/tmp/{repo}")
+        print(f"Cloning {repo_name} to /tmp/{repo}")
+        installation_id = get_installation_id(org_name)
+        token = get_token(installation_id)
+        git.Repo.clone_from(f"https://x-access-token:{token}@github.com/{repo_name}", f"/tmp/{repo}")
+        print(f"Cloned {repo_name} to /tmp/{repo}")
     cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name)
     repo_context_manager = prep_snippets(cloned_repo, query, use_multi_query=False, NUM_SNIPPETS_TO_KEEP=0)
     return repo_context_manager.current_top_snippets
