@@ -371,7 +371,7 @@ export default function Home() {
                       setRelevantSnippets(snippets.slice(0, 5));
                       setSuggestedSnippets(snippets.slice(5));
                       currentRelevantSnippets = snippets;
-                    } catch (e) {
+                    } catch (e: any) {
                       setIsLoading(false);
                       toast({
                         title: "Failed to search for snippets",
@@ -412,13 +412,13 @@ export default function Home() {
                             const addedMessages = JSON.parse(lastLine);
                             respondedMessages = [...newMessages, ...addedMessages]
                             setMessages(respondedMessages);
-                          } catch (e) {
+                          } catch (e: any) {
                           }
                         }
                       }
                       done = done_;
                     }
-                  } catch (e) {
+                  } catch (e: any) {
                     toast({
                       title: "Failed to chat",
                       description: e.message,
