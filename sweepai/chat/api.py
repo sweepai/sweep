@@ -9,7 +9,7 @@ from sweepai.agents.search_agent import extract_xml_tag
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
-from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo, get_installation_id, get_token
+from sweepai.utils.github_utils import MockClonedRepo, get_installation_id, get_token
 from sweepai.utils.ticket_utils import prep_snippets
 
 app = FastAPI()
