@@ -43,6 +43,7 @@ from sweepai.config.server import (
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
 )
+from sweepai.chat.api import app as chat_app
 from sweepai.core.entities import PRChangeRequest
 from sweepai.global_threads import global_threads
 from sweepai.handlers.create_pr import (  # type: ignore
@@ -81,6 +82,8 @@ from sweepai.web.events import (
 from sweepai.web.health import health_check
 
 app = FastAPI()
+
+app.mount("/chat", chat_app)
 
 events = {}
 on_ticket_events = {}

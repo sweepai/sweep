@@ -473,7 +473,7 @@ def get_files_to_change(
         issue_excerpts = issue_excerpt_match.group(1)
         issue_excerpts = issue_excerpts.strip("\n")
         # breakpoint()
-        files_to_change_response = chat_gpt.chat_anthropic(
+        files_to_change_response: str = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + (files_to_change_prompt.format(issue_excerpts=issue_excerpts)),
             model=MODEL,
             temperature=0.1,
@@ -481,10 +481,11 @@ def get_files_to_change(
         )
         expected_plan_count = 1
         calls = 0
+        # pylint: disable=E1101
         while files_to_change_response.count("</plan>") < expected_plan_count and calls < 3:
             # ask for a second response
             try:
-                next_response = chat_gpt.chat_anthropic(
+                next_response: str = chat_gpt.chat_anthropic(
                     content="",
                     model=MODEL,
                     temperature=0.1,
@@ -878,7 +879,7 @@ def get_files_to_change_for_test(
             ],
         )
         MODEL = "claude-3-opus-20240229"
-        files_to_change_response = chat_gpt.chat_anthropic(
+        files_to_change_response: str = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + test_files_to_change_prompt,
             model=MODEL,
             temperature=0.1,
@@ -886,6 +887,7 @@ def get_files_to_change_for_test(
         # breakpoint()
         max_tokens = 4096 * 3.5 * 0.9 # approx max tokens per response
         expected_plan_count = 1
+        # pylint: disable=E1101
         call_anthropic_second_time = len(files_to_change_response) > max_tokens and files_to_change_response.count("</plan>") < expected_plan_count
         if call_anthropic_second_time:
             # ask for a second response
@@ -1054,7 +1056,7 @@ def get_files_to_change_for_gha(
             ],
         )
         MODEL = "claude-3-opus-20240229" if not use_faster_model else "claude-3-sonnet-20240229"
-        files_to_change_response = chat_gpt.chat_anthropic(
+        files_to_change_response: str = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + gha_files_to_change_prompt,
             model=MODEL,
             temperature=0.1
@@ -1062,6 +1064,7 @@ def get_files_to_change_for_gha(
         # breakpoint()
         max_tokens = 4096 * 3.5 * 0.8 # approx max tokens per response
         expected_plan_count = 1
+        # pylint: disable=E1101
         call_anthropic_second_time = len(files_to_change_response) > max_tokens and files_to_change_response.count("</plan>") < expected_plan_count
         if call_anthropic_second_time:
             # ask for a second response
