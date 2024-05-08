@@ -83,14 +83,15 @@ const MessageDisplay = ({ message }: { message: Message }) => {
                           <SyntaxHighlighter
                             {...rest}
                             PreTag="div"
-                            children={String(children).replace(/\n$/, '')}
                             language={match[1]}
                             style={tomorrow}
                             customStyle={{
                               backgroundColor: '#333',
                             }}
                             className="rounded-xl"
-                          />
+                          >
+                            {String(children).replace(/\n$/, '')}
+                          </SyntaxHighlighter>
                         ) : (
                           <code 
                             {...rest}
@@ -133,14 +134,15 @@ const MessageDisplay = ({ message }: { message: Message }) => {
                   <SyntaxHighlighter
                     {...rest}
                     PreTag="div"
-                    children={String(children).replace(/\n$/, '')}
                     language={match[1]}
                     style={tomorrow}
                     customStyle={{
                       backgroundColor: '#333',
                     }}
                     className="rounded-xl"
-                  />
+                  >
+                    {String(children).replace(/\n$/, '')}
+                  </SyntaxHighlighter>
                 ) : (
                   <code 
                     {...rest}
@@ -195,8 +197,9 @@ const SnippetBadge = ({
               whiteSpace: 'pre-wrap',
             }}
             className="rounded-xl max-h-80 overflow-y-auto p-4"
-            children={sliceLines(snippet.content, snippet.start, snippet.end)}
-          />
+          >
+            {sliceLines(snippet.content, snippet.start, snippet.end)}
+          </SyntaxHighlighter>
         </HoverCardContent>
       </HoverCard>
       {button}
@@ -289,6 +292,7 @@ export default function Home() {
           </h2>
           {relevantSnippets.map((snippet, index) => (
             <SnippetBadge
+              key={index}
               snippet={snippet}
               button={
                 <Button
