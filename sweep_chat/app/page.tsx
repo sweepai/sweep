@@ -361,7 +361,7 @@ export default function Home() {
 
                   var currentRelevantSnippets = relevantSnippets;
                   if (relevantSnippets.length == 0) {
-                    const snippetsResponse = await fetch(`/api/search?repo_name=${repo_name}&query=${encodeURIComponent(currentMessage)}`);
+                    const snippetsResponse = await fetch(`/api/search?repo_name=${repoName}&query=${encodeURIComponent(currentMessage)}`);
                     const snippets = await snippetsResponse.json();
                     setRelevantSnippets(snippets.slice(0, 5));
                     setSuggestedSnippets(snippets.slice(5));
@@ -374,7 +374,7 @@ export default function Home() {
                       "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                      repo_name,
+                      repoName,
                       messages: newMessages,
                       snippets: currentRelevantSnippets.slice(0, 5),
                     })
