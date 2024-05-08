@@ -14,6 +14,17 @@ from sweepai.utils.ticket_utils import prep_snippets
 
 app = FastAPI()
 
+@app.get("/repo")
+def check_repo_exists(repo_name: str):
+    org_name, repo = repo_name.split("/")
+    if os.path.exists(f"/tmp/{repo}"):
+        return {"success": True}
+    try:
+        git.clone(f"https://github.com/{repo_name}", f"/tmp/{repo}")
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 def search_codebase(
     repo_name: str,
     query: str

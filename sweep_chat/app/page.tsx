@@ -18,6 +18,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Toaster } from "@/components/ui/toaster";
+import { toast } from "@/components/ui/use-toast";
 
 interface Message {
   content: string; // This is the message content or function output
@@ -210,7 +212,9 @@ const getLastLine = (content: string) => {
 const defaultMessage = `I'm Sweep and I'm here to help you answer questions about your codebase!`;
 
 export default function Home() {
-  const repo_name = "trilogy-group/pulse-alp";
+  const [repoName, setRepoName] = useLocalStorage<string>("repoName", "")
+  const [repoNameDisabled, setRepoNameDisabled] = useState<boolean>(false)
+
   const [relevantSnippets, setRelevantSnippets] = useLocalStorage<Snippet[]>("relevantSnippets", [])
   const [suggestedSnippets, setSuggestedSnippets] = useLocalStorage<Snippet[]>("suggestedSnippets", [])
   const [showSuggestions, setShowSuggestions] = useState<boolean>(false)
@@ -230,7 +234,34 @@ export default function Home() {
   }, [messages]);
   return (
     <main className="flex h-screen flex-col items-center justify-between p-12">
+      <Toaster />
       <h1 className="text-4xl font-bold mb-6">Sweep Chat</h1>
+      <Input
+        className="mb-4"
+        value={repoName}
+        onChange={(e) => setRepoName(e.target.value)}
+        onBlur={async () => {
+          setRepoNameDisabled(true);
+          const response = await fetch(`/api/repo?repo_name=${repoName}`);
+          setRepoNameDisabled(false);
+          console.log(response)
+          const data = await response.json();
+          if (!data.success) {
+            toast({
+              title: "Failed to load repository",
+              description: data.error,
+              variant: "destructive"
+            })
+          } else {
+            toast({
+              title: "Successfully loaded repository",
+              variant: "default"
+            })
+          }
+        }}
+        placeholder="Repository name"
+        disabled={repoNameDisabled}
+      />
       <div
         ref={messagesContainerRef}
         className="w-full border flex-grow mb-4 p-4 max-h-[90%] overflow-y-auto rounded-xl"
