@@ -77,20 +77,21 @@ const MessageDisplay = ({ message }: { message: Message }) => {
                     remarkPlugins={[remarkGfm]}
                     components={{
                       code(props) {
-                        const {children, className, node, ...rest} = props
+                        const {children, className, node, ref, ...rest} = props
                         const match = /language-(\w+)/.exec(className || '')
                         return match ? (
                           <SyntaxHighlighter
-                            {...rest}
+                            {...rest} // eslint-disable-line
                             PreTag="div"
-                            children={String(children).replace(/\n$/, '')}
                             language={match[1]}
                             style={tomorrow}
                             customStyle={{
                               backgroundColor: '#333',
                             }}
                             className="rounded-xl"
-                          />
+                          >
+                            {String(children).replace(/\n$/, '')}
+                          </SyntaxHighlighter>
                         ) : (
                           <code 
                             {...rest}
@@ -127,20 +128,21 @@ const MessageDisplay = ({ message }: { message: Message }) => {
             remarkPlugins={[remarkGfm]}
             components={{
               code(props) {
-                const {children, className, node, ...rest} = props
+                const {children, className, node, ref, ...rest} = props
                 const match = /language-(\w+)/.exec(className || '')
                 return match ? (
                   <SyntaxHighlighter
                     {...rest}
                     PreTag="div"
-                    children={String(children).replace(/\n$/, '')}
                     language={match[1]}
                     style={tomorrow}
                     customStyle={{
                       backgroundColor: '#333',
                     }}
                     className="rounded-xl"
-                  />
+                  >
+                    {String(children).replace(/\n$/, '')}
+                  </SyntaxHighlighter>
                 ) : (
                   <code 
                     {...rest}
@@ -195,8 +197,9 @@ const SnippetBadge = ({
               whiteSpace: 'pre-wrap',
             }}
             className="rounded-xl max-h-80 overflow-y-auto p-4"
-            children={sliceLines(snippet.content, snippet.start, snippet.end)}
-          />
+          >
+            {sliceLines(snippet.content, snippet.start, snippet.end)}
+          </SyntaxHighlighter>
         </HoverCardContent>
       </HoverCard>
       {button}
@@ -289,6 +292,7 @@ export default function Home() {
           </h2>
           {relevantSnippets.map((snippet, index) => (
             <SnippetBadge
+              key={index}
               snippet={snippet}
               button={
                 <Button
@@ -367,7 +371,7 @@ export default function Home() {
                       setRelevantSnippets(snippets.slice(0, 5));
                       setSuggestedSnippets(snippets.slice(5));
                       currentRelevantSnippets = snippets;
-                    } catch (e) {
+                    } catch (e: any) {
                       setIsLoading(false);
                       toast({
                         title: "Failed to search for snippets",
@@ -398,7 +402,7 @@ export default function Home() {
                     var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" }]
                     setMessages(respondedMessages);
                     while (!done) {
-                      const { value, done: done_ } = await reader.read();
+                      const { value, done: done_ } = await reader!.read();
                       if (value) {
                         const decodedValue = new TextDecoder().decode(value);
                         chat += decodedValue;
@@ -408,13 +412,13 @@ export default function Home() {
                             const addedMessages = JSON.parse(lastLine);
                             respondedMessages = [...newMessages, ...addedMessages]
                             setMessages(respondedMessages);
-                          } catch (e) {
+                          } catch (e: any) {
                           }
                         }
                       }
                       done = done_;
                     }
-                  } catch (e) {
+                  } catch (e: any) {
                     toast({
                       title: "Failed to chat",
                       description: e.message,
