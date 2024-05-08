@@ -265,16 +265,21 @@ function App() {
             </Button>
           </div>
         ): (
-          <Button onClick={() => signIn()}>
+          <Button onClick={() => signIn()} variant="secondary">
             Sign In
           </Button>
         )}
       </div>
-      <div className={`w-full flex items-center ${repoNameDisabled ? "grow": ""}`}>
+      <div className={`w-full flex items-center ${repoNameValid ? "": "grow"}`}>
         <Input
           className="mb-4"
           value={repoName}
           onChange={(e) => setRepoName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.currentTarget.blur();
+            }
+          }}
           onBlur={async () => {
             if (repoName === "") {
               setRepoNameValid(false)
