@@ -3,7 +3,7 @@ import os
 import re
 import time
 import traceback
-from typing import Any, Literal
+from typing import Any, Iterator, Literal
 
 from anthropic import Anthropic, BadRequestError, AnthropicBedrock
 from openai import OpenAI
@@ -405,7 +405,7 @@ class ChatGPT(MessageList):
         verbose: bool = True,
         images: list[tuple[str, str, str]] | None = None,
         stream: bool = False,
-    ):
+    ) -> str | Iterator[str]:
         # use openai
         if use_openai:
             OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
@@ -439,6 +439,7 @@ class ChatGPT(MessageList):
                 } for message in self.messages if message.role != "system"
             ]
             message_dicts = sanitize_anthropic_messages(message_dicts)
+            # pylint: disable=E1129
             with client.messages.stream(
                 model=model,
                 temperature=temperature,
@@ -446,10 +447,10 @@ class ChatGPT(MessageList):
                 messages=message_dicts,
                 system=system_message,  
                 stop_sequences=stop_sequences,
-            ) as stream:
+            ) as stream_:
                 if verbose:
                     print(f"Started stream in {time.time() - start_time:.2f}s!")
-                for i, text in enumerate(stream.text_stream):
+                for i, text in enumerate(stream_.text_stream):
                     if verbose:
                         if i == 0:
                             print(f"Time to first token: {time.time() - start_time:.2f}s")

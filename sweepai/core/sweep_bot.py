@@ -473,7 +473,7 @@ def get_files_to_change(
         issue_excerpts = issue_excerpt_match.group(1)
         issue_excerpts = issue_excerpts.strip("\n")
         # breakpoint()
-        files_to_change_response = chat_gpt.chat_anthropic(
+        files_to_change_response: str = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + (files_to_change_prompt.format(issue_excerpts=issue_excerpts)),
             model=MODEL,
             temperature=0.1,
@@ -878,7 +878,7 @@ def get_files_to_change_for_test(
             ],
         )
         MODEL = "claude-3-opus-20240229"
-        files_to_change_response = chat_gpt.chat_anthropic(
+        files_to_change_response: str = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + test_files_to_change_prompt,
             model=MODEL,
             temperature=0.1,
@@ -1054,7 +1054,7 @@ def get_files_to_change_for_gha(
             ],
         )
         MODEL = "claude-3-opus-20240229" if not use_faster_model else "claude-3-sonnet-20240229"
-        files_to_change_response = chat_gpt.chat_anthropic(
+        files_to_change_response: str = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + gha_files_to_change_prompt,
             model=MODEL,
             temperature=0.1
