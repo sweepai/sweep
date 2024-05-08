@@ -77,11 +77,11 @@ const MessageDisplay = ({ message }: { message: Message }) => {
                     remarkPlugins={[remarkGfm]}
                     components={{
                       code(props) {
-                        const {children, className, node, ...rest} = props
+                        const {children, className, node, ref, ...rest} = props
                         const match = /language-(\w+)/.exec(className || '')
                         return match ? (
                           <SyntaxHighlighter
-                            {...rest}
+                            {...rest} // eslint-disable-line
                             PreTag="div"
                             language={match[1]}
                             style={tomorrow}
@@ -128,7 +128,7 @@ const MessageDisplay = ({ message }: { message: Message }) => {
             remarkPlugins={[remarkGfm]}
             components={{
               code(props) {
-                const {children, className, node, ...rest} = props
+                const {children, className, node, ref, ...rest} = props
                 const match = /language-(\w+)/.exec(className || '')
                 return match ? (
                   <SyntaxHighlighter
