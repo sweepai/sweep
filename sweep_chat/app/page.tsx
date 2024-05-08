@@ -374,7 +374,7 @@ export default function Home() {
                       "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                      repoName,
+                      repo_name: repoName,
                       messages: newMessages,
                       snippets: currentRelevantSnippets.slice(0, 5),
                     })
