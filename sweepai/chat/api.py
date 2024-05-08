@@ -1,8 +1,9 @@
 import json
 import os
-from fastapi import Body, FastAPI
+from fastapi import Body, Depends, FastAPI, HTTPException, Header
 from fastapi.responses import StreamingResponse
 import git
+from github import Github
 
 from sweepai.agents.modify_utils import validate_and_parse_function_call
 from sweepai.agents.search_agent import extract_xml_tag
@@ -14,8 +15,35 @@ from sweepai.utils.ticket_utils import prep_snippets
 
 app = FastAPI()
 
+def check_user_authenticated(
+    repo_name: str,
+    access_token: str
+) -> str | None:
+    # Returns read access, write access, or none
+    g = Github(access_token)
+    try:
+        repo = g.get_repo(repo_name)
+        if repo.permissions.admin:
+            return "write"
+        elif repo.permissions.push:
+            return "write"
+        elif repo.permissions.pull:
+            return "read"
+        else:
+            return "read"
+    except Exception as e:
+        print(e)
+        return None
+
+async def get_token_header(authorization: str = Header(...)):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=400, detail="Invalid token")
+    return authorization.removeprefix("Bearer ")
+
 @app.get("/repo")
-def check_repo_exists(repo_name: str):
+def check_repo_exists(repo_name: str, access_token: str = Depends(get_token_header)):
+    if not check_user_authenticated(repo_name, access_token):
+        return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
     org_name, repo = repo_name.split("/")
     if os.path.exists(f"/tmp/{repo}"):
         return {"success": True}
@@ -31,7 +59,7 @@ def check_repo_exists(repo_name: str):
 
 def search_codebase(
     repo_name: str,
-    query: str
+    query: str,
 ):
     org_name, repo = repo_name.split("/")
     if not os.path.exists(f"/tmp/{repo}"):
@@ -47,8 +75,11 @@ def search_codebase(
 @app.get("/search")
 def search_codebase_endpoint(
     repo_name: str,
-    query: str
+    query: str,
+    access_token: str = Depends(get_token_header)
 ):
+    if not check_user_authenticated(repo_name, access_token):
+        return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
     return [snippet.model_dump() for snippet in search_codebase(repo_name, query)]
 
 example_tool_calls = """Here is an illustrative example of how to use the tools:
