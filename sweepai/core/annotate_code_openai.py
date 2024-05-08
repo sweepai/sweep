@@ -10,7 +10,6 @@ from sweepai.utils.utils import chunk_code
 
 CLAUDE_MODEL = "claude-3-haiku-20240307"
 NUM_WORKERS = 4 # tune based on haiku rate limit
-# NUM_WORKERS = 1 # tune based on haiku rate limit
 
 system_prompt = """Analyze the provided source_code, GitHub issue, and code_to_annotate to generate an explanation with the following format:
 
