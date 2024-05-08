@@ -403,7 +403,8 @@ class ChatGPT(MessageList):
         max_tokens: int = 4096,
         use_openai: bool = False,
         verbose: bool = True,
-        images: list[tuple[str, str, str]] | None = None
+        images: list[tuple[str, str, str]] | None = None,
+        stream: bool = False,
     ):
         # use openai
         if use_openai:
@@ -428,6 +429,33 @@ class ChatGPT(MessageList):
         NUM_ANTHROPIC_RETRIES = 6
         use_aws = True
         hit_content_filtering = False
+        if stream:
+            client = Anthropic(api_key=ANTHROPIC_API_KEY)
+            start_time = time.time()
+            message_dicts = [
+                {
+                    "role": message.role,
+                    "content": message.content,
+                } for message in self.messages if message.role != "system"
+            ]
+            message_dicts = sanitize_anthropic_messages(message_dicts)
+            with client.messages.stream(
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                messages=message_dicts,
+                system=system_message,  
+                stop_sequences=stop_sequences,
+            ) as stream:
+                if verbose:
+                    print(f"Started stream in {time.time() - start_time:.2f}s!")
+                for i, text in enumerate(stream.text_stream):
+                    if verbose:
+                        if i == 0:
+                            print(f"Time to first token: {time.time() - start_time:.2f}s")
+                        print(text, end="", flush=True)
+                    yield text
+            return
         for i in range(NUM_ANTHROPIC_RETRIES):
             try:
                 @file_cache(redis=True, ignore_contents=True) # must be in the inner scope because this entire function manages state

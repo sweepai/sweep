@@ -291,8 +291,8 @@ def search_codebase(
     rcm.current_top_snippets = [snippet for snippet in rcm.current_top_snippets][:5]
     return rcm
 
-def extract_xml_tag(string: str, tag: str):
-    pattern = f"<{tag}>(.*?)</{tag}>"
+def extract_xml_tag(string: str, tag: str, include_closing_tag: bool = True):
+    pattern = f"<{tag}>(.*?)</{tag}>" if include_closing_tag else f"<{tag}>(.*?)(\Z|</{tag}>)"
     match_ = re.search(pattern, string, re.DOTALL)
     if match_ is None:
         return None
