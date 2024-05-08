@@ -40,7 +40,7 @@ async def get_token_header(authorization: str = Header(...)):
         raise HTTPException(status_code=400, detail="Invalid token")
     return authorization.removeprefix("Bearer ")
 
-@app.get("/repo")
+@app.get("/backend/repo")
 def check_repo_exists(repo_name: str, access_token: str = Depends(get_token_header)):
     if not check_user_authenticated(repo_name, access_token):
         return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
@@ -72,7 +72,7 @@ def search_codebase(
     repo_context_manager = prep_snippets(cloned_repo, query, use_multi_query=False, NUM_SNIPPETS_TO_KEEP=0)
     return repo_context_manager.current_top_snippets
 
-@app.get("/search")
+@app.get("/backend/search")
 def search_codebase_endpoint(
     repo_name: str,
     query: str,
@@ -211,7 +211,7 @@ relevant_snippet_template = '''<relevant_file index="{i}">
 </source>
 </relevant_file>'''
 
-@app.post("/chat")
+@app.post("/backend/chat")
 def chat_codebase(
     repo_name: str = Body(...),
     messages: list[Message] = Body(...),

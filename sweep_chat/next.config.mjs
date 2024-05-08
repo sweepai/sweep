@@ -6,7 +6,7 @@ export default {
         return [
             {
                 source: '/backend/:path*',
-                destination: `${process.env.BACKEND_URL}/chat/:path*`, // FastAPI server
+                destination: `${process.env.BACKEND_URL}/chat/backend/:path*`, // FastAPI server
             },
         ]
     },
