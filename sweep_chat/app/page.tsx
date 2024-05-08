@@ -402,7 +402,7 @@ export default function Home() {
                     var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" }]
                     setMessages(respondedMessages);
                     while (!done) {
-                      const { value, done: done_ } = await reader.read();
+                      const { value, done: done_ } = await reader!.read();
                       if (value) {
                         const decodedValue = new TextDecoder().decode(value);
                         chat += decodedValue;
