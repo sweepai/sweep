@@ -361,11 +361,21 @@ export default function Home() {
 
                   var currentRelevantSnippets = relevantSnippets;
                   if (relevantSnippets.length == 0) {
-                    const snippetsResponse = await fetch(`/api/search?repo_name=${repoName}&query=${encodeURIComponent(currentMessage)}`);
-                    const snippets = await snippetsResponse.json();
-                    setRelevantSnippets(snippets.slice(0, 5));
-                    setSuggestedSnippets(snippets.slice(5));
-                    currentRelevantSnippets = snippets;
+                    try {
+                      const snippetsResponse = await fetch(`/api/search?repo_name=${repoName}&query=${encodeURIComponent(currentMessage)}`);
+                      const snippets = await snippetsResponse.json();
+                      setRelevantSnippets(snippets.slice(0, 5));
+                      setSuggestedSnippets(snippets.slice(5));
+                      currentRelevantSnippets = snippets;
+                    } catch (e) {
+                      setIsLoading(false);
+                      toast({
+                        title: "Failed to search for snippets",
+                        description: e.message,
+                        variant: "destructive"
+                      });
+                      return;
+                    }
                   }
 
                   const chatResponse = await fetch("/api/chat", {
@@ -380,28 +390,36 @@ export default function Home() {
                     })
                   });
 
-                  // Stream
-                  const reader = chatResponse.body?.getReader();
-                  let done = false;
-                  let chat = "";
-                  var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" }]
-                  setMessages(respondedMessages);
-                  while (!done) {
-                    const { value, done: done_ } = await reader.read();
-                    if (value) {
-                      const decodedValue = new TextDecoder().decode(value);
-                      chat += decodedValue;
-                      const lastLine = getLastLine(chat);
-                      if (lastLine !== "") {
-                        try {
-                          const addedMessages = JSON.parse(lastLine);
-                          respondedMessages = [...newMessages, ...addedMessages]
-                          setMessages(respondedMessages);
-                        } catch (e) {
+                  try {
+                    // Stream
+                    const reader = chatResponse.body?.getReader();
+                    let done = false;
+                    let chat = "";
+                    var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" }]
+                    setMessages(respondedMessages);
+                    while (!done) {
+                      const { value, done: done_ } = await reader.read();
+                      if (value) {
+                        const decodedValue = new TextDecoder().decode(value);
+                        chat += decodedValue;
+                        const lastLine = getLastLine(chat);
+                        if (lastLine !== "") {
+                          try {
+                            const addedMessages = JSON.parse(lastLine);
+                            respondedMessages = [...newMessages, ...addedMessages]
+                            setMessages(respondedMessages);
+                          } catch (e) {
+                          }
                         }
                       }
+                      done = done_;
                     }
-                    done = done_;
+                  } catch (e) {
+                    toast({
+                      title: "Failed to chat",
+                      description: e.message,
+                      variant: "destructive"
+                    });
                   }
 
                   setIsLoading(false);
