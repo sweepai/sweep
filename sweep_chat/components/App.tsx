@@ -23,6 +23,13 @@ import { toast } from "@/components/ui/use-toast";
 import { useSession, signIn, SessionProvider, signOut } from "next-auth/react";
 import { Session } from "next-auth";
 
+interface Snippet {
+  content: string;
+  start: number;
+  end: number;
+  file_path: string;
+}
+
 interface Message {
   content: string; // This is the message content or function output
   role: "user" | "assistant" | "function";
@@ -30,14 +37,53 @@ interface Message {
     function_name: string;
     function_parameters: Record<string, any>;
     is_complete: boolean;
+    snippets?: Snippet[];
   }; // This is the function input
 }
 
-interface Snippet {
-  content: string;
-  start: number;
-  end: number;
-  file_path: string;
+const sliceLines = (content: string, start: number, end: number) => {
+  return content.split("\n").slice(Math.max(start - 1, 0), end).join("\n");
+}
+
+const SnippetBadge = ({
+  snippet,
+  className,
+  button,
+}: {
+  snippet: Snippet;
+  className?: string;
+  button?: JSX.Element;
+}) => {
+  return (
+    <div className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 bg-zinc-800 ${className || ""}`}>
+      <HoverCard openDelay={300} closeDelay={200}>
+        <HoverCardTrigger asChild>
+          <Button variant="link" className="text-sm py-0 px-1 h-6 leading-4">
+            <span>
+              {snippet.end > snippet.content.split('\n').length - 3 && snippet.start == 0 ?
+                snippet.file_path : `${snippet.file_path}:${snippet.start}-${snippet.end}`
+              }
+            </span>
+          </Button>
+        </HoverCardTrigger>
+        <HoverCardContent className="w-[500px] mr-2">
+          <SyntaxHighlighter
+            PreTag="div"
+            language="python"
+            style={tomorrow}
+            customStyle={{
+              backgroundColor: 'transparent',
+              whiteSpace: 'pre-wrap',
+            }}
+            className="rounded-xl max-h-80 overflow-y-auto p-4 w-full"
+          >
+            {sliceLines(snippet.content, snippet.start, snippet.end)}
+          </SyntaxHighlighter>
+        </HoverCardContent>
+      </HoverCard>
+      {button}
+    </div>
+  )
 }
 
 const MessageDisplay = ({ message }: { message: Message }) => {
@@ -49,7 +95,7 @@ const MessageDisplay = ({ message }: { message: Message }) => {
         }`}
       >
         {message.role === "function" ? (
-          <Accordion type="single" collapsible className="w-full">
+          <Accordion type="single" collapsible className="w-full" defaultValue={message.function_call?.snippets?.length && "function"}>
             <AccordionItem value="function" className="border-none">
               <AccordionTrigger className="border-none py-0 text-left">
                 <div className="text-xs text-gray-400 flex align-center">
@@ -72,54 +118,64 @@ const MessageDisplay = ({ message }: { message: Message }) => {
                   )}
                 </div>
               </AccordionTrigger>
-              <AccordionContent>
-                {message.function_call!.function_name === "self_critique" ? (
-                  <Markdown
-                    className="reactMarkdown mt-4 mb-0"
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      code(props) {
-                        const {children, className, node, ref, ...rest} = props
-                        const match = /language-(\w+)/.exec(className || '')
-                        return match ? (
-                          <SyntaxHighlighter
-                            {...rest} // eslint-disable-line
-                            PreTag="div"
-                            language={match[1]}
-                            style={tomorrow}
-                            customStyle={{
-                              backgroundColor: '#333',
-                            }}
-                            className="rounded-xl"
-                          >
-                            {String(children).replace(/\n$/, '')}
-                          </SyntaxHighlighter>
-                        ) : (
-                          <code 
-                            {...rest}
-                            className={`rounded-xl ${className}`}
-                          >
-                            {children}
-                          </code>
-                        )
-                      }
-                    }}
-                  >
-                    {message.content}
-                  </Markdown>
-                ) : (
-                  <SyntaxHighlighter
-                    language="xml"
-                    style={tomorrow}
-                    customStyle={{
-                      backgroundColor: 'transparent',
-                      whiteSpace: 'pre-wrap',
-                      maxHeight: '300px',
-                    }}
-                    className="rounded-xl p-4"
-                  >
-                    {message.content}
-                  </SyntaxHighlighter>
+              <AccordionContent className="pb-0">
+                {message.function_call!.snippets ? (
+                  <div className="pb-0 pt-4">
+                    {message.function_call!.snippets.map((snippet, index) => (
+                      <SnippetBadge
+                        key={index}
+                        snippet={snippet}
+                      />
+                    ))}
+                  </div>
+                ): (message.function_call!.function_name === "self_critique" ? (
+                    <Markdown
+                      className="reactMarkdown mt-4 mb-0"
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        code(props) {
+                          const {children, className, node, ref, ...rest} = props
+                          const match = /language-(\w+)/.exec(className || '')
+                          return match ? (
+                            <SyntaxHighlighter
+                              {...rest} // eslint-disable-line
+                              PreTag="div"
+                              language={match[1]}
+                              style={tomorrow}
+                              customStyle={{
+                                backgroundColor: '#333',
+                              }}
+                              className="rounded-xl"
+                            >
+                              {String(children).replace(/\n$/, '')}
+                            </SyntaxHighlighter>
+                          ) : (
+                            <code 
+                              {...rest}
+                              className={`rounded-xl ${className}`}
+                            >
+                              {children}
+                            </code>
+                          )
+                        }
+                      }}
+                    >
+                      {message.content}
+                    </Markdown>
+                  ) : (
+                    <SyntaxHighlighter
+                      language="xml"
+                      style={tomorrow}
+                      customStyle={{
+                        backgroundColor: 'transparent',
+                        whiteSpace: 'pre-wrap',
+                        maxHeight: '300px',
+                      }}
+                      className="rounded-xl p-4"
+                    >
+                      {message.content}
+                    </SyntaxHighlighter>
+                  )
                 )}
               </AccordionContent>
             </AccordionItem>
@@ -164,50 +220,6 @@ const MessageDisplay = ({ message }: { message: Message }) => {
   );
 };
 
-const sliceLines = (content: string, start: number, end: number) => {
-  return content.split("\n").slice(Math.max(start - 1, 0), end).join("\n");
-}
-
-const SnippetBadge = ({
-  snippet,
-  className,
-  button,
-}: {
-  snippet: Snippet;
-  className?: string;
-  button: JSX.Element;
-}) => {
-  return (
-    <div className={`p-2 rounded-xl mb-4 text-xs inline-block mr-2 bg-zinc-800 ${className || ""}`}>
-      <HoverCard openDelay={300} closeDelay={200}>
-        <HoverCardTrigger asChild>
-          <Button variant="link" className="text-sm py-0 px-1 h-6 leading-4">
-            <span>
-              {snippet.end > snippet.content.split('\n').length - 3 && snippet.start == 0 ?
-                snippet.file_path : `${snippet.file_path}:${snippet.start}-${snippet.end}`
-              }
-            </span>
-          </Button>
-        </HoverCardTrigger>
-        <HoverCardContent className="w-100 mr-2">
-          <SyntaxHighlighter
-            PreTag="div"
-            language="python"
-            style={tomorrow}
-            customStyle={{
-              backgroundColor: 'transparent',
-              whiteSpace: 'pre-wrap',
-            }}
-            className="rounded-xl max-h-80 overflow-y-auto p-4"
-          >
-            {sliceLines(snippet.content, snippet.start, snippet.end)}
-          </SyntaxHighlighter>
-        </HoverCardContent>
-      </HoverCard>
-      {button}
-    </div>
-  )
-}
 
 const getLastLine = (content: string) => {
   const splitContent = content.trim().split("\n");
@@ -491,18 +503,18 @@ function App() {
                             const addedMessages = JSON.parse(lastLine);
                             respondedMessages = [...newMessages, ...addedMessages]
                             setMessages(respondedMessages);
-                          } catch (e: any) {
-                          }
+                          } catch (e: any) {}
                         }
                       }
                       done = done_;
                     }
                   } catch (e: any) {
                     toast({
-                      title: "Failed to chat",
+                      title: "Chat stream failed",
                       description: e.message,
                       variant: "destructive"
                     });
+                    console.log(chat)
                   }
 
                   setIsLoading(false);

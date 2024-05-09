@@ -246,7 +246,18 @@ def chat_codebase(
     def stream_state(initial_user_message: str, snippets: list[Snippet]):
         user_message = initial_user_message
         fetched_snippets = snippets
-        messages = []
+        messages = [
+            Message(
+                content=snippets_message,
+                role="function",
+                function_call={
+                    "function_name": "search_codebase",
+                    "function_parameters": {},
+                    "is_complete": True,
+                    "snippets": snippets
+                }
+            )
+        ]
         for _ in range(3):
             stream = chat_gpt.chat_anthropic(
                 content=user_message,
@@ -334,7 +345,7 @@ def chat_codebase(
                     )
                 ]
                 
-                function_output = handle_function_call(function_call, repo_name, fetched_snippets)
+                function_output, new_snippets = handle_function_call(function_call, repo_name, fetched_snippets)
                 
                 yield [
                     *messages,
@@ -345,6 +356,7 @@ def chat_codebase(
                             "function_name": function_call.function_name,
                             "function_parameters": function_call.function_parameters,
                             "is_complete": True,
+                            "snippets": new_snippets
                         }
                     )
                 ]
@@ -357,6 +369,7 @@ def chat_codebase(
                             "function_name": function_call.function_name,
                             "function_parameters": function_call.function_parameters,
                             "is_complete": True,
+                            "snippets": new_snippets
                         }
                     )
                 )
@@ -393,9 +406,9 @@ def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, s
             for i, snippet in enumerate(new_snippets[NUM_SNIPPETS::-1]) if snippet.denotation not in fetched_snippet_denotations
         ])
         snippets += new_snippets[:NUM_SNIPPETS]
-        return f"SUCCESS\n\nHere are the relevant files to your search request:\n{new_snippets_string}"
+        return f"SUCCESS\n\nHere are the relevant files to your search request:\n{new_snippets_string}", snippets
     else:
-        return "ERROR\n\nTool not found."
+        return "ERROR\n\nTool not found.", []
 
 if __name__ == "__main__":
     import fastapi.testclient
