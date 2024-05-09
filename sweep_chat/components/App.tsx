@@ -22,6 +22,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { toast } from "@/components/ui/use-toast";
 import { useSession, signIn, SessionProvider, signOut } from "next-auth/react";
 import { Session } from "next-auth";
+import { PostHogProvider } from "posthog-js/react";
 
 interface Snippet {
   content: string;
@@ -364,104 +365,107 @@ function App() {
           </div>
         )}
       </div>
-      <div className={`flex w-full ${repoNameValid ? "" : "hidden"}`}>
-        {isLoading ? (
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-zinc-500 ml-4 mr-4"></div>
-        ) : (
-          <Button
-            className="mr-2"
-            variant="secondary"
-            onClick={async () => {
-              setMessages([{ content: defaultMessage, role: "assistant" }]);
-              setCurrentMessage("");
-              setIsLoading(false);
-              setSnippets([]);
-            }}
-            disabled={isLoading}
-          >
-            Restart
-          </Button>
-        )}
-        <Input 
-          onKeyUp={(e) => {
-            if (e.key === "Enter") {
-              (async () => {
-                if (currentMessage !== "") {
-                  const newMessages: Message[] = [...messages, { content: currentMessage, role: "user" }];
-                  setMessages(newMessages);
-                  setCurrentMessage("");
-                  setIsLoading(true);
+      {repoNameValid && (
+        <div className={`flex w-full`}>
+          {isLoading ? (
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-zinc-500 ml-4 mr-4"></div>
+          ) : (
+            <Button
+              className="mr-2"
+              variant="secondary"
+              onClick={async () => {
+                setMessages([{ content: defaultMessage, role: "assistant" }]);
+                setCurrentMessage("");
+                setIsLoading(false);
+                setSnippets([]);
+              }}
+              disabled={isLoading}
+            >
+              Restart
+            </Button>
+          )}
+          <Input 
+            onKeyUp={(e) => {
+              if (e.key === "Enter") {
+                (async () => {
+                  if (currentMessage !== "") {
+                    const newMessages: Message[] = [...messages, { content: currentMessage, role: "user" }];
+                    setMessages(newMessages);
+                    setCurrentMessage("");
+                    setIsLoading(true);
 
-                  var currentSnippets = snippets;
-                  if (currentSnippets.length == 0) {
-                    const snippetsResponse = await fetch(`/backend/search?repo_name=${repoName}&query=${encodeURIComponent(currentMessage)}`, {
+                    var currentSnippets = snippets;
+                    if (currentSnippets.length == 0) {
+                      const snippetsResponse = await fetch(`/backend/search?repo_name=${repoName}&query=${encodeURIComponent(currentMessage)}`, {
+                        headers: {
+                          "Content-Type": "application/json",
+                          // @ts-ignore
+                          "Authorization": `Bearer ${session?.accessToken}`
+                        }
+                      });
+                      currentSnippets = (await snippetsResponse.json() as Snippet[]).slice(0, 5);
+                      setSnippets(currentSnippets);
+                    }
+                    const chatResponse = await fetch("/backend/chat", {
+                      method: "POST",
                       headers: {
                         "Content-Type": "application/json",
                         // @ts-ignore
                         "Authorization": `Bearer ${session?.accessToken}`
-                      }
+                      },
+                      body: JSON.stringify({
+                        repo_name: repoName,
+                        messages: newMessages,
+                        snippets: currentSnippets,
+                      })
                     });
-                    currentSnippets = (await snippetsResponse.json() as Snippet[]).slice(0, 5);
-                    setSnippets(currentSnippets);
-                  }
-                  const chatResponse = await fetch("/backend/chat", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      // @ts-ignore
-                      "Authorization": `Bearer ${session?.accessToken}`
-                    },
-                    body: JSON.stringify({
-                      repo_name: repoName,
-                      messages: newMessages,
-                      snippets: currentSnippets,
-                    })
-                  });
 
-                  // Stream
-                  const reader = chatResponse.body?.getReader();
-                  let done = false;
-                  let chat = "";
-                  var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" }]
-                  setMessages(respondedMessages);
-                  try {
-                    while (!done) {
-                      const { value, done: done_ } = await reader!.read();
-                      if (value) {
-                        const decodedValue = new TextDecoder().decode(value);
-                        chat += decodedValue;
-                        const lastLine = getLastLine(chat);
-                        if (lastLine !== "") {
-                          try {
-                            const addedMessages = JSON.parse(lastLine);
-                            respondedMessages = [...newMessages, ...addedMessages]
-                            setMessages(respondedMessages);
-                          } catch (e: any) {}
+                    // Stream
+                    const reader = chatResponse.body?.getReader();
+                    let done = false;
+                    let chat = "";
+                    var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" }]
+                    setMessages(respondedMessages);
+                    try {
+                      while (!done) {
+                        const { value, done: done_ } = await reader!.read();
+                        if (value) {
+                          const decodedValue = new TextDecoder().decode(value);
+                          chat += decodedValue;
+                          const lastLine = getLastLine(chat);
+                          if (lastLine !== "") {
+                            try {
+                              const addedMessages = JSON.parse(lastLine);
+                              respondedMessages = [...newMessages, ...addedMessages]
+                              setMessages(respondedMessages);
+                            } catch (e: any) {}
+                            chat = lastLine
+                          }
                         }
+                        done = done_;
                       }
-                      done = done_;
+                    } catch (e: any) {
+                      toast({
+                        title: "Chat stream failed",
+                        description: e.message,
+                        variant: "destructive"
+                      });
+                      console.log(chat)
                     }
-                  } catch (e: any) {
-                    toast({
-                      title: "Chat stream failed",
-                      description: e.message,
-                      variant: "destructive"
-                    });
-                    console.log(chat)
-                  }
 
-                  setIsLoading(false);
-                }
-              })()
-            }
-          }}
-          onChange={(e) => setCurrentMessage(e.target.value)}
-          className="p-4"
-          value={currentMessage}
-          placeholder="Type a message..."
-          disabled={isLoading}
-        />
-      </div>
+                    setIsLoading(false);
+                  }
+                })()
+              }
+            }}
+            onChange={(e) => setCurrentMessage(e.target.value)}
+            className="p-4"
+            value={currentMessage}
+            placeholder="Type a message..."
+            disabled={isLoading}
+          />
+        </div>
+      )}
     </main>
   );
 }
@@ -472,8 +476,12 @@ export default function WrappedApp({
     session: Session | null;
 }) {
   return (
-    <SessionProvider session={session}>
-      <App />
-    </SessionProvider>
+    <PostHogProvider
+      apiKey={process.env.REACT_APP_PUBLIC_POSTHOG_KEY}
+    >
+      <SessionProvider session={session}>
+        <App />
+      </SessionProvider>
+    </PostHogProvider>
   )
 }
