@@ -17,6 +17,7 @@ const authOptions: AuthOptions = {
             const data = await response.json()
             const { login } = data;
             session.user.username = login; 
+            session.accessToken = token.accessToken;
             return session;
         },
         async signIn({ user, account, profile }: any) {
@@ -30,10 +31,6 @@ const authOptions: AuthOptions = {
               token.accessToken = account.access_token;
             }
             return token;
-        },
-        async session({ session, token }) {
-            session.accessToken = token.accessToken;
-            return session;
         },
     },
 }
