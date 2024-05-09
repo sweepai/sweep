@@ -6,11 +6,9 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter'
 import {tomorrow} from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { FaCheck, FaGithub, FaPlus, FaTrash } from "react-icons/fa";
+import { FaCheck, FaGithub } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import {
   Accordion,
@@ -22,6 +20,20 @@ import { Toaster } from "@/components/ui/toaster";
 import { toast } from "@/components/ui/use-toast";
 import { useSession, signIn, SessionProvider, signOut } from "next-auth/react";
 import { Session } from "next-auth";
+import { PostHogProvider, usePostHog } from "posthog-js/react";
+import posthog from "posthog-js";
+
+if (typeof window !== 'undefined') {
+  posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!)
+  posthog.debug(false)
+}
+
+interface Snippet {
+  content: string;
+  start: number;
+  end: number;
+  file_path: string;
+}
 
 interface Message {
   content: string; // This is the message content or function output
@@ -30,14 +42,68 @@ interface Message {
     function_name: string;
     function_parameters: Record<string, any>;
     is_complete: boolean;
+    snippets?: Snippet[];
   }; // This is the function input
 }
 
-interface Snippet {
-  content: string;
-  start: number;
-  end: number;
-  file_path: string;
+const sliceLines = (content: string, start: number, end: number) => {
+  return content.split("\n").slice(Math.max(start - 1, 0), end).join("\n");
+}
+
+const SnippetBadge = ({
+  snippet,
+  className,
+  button,
+}: {
+  snippet: Snippet;
+  className?: string;
+  button?: JSX.Element;
+}) => {
+  return (
+    <div className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 bg-zinc-800 ${className || ""}`}>
+      <HoverCard openDelay={300} closeDelay={200}>
+        <HoverCardTrigger asChild>
+          <Button variant="link" className="text-sm py-0 px-1 h-6 leading-4">
+            <span>
+              {snippet.end > snippet.content.split('\n').length - 3 && snippet.start == 0 ?
+                snippet.file_path : `${snippet.file_path}:${snippet.start}-${snippet.end}`
+              }
+            </span>
+          </Button>
+        </HoverCardTrigger>
+        <HoverCardContent className="w-[500px] mr-2">
+          <SyntaxHighlighter
+            PreTag="div"
+            language="python"
+            style={tomorrow}
+            customStyle={{
+              backgroundColor: 'transparent',
+              whiteSpace: 'pre-wrap',
+            }}
+            className="rounded-xl max-h-80 overflow-y-auto p-4 w-full"
+          >
+            {sliceLines(snippet.content, snippet.start, snippet.end)}
+          </SyntaxHighlighter>
+        </HoverCardContent>
+      </HoverCard>
+      {button}
+    </div>
+  )
+}
+
+const getFunctionCallHeaderString = (functionCall: Message["function_call"]) => {
+  switch (functionCall?.function_name) {
+    case "self_critique":
+      return functionCall.is_complete ? "Self critique" : "Self critiquing..."
+    case "search_codebase":
+      if (functionCall!.function_parameters?.query) {
+        return functionCall.is_complete ? `Search codebase for "${functionCall.function_parameters.query}"` : `Searching codebase for "${functionCall.function_parameters.query}"...`
+      } else {
+        return functionCall.is_complete ? "Search codebase" : "Searching codebase..."
+      }
+    default:
+      return `${functionCall?.function_name}(${Object.entries(functionCall?.function_parameters!).map(([key, value]) => `${key}="${value}"`).join(", ")})`
+  }
 }
 
 const MessageDisplay = ({ message }: { message: Message }) => {
@@ -49,7 +115,7 @@ const MessageDisplay = ({ message }: { message: Message }) => {
         }`}
       >
         {message.role === "function" ? (
-          <Accordion type="single" collapsible className="w-full">
+          <Accordion type="single" collapsible className="w-full" defaultValue={Boolean(message.function_call?.snippets?.length) ? "function" : undefined}>
             <AccordionItem value="function" className="border-none">
               <AccordionTrigger className="border-none py-0 text-left">
                 <div className="text-xs text-gray-400 flex align-center">
@@ -61,65 +127,67 @@ const MessageDisplay = ({ message }: { message: Message }) => {
                       style={{ marginTop: 2}}
                     />
                   )}
-                  {message.function_call!.function_name === "self_critique" ? (
-                    message.function_call!.is_complete ? (
-                      <span>Self critique</span>
-                    ): (
-                      <span>Self critiquing...</span>
-                    )
-                  ): (
-                    <span>{message.function_call!.function_name}({Object.entries(message.function_call!.function_parameters).map(([key, value]) => `${key}="${value}"`).join(", ")})</span>
-                  )}
+                  <span>{getFunctionCallHeaderString(message.function_call)}</span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent>
-                {message.function_call!.function_name === "self_critique" ? (
-                  <Markdown
-                    className="reactMarkdown mt-4 mb-0"
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      code(props) {
-                        const {children, className, node, ref, ...rest} = props
-                        const match = /language-(\w+)/.exec(className || '')
-                        return match ? (
-                          <SyntaxHighlighter
-                            {...rest} // eslint-disable-line
-                            PreTag="div"
-                            language={match[1]}
-                            style={tomorrow}
-                            customStyle={{
-                              backgroundColor: '#333',
-                            }}
-                            className="rounded-xl"
-                          >
-                            {String(children).replace(/\n$/, '')}
-                          </SyntaxHighlighter>
-                        ) : (
-                          <code 
-                            {...rest}
-                            className={`rounded-xl ${className}`}
-                          >
-                            {children}
-                          </code>
-                        )
-                      }
-                    }}
-                  >
-                    {message.content}
-                  </Markdown>
-                ) : (
-                  <SyntaxHighlighter
-                    language="xml"
-                    style={tomorrow}
-                    customStyle={{
-                      backgroundColor: 'transparent',
-                      whiteSpace: 'pre-wrap',
-                      maxHeight: '300px',
-                    }}
-                    className="rounded-xl p-4"
-                  >
-                    {message.content}
-                  </SyntaxHighlighter>
+              <AccordionContent className="pb-0">
+                {message.function_call!.snippets ? (
+                  <div className="pb-0 pt-4">
+                    {message.function_call!.snippets.map((snippet, index) => (
+                      <SnippetBadge
+                        key={index}
+                        snippet={snippet}
+                      />
+                    ))}
+                  </div>
+                ): (message.function_call!.function_name === "self_critique" ? (
+                    <Markdown
+                      className="reactMarkdown mt-4 mb-0"
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        code(props) {
+                          const {children, className, node, ref, ...rest} = props
+                          const match = /language-(\w+)/.exec(className || '')
+                          return match ? (
+                            <SyntaxHighlighter
+                              {...rest} // eslint-disable-line
+                              PreTag="div"
+                              language={match[1]}
+                              style={tomorrow}
+                              customStyle={{
+                                backgroundColor: '#333',
+                              }}
+                              className="rounded-xl"
+                            >
+                              {String(children).replace(/\n$/, '')}
+                            </SyntaxHighlighter>
+                          ) : (
+                            <code 
+                              {...rest}
+                              className={`rounded-xl ${className}`}
+                            >
+                              {children}
+                            </code>
+                          )
+                        }
+                      }}
+                    >
+                      {message.content}
+                    </Markdown>
+                  ) : (
+                    <SyntaxHighlighter
+                      language="xml"
+                      style={tomorrow}
+                      customStyle={{
+                        backgroundColor: 'transparent',
+                        whiteSpace: 'pre-wrap',
+                        maxHeight: '300px',
+                      }}
+                      className="rounded-xl p-4"
+                    >
+                      {message.content}
+                    </SyntaxHighlighter>
+                  )
                 )}
               </AccordionContent>
             </AccordionItem>
@@ -164,50 +232,6 @@ const MessageDisplay = ({ message }: { message: Message }) => {
   );
 };
 
-const sliceLines = (content: string, start: number, end: number) => {
-  return content.split("\n").slice(Math.max(start - 1, 0), end).join("\n");
-}
-
-const SnippetBadge = ({
-  snippet,
-  className,
-  button,
-}: {
-  snippet: Snippet;
-  className?: string;
-  button: JSX.Element;
-}) => {
-  return (
-    <div className={`p-2 rounded-xl mb-4 text-xs inline-block mr-2 bg-zinc-800 ${className || ""}`}>
-      <HoverCard openDelay={300} closeDelay={200}>
-        <HoverCardTrigger asChild>
-          <Button variant="link" className="text-sm py-0 px-1 h-6 leading-4">
-            <span>
-              {snippet.end > snippet.content.split('\n').length - 3 && snippet.start == 0 ?
-                snippet.file_path : `${snippet.file_path}:${snippet.start}-${snippet.end}`
-              }
-            </span>
-          </Button>
-        </HoverCardTrigger>
-        <HoverCardContent className="w-100 mr-2">
-          <SyntaxHighlighter
-            PreTag="div"
-            language="python"
-            style={tomorrow}
-            customStyle={{
-              backgroundColor: 'transparent',
-              whiteSpace: 'pre-wrap',
-            }}
-            className="rounded-xl max-h-80 overflow-y-auto p-4"
-          >
-            {sliceLines(snippet.content, snippet.start, snippet.end)}
-          </SyntaxHighlighter>
-        </HoverCardContent>
-      </HoverCard>
-      {button}
-    </div>
-  )
-}
 
 const getLastLine = (content: string) => {
   const splitContent = content.trim().split("\n");
@@ -222,9 +246,7 @@ function App() {
   
   const [repoNameDisabled, setRepoNameDisabled] = useState<boolean>(false)
 
-  const [relevantSnippets, setRelevantSnippets] = useLocalStorage<Snippet[]>("relevantSnippets", [])
-  const [suggestedSnippets, setSuggestedSnippets] = useLocalStorage<Snippet[]>("suggestedSnippets", [])
-  const [showSuggestions, setShowSuggestions] = useState<boolean>(false)
+  const [snippets, setSnippets] = useLocalStorage<Snippet[]>("snippets", [])
   const [messages, setMessages] = useLocalStorage<Message[]>("messages", [
     { content: defaultMessage, role: "assistant" },
   ])
@@ -234,6 +256,18 @@ function App() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const { data: session } = useSession()
+
+  const posthog = usePostHog();
+
+  if (session) {
+    posthog.identify(
+      session.user!.email!,
+      {
+        email: session.user!.email,
+        name: session.user!.name,
+      }
+    );
+  }
 
   useEffect(() => {
     if (messagesContainerRef.current) {
@@ -341,102 +375,43 @@ function App() {
         {messages.map((message, index) => (
           <MessageDisplay key={index} message={message} />
         ))}
-      </div>
-      {relevantSnippets.length > 0 && (
-        <div className="w-full border p-4 mb-4 rounded-xl" hidden={!repoNameValid}>
-          <h2 className="text-xl font-bold mb-4 flex">
-            <div>
-              Relevant code
-            </div>
-            <div className="grow"/>
-            <div className="text-md flex items-center space-x-2">
-              <Label htmlFor="show-suggested">Show suggested</Label>
-              <Switch
-                id="show-suggested"
-                className="text-sm"
-                checked={showSuggestions}
-                onClick={() => setShowSuggestions(showSuggestions => !showSuggestions)}
-              />
-            </div>
-          </h2>
-          {relevantSnippets.map((snippet, index) => (
-            <SnippetBadge
-              key={index}
-              snippet={snippet}
-              button={
-                <Button
-                  className="p-0 ml-2 bg-transparent text-white hover:bg-transparent hover:drop-shadow h-fit"
-                  size="sm"
-                  onClick={() => {
-                    setRelevantSnippets(relevantSnippets.filter((_, i) => i !== index));
-                    // setSuggestedSnippets([...suggestedSnippets, snippet])
-                  }}
-                >
-                  <FaTrash
-                    className="inline-block"
-                    style={{ marginTop: -5 }}
-                  />
-                </Button>
-              }
-            />
-          ))}
-          {showSuggestions && suggestedSnippets.map((snippet, index) => (
-              <SnippetBadge
-                key={index}
-                snippet={snippet}
-                className="bg-zinc-900"
-                button={
-                  <Button
-                    className="p-0 ml-2 bg-transparent text-white hover:bg-transparent hover:drop-shadow h-fit"
-                    size="sm"
-                    onClick={() => {
-                      setRelevantSnippets([...relevantSnippets, snippet]);
-                      setSuggestedSnippets(suggestedSnippets.filter((_, i) => i !== index));
-                    }}
-                  >
-                    <FaPlus
-                      className="inline-block"
-                      style={{ marginTop: -5 }}
-                    />
-                  </Button>
-                }
-              />
-            ))
-          }
-        </div>
-      )}
-      {/* <div className="flex w-full" hidden={!repoNameValid}> */}
-      <div className={`flex w-full ${repoNameValid ? "" : "hidden"}`}>
-        {isLoading ? (
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-zinc-500 ml-4 mr-4"></div>
-        ) : (
-          <Button
-            className="mr-2"
-            variant="secondary"
-            onClick={async () => {
-              setMessages([{ content: defaultMessage, role: "assistant" }]);
-              setCurrentMessage("");
-              setRelevantSnippets([]);
-              setSuggestedSnippets([]);
-            }}
-            disabled={isLoading}
-          >
-            Restart
-          </Button>
+        {isLoading && (
+          <div className="flex justify-around w-full py-2">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-zinc-500 ml-4 mr-4"></div>
+          </div>
         )}
-        <Input 
-          onKeyUp={(e) => {
-            if (e.key === "Enter") {
-              (async () => {
-                if (currentMessage !== "") {
-                  const newMessages: Message[] = [...messages, { content: currentMessage, role: "user" }];
-                  setMessages(newMessages);
-                  setCurrentMessage("");
-                  setIsLoading(true);
+      </div>
+      {repoNameValid && (
+        <div className={`flex w-full`}>
+          {isLoading ? (
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-zinc-500 ml-4 mr-4"></div>
+          ) : (
+            <Button
+              className="mr-2"
+              variant="secondary"
+              onClick={async () => {
+                setMessages([{ content: defaultMessage, role: "assistant" }]);
+                setCurrentMessage("");
+                setIsLoading(false);
+                setSnippets([]);
+              }}
+              disabled={isLoading}
+            >
+              Restart
+            </Button>
+          )}
+          <Input 
+            onKeyUp={(e) => {
+              if (e.key === "Enter") {
+                (async () => {
+                  if (currentMessage !== "") {
+                    const newMessages: Message[] = [...messages, { content: currentMessage, role: "user" }];
+                    setMessages(newMessages);
+                    setCurrentMessage("");
+                    setIsLoading(true);
 
-                  var currentRelevantSnippets = relevantSnippets;
-                  if (relevantSnippets.length == 0) {
-                    try {
+                    var currentSnippets = snippets;
+                    if (currentSnippets.length == 0) {
                       const snippetsResponse = await fetch(`/backend/search?repo_name=${repoName}&query=${encodeURIComponent(currentMessage)}`, {
                         headers: {
                           "Content-Type": "application/json",
@@ -444,79 +419,69 @@ function App() {
                           "Authorization": `Bearer ${session?.accessToken}`
                         }
                       });
-                      const snippets = await snippetsResponse.json();
-                      setRelevantSnippets(snippets.slice(0, 5));
-                      setSuggestedSnippets(snippets.slice(5));
-                      currentRelevantSnippets = snippets;
-                    } catch (e: any) {
-                      setIsLoading(false);
-                      toast({
-                        title: "Failed to search for snippets",
-                        description: e.message,
-                        variant: "destructive"
-                      });
-                      return;
+                      currentSnippets = (await snippetsResponse.json() as Snippet[]).slice(0, 5);
+                      setSnippets(currentSnippets);
                     }
-                  }
+                    const chatResponse = await fetch("/backend/chat", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        // @ts-ignore
+                        "Authorization": `Bearer ${session?.accessToken}`
+                      },
+                      body: JSON.stringify({
+                        repo_name: repoName,
+                        messages: newMessages,
+                        snippets: currentSnippets,
+                      })
+                    });
 
-                  const chatResponse = await fetch("/backend/chat", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      // @ts-ignore
-                      "Authorization": `Bearer ${session?.accessToken}`
-                    },
-                    body: JSON.stringify({
-                      repo_name: repoName,
-                      messages: newMessages,
-                      snippets: currentRelevantSnippets.slice(0, 5),
-                    })
-                  });
-
-                  try {
                     // Stream
                     const reader = chatResponse.body?.getReader();
                     let done = false;
                     let chat = "";
                     var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" }]
                     setMessages(respondedMessages);
-                    while (!done) {
-                      const { value, done: done_ } = await reader!.read();
-                      if (value) {
-                        const decodedValue = new TextDecoder().decode(value);
-                        chat += decodedValue;
-                        const lastLine = getLastLine(chat);
-                        if (lastLine !== "") {
-                          try {
-                            const addedMessages = JSON.parse(lastLine);
-                            respondedMessages = [...newMessages, ...addedMessages]
-                            setMessages(respondedMessages);
-                          } catch (e: any) {
+                    try {
+                      while (!done) {
+                        const { value, done: done_ } = await reader!.read();
+                        if (value) {
+                          const decodedValue = new TextDecoder().decode(value);
+                          chat += decodedValue;
+                          const lastLine = getLastLine(chat);
+                          if (lastLine !== "") {
+                            try {
+                              const addedMessages = JSON.parse(lastLine);
+                              respondedMessages = [...newMessages, ...addedMessages]
+                              setMessages(respondedMessages);
+                            } catch (e: any) {}
+                            chat = lastLine
                           }
                         }
+                        done = done_;
                       }
-                      done = done_;
+                    } catch (e: any) {
+                      toast({
+                        title: "Chat stream failed",
+                        description: e.message,
+                        variant: "destructive"
+                      });
+                      console.log(chat)
                     }
-                  } catch (e: any) {
-                    toast({
-                      title: "Failed to chat",
-                      description: e.message,
-                      variant: "destructive"
-                    });
-                  }
 
-                  setIsLoading(false);
-                }
-              })()
-            }
-          }}
-          onChange={(e) => setCurrentMessage(e.target.value)}
-          className="p-4"
-          value={currentMessage}
-          placeholder="Type a message..."
-          disabled={isLoading}
-        />
-      </div>
+                    setIsLoading(false);
+                  }
+                })()
+              }
+            }}
+            onChange={(e) => setCurrentMessage(e.target.value)}
+            className="p-4"
+            value={currentMessage}
+            placeholder="Type a message..."
+            disabled={isLoading}
+          />
+        </div>
+      )}
     </main>
   );
 }
@@ -527,8 +492,10 @@ export default function WrappedApp({
     session: Session | null;
 }) {
   return (
-    <SessionProvider session={session}>
-      <App />
-    </SessionProvider>
+    <PostHogProvider>
+      <SessionProvider session={session}>
+        <App />
+      </SessionProvider>
+    </PostHogProvider>
   )
 }

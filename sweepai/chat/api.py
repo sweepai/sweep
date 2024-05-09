@@ -1,3 +1,4 @@
+from copy import deepcopy
 import json
 import os
 from fastapi import Body, Depends, FastAPI, HTTPException, Header
@@ -109,7 +110,7 @@ The above are just illustrative examples. Make sure to provide detailed, specifi
 
 function_response = """The above is the output of the function call.
 
-First, summarize each file from the codebase provided that is relevant and how they relate to the user's question. List all beliefs and assumptions previously made that are invalidated by the new information.
+First, list and summarize each file from the codebase provided that is relevant to the user's question. List all beliefs and assumptions previously made that are invalidated by the new information.
 
 Respond in the following format:"""
 
@@ -120,14 +121,19 @@ Use GitHub-styled markdown for your responses. You must respond with the followi
 # 1. User Response
 
 <user_response>
-First, summarize each file from the codebase provided that is relevant and how they relate to the user's question.
-Secondly, write a complete helpful response to the user's question in great detail. Provide code examples and explanations as needed.
+## Summary
+First, list and summarize each file from the codebase provided that is relevant to the user's question.
+
+## Answer
+Secondly, write a complete helpful response to the user's question in great detail. Provide code examples and explanations wherever possible to provide concrete explanations.
 </user_response>
 
 # 2. Self-Critique
 
 <self_critique>
-Then, self-critique your answer to determine what additional information you need to answer the user's question. Specifically, validate that all interfaces are being used correctly based on the contents of the retrieved files -- if you cannot verify this, then you must find the relevant information such as the correct interface or schema to validate the usage. If you need to search the codebase for more information, such as for how a particular feature in the codebase works, use the `search_codebase` tool in the next section.
+Then, self-critique your answer and validate that you have completely answered the user's question. If the user's answer is relatively broad, you are done.
+
+Otherwise, if the user's question is specific, and asks to implement a feature or fix a bug, determine what additional information you need to answer the user's question. Specifically, validate that all interfaces are being used correctly based on the contents of the retrieved files -- if you cannot verify this, then you must find the relevant information such as the correct interface or schema to validate the usage. If you need to search the codebase for more information, such as for how a particular feature in the codebase works, use the `search_codebase` tool in the next section.
 </self_critique>
 
 # 3. Function Calls (Optional)
@@ -235,6 +241,9 @@ def chat_codebase(
             for i, snippet in enumerate(snippets)
         ])
     )
+    for message in messages:
+        if message.role == "function":
+            message.role = "user"
     chat_gpt.messages = [
         Message(
             content=snippets_message,
@@ -243,10 +252,22 @@ def chat_codebase(
         *messages[:-1]
     ]
 
-    def stream_state(initial_user_message: str, snippets: list[Snippet]):
+    def stream_state(initial_user_message: str, snippets: list[Snippet], messages: list[Message]):
         user_message = initial_user_message
         fetched_snippets = snippets
-        messages = []
+        new_messages = [
+            Message(
+                content=snippets_message,
+                role="function",
+                function_call={
+                    "function_name": "search_codebase",
+                    "function_parameters": {},
+                    "is_complete": True,
+                    "snippets": deepcopy(snippets)
+                }
+            )
+        ] if len(messages) <= 2 else []
+        yield new_messages
         for _ in range(3):
             stream = chat_gpt.chat_anthropic(
                 content=user_message,
@@ -265,7 +286,7 @@ def chat_codebase(
                 
                 if self_critique:
                     yield [
-                        *messages,
+                        *new_messages,
                         Message(
                             content=user_response,
                             role="assistant"
@@ -282,14 +303,14 @@ def chat_codebase(
                     ]
                 else:
                     yield [
-                        *messages,
+                        *new_messages,
                         Message(
                             content=user_response,
                             role="assistant"
                         )
                     ]
             
-            messages.append(
+            new_messages.append(
                 Message(
                     content=user_response,
                     role="assistant",
@@ -297,7 +318,7 @@ def chat_codebase(
             )
 
             if self_critique:
-                messages.append(
+                new_messages.append(
                     Message(
                         content=self_critique,
                         role="function",
@@ -309,7 +330,7 @@ def chat_codebase(
                     )
                 )
             
-            yield messages
+            yield new_messages
             
             chat_gpt.messages.append(
                 Message(
@@ -322,7 +343,7 @@ def chat_codebase(
             
             if function_call:
                 yield [
-                    *messages,
+                    *new_messages,
                     Message(
                         content="",
                         role="function",
@@ -334,10 +355,10 @@ def chat_codebase(
                     )
                 ]
                 
-                function_output = handle_function_call(function_call, repo_name, fetched_snippets)
+                function_output, new_snippets = handle_function_call(function_call, repo_name, fetched_snippets)
                 
                 yield [
-                    *messages,
+                    *new_messages,
                     Message(
                         content=function_output,
                         role="function",
@@ -345,11 +366,12 @@ def chat_codebase(
                             "function_name": function_call.function_name,
                             "function_parameters": function_call.function_parameters,
                             "is_complete": True,
+                            "snippets": new_snippets
                         }
                     )
                 ]
 
-                messages.append(
+                new_messages.append(
                     Message(
                         content=function_output,
                         role="function",
@@ -357,6 +379,7 @@ def chat_codebase(
                             "function_name": function_call.function_name,
                             "function_parameters": function_call.function_parameters,
                             "is_complete": True,
+                            "snippets": new_snippets
                         }
                     )
                 )
@@ -372,7 +395,7 @@ def chat_codebase(
                 for message in messages
             ]) + "\n"
 
-    return StreamingResponse(postprocessed_stream(messages[-1].content + "\n\n" + format_message, snippets))
+    return StreamingResponse(postprocessed_stream(messages[-1].content + "\n\n" + format_message, snippets, messages))
 
 def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, snippets: list[Snippet]):
     NUM_SNIPPETS = 5
@@ -384,18 +407,19 @@ def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, s
             query=function_call.function_parameters["query"]
         )
         fetched_snippet_denotations = [snippet.denotation for snippet in snippets]
+        new_snippets_to_add = [snippet for snippet in new_snippets if snippet.denotation not in fetched_snippet_denotations]
         new_snippets_string = "\n".join([
             relevant_snippet_template.format(
                 i=i,
                 file_path=snippet.file_path,
                 content=snippet.content
             )
-            for i, snippet in enumerate(new_snippets[NUM_SNIPPETS::-1]) if snippet.denotation not in fetched_snippet_denotations
+            for i, snippet in enumerate(new_snippets_to_add[NUM_SNIPPETS::-1])
         ])
         snippets += new_snippets[:NUM_SNIPPETS]
-        return f"SUCCESS\n\nHere are the relevant files to your search request:\n{new_snippets_string}"
+        return f"SUCCESS\n\nHere are the relevant files to your search request:\n{new_snippets_string}", new_snippets_to_add[:NUM_SNIPPETS]
     else:
-        return "ERROR\n\nTool not found."
+        return "ERROR\n\nTool not found.", []
 
 if __name__ == "__main__":
     import fastapi.testclient
