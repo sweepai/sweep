@@ -5,8 +5,8 @@ export default {
     async rewrites() {
         return [
             {
-                source: '/api/:path*',
-                destination: `${process.env.BACKEND_URL}/chat/:path*`, // FastAPI server
+                source: '/backend/:path*',
+                destination: `${process.env.BACKEND_URL}/chat/backend/:path*`, // FastAPI server
             },
         ]
     },
