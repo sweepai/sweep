@@ -231,7 +231,7 @@ def get_pointwise_reranked_snippet_scores(
         max_chunks_per_doc=900 // NUM_SNIPPETS_TO_RERANK,
     )
 
-    new_snippet_scores = {k: v / 1000 for k, v in snippet_scores.items()}
+    new_snippet_scores = {k: v / 1_000_000 for k, v in snippet_scores.items()}
 
     for document in response.results:
         new_snippet_scores[sorted_snippets[document.index].denotation] = apply_adjustment_score(

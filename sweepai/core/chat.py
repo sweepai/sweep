@@ -451,12 +451,16 @@ class ChatGPT(MessageList):
                 ) as stream_:
                     if verbose:
                         print(f"Started stream in {time.time() - start_time:.2f}s!")
-                    for i, text in enumerate(stream_.text_stream):
-                        if verbose:
-                            if i == 0:
-                                print(f"Time to first token: {time.time() - start_time:.2f}s")
-                            print(text, end="", flush=True)
-                        yield text
+                    try:
+                        for i, text in enumerate(stream_.text_stream):
+                            if verbose:
+                                if i == 0:
+                                    print(f"Time to first token: {time.time() - start_time:.2f}s")
+                                print(text, end="", flush=True)
+                            yield text
+                    except Exception as e_:
+                        logger.exception(e_)
+                        raise e_
                 return
             return llm_stream()
         for i in range(NUM_ANTHROPIC_RETRIES):

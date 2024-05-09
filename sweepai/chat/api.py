@@ -131,7 +131,7 @@ Secondly, write a complete helpful response to the user's question in great deta
 # 2. Self-Critique
 
 <self_critique>
-Then, self-critique your answer and validate that you have answered the user's question. If the user's answer is relatively broad, you are done.
+Then, self-critique your answer and validate that you have completely answered the user's question. If the user's answer is relatively broad, you are done.
 
 Otherwise, if the user's question is specific, and asks to implement a feature or fix a bug, determine what additional information you need to answer the user's question. Specifically, validate that all interfaces are being used correctly based on the contents of the retrieved files -- if you cannot verify this, then you must find the relevant information such as the correct interface or schema to validate the usage. If you need to search the codebase for more information, such as for how a particular feature in the codebase works, use the `search_codebase` tool in the next section.
 </self_critique>
