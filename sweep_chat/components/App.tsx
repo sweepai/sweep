@@ -86,6 +86,21 @@ const SnippetBadge = ({
   )
 }
 
+const getFunctionCallHeaderString = (functionCall: Message["function_call"]) => {
+  switch (functionCall?.function_name) {
+    case "self_critique":
+      return functionCall.is_complete ? "Self critique" : "Self critiquing..."
+    case "search_codebase":
+      if (functionCall!.function_parameters?.query) {
+        return functionCall.is_complete ? `Search codebase for "${functionCall.function_parameters.query}"` : `Searching codebase for "${functionCall.function_parameters.query}"...`
+      } else {
+        return functionCall.is_complete ? "Search codebase" : "Searching codebase..."
+      }
+    default:
+      return `${functionCall?.function_name}(${Object.entries(functionCall?.function_parameters!).map(([key, value]) => `${key}="${value}"`).join(", ")})`
+  }
+}
+
 const MessageDisplay = ({ message }: { message: Message }) => {
   return (
     <div className={`flex ${message.role !== "user" ? "justify-start" : "justify-end"}`}>
@@ -107,15 +122,7 @@ const MessageDisplay = ({ message }: { message: Message }) => {
                       style={{ marginTop: 2}}
                     />
                   )}
-                  {message.function_call!.function_name === "self_critique" ? (
-                    message.function_call!.is_complete ? (
-                      <span>Self critique</span>
-                    ): (
-                      <span>Self critiquing...</span>
-                    )
-                  ): (
-                    <span>{message.function_call!.function_name}({Object.entries(message.function_call!.function_parameters).map(([key, value]) => `${key}="${value}"`).join(", ")})</span>
-                  )}
+                  <span>{getFunctionCallHeaderString(message.function_call)}</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pb-0">
@@ -234,9 +241,7 @@ function App() {
   
   const [repoNameDisabled, setRepoNameDisabled] = useState<boolean>(false)
 
-  const [relevantSnippets, setRelevantSnippets] = useLocalStorage<Snippet[]>("relevantSnippets", [])
-  const [suggestedSnippets, setSuggestedSnippets] = useLocalStorage<Snippet[]>("suggestedSnippets", [])
-  const [showSuggestions, setShowSuggestions] = useState<boolean>(false)
+  const [snippets, setSnippets] = useLocalStorage<Snippet[]>("snippets", [])
   const [messages, setMessages] = useLocalStorage<Message[]>("messages", [
     { content: defaultMessage, role: "assistant" },
   ])
@@ -354,70 +359,6 @@ function App() {
           <MessageDisplay key={index} message={message} />
         ))}
       </div>
-      {relevantSnippets.length > 0 && (
-        <div className="w-full border p-4 mb-4 rounded-xl" hidden={!repoNameValid}>
-          <h2 className="text-xl font-bold mb-4 flex">
-            <div>
-              Relevant code
-            </div>
-            <div className="grow"/>
-            <div className="text-md flex items-center space-x-2">
-              <Label htmlFor="show-suggested">Show suggested</Label>
-              <Switch
-                id="show-suggested"
-                className="text-sm"
-                checked={showSuggestions}
-                onClick={() => setShowSuggestions(showSuggestions => !showSuggestions)}
-              />
-            </div>
-          </h2>
-          {relevantSnippets.map((snippet, index) => (
-            <SnippetBadge
-              key={index}
-              snippet={snippet}
-              button={
-                <Button
-                  className="p-0 ml-2 bg-transparent text-white hover:bg-transparent hover:drop-shadow h-fit"
-                  size="sm"
-                  onClick={() => {
-                    setRelevantSnippets(relevantSnippets.filter((_, i) => i !== index));
-                    // setSuggestedSnippets([...suggestedSnippets, snippet])
-                  }}
-                >
-                  <FaTrash
-                    className="inline-block"
-                    style={{ marginTop: -5 }}
-                  />
-                </Button>
-              }
-            />
-          ))}
-          {showSuggestions && suggestedSnippets.map((snippet, index) => (
-              <SnippetBadge
-                key={index}
-                snippet={snippet}
-                className="bg-zinc-900"
-                button={
-                  <Button
-                    className="p-0 ml-2 bg-transparent text-white hover:bg-transparent hover:drop-shadow h-fit"
-                    size="sm"
-                    onClick={() => {
-                      setRelevantSnippets([...relevantSnippets, snippet]);
-                      setSuggestedSnippets(suggestedSnippets.filter((_, i) => i !== index));
-                    }}
-                  >
-                    <FaPlus
-                      className="inline-block"
-                      style={{ marginTop: -5 }}
-                    />
-                  </Button>
-                }
-              />
-            ))
-          }
-        </div>
-      )}
-      {/* <div className="flex w-full" hidden={!repoNameValid}> */}
       <div className={`flex w-full ${repoNameValid ? "" : "hidden"}`}>
         {isLoading ? (
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-zinc-500 ml-4 mr-4"></div>
@@ -428,8 +369,8 @@ function App() {
             onClick={async () => {
               setMessages([{ content: defaultMessage, role: "assistant" }]);
               setCurrentMessage("");
-              setRelevantSnippets([]);
-              setSuggestedSnippets([]);
+              setIsLoading(false);
+              setSnippets([]);
             }}
             disabled={isLoading}
           >
@@ -446,31 +387,18 @@ function App() {
                   setCurrentMessage("");
                   setIsLoading(true);
 
-                  var currentRelevantSnippets = relevantSnippets;
-                  if (relevantSnippets.length == 0) {
-                    try {
-                      const snippetsResponse = await fetch(`/backend/search?repo_name=${repoName}&query=${encodeURIComponent(currentMessage)}`, {
-                        headers: {
-                          "Content-Type": "application/json",
-                          // @ts-ignore
-                          "Authorization": `Bearer ${session?.accessToken}`
-                        }
-                      });
-                      const snippets = await snippetsResponse.json();
-                      setRelevantSnippets(snippets.slice(0, 5));
-                      setSuggestedSnippets(snippets.slice(5));
-                      currentRelevantSnippets = snippets;
-                    } catch (e: any) {
-                      setIsLoading(false);
-                      toast({
-                        title: "Failed to search for snippets",
-                        description: e.message,
-                        variant: "destructive"
-                      });
-                      return;
-                    }
+                  var currentSnippets = snippets;
+                  if (currentSnippets.length == 0) {
+                    const snippetsResponse = await fetch(`/backend/search?repo_name=${repoName}&query=${encodeURIComponent(currentMessage)}`, {
+                      headers: {
+                        "Content-Type": "application/json",
+                        // @ts-ignore
+                        "Authorization": `Bearer ${session?.accessToken}`
+                      }
+                    });
+                    currentSnippets = (await snippetsResponse.json() as Snippet[]).slice(0, 5);
+                    setSnippets(currentSnippets);
                   }
-
                   const chatResponse = await fetch("/backend/chat", {
                     method: "POST",
                     headers: {
@@ -481,17 +409,17 @@ function App() {
                     body: JSON.stringify({
                       repo_name: repoName,
                       messages: newMessages,
-                      snippets: currentRelevantSnippets.slice(0, 5),
+                      snippets: currentSnippets,
                     })
                   });
 
+                  // Stream
+                  const reader = chatResponse.body?.getReader();
+                  let done = false;
+                  let chat = "";
+                  var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" }]
+                  setMessages(respondedMessages);
                   try {
-                    // Stream
-                    const reader = chatResponse.body?.getReader();
-                    let done = false;
-                    let chat = "";
-                    var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" }]
-                    setMessages(respondedMessages);
                     while (!done) {
                       const { value, done: done_ } = await reader!.read();
                       if (value) {

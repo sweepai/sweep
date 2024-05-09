@@ -1,3 +1,4 @@
+from copy import deepcopy
 import json
 import os
 from fastapi import Body, Depends, FastAPI, HTTPException, Header
@@ -109,7 +110,7 @@ The above are just illustrative examples. Make sure to provide detailed, specifi
 
 function_response = """The above is the output of the function call.
 
-First, summarize each file from the codebase provided that is relevant and how they relate to the user's question. List all beliefs and assumptions previously made that are invalidated by the new information.
+First, list and summarize each file from the codebase provided that is relevant to the user's question. List all beliefs and assumptions previously made that are invalidated by the new information.
 
 Respond in the following format:"""
 
@@ -120,14 +121,19 @@ Use GitHub-styled markdown for your responses. You must respond with the followi
 # 1. User Response
 
 <user_response>
-First, summarize each file from the codebase provided that is relevant and how they relate to the user's question.
-Secondly, write a complete helpful response to the user's question in great detail. Provide code examples and explanations as needed.
+## Summary
+First, list and summarize each file from the codebase provided that is relevant to the user's question.
+
+## Answer
+Secondly, write a complete helpful response to the user's question in great detail. Provide code examples and explanations where possible to provide concrete responses.
 </user_response>
 
 # 2. Self-Critique
 
 <self_critique>
-Then, self-critique your answer to determine what additional information you need to answer the user's question. Specifically, validate that all interfaces are being used correctly based on the contents of the retrieved files -- if you cannot verify this, then you must find the relevant information such as the correct interface or schema to validate the usage. If you need to search the codebase for more information, such as for how a particular feature in the codebase works, use the `search_codebase` tool in the next section.
+Then, self-critique your answer and validate that you have answered the user's question. If the user's answer is relatively broad, you are done.
+
+Otherwise, if the user's question is specific, and asks to implement a feature or fix a bug, determine what additional information you need to answer the user's question. Specifically, validate that all interfaces are being used correctly based on the contents of the retrieved files -- if you cannot verify this, then you must find the relevant information such as the correct interface or schema to validate the usage. If you need to search the codebase for more information, such as for how a particular feature in the codebase works, use the `search_codebase` tool in the next section.
 </self_critique>
 
 # 3. Function Calls (Optional)
@@ -235,6 +241,9 @@ def chat_codebase(
             for i, snippet in enumerate(snippets)
         ])
     )
+    for message in messages:
+        if message.role == "function":
+            message.role = "user"
     chat_gpt.messages = [
         Message(
             content=snippets_message,
@@ -254,10 +263,11 @@ def chat_codebase(
                     "function_name": "search_codebase",
                     "function_parameters": {},
                     "is_complete": True,
-                    "snippets": snippets
+                    "snippets": deepcopy(snippets)
                 }
             )
         ]
+        yield messages
         for _ in range(3):
             stream = chat_gpt.chat_anthropic(
                 content=user_message,
@@ -397,16 +407,17 @@ def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, s
             query=function_call.function_parameters["query"]
         )
         fetched_snippet_denotations = [snippet.denotation for snippet in snippets]
+        new_snippets_to_add = [snippet for snippet in new_snippets if snippet.denotation not in fetched_snippet_denotations]
         new_snippets_string = "\n".join([
             relevant_snippet_template.format(
                 i=i,
                 file_path=snippet.file_path,
                 content=snippet.content
             )
-            for i, snippet in enumerate(new_snippets[NUM_SNIPPETS::-1]) if snippet.denotation not in fetched_snippet_denotations
+            for i, snippet in enumerate(new_snippets_to_add[NUM_SNIPPETS::-1])
         ])
         snippets += new_snippets[:NUM_SNIPPETS]
-        return f"SUCCESS\n\nHere are the relevant files to your search request:\n{new_snippets_string}", snippets
+        return f"SUCCESS\n\nHere are the relevant files to your search request:\n{new_snippets_string}", new_snippets_to_add[:NUM_SNIPPETS]
     else:
         return "ERROR\n\nTool not found.", []
 
