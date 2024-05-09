@@ -23,6 +23,12 @@ import { toast } from "@/components/ui/use-toast";
 import { useSession, signIn, SessionProvider, signOut } from "next-auth/react";
 import { Session } from "next-auth";
 import { PostHogProvider } from "posthog-js/react";
+import posthog from "posthog-js";
+
+if (typeof window !== 'undefined') {
+  posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!)
+  posthog.debug(false)
+}
 
 interface Snippet {
   content: string;
@@ -476,9 +482,7 @@ export default function WrappedApp({
     session: Session | null;
 }) {
   return (
-    <PostHogProvider
-      apiKey={process.env.REACT_APP_PUBLIC_POSTHOG_KEY}
-    >
+    <PostHogProvider>
       <SessionProvider session={session}>
         <App />
       </SessionProvider>
