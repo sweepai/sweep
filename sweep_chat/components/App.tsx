@@ -6,11 +6,9 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter'
 import {tomorrow} from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { FaCheck, FaGithub, FaPlus, FaTrash } from "react-icons/fa";
+import { FaCheck, FaGithub } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import {
   Accordion,
@@ -22,7 +20,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { toast } from "@/components/ui/use-toast";
 import { useSession, signIn, SessionProvider, signOut } from "next-auth/react";
 import { Session } from "next-auth";
-import { PostHogProvider } from "posthog-js/react";
+import { PostHogProvider, usePostHog } from "posthog-js/react";
 import posthog from "posthog-js";
 
 if (typeof window !== 'undefined') {
@@ -258,6 +256,18 @@ function App() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const { data: session } = useSession()
+
+  const posthog = usePostHog();
+
+  if (session) {
+    posthog.identify(
+      session.user!.email!,
+      {
+        email: session.user!.email,
+        name: session.user!.name,
+      }
+    );
+  }
 
   useEffect(() => {
     if (messagesContainerRef.current) {
