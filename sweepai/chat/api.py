@@ -125,7 +125,7 @@ Use GitHub-styled markdown for your responses. You must respond with the followi
 First, list and summarize each file from the codebase provided that is relevant to the user's question.
 
 ## Answer
-Secondly, write a complete helpful response to the user's question in great detail. Provide code examples and explanations where possible to provide concrete responses.
+Secondly, write a complete helpful response to the user's question in great detail. Provide code examples and explanations wherever possible to provide concrete explanations.
 </user_response>
 
 # 2. Self-Critique
@@ -252,10 +252,10 @@ def chat_codebase(
         *messages[:-1]
     ]
 
-    def stream_state(initial_user_message: str, snippets: list[Snippet]):
+    def stream_state(initial_user_message: str, snippets: list[Snippet], messages: list[Message]):
         user_message = initial_user_message
         fetched_snippets = snippets
-        messages = [
+        new_messages = [
             Message(
                 content=snippets_message,
                 role="function",
@@ -266,8 +266,8 @@ def chat_codebase(
                     "snippets": deepcopy(snippets)
                 }
             )
-        ]
-        yield messages
+        ] if len(messages) <= 2 else []
+        yield new_messages
         for _ in range(3):
             stream = chat_gpt.chat_anthropic(
                 content=user_message,
@@ -286,7 +286,7 @@ def chat_codebase(
                 
                 if self_critique:
                     yield [
-                        *messages,
+                        *new_messages,
                         Message(
                             content=user_response,
                             role="assistant"
@@ -303,14 +303,14 @@ def chat_codebase(
                     ]
                 else:
                     yield [
-                        *messages,
+                        *new_messages,
                         Message(
                             content=user_response,
                             role="assistant"
                         )
                     ]
             
-            messages.append(
+            new_messages.append(
                 Message(
                     content=user_response,
                     role="assistant",
@@ -318,7 +318,7 @@ def chat_codebase(
             )
 
             if self_critique:
-                messages.append(
+                new_messages.append(
                     Message(
                         content=self_critique,
                         role="function",
@@ -330,7 +330,7 @@ def chat_codebase(
                     )
                 )
             
-            yield messages
+            yield new_messages
             
             chat_gpt.messages.append(
                 Message(
@@ -343,7 +343,7 @@ def chat_codebase(
             
             if function_call:
                 yield [
-                    *messages,
+                    *new_messages,
                     Message(
                         content="",
                         role="function",
@@ -358,7 +358,7 @@ def chat_codebase(
                 function_output, new_snippets = handle_function_call(function_call, repo_name, fetched_snippets)
                 
                 yield [
-                    *messages,
+                    *new_messages,
                     Message(
                         content=function_output,
                         role="function",
@@ -371,7 +371,7 @@ def chat_codebase(
                     )
                 ]
 
-                messages.append(
+                new_messages.append(
                     Message(
                         content=function_output,
                         role="function",
@@ -395,7 +395,7 @@ def chat_codebase(
                 for message in messages
             ]) + "\n"
 
-    return StreamingResponse(postprocessed_stream(messages[-1].content + "\n\n" + format_message, snippets))
+    return StreamingResponse(postprocessed_stream(messages[-1].content + "\n\n" + format_message, snippets, messages))
 
 def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, snippets: list[Snippet]):
     NUM_SNIPPETS = 5

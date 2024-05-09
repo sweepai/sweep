@@ -358,6 +358,11 @@ function App() {
         {messages.map((message, index) => (
           <MessageDisplay key={index} message={message} />
         ))}
+        {isLoading && (
+          <div className="flex justify-around w-full py-2">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-zinc-500 ml-4 mr-4"></div>
+          </div>
+        )}
       </div>
       <div className={`flex w-full ${repoNameValid ? "" : "hidden"}`}>
         {isLoading ? (
