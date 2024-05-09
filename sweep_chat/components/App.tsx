@@ -115,7 +115,7 @@ const MessageDisplay = ({ message }: { message: Message }) => {
         }`}
       >
         {message.role === "function" ? (
-          <Accordion type="single" collapsible className="w-full" defaultValue={message.function_call?.snippets?.length && "function"}>
+          <Accordion type="single" collapsible className="w-full" defaultValue={Boolean(message.function_call?.snippets?.length) ? "function" : undefined}>
             <AccordionItem value="function" className="border-none">
               <AccordionTrigger className="border-none py-0 text-left">
                 <div className="text-xs text-gray-400 flex align-center">
