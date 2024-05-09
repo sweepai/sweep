@@ -6,7 +6,7 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter'
 import {tomorrow} from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { FaCheck, FaPlus, FaTrash } from "react-icons/fa";
+import { FaCheck, FaGithub, FaPlus, FaTrash } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
 import { Switch } from "@/components/ui/switch";
@@ -244,31 +244,40 @@ function App() {
     }
   }, [messages]);
 
+  if (!session) {
+    return (
+      <main className="flex h-screen items-center justify-center p-12">
+        <Toaster />
+        <Button onClick={() => signIn("github")} variant="secondary">
+          <FaGithub
+            className="inline-block mr-2"
+            style={{ marginTop: -2 }}
+          />
+          Sign in with GitHub
+        </Button>
+      </main>
+    )
+  }
+
   return (
     <main className="flex h-screen flex-col items-center justify-between p-12">
       <Toaster />
       <div className="flex justify-between w-full px-2 items-middle">
         <h1 className="text-4xl font-bold mb-6">Sweep Chat</h1>
-        {session ? (
           <div className="flex items-center mb-4">
-            <img
-              className="rounded-full w-10 h-10 mr-4"
-              src={session.user.image || ""}
-              alt={session.user.name || ""}
-            />
-            <div>
-              <p className="text-lg font-bold">{session.user.name}</p>
-              <p className="text-sm text-gray-400">{session.user.email}</p>
-            </div>
-            <Button className="ml-4" variant="secondary" onClick={() => signOut()}>
-              Sign Out
-            </Button>
+          <img
+            className="rounded-full w-10 h-10 mr-4"
+            src={session.user.image || ""}
+            alt={session.user.name || ""}
+          />
+          <div>
+            <p className="text-lg font-bold">{session.user.name}</p>
+            <p className="text-sm text-gray-400">{session.user.email}</p>
           </div>
-        ): (
-          <Button onClick={() => signIn()} variant="secondary">
-            Sign In
+          <Button className="ml-4" variant="secondary" onClick={() => signOut()}>
+            Sign Out
           </Button>
-        )}
+        </div>
       </div>
       <div className={`w-full flex items-center ${repoNameValid ? "": "grow"}`}>
         <Input
