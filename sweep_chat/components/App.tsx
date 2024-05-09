@@ -267,12 +267,12 @@ function App() {
           <div className="flex items-center mb-4">
           <img
             className="rounded-full w-10 h-10 mr-4"
-            src={session.user.image || ""}
-            alt={session.user.name || ""}
+            src={session!.user!.image || ""}
+            alt={session!.user!.name || ""}
           />
           <div>
-            <p className="text-lg font-bold">{session.user.name}</p>
-            <p className="text-sm text-gray-400">{session.user.email}</p>
+            <p className="text-lg font-bold">{session!.user!.name}</p>
+            <p className="text-sm text-gray-400">{session!.user!.email}</p>
           </div>
           <Button className="ml-4" variant="secondary" onClick={() => signOut()}>
             Sign Out
@@ -307,7 +307,8 @@ function App() {
             const response = await fetch(`/backend/repo?repo_name=${repoName}`, {
               headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${session?.accessToken}`
+                // @ts-ignore
+                "Authorization": `Bearer ${session?.accessToken!}`
               }
             });
             setRepoNameDisabled(false);
@@ -439,6 +440,7 @@ function App() {
                       const snippetsResponse = await fetch(`/backend/search?repo_name=${repoName}&query=${encodeURIComponent(currentMessage)}`, {
                         headers: {
                           "Content-Type": "application/json",
+                          // @ts-ignore
                           "Authorization": `Bearer ${session?.accessToken}`
                         }
                       });
@@ -461,6 +463,7 @@ function App() {
                     method: "POST",
                     headers: {
                       "Content-Type": "application/json",
+                      // @ts-ignore
                       "Authorization": `Bearer ${session?.accessToken}`
                     },
                     body: JSON.stringify({
