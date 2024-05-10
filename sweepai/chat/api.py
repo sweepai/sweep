@@ -112,7 +112,7 @@ function_response = """The above is the output of the function call.
 
 First, list and summarize each file from the codebase provided that is relevant to the user's question. List all beliefs and assumptions previously made that are invalidated by the new information.
 
-Respond in the following format:
+You MUST follow the following XML-based format:
 
 ### Format
 
@@ -122,7 +122,7 @@ Use GitHub-styled markdown for your responses. You must respond with the followi
 
 <user_response>
 ## Summary
-First, list and summarize each file from the codebase provided in the last function output that is relevant to the user's question. You may not need to summarize all provided files.
+First, list and summarize each NEW file from the codebase provided from the last function output that is relevant to the user's question. You may not need to summarize all provided files.
 
 ## New information
 Secondly, list all new information that was retrieved from the codebase that is relevant to the user's question, especially if it invalidates any previous beliefs or assumptions.
@@ -130,7 +130,7 @@ Secondly, list all new information that was retrieved from the codebase that is 
 ## Updated answer
 Determine if you have sufficient information to answer the user's question. If not, determine the information you need to answer the question completely by making `search_codebase` tool calls.
 
-If so, rewrite your previous response with the new information and any invalidated beliefs or assumptions. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When suggesting code changes, write out all the code changes required, indicating the current code and the code to replace it with When suggesting code changes, write out all the code changes required, indicating the current code and the code to replace it with.
+If so, rewrite your previous response with the new information and any invalidated beliefs or assumptions. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When suggesting code changes, write out all the code changes required in the unified diff format.
 </user_response>
 
 # 2. Self-Critique
@@ -148,7 +148,9 @@ Then, make each function call like so:
 [the list of function calls go here, using the valid XML format for function calls]
 </function_calls>""" + example_tool_calls
 
-format_message = """### Format
+format_message = """You MUST follow the following XML-based format:
+
+### Format
 
 Use GitHub-styled markdown for your responses. You must respond with the following three distinct sections:
 
@@ -161,7 +163,7 @@ First, list and summarize each file from the codebase provided that is relevant 
 ## Answer
 Determine if you have sufficient information to answer the user's question. If not, determine the information you need to answer the question completely by making `search_codebase` tool calls.
 
-If so, write a complete helpful response to the user's question oin detail. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When suggesting code changes, write out all the code changes required, indicating the current code and the code to replace it with When suggesting code changes, write out all the code changes required, indicating the current code and the code to replace it with.
+If so, write a complete helpful response to the user's question oin detail. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When suggesting code changes, write out all the code changes required in the unified diff format.
 </user_response>
 
 # 2. Self-Critique

@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Input } from "../components/ui/input"
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter'
-import {tomorrow} from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { FaCheck, FaGithub } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -22,6 +22,7 @@ import { useSession, signIn, SessionProvider, signOut } from "next-auth/react";
 import { Session } from "next-auth";
 import { PostHogProvider, usePostHog } from "posthog-js/react";
 import posthog from "posthog-js";
+import Survey from "./Survey";
 
 if (typeof window !== 'undefined') {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!)
@@ -110,9 +111,8 @@ const MessageDisplay = ({ message }: { message: Message }) => {
   return (
     <div className={`flex ${message.role !== "user" ? "justify-start" : "justify-end"}`}>
       <div
-        className={`text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] ${
-          message.role !== "user" ? "text-left bg-zinc-700 w-[80%]" : "text-right bg-zinc-800"
-        }`}
+        className={`text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] ${message.role !== "user" ? "text-left bg-zinc-700 w-[80%]" : "text-right bg-zinc-800"
+          }`}
       >
         {message.role === "function" ? (
           <Accordion type="single" collapsible className="w-full" defaultValue={Boolean(message.function_call?.snippets?.length) ? "function" : undefined}>
@@ -121,10 +121,10 @@ const MessageDisplay = ({ message }: { message: Message }) => {
                 <div className="text-xs text-gray-400 flex align-center">
                   {!message.function_call!.is_complete ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-zinc-500 mr-2"></div>
-                  ): (
+                  ) : (
                     <FaCheck
                       className="inline-block mr-2"
-                      style={{ marginTop: 2}}
+                      style={{ marginTop: 2 }}
                     />
                   )}
                   <span>{getFunctionCallHeaderString(message.function_call)}</span>
@@ -140,54 +140,54 @@ const MessageDisplay = ({ message }: { message: Message }) => {
                       />
                     ))}
                   </div>
-                ): (message.function_call!.function_name === "self_critique" ? (
-                    <Markdown
-                      className="reactMarkdown mt-4 mb-0"
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        code(props) {
-                          const {children, className, node, ref, ...rest} = props
-                          const match = /language-(\w+)/.exec(className || '')
-                          return match ? (
-                            <SyntaxHighlighter
-                              {...rest} // eslint-disable-line
-                              PreTag="div"
-                              language={match[1]}
-                              style={tomorrow}
-                              customStyle={{
-                                backgroundColor: '#333',
-                              }}
-                              className="rounded-xl"
-                            >
-                              {String(children).replace(/\n$/, '')}
-                            </SyntaxHighlighter>
-                          ) : (
-                            <code 
-                              {...rest}
-                              className={`rounded-xl ${className}`}
-                            >
-                              {children}
-                            </code>
-                          )
-                        }
-                      }}
-                    >
-                      {message.content}
-                    </Markdown>
-                  ) : (
-                    <SyntaxHighlighter
-                      language="xml"
-                      style={tomorrow}
-                      customStyle={{
-                        backgroundColor: 'transparent',
-                        whiteSpace: 'pre-wrap',
-                        maxHeight: '300px',
-                      }}
-                      className="rounded-xl p-4"
-                    >
-                      {message.content}
-                    </SyntaxHighlighter>
-                  )
+                ) : (message.function_call!.function_name === "self_critique" ? (
+                  <Markdown
+                    className="reactMarkdown mt-4 mb-0"
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      code(props) {
+                        const { children, className, node, ref, ...rest } = props
+                        const match = /language-(\w+)/.exec(className || '')
+                        return match ? (
+                          <SyntaxHighlighter
+                            {...rest} // eslint-disable-line
+                            PreTag="div"
+                            language={match[1]}
+                            style={tomorrow}
+                            customStyle={{
+                              backgroundColor: '#333',
+                            }}
+                            className="rounded-xl"
+                          >
+                            {String(children).replace(/\n$/, '')}
+                          </SyntaxHighlighter>
+                        ) : (
+                          <code
+                            {...rest}
+                            className={`rounded-xl ${className}`}
+                          >
+                            {children}
+                          </code>
+                        )
+                      }
+                    }}
+                  >
+                    {message.content}
+                  </Markdown>
+                ) : (
+                  <SyntaxHighlighter
+                    language="xml"
+                    style={tomorrow}
+                    customStyle={{
+                      backgroundColor: 'transparent',
+                      whiteSpace: 'pre-wrap',
+                      maxHeight: '300px',
+                    }}
+                    className="rounded-xl p-4"
+                  >
+                    {message.content}
+                  </SyntaxHighlighter>
+                )
                 )}
               </AccordionContent>
             </AccordionItem>
@@ -198,7 +198,7 @@ const MessageDisplay = ({ message }: { message: Message }) => {
             remarkPlugins={[remarkGfm]}
             components={{
               code(props) {
-                const {children, className, node, ref, ...rest} = props
+                const { children, className, node, ref, ...rest } = props
                 const match = /language-(\w+)/.exec(className || '')
                 return match ? (
                   <SyntaxHighlighter
@@ -214,7 +214,7 @@ const MessageDisplay = ({ message }: { message: Message }) => {
                     {String(children).replace(/\n$/, '')}
                   </SyntaxHighlighter>
                 ) : (
-                  <code 
+                  <code
                     {...rest}
                     className={`rounded-xl ${className}`}
                   >
@@ -243,7 +243,7 @@ const defaultMessage = `I'm Sweep and I'm here to help you answer questions abou
 function App() {
   const [repoName, setRepoName] = useLocalStorage<string>("repoName", "")
   const [repoNameValid, setRepoNameValid] = useLocalStorage<boolean>("repoNameValid", false)
-  
+
   const [repoNameDisabled, setRepoNameDisabled] = useState<boolean>(false)
 
   const [snippets, setSnippets] = useLocalStorage<Snippet[]>("snippets", [])
@@ -252,6 +252,7 @@ function App() {
   ])
   const [currentMessage, setCurrentMessage] = useLocalStorage<string>("currentMessage", "")
   const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [showSurvey, setShowSurvey] = useState<boolean>(false)
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -272,7 +273,7 @@ function App() {
   useEffect(() => {
     if (messagesContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-      if (scrollHeight - scrollTop - clientHeight < 200) {
+      if (scrollHeight - scrollTop - clientHeight < 100) {
         messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
       }
     }
@@ -296,9 +297,20 @@ function App() {
   return (
     <main className="flex h-screen flex-col items-center justify-between p-12">
       <Toaster />
+      {showSurvey && process.env.NEXT_PUBLIC_SURVEY_ID && (
+        <Survey
+          onClose={() => {
+            setShowSurvey(false)
+            toast({
+              title: "Thanks for your feedback!",
+              description: "We'll reach back out shortly.",
+            })
+          }}
+        />
+      )}
       <div className="flex justify-between w-full px-2 items-middle">
         <h1 className="text-4xl font-bold mb-6">Sweep Chat</h1>
-          <div className="flex items-center mb-4">
+        <div className="flex items-center mb-4">
           <img
             className="rounded-full w-10 h-10 mr-4"
             src={session!.user!.image || ""}
@@ -313,7 +325,7 @@ function App() {
           </Button>
         </div>
       </div>
-      <div className={`w-full flex items-center ${repoNameValid ? "": "grow"}`}>
+      <div className={`w-full flex items-center ${repoNameValid ? "" : "grow"}`}>
         <Input
           className="mb-4"
           value={repoName}
@@ -396,7 +408,7 @@ function App() {
           >
             Restart
           </Button>
-          <Input 
+          <Input
             onKeyUp={(e) => {
               if (e.key === "Enter") {
                 (async () => {
@@ -460,7 +472,7 @@ function App() {
                               const addedMessages = JSON.parse(lastLine);
                               respondedMessages = [...newMessages, ...addedMessages]
                               setMessages(respondedMessages);
-                            } catch (e: any) {}
+                            } catch (e: any) { }
                             chat = lastLine
                           }
                         }
@@ -477,6 +489,10 @@ function App() {
                       throw e;
                     }
 
+                    const surveyID = process.env.NEXT_PUBLIC_SURVEY_ID
+                    if (surveyID && localStorage.getItem(`hasInteractedWithSurvey_${surveyID}`) && Math.random() * 3 < 1) {
+                      setShowSurvey(true);
+                    }
                     setIsLoading(false);
                   }
                 })()
@@ -495,9 +511,9 @@ function App() {
 }
 
 export default function WrappedApp({
-    session
+  session
 }: {
-    session: Session | null;
+  session: Session | null;
 }) {
   return (
     <PostHogProvider>
