@@ -194,7 +194,7 @@ Take these steps:
 3. List all of the relevant files to reference while making changes, one per line."""
 
 
-fix_files_to_change_prompt = """You proposed plan a plan. However, your proposed plan has the following errors:
+fix_files_to_change_prompt = """Your proposed plan has the following errors:
 
 <errors>
 {error_message}
@@ -203,7 +203,7 @@ fix_files_to_change_prompt = """You proposed plan a plan. However, your proposed
 You must resolve these errors before proceeding. Respond in the following format:
 
 <error_resolutions>
-For each error, identify what went wrong and what the fix is. Analyze the contents of the provided file path to find the correct code block that needs to be modified. Update the <original_code> block with the actual code from the file, and then provide the necessary changes in the <new_code> block. Follow the format:
+For each error, identify what went wrong. Then identify a fix to the issue. Analyze the contents of the provided file path to find the correct code block that needs to be modified. Update the <original_code> block with the actual code from the file, and then provide the necessary changes in the <new_code> block. Follow the format:
 
 <error_resolution>
 Error #0: Description of the error
