@@ -490,7 +490,7 @@ function App() {
                     }
 
                     const surveyID = process.env.NEXT_PUBLIC_SURVEY_ID
-                    if (surveyID && localStorage.getItem(`hasInteractedWithSurvey_${surveyID}`) && Math.random() * 3 < 1) {
+                    if (surveyID && localStorage.getItem(`hasInteractedWithSurvey_${surveyID}`)) {
                       setShowSurvey(true);
                     }
                     setIsLoading(false);
