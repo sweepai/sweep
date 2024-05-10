@@ -327,6 +327,7 @@ function App() {
       </div>
       <div className={`w-full flex items-center ${repoNameValid ? "" : "grow"}`}>
         <Input
+          data-ph-capture-attribute-repo-name={repoName}
           className="mb-4"
           value={repoName}
           onChange={(e) => setRepoName(e.target.value)}
@@ -409,6 +410,7 @@ function App() {
             Restart
           </Button>
           <Input
+            data-ph-capture-attribute-current-message={currentMessage}
             onKeyUp={(e) => {
               if (e.key === "Enter") {
                 (async () => {
