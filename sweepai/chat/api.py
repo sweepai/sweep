@@ -112,7 +112,41 @@ function_response = """The above is the output of the function call.
 
 First, list and summarize each file from the codebase provided that is relevant to the user's question. List all beliefs and assumptions previously made that are invalidated by the new information.
 
-Respond in the following format:"""
+Respond in the following format:
+
+### Format
+
+Use GitHub-styled markdown for your responses. You must respond with the following three distinct sections:
+
+# 1. User Response
+
+<user_response>
+## Summary
+First, list and summarize each file from the codebase provided in the last function output that is relevant to the user's question. You may not need to summarize all provided files.
+
+## New information
+Secondly, list all new information that was retrieved from the codebase that is relevant to the user's question, especially if it invalidates any previous beliefs or assumptions.
+
+## Updated answer
+Determine if you have sufficient information to answer the user's question. If not, determine the information you need to answer the question completely by making `search_codebase` tool calls.
+
+If so, rewrite your previous response with the new information and any invalidated beliefs or assumptions. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When suggesting code changes, write out all the code changes required, indicating the current code and the code to replace it with When suggesting code changes, write out all the code changes required, indicating the current code and the code to replace it with.
+</user_response>
+
+# 2. Self-Critique
+
+<self_critique>
+Then, self-critique your answer and validate that you have completely answered the user's question. If the user's answer is relatively broad, you are done.
+
+Otherwise, if the user's question is specific, and asks to implement a feature or fix a bug, determine what additional information you need to answer the user's question. Specifically, validate that all interfaces are being used correctly based on the contents of the retrieved files -- if you cannot verify this, then you must find the relevant information such as the correct interface or schema to validate the usage. If you need to search the codebase for more information, such as for how a particular feature in the codebase works, use the `search_codebase` tool in the next section.
+</self_critique>
+
+# 3. Function Calls (Optional)
+
+Then, make each function call like so:
+<function_calls>
+[the list of function calls go here, using the valid XML format for function calls]
+</function_calls>""" + example_tool_calls
 
 format_message = """### Format
 
@@ -122,10 +156,12 @@ Use GitHub-styled markdown for your responses. You must respond with the followi
 
 <user_response>
 ## Summary
-First, list and summarize each file from the codebase provided that is relevant to the user's question.
+First, list and summarize each file from the codebase provided that is relevant to the user's question. You may not need to summarize all provided files.
 
 ## Answer
-Secondly, write a complete helpful response to the user's question in great detail. Provide code examples and explanations wherever possible to provide concrete explanations.
+Determine if you have sufficient information to answer the user's question. If not, determine the information you need to answer the question completely by making `search_codebase` tool calls.
+
+If so, write a complete helpful response to the user's question oin detail. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When suggesting code changes, write out all the code changes required, indicating the current code and the code to replace it with When suggesting code changes, write out all the code changes required, indicating the current code and the code to replace it with.
 </user_response>
 
 # 2. Self-Critique
@@ -268,7 +304,7 @@ def chat_codebase(
             )
         ] if len(messages) <= 2 else []
         yield new_messages
-        for _ in range(3):
+        for _ in range(5):
             stream = chat_gpt.chat_anthropic(
                 content=user_message,
                 model="claude-3-opus-20240229",
@@ -384,9 +420,10 @@ def chat_codebase(
                     )
                 )
 
-                user_message = f"<function_output>\n{function_output}\n</function_output>\n\n{function_response}\n\n{format_message}"
+                user_message = f"<function_output>\n{function_output}\n</function_output>\n\n{function_response}"
             else:
                 break
+        yield new_messages
     
     def postprocessed_stream(*args, **kwargs):
         for messages in stream_state(*args, **kwargs):
