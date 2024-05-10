@@ -272,7 +272,7 @@ function App() {
   useEffect(() => {
     if (messagesContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-      if (scrollHeight - scrollTop - clientHeight < 100) {
+      if (scrollHeight - scrollTop - clientHeight < 200) {
         messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
       }
     }
@@ -383,23 +383,19 @@ function App() {
       </div>
       {repoNameValid && (
         <div className={`flex w-full`}>
-          {isLoading ? (
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-zinc-500 ml-4 mr-4"></div>
-          ) : (
-            <Button
-              className="mr-2"
-              variant="secondary"
-              onClick={async () => {
-                setMessages([{ content: defaultMessage, role: "assistant" }]);
-                setCurrentMessage("");
-                setIsLoading(false);
-                setSnippets([]);
-              }}
-              disabled={isLoading}
-            >
-              Restart
-            </Button>
-          )}
+          <Button
+            className="mr-2"
+            variant="secondary"
+            onClick={async () => {
+              setMessages([{ content: defaultMessage, role: "assistant" }]);
+              setCurrentMessage("");
+              setIsLoading(false);
+              setSnippets([]);
+            }}
+            disabled={isLoading}
+          >
+            Restart
+          </Button>
           <Input 
             onKeyUp={(e) => {
               if (e.key === "Enter") {
@@ -412,15 +408,25 @@ function App() {
 
                     var currentSnippets = snippets;
                     if (currentSnippets.length == 0) {
-                      const snippetsResponse = await fetch(`/backend/search?repo_name=${repoName}&query=${encodeURIComponent(currentMessage)}`, {
-                        headers: {
-                          "Content-Type": "application/json",
-                          // @ts-ignore
-                          "Authorization": `Bearer ${session?.accessToken}`
-                        }
-                      });
-                      currentSnippets = (await snippetsResponse.json() as Snippet[]).slice(0, 5);
-                      setSnippets(currentSnippets);
+                      try {
+                        const snippetsResponse = await fetch(`/backend/search?repo_name=${repoName}&query=${encodeURIComponent(currentMessage)}`, {
+                          headers: {
+                            "Content-Type": "application/json",
+                            // @ts-ignore
+                            "Authorization": `Bearer ${session?.accessToken}`
+                          }
+                        });
+                        currentSnippets = (await snippetsResponse.json() as Snippet[]).slice(0, 5);
+                        setSnippets(currentSnippets);
+                      } catch (e: any) {
+                        toast({
+                          title: "Failed to search codebase",
+                          description: e.message,
+                          variant: "destructive"
+                        });
+                        setIsLoading(false);
+                        throw e;
+                      }
                     }
                     const chatResponse = await fetch("/backend/chat", {
                       method: "POST",
@@ -467,6 +473,8 @@ function App() {
                         variant: "destructive"
                       });
                       console.log(chat)
+                      setIsLoading(false);
+                      throw e;
                     }
 
                     setIsLoading(false);
