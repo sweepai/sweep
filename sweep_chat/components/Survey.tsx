@@ -47,7 +47,7 @@ export default function Feedback({
         <Card className="w-[500px] fixed right-4 bottom-4">
             <CardHeader>
                 <CardTitle>Give us Feedback</CardTitle>
-                <CardDescription>Sweep Chat is new so we're actively trying to improve it for developers like you.</CardDescription>
+                <CardDescription>Sweep Chat is new so we&apos;re actively trying to improve it for developers like you.</CardDescription>
             </CardHeader>
             <CardContent>
                 <form>
