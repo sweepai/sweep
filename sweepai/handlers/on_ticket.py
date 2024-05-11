@@ -394,7 +394,7 @@ def on_ticket(
                 logger.warning(f"Validation error: {error_message}")
                 edit_sweep_comment(
                     (
-                        f"The issue was rejected with the following response:\n\n{blockquote(error_message)}"
+                        f"The issue was rejected with the following response:\n\n**{error_message}**"
                     ),
                     -1,
                 )
