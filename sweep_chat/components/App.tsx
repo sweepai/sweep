@@ -299,12 +299,14 @@ function App() {
       <Toaster />
       {showSurvey && process.env.NEXT_PUBLIC_SURVEY_ID && (
         <Survey
-          onClose={() => {
+          onClose={(didSubmit) => {
             setShowSurvey(false)
-            toast({
-              title: "Thanks for your feedback!",
-              description: "We'll reach back out shortly.",
-            })
+            if (didSubmit) {
+              toast({
+                title: "Thanks for your feedback!",
+                description: "We'll reach back out shortly.",
+              })
+            }
           }}
         />
       )}

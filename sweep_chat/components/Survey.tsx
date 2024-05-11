@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 export default function Feedback({
     onClose
 }: {
-    onClose: () => void
+    onClose: (didSubmit: boolean) => void
 }) {
     const posthog = usePostHog();
     const [feedback, setFeedback] = useState("")
@@ -29,7 +29,7 @@ export default function Feedback({
             $survey_id: surveyID,
         });
         localStorage.setItem(`hasInteractedWithSurvey_${surveyID}`, 'true');
-        onClose();
+        onClose(false);
     }
 
     const handleFeedbackSubmit = (e: any) => {
@@ -40,7 +40,7 @@ export default function Feedback({
             $survey_response: feedback
         });
         localStorage.setItem(`hasInteractedWithSurvey_${surveyID}`, 'true');
-        onClose();
+        onClose(true);
     }
 
     return (
