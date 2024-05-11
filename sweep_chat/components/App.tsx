@@ -23,6 +23,8 @@ import { Session } from "next-auth";
 import { PostHogProvider, usePostHog } from "posthog-js/react";
 import posthog from "posthog-js";
 import Survey from "./Survey";
+import * as jsonpatch from 'fast-json-patch';
+
 
 if (typeof window !== 'undefined') {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!)
@@ -478,13 +480,15 @@ function App() {
                         repo_name: repoName,
                         messages: newMessages,
                         snippets: currentSnippets,
+                        use_patch: true
                       })
                     });
 
                     // Stream
                     const reader = chatResponse.body?.getReader();
                     let done = false;
-                    let chat = "";
+                    let buffer = "";
+                    var streamedMessages: Message[] = []
                     var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" }]
                     setMessages(respondedMessages);
                     try {
@@ -492,20 +496,30 @@ function App() {
                         const { value, done: done_ } = await reader!.read();
                         if (value) {
                           const decodedValue = new TextDecoder().decode(value);
-                          chat += decodedValue;
-                          chat = chat.replace("}][{", "}]\n[{")
-                          const lastLineEndingWithBracket = getLastLineEndingWithBracket(chat);
-                          const lastLine = getLastLine(chat);
-                          if (lastLineEndingWithBracket !== null) {
-                            try {
-                              const addedMessages = JSON.parse(lastLineEndingWithBracket);
-                              respondedMessages = [...newMessages, ...addedMessages]
-                              setMessages(respondedMessages);
-                            } catch (e: any) {
-                              console.log(lastLineEndingWithBracket)
+                          buffer += decodedValue;
+                          buffer = buffer.replace("][{", "]\n[{")
+                          var newBuffer = "";
+                          const bufferLines = buffer.trim().split("\n")
+
+                          for (var i = 0; i < bufferLines.length; i += 1) {
+                            const line = bufferLines[i];
+                            if (line !== "") {
+                              try {
+                                const patch = JSON.parse(line)
+                                streamedMessages = jsonpatch.applyPatch(streamedMessages, patch).newDocument
+                              } catch (e: any) {
+                                if (i == bufferLines.length - 1) {
+                                  newBuffer = line
+                                } else {
+                                  console.log(e.message)
+                                  console.log(buffer)
+                                }
+                              }
                             }
-                            chat = lastLine
                           }
+                          setMessages([...newMessages, ...streamedMessages])
+
+                          buffer = newBuffer
                         }
                         done = done_;
                       }
@@ -515,7 +529,7 @@ function App() {
                         description: e.message,
                         variant: "destructive"
                       });
-                      console.log(chat)
+                      console.log(buffer)
                       setIsLoading(false);
                       posthog.capture("chat errored", {
                         repoName,

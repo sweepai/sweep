@@ -79,6 +79,7 @@ dependencies = [
   "scipy==1.12.0",
   "jira==3.8.0",
   "slack-sdk==3.27.1",
+  "jsonpatch==1.33",
 ]
 
 [tool.isort]
