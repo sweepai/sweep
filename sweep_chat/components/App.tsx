@@ -238,6 +238,16 @@ const getLastLine = (content: string) => {
   return splitContent[splitContent.length - 1];
 }
 
+const getLastLineEndingWithBracket = (content: string) => {
+  const splitContent = content.trim().split("\n");
+  for (let i = splitContent.length - 1; i >= 0; i--) {
+    if (splitContent[i].trim().endsWith("]")) {
+      return splitContent[i];
+    }
+  }
+  return null;
+}
+
 const defaultMessage = `I'm Sweep and I'm here to help you answer questions about your codebase!`;
 
 function App() {
@@ -483,14 +493,17 @@ function App() {
                         if (value) {
                           const decodedValue = new TextDecoder().decode(value);
                           chat += decodedValue;
-                          console.log(chat)
+                          chat = chat.replace("}][{", "}]\n[{")
+                          const lastLineEndingWithBracket = getLastLineEndingWithBracket(chat);
                           const lastLine = getLastLine(chat);
-                          if (lastLine !== "") {
+                          if (lastLineEndingWithBracket !== null) {
                             try {
-                              const addedMessages = JSON.parse(lastLine);
+                              const addedMessages = JSON.parse(lastLineEndingWithBracket);
                               respondedMessages = [...newMessages, ...addedMessages]
                               setMessages(respondedMessages);
-                            } catch (e: any) { }
+                            } catch (e: any) {
+                              console.log(lastLineEndingWithBracket)
+                            }
                             chat = lastLine
                           }
                         }
