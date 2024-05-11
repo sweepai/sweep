@@ -130,7 +130,7 @@ Secondly, list all new information that was retrieved from the codebase that is 
 ## Updated answer
 Determine if you have sufficient information to answer the user's question. If not, determine the information you need to answer the question completely by making `search_codebase` tool calls.
 
-If so, rewrite your previous response with the new information and any invalidated beliefs or assumptions. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When suggesting code changes, write out all the code changes required in the unified diff format.
+If so, rewrite your previous response with the new information and any invalidated beliefs or assumptions. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When explaining how to add new code, always write out the new code. When suggesting code changes, write out all the code changes required in the unified diff format.
 </user_response>
 
 # 2. Self-Critique
@@ -163,7 +163,7 @@ First, list and summarize each file from the codebase provided that is relevant 
 ## Answer
 Determine if you have sufficient information to answer the user's question. If not, determine the information you need to answer the question completely by making `search_codebase` tool calls.
 
-If so, write a complete helpful response to the user's question oin detail. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When suggesting code changes, write out all the code changes required in the unified diff format.
+If so, write a complete helpful response to the user's question in full detail. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When explaining how to add new code, always write out the new code. When suggesting code changes, write out all the code changes required in the unified diff format.
 </user_response>
 
 # 2. Self-Critique
