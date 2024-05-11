@@ -23,6 +23,8 @@ import { Session } from "next-auth";
 import { PostHogProvider, usePostHog } from "posthog-js/react";
 import posthog from "posthog-js";
 import Survey from "./Survey";
+import * as jsonpatch from 'fast-json-patch';
+
 
 if (typeof window !== 'undefined') {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!)
@@ -238,6 +240,16 @@ const getLastLine = (content: string) => {
   return splitContent[splitContent.length - 1];
 }
 
+const getLastLineEndingWithBracket = (content: string) => {
+  const splitContent = content.trim().split("\n");
+  for (let i = splitContent.length - 1; i >= 0; i--) {
+    if (splitContent[i].trim().endsWith("]")) {
+      return splitContent[i];
+    }
+  }
+  return null;
+}
+
 const defaultMessage = `I'm Sweep and I'm here to help you answer questions about your codebase!`;
 
 function App() {
@@ -299,12 +311,14 @@ function App() {
       <Toaster />
       {showSurvey && process.env.NEXT_PUBLIC_SURVEY_ID && (
         <Survey
-          onClose={() => {
+          onClose={(didSubmit) => {
             setShowSurvey(false)
-            toast({
-              title: "Thanks for your feedback!",
-              description: "We'll reach back out shortly.",
-            })
+            if (didSubmit) {
+              toast({
+                title: "Thanks for your feedback!",
+                description: "We'll reach back out shortly.",
+              })
+            }
           }}
         />
       )}
@@ -327,6 +341,7 @@ function App() {
       </div>
       <div className={`w-full flex items-center ${repoNameValid ? "" : "grow"}`}>
         <Input
+          data-ph-capture-attribute-repo-name={repoName}
           className="mb-4"
           value={repoName}
           onChange={(e) => setRepoName(e.target.value)}
@@ -409,8 +424,15 @@ function App() {
             Restart
           </Button>
           <Input
+            data-ph-capture-attribute-current-message={currentMessage}
             onKeyUp={(e) => {
               if (e.key === "Enter") {
+                posthog.capture("chat submitted", {
+                  repoName,
+                  snippets,
+                  messages,
+                  currentMessage,
+                });
                 (async () => {
                   if (currentMessage !== "") {
                     const newMessages: Message[] = [...messages, { content: currentMessage, role: "user" }];
@@ -437,6 +459,13 @@ function App() {
                           variant: "destructive"
                         });
                         setIsLoading(false);
+                        posthog.capture("chat errored", {
+                          repoName,
+                          snippets,
+                          messages,
+                          currentMessage,
+                          error: e.message
+                        });
                         throw e;
                       }
                     }
@@ -451,13 +480,15 @@ function App() {
                         repo_name: repoName,
                         messages: newMessages,
                         snippets: currentSnippets,
+                        use_patch: true
                       })
                     });
 
                     // Stream
                     const reader = chatResponse.body?.getReader();
                     let done = false;
-                    let chat = "";
+                    let buffer = "";
+                    var streamedMessages: Message[] = []
                     var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" }]
                     setMessages(respondedMessages);
                     try {
@@ -465,16 +496,30 @@ function App() {
                         const { value, done: done_ } = await reader!.read();
                         if (value) {
                           const decodedValue = new TextDecoder().decode(value);
-                          chat += decodedValue;
-                          const lastLine = getLastLine(chat);
-                          if (lastLine !== "") {
-                            try {
-                              const addedMessages = JSON.parse(lastLine);
-                              respondedMessages = [...newMessages, ...addedMessages]
-                              setMessages(respondedMessages);
-                            } catch (e: any) { }
-                            chat = lastLine
+                          buffer += decodedValue;
+                          buffer = buffer.replace("][{", "]\n[{")
+                          var newBuffer = "";
+                          const bufferLines = buffer.trim().split("\n")
+
+                          for (var i = 0; i < bufferLines.length; i += 1) {
+                            const line = bufferLines[i];
+                            if (line !== "") {
+                              try {
+                                const patch = JSON.parse(line)
+                                streamedMessages = jsonpatch.applyPatch(streamedMessages, patch).newDocument
+                              } catch (e: any) {
+                                if (i == bufferLines.length - 1) {
+                                  newBuffer = line
+                                } else {
+                                  console.log(e.message)
+                                  console.log(buffer)
+                                }
+                              }
+                            }
                           }
+                          setMessages([...newMessages, ...streamedMessages])
+
+                          buffer = newBuffer
                         }
                         done = done_;
                       }
@@ -484,8 +529,15 @@ function App() {
                         description: e.message,
                         variant: "destructive"
                       });
-                      console.log(chat)
+                      console.log(buffer)
                       setIsLoading(false);
+                      posthog.capture("chat errored", {
+                        repoName,
+                        snippets,
+                        messages,
+                        currentMessage,
+                        error: e.message
+                      });
                       throw e;
                     }
 
@@ -494,6 +546,12 @@ function App() {
                       setShowSurvey(true);
                     }
                     setIsLoading(false);
+                    posthog.capture("chat succeeded", {
+                      repoName,
+                      snippets,
+                      messages,
+                      currentMessage,
+                    });
                   }
                 })()
               }

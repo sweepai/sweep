@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 export default function Feedback({
     onClose
 }: {
-    onClose: () => void
+    onClose: (didSubmit: boolean) => void
 }) {
     const posthog = usePostHog();
     const [feedback, setFeedback] = useState("")
@@ -29,7 +29,7 @@ export default function Feedback({
             $survey_id: surveyID,
         });
         localStorage.setItem(`hasInteractedWithSurvey_${surveyID}`, 'true');
-        onClose();
+        onClose(false);
     }
 
     const handleFeedbackSubmit = (e: any) => {
@@ -40,11 +40,11 @@ export default function Feedback({
             $survey_response: feedback
         });
         localStorage.setItem(`hasInteractedWithSurvey_${surveyID}`, 'true');
-        onClose();
+        onClose(true);
     }
 
     return (
-        <Card className="w-[500px] fixed right-4 bottom-4">
+        <Card className="w-[500px] fixed right-4 bottom-4 z-10">
             <CardHeader>
                 <CardTitle>Give us Feedback</CardTitle>
                 <CardDescription>Sweep Chat is new so we&apos;re actively trying to improve it for developers like you.</CardDescription>

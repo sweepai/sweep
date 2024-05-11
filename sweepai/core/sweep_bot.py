@@ -149,7 +149,7 @@ def remove_line_numbers(s: str) -> str:
 
 def parse_filenames(text):
     # Regular expression pattern to match file names
-    pattern = r'\b(?:\w+/)*\w+(?:\.\w+)+\b|\b(?:\w+/)+\w+\b'
+    pattern = r'\b(?:[\w-]+/)*[\w-]+(?:[.:]\w+)+\b|\b(?:[\w-]+/)+[\w-]+\b'
 
     # Find all occurrences of file names in the text
     filenames = re.findall(pattern, text)
