@@ -261,7 +261,7 @@ def chat_codebase(
     repo_name: str = Body(...),
     messages: list[Message] = Body(...),
     snippets: list[Snippet] = Body(...),
-    use_patch: bool = False
+    use_patch: bool = Body(False)
 ):
     if len(messages) == 0:
         raise ValueError("At least one message is required.")
@@ -432,20 +432,20 @@ def chat_codebase(
     def postprocessed_stream(*args, use_patch=False, **kwargs):
         previous_state = []
         for messages in stream_state(*args, **kwargs):
-            # if not use_patch:
-            #     yield json.dumps([
-            #         message.model_dump()
-            #         for message in messages
-            #     ]) + "\n"
-            # else:
-            current_state = [
-                message.model_dump()
-                for message in messages
-            ]
-            patch = jsonpatch.JsonPatch.from_diff(previous_state, current_state)
-            if patch:
-                yield patch.to_string() + "\n"
-            previous_state = current_state
+            if not use_patch:
+                yield json.dumps([
+                    message.model_dump()
+                    for message in messages
+                ]) + "\n"
+            else:
+                current_state = [
+                    message.model_dump()
+                    for message in messages
+                ]
+                patch = jsonpatch.JsonPatch.from_diff(previous_state, current_state)
+                if patch:
+                    yield patch.to_string() + "\n"
+                previous_state = current_state
 
     return StreamingResponse(postprocessed_stream(messages[-1].content + "\n\n" + format_message, snippets, messages, use_patch=use_patch))
 

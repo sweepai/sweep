@@ -507,16 +507,17 @@ function App() {
                               try {
                                 const patch = JSON.parse(line)
                                 streamedMessages = jsonpatch.applyPatch(streamedMessages, patch).newDocument
-                                setMessages([...newMessages, ...streamedMessages])
                               } catch (e: any) {
-                                console.log(e.message)
-                                console.log(decodedValue)
                                 if (i == bufferLines.length - 1) {
                                   newBuffer = line
+                                } else {
+                                  console.log(e.message)
+                                  console.log(buffer)
                                 }
                               }
                             }
                           }
+                          setMessages([...newMessages, ...streamedMessages])
 
                           buffer = newBuffer
                         }
