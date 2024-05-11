@@ -76,7 +76,7 @@
     "inquirer": "^9.2.14",
     "jest-environment-jsdom": "^29.7.0",
     "lucide-react": "^0.314.0",
-    "next": "14.1.0",
+    "next": "14.1.1",
     "next-themes": "^0.2.1",
     "openai": "^4.25.0",
     "postcss": "^8.4.33",
