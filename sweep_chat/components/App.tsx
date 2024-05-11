@@ -415,6 +415,12 @@ function App() {
             data-ph-capture-attribute-current-message={currentMessage}
             onKeyUp={(e) => {
               if (e.key === "Enter") {
+                posthog.capture("chat submitted", {
+                  repoName,
+                  snippets,
+                  messages,
+                  currentMessage,
+                });
                 (async () => {
                   if (currentMessage !== "") {
                     const newMessages: Message[] = [...messages, { content: currentMessage, role: "user" }];
@@ -441,6 +447,13 @@ function App() {
                           variant: "destructive"
                         });
                         setIsLoading(false);
+                        posthog.capture("chat errored", {
+                          repoName,
+                          snippets,
+                          messages,
+                          currentMessage,
+                          error: e.message
+                        });
                         throw e;
                       }
                     }
@@ -470,6 +483,7 @@ function App() {
                         if (value) {
                           const decodedValue = new TextDecoder().decode(value);
                           chat += decodedValue;
+                          console.log(chat)
                           const lastLine = getLastLine(chat);
                           if (lastLine !== "") {
                             try {
@@ -490,6 +504,13 @@ function App() {
                       });
                       console.log(chat)
                       setIsLoading(false);
+                      posthog.capture("chat errored", {
+                        repoName,
+                        snippets,
+                        messages,
+                        currentMessage,
+                        error: e.message
+                      });
                       throw e;
                     }
 
@@ -498,6 +519,12 @@ function App() {
                       setShowSurvey(true);
                     }
                     setIsLoading(false);
+                    posthog.capture("chat succeeded", {
+                      repoName,
+                      snippets,
+                      messages,
+                      currentMessage,
+                    });
                   }
                 })()
               }
