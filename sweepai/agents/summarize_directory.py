@@ -47,6 +47,7 @@ def count_descendants(directory: str):
             del descendant_count[key]
     return descendant_count
 
+
 instructions = "Do NOT list the files, just explain what types of content this directory contains (code, documentation, configs, assets, tests etc.). Explain the purpose of the directory. Only list describe contents that appear in multiple files.  Be concise and optimize for informational density. One paragraph."
 
 system_prompt = "Your job is to summarize the following directory from the repository. " + instructions
@@ -88,7 +89,8 @@ def summarize_directory(
             "repo_name": cloned_repo.repo_full_name,
             "directory": directory,
             "snippets_string": snippets_string.strip(),
-        }
+        },
+        verbose=False
     )
 
     return response
@@ -105,7 +107,7 @@ def recursively_summarize_directory(
     # go in reverse order
 
     for subdir in sorted(descendant_counts, key=lambda x: descendant_counts[x]):
-        if descendant_counts[subdir] <= 3:
+        if descendant_counts[subdir] <= 5:
             continue
         print("Summarizing", subdir)
         snippets_in_subdir = [snippet for snippet in snippets if snippet.file_path.removeprefix(cloned_repo.repo_dir).removeprefix("/").startswith(subdir)][:NUM_SNIPPET_EXAMPLES]
