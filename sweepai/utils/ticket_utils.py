@@ -229,26 +229,18 @@ def get_pointwise_reranked_snippet_scores(
     snippet_representations = []
     for snippet in sorted_snippets[:NUM_SNIPPETS_TO_RERANK]:
         representation = f"{snippet.file_path}\n```\n{snippet.get_snippet(add_lines=False, add_ellipsis=False)}\n```"
-        # deepest_subdir = ""
-        # for subdir in directory_summaries:
-        #     if snippet.file_path.startswith(subdir) and len(subdir) > len(deepest_subdir):
-        #         deepest_subdir = subdir
-        #         break # maybe add all summaries
-        # if deepest_subdir:
-        #     representation = representation + f"\n\nHere is a summary of the subdirectory {deepest_subdir}:\n\n" + directory_summaries[deepest_subdir]
         subdirs = []
         for subdir in directory_summaries:
             if snippet.file_path.startswith(subdir):
                 subdirs.append(subdir)
-        for subdir in sorted(subdirs)[-2:]:
-            # representation = representation + f"\n\n{subdir}:\n\n" + directory_summaries[subdir]
+        subdirs = sorted(subdirs)
+        for subdir in subdirs[-1:]:
             representation = representation + f"\n\nHere is a summary of the subdirectory {subdir}:\n\n" + directory_summaries[subdir]
         snippet_representations.append(representation)
 
     response = cohere_rerank_call(
         model='rerank-english-v3.0',
         query=query,
-        # documents=[f"{snippet.file_path}\n```\n{snippet.get_snippet(add_lines=False, add_ellipsis=False)}\n```" for snippet in sorted_snippets[:NUM_SNIPPETS_TO_RERANK]],
         documents=snippet_representations,
         max_chunks_per_doc=900 // NUM_SNIPPETS_TO_RERANK,
     )
