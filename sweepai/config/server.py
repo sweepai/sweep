@@ -202,5 +202,8 @@ JIRA_URL = os.environ.get("JIRA_URL", None)
 
 SLACK_API_KEY = os.environ.get("SLACK_API_KEY", None)
 
-LICENSE_KEY = os.environ.get("LICENSE_KEY", None)
+LINEAR_WEBHOOK_SECRET = os.environ.get("LINEAR_WEBHOOK_SECRET", None)
+LINEAR_API_KEY = os.environ.get("LINEAR_API_KEY", None)
+
+LICENSE_KEY = os.environ.get("LICENSE_KEY", None)  
 ALTERNATE_AWS = os.environ.get("ALTERNATE_AWS", "none").lower() == "true"
