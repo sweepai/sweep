@@ -1,4 +1,5 @@
 from sweepai.core.chat import call_llm
+from sweepai.logn.cache import file_cache
 from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
 
 instructions = "Explain in great detail what types of content this directory contains (code, documentation, configs, assets, tests etc.). Explain the purpose of the directory. Be concise and optimize for informational density. One paragraph."
@@ -21,15 +22,15 @@ user_prompt = """Summarize the following file from the repository.
 
 """ + instructions
 
-def summarize_file(file_path: str, cloned_repo: ClonedRepo):
-    contents = cloned_repo.get_file_contents(file_path)
+@file_cache()
+def summarize_file(file_path: str, file_contents: str, repo_name: str):
     response = call_llm(
         system_prompt,
         user_prompt,
         params={
-            "repo_name": cloned_repo.repo_full_name,
+            "repo_name": repo_name,
             "file_path": file_path,
-            "file_contents": contents,
+            "file_contents": file_contents,
         },
         # verbose=False
     )
