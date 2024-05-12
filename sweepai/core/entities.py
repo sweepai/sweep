@@ -351,6 +351,13 @@ class ProposedIssue(RegexMatchableBaseModel):
     _regex = r'<issue\s+title="(?P<title>.*?)">(?P<body>.*?)</issue>'
 
 
+SNIPPET_FORMAT = """<snippet>
+<file_name>{denotation}</file_name>
+<source>
+{contents}
+</source>
+</snippet>"""
+
 class Snippet(BaseModel):
     # pylint: disable=E1101
     """

@@ -2,17 +2,10 @@ import re
 from sweepai.agents.modify import validate_and_parse_function_call
 from sweepai.agents.question_answerer import CORRECTED_SUBMIT_SOURCES_FORMAT, QuestionAnswererException, rag
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Snippet
+from sweepai.core.entities import Snippet, SNIPPET_FORMAT
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
 from sweepai.utils.ticket_utils import prep_snippets
-
-SNIPPET_FORMAT = """<snippet>
-<file_name>{denotation}</file_name>
-<source>
-{contents}
-</source>
-</snippet>"""
 
 tools_available = """You have access to the following tools to assist in fulfilling the user request:
 <tool_description>
