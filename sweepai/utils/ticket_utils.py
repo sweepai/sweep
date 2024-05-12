@@ -7,6 +7,7 @@ from loguru import logger
 from tqdm import tqdm
 import networkx as nx
 
+from sweepai.agents.summarize_directory import recursively_summarize_directory
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import COHERE_API_KEY
 from sweepai.core.context_pruning import RepoContextManager, add_relevant_files_to_top_snippets, build_import_trees, integrate_graph_retrieval
@@ -187,7 +188,7 @@ def multi_get_top_k_snippets(
     ]
     return ranked_snippets_list, snippets, content_to_lexical_score_list
 
-@file_cache()
+# @file_cache()
 def get_top_k_snippets(
     cloned_repo: ClonedRepo,
     query: str,
@@ -209,10 +210,11 @@ def get_pointwise_reranked_snippet_scores(
     NUM_SNIPPETS_TO_RERANK=100,
     include_docs: bool = False,
     include_tests: bool = False,
+    directory_summaries: dict = {}
 ):
     """
     Ranks 1-5 snippets are frozen. They're just passed into Cohere since it helps with reranking. We multiply the scores by 1_000 to make them more significant.
-    Ranks 6-100 are reranked using Cohere. Then we divide the scores by 1_000 to make them comparable to the original scores.
+    Ranks 6-100 are reranked using Cohere. Then we divide the scores by 1_000_000 to make them comparable to the original scores.
     """
 
     if not COHERE_API_KEY:
@@ -224,22 +226,43 @@ def get_pointwise_reranked_snippet_scores(
         reverse=True,
     )
 
+    snippet_representations = []
+    for snippet in sorted_snippets[:NUM_SNIPPETS_TO_RERANK]:
+        representation = f"{snippet.file_path}\n```\n{snippet.get_snippet(add_lines=False, add_ellipsis=False)}\n```"
+        # deepest_subdir = ""
+        # for subdir in directory_summaries:
+        #     if snippet.file_path.startswith(subdir) and len(subdir) > len(deepest_subdir):
+        #         deepest_subdir = subdir
+        #         break # maybe add all summaries
+        # if deepest_subdir:
+        #     representation = representation + f"\n\nHere is a summary of the subdirectory {deepest_subdir}:\n\n" + directory_summaries[deepest_subdir]
+        subdirs = []
+        for subdir in directory_summaries:
+            if snippet.file_path.startswith(subdir):
+                subdirs.append(subdir)
+        for subdir in sorted(subdirs)[-2:]:
+            # representation = representation + f"\n\n{subdir}:\n\n" + directory_summaries[subdir]
+            representation = representation + f"\n\nHere is a summary of the subdirectory {subdir}:\n\n" + directory_summaries[subdir]
+        snippet_representations.append(representation)
+
     response = cohere_rerank_call(
         model='rerank-english-v3.0',
         query=query,
-        documents=[f"{snippet.file_path}\n```\n{snippet.get_snippet(add_lines=False, add_ellipsis=False)}\n```" for snippet in sorted_snippets[:NUM_SNIPPETS_TO_RERANK]],
+        # documents=[f"{snippet.file_path}\n```\n{snippet.get_snippet(add_lines=False, add_ellipsis=False)}\n```" for snippet in sorted_snippets[:NUM_SNIPPETS_TO_RERANK]],
+        documents=snippet_representations,
         max_chunks_per_doc=900 // NUM_SNIPPETS_TO_RERANK,
     )
 
     new_snippet_scores = {k: v / 1_000_000 for k, v in snippet_scores.items()}
 
     for document in response.results:
-        new_snippet_scores[sorted_snippets[document.index].denotation] = apply_adjustment_score(
-            sorted_snippets[document.index].denotation,
-            document.relevance_score,
-            include_docs=include_docs,
-            include_tests=include_tests
-        )
+        new_snippet_scores[sorted_snippets[document.index].denotation] = document.relevance_score
+        # new_snippet_scores[sorted_snippets[document.index].denotation] = apply_adjustment_score(
+        #     sorted_snippets[document.index].denotation,
+        #     document.relevance_score,
+        #     include_docs=include_docs,
+        #     include_tests=include_tests
+        # )
 
     for snippet in sorted_snippets[:NUM_SNIPPETS_TO_KEEP]:
         new_snippet_scores[snippet.denotation] = snippet_scores[snippet.denotation] * 1_000
@@ -257,7 +280,7 @@ def multi_prep_snippets(
     k: int = 15,
     skip_reranking: bool = False, # This is only for pointwise reranking
     skip_pointwise_reranking: bool = False,
-    NUM_SNIPPETS_TO_KEEP=5,
+    NUM_SNIPPETS_TO_KEEP=0,
     NUM_SNIPPETS_TO_RERANK=100,
     include_docs: bool = False,
     include_tests: bool = False,
@@ -277,8 +300,9 @@ def multi_prep_snippets(
             for j, snippet in enumerate(ordered_snippets):
                 content_to_lexical_score[snippet.denotation] += content_to_lexical_score_list[i][snippet.denotation] * (1 / 2 ** (rank_fusion_offset + j))
         if not skip_pointwise_reranking:
+            directory_summaries = recursively_summarize_directory(snippets, cloned_repo)
             content_to_lexical_score = get_pointwise_reranked_snippet_scores(
-                queries[0], snippets, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK, include_docs, include_tests
+                queries[0], snippets, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK, include_docs, include_tests, directory_summaries
             )
         ranked_snippets = sorted(
             snippets,
@@ -290,8 +314,9 @@ def multi_prep_snippets(
             cloned_repo, queries[0], ticket_progress, k, include_docs, include_tests
         )
         if not skip_pointwise_reranking:
+            directory_summaries = recursively_summarize_directory(snippets, cloned_repo)
             content_to_lexical_score = get_pointwise_reranked_snippet_scores(
-                queries[0], snippets, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK, include_docs, include_tests
+                queries[0], snippets, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK, include_docs, include_tests, directory_summaries
             )
         ranked_snippets = sorted(
             snippets,
