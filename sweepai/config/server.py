@@ -160,7 +160,7 @@ DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
 ENV = "prod" if GITHUB_BOT_USERNAME != TEST_BOT_NAME else "dev"
 
 PROGRESS_BASE_URL = os.environ.get(
-    "PROGRESS_BASE_URL", "https://progress.sweep.dev"
+    "PROGRESS_BASE_URL", "https://progress.sweep.dev"  
 ).rstrip("/")
 
 DISABLED_REPOS = os.environ.get("DISABLED_REPOS", "").split(",")
@@ -200,7 +200,9 @@ JIRA_USER_NAME = os.environ.get("JIRA_USER_NAME", None)
 JIRA_API_TOKEN = os.environ.get("JIRA_API_TOKEN", None)
 JIRA_URL = os.environ.get("JIRA_URL", None)
 
+LINEAR_API_KEY = os.environ.get("LINEAR_API_KEY", None)
+
 SLACK_API_KEY = os.environ.get("SLACK_API_KEY", None)
 
-LICENSE_KEY = os.environ.get("LICENSE_KEY", None)
+LICENSE_KEY = os.environ.get("LICENSE_KEY", None)  
 ALTERNATE_AWS = os.environ.get("ALTERNATE_AWS", "none").lower() == "true"
