@@ -1,5 +1,6 @@
 from collections import defaultdict
 import copy
+from os import sep
 import traceback
 from time import time
 
@@ -87,6 +88,46 @@ adjustment_scores = {
         },
     }
 }
+
+separation_features = {
+    "config": {
+        "prefix": [".", "config/", ".github/"],
+        "suffix": [".cfg", ".ini", ".po", ".json", ".toml", ".yaml", ".yml", "LICENSE"],
+    }, # could also include assets
+    "docs": {
+        "prefix": ["doc", "example"],
+        "suffix": [".txt", ".rst", ".md", ".html", ".1", "ChangeLog"],
+        "substring": [],
+    },
+    "tests": {
+        "prefix": ["tests/", "test/"],
+        "suffix": [".spec.ts", ".spec.js", ".test.ts", ".generated.ts", ".generated.graphql", ".generated.js", "_test.py", "_test.ts", "_test.js"],
+        "substring": ["tests/", "test/", "/test", "_test"],
+    },
+    "junk": {
+        "prefix": ["node_modules/", ".venv/", "build/", "venv/", "patch/"],
+        "suffix": [],
+        "substring": [".egg-info"],
+    }
+} # otherwise it's tagged as source
+
+def separate_snippets_by_type(snippets: list[Snippet]):
+    results = {
+        "source": [],
+        "config": [],
+        "docs": [],
+        "tests": [],
+        "junk": [],
+    }
+    for snippet in snippets:
+        for separation_dict in separation_features:
+            for type_name, separation in separation_dict.items():
+                if any(snippet.file_path.startswith(prefix) for prefix in separation["prefix"]) or any(snippet.file_path.endswith(suffix) for suffix in separation["suffix"]) or any(substring in snippet.file_path for substring in separation["substring"]):
+                    results[type_name].append(snippet)
+                    break
+            else:
+                results["source"].append(snippet)
+    return results
 
 def apply_adjustment_score(
     snippet: str,
@@ -248,13 +289,12 @@ def get_pointwise_reranked_snippet_scores(
     new_snippet_scores = {k: v / 1_000_000 for k, v in snippet_scores.items()}
 
     for document in response.results:
-        new_snippet_scores[sorted_snippets[document.index].denotation] = document.relevance_score
-        # new_snippet_scores[sorted_snippets[document.index].denotation] = apply_adjustment_score(
-        #     sorted_snippets[document.index].denotation,
-        #     document.relevance_score,
-        #     include_docs=include_docs,
-        #     include_tests=include_tests
-        # )
+        new_snippet_scores[sorted_snippets[document.index].denotation] = apply_adjustment_score(
+            sorted_snippets[document.index].denotation,
+            document.relevance_score,
+            include_docs=include_docs,
+            include_tests=include_tests
+        )
 
     for snippet in sorted_snippets[:NUM_SNIPPETS_TO_KEEP]:
         new_snippet_scores[snippet.denotation] = snippet_scores[snippet.denotation] * 1_000
@@ -291,30 +331,26 @@ def multi_prep_snippets(
         for i, ordered_snippets in enumerate(ranked_snippets_list):
             for j, snippet in enumerate(ordered_snippets):
                 content_to_lexical_score[snippet.denotation] += content_to_lexical_score_list[i][snippet.denotation] * (1 / 2 ** (rank_fusion_offset + j))
-        if not skip_pointwise_reranking:
-            directory_summaries = recursively_summarize_directory(snippets, cloned_repo)
-            content_to_lexical_score = get_pointwise_reranked_snippet_scores(
-                queries[0], snippets, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK, include_docs, include_tests, directory_summaries
-            )
-        ranked_snippets = sorted(
-            snippets,
-            key=lambda snippet: content_to_lexical_score[snippet.denotation],
-            reverse=True,
-        )[:k]
     else:
         ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
             cloned_repo, queries[0], ticket_progress, k, include_docs, include_tests
         )
-        if not skip_pointwise_reranking:
-            directory_summaries = recursively_summarize_directory(snippets, cloned_repo)
-            content_to_lexical_score = get_pointwise_reranked_snippet_scores(
-                queries[0], snippets, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK, include_docs, include_tests, directory_summaries
-            )
-        ranked_snippets = sorted(
-            snippets,
-            key=lambda snippet: content_to_lexical_score[snippet.denotation],
-            reverse=True,
-        )[:k]
+    # separated_snippets = separate_snippets_by_type(snippets)
+    # for separation_type, snippets_subset in separated_snippets.items():
+    #     print(f"Separation type: {separation_type}")
+    #     for snippet in snippets_subset:
+    #         print(snippet)
+    # breakpoint()
+    if not skip_pointwise_reranking:
+        directory_summaries = recursively_summarize_directory(snippets, cloned_repo)
+        content_to_lexical_score = get_pointwise_reranked_snippet_scores(
+            queries[0], snippets, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK, include_docs, include_tests, directory_summaries
+        )
+    ranked_snippets = sorted(
+        snippets,
+        key=lambda snippet: content_to_lexical_score[snippet.denotation],
+        reverse=True,
+    )[:k]
     if ticket_progress:
         ticket_progress.search_progress.retrieved_snippets = ranked_snippets
         ticket_progress.save()
