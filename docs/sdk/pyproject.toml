@@ -9,7 +9,7 @@ readme = "README.md"
 
 [tool.poetry.urls]
 Repository = "https://github.com/sweepai/sweep"
-"Community" = "https://discord.gg/sweep"
+"Community" = "https://community.sweep.dev/"
 Documentation = "https://docs.sweep.dev"
 Homepage = "https://sweep.dev"
 "Bug Tracker" = "https://github.com/sweepai/sweep/issues"

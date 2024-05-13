@@ -17,6 +17,12 @@ The issue title should start with `Sweep: `. For issues and PRs, call Sweep usin
   </tr>
 </table>
 
+To get Sweep to work off an existing branch, add to the end of the issue description:
+
+```
+Branch: feat/name-of-branch
+```
+
 Note: The initial startup time typically takes around 3-5 minutes depending on your codebase, since we will have to index your codebase.
 
 ## Fix Sweep's PRs
@@ -75,4 +81,4 @@ For professionals who want even more tickets and priority support/feature reques
 
 # Bug Reports
 
-If Sweep fails to solve your issue that is within the scope of Sweep (see Limitations) and you submit a high-quality bug report at our [Discord](https://discord.gg/sweep), we will reset your ticket count, giving your GPT-4 tickets back. This is only for GPT4 PRs.
+If Sweep fails to solve your issue that is within the scope of Sweep (see Limitations) and you submit a high-quality bug report at our [Discourse](https://community.sweep.dev/), we will reset your ticket count, giving your GPT-4 tickets back. This is only for GPT4 PRs.

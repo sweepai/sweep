@@ -1,8 +1,7 @@
 import base64
-import copy
 import re
 import traceback
-from typing import Dict, Generator
+from typing import Dict
 
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
@@ -14,21 +13,17 @@ from tqdm import tqdm
 from rapidfuzz import fuzz
 
 from sweepai.agents.modify_utils import contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, parse_fcr, indent
-from sweepai.agents.modify_file import modify_file
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEFAULT_GPT4_MODEL
 from sweepai.core.annotate_code_openai import get_annotated_source_code
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import (
-    AssistantRaisedException,
     FileChangeRequest,
-    MaxTokensExceeded,
     Message,
     NoFilesException,
     ProposedIssue,
     PullRequest,
     RegexMatchError,
-    SandboxResponse,
     Snippet,
 )
 from sweepai.core.prompts import (
@@ -48,17 +43,14 @@ from sweepai.core.planning_prompts import (
     issue_excerpt_prompt,
     issue_excerpt_system_prompt,
 )
-from sweepai.utils.chat_logger import ChatLogger, discord_log_error
-from sweepai.utils.event_logger import posthog
+from sweepai.utils.chat_logger import ChatLogger
 # from sweepai.utils.previous_diff_utils import get_relevant_commits
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.progress import (
-    AssistantConversation,
     TicketProgress,
 )
 from sweepai.utils.str_utils import get_hash
-from sweepai.utils.utils import check_syntax
-from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, validate_and_sanitize_multi_file_changes
+from sweepai.utils.github_utils import ClonedRepo
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 SNIPPET_TOKEN_BUDGET = 150_000 * 3.5  # 140k tokens
@@ -157,7 +149,7 @@ def remove_line_numbers(s: str) -> str:
 
 def parse_filenames(text):
     # Regular expression pattern to match file names
-    pattern = r'\b(?:\w+/)*\w+(?:\.\w+)+\b|\b(?:\w+/)+\w+\b'
+    pattern = r'\b(?:[\w-]+/)*[\w-]+(?:[.:]\w+)+\b|\b(?:[\w-]+/)+[\w-]+\b'
 
     # Find all occurrences of file names in the text
     filenames = re.findall(pattern, text)
@@ -333,9 +325,10 @@ def partition_snippets_if_test(snippets: list[Snippet], include_tests=False):
 def get_files_to_change(
     relevant_snippets: list[Snippet],
     read_only_snippets: list[Snippet],
-    problem_statement,
-    repo_name,
+    problem_statement: str,
+    repo_name: str,
     cloned_repo: ClonedRepo,
+    additional_context: str = "",
     import_graph: Graph | None = None,
     pr_diffs: str = "",
     chat_logger: ChatLogger = None,
@@ -426,6 +419,13 @@ def get_files_to_change(
     #         content=previous_diffs,
     #     )
     # )
+    if additional_context:
+        messages.append(
+            Message(
+                role="user",
+                content=additional_context,
+            )
+        )
     messages.append(
         Message(
             role="user",
@@ -473,7 +473,7 @@ def get_files_to_change(
         issue_excerpts = issue_excerpt_match.group(1)
         issue_excerpts = issue_excerpts.strip("\n")
         # breakpoint()
-        files_to_change_response = chat_gpt.chat_anthropic(
+        files_to_change_response: str = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + (files_to_change_prompt.format(issue_excerpts=issue_excerpts)),
             model=MODEL,
             temperature=0.1,
@@ -481,10 +481,11 @@ def get_files_to_change(
         )
         expected_plan_count = 1
         calls = 0
+        # pylint: disable=E1101
         while files_to_change_response.count("</plan>") < expected_plan_count and calls < 3:
             # ask for a second response
             try:
-                next_response = chat_gpt.chat_anthropic(
+                next_response: str = chat_gpt.chat_anthropic(
                     content="",
                     model=MODEL,
                     temperature=0.1,
@@ -878,7 +879,7 @@ def get_files_to_change_for_test(
             ],
         )
         MODEL = "claude-3-opus-20240229"
-        files_to_change_response = chat_gpt.chat_anthropic(
+        files_to_change_response: str = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + test_files_to_change_prompt,
             model=MODEL,
             temperature=0.1,
@@ -886,6 +887,7 @@ def get_files_to_change_for_test(
         # breakpoint()
         max_tokens = 4096 * 3.5 * 0.9 # approx max tokens per response
         expected_plan_count = 1
+        # pylint: disable=E1101
         call_anthropic_second_time = len(files_to_change_response) > max_tokens and files_to_change_response.count("</plan>") < expected_plan_count
         if call_anthropic_second_time:
             # ask for a second response
@@ -1054,7 +1056,7 @@ def get_files_to_change_for_gha(
             ],
         )
         MODEL = "claude-3-opus-20240229" if not use_faster_model else "claude-3-sonnet-20240229"
-        files_to_change_response = chat_gpt.chat_anthropic(
+        files_to_change_response: str = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + gha_files_to_change_prompt,
             model=MODEL,
             temperature=0.1
@@ -1062,6 +1064,7 @@ def get_files_to_change_for_gha(
         # breakpoint()
         max_tokens = 4096 * 3.5 * 0.8 # approx max tokens per response
         expected_plan_count = 1
+        # pylint: disable=E1101
         call_anthropic_second_time = len(files_to_change_response) > max_tokens and files_to_change_response.count("</plan>") < expected_plan_count
         if call_anthropic_second_time:
             # ask for a second response
@@ -1269,7 +1272,7 @@ class GithubBot(BaseModel):
                 new_branch = self.repo.get_branch(branch)
                 if new_branch:
                     return new_branch.name
-            discord_log_error(
+            logger.error(
                 f"Error: {e}, could not create branch name {branch} on {self.repo.full_name}"
             )
             raise e
@@ -1372,28 +1375,6 @@ class SweepBot(CodeGenBot, GithubBot):
     comment_pr_files_modified: Dict[str, str] | None = None
     ticket_progress: TicketProgress | None = None
 
-    def validate_sandbox(self, file_change_requests: list[FileChangeRequest]):
-        # if all are successful return the first one, otherwise return dummy one
-        fcr_file_paths = [
-            fcr.filename for fcr in file_change_requests if fcr.change_type == "modify"
-        ]
-        sandbox_responses: list[SandboxResponse] = []
-        for fcr_file_path in fcr_file_paths:
-            try:
-                contents = safe_decode(
-                    self.repo,
-                    fcr_file_path,
-                    ref=SweepConfig.get_branch(self.repo)
-                )
-                _, sandbox_response = self.check_sandbox(fcr_file_path, contents)
-                sandbox_responses.append(sandbox_response)
-            except Exception as e:
-                logger.error(f"Error: {e}")
-        if sandbox_responses and all(
-            sandbox_response.success for sandbox_response in sandbox_responses
-        ):
-            return sandbox_responses[0], fcr_file_paths[0]
-        return None, None
 
     def validate_file_change_requests(
         self,
@@ -1404,185 +1385,3 @@ class SweepBot(CodeGenBot, GithubBot):
             file_change_requests, branch
         )
         return file_change_requests
-
-    def init_asset_branch(
-        self,
-        branch: str = ASSET_BRANCH_NAME,
-    ):
-        try:
-            self.repo.get_branch(branch)
-            return
-        except GithubException:
-            self.repo.create_git_ref(
-                f"refs/heads/{branch}",
-                self.repo.get_branch(self.repo.default_branch).commit.sha,
-            )
-
-    def check_completion(self, file_name: str, new_content: str) -> bool:
-        return True
-
-    def check_sandbox(
-        self,
-        file_path: str,
-        content: str,
-        check: list[str] = [],
-    ):
-        sandbox_execution: SandboxResponse | None = None
-        is_valid_syntax, error_message = check_syntax(file_path, content)
-        output_message = f"Checking {file_path} for syntax errors...\n" + (
-            f"✅ {file_path} has no syntax errors!"
-            if is_valid_syntax
-            else f"❌ {file_path} has syntax errors:\n{error_message}"
-        )
-        sandbox_execution = {
-            "success": is_valid_syntax,
-            "error_messages": [error_message],
-            "outputs": [output_message],
-            "updated_content": content,
-        }
-        sandbox_execution = SandboxResponse(**sandbox_execution)
-        return content, sandbox_execution
-
-
-
-    def modify_file(
-        self,
-        file_change_requests: list[FileChangeRequest],
-        branch: str = None,
-        assistant_conversation: AssistantConversation | None = None,
-        additional_messages: list[Message] = [],
-        previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
-    ):
-        new_files = modify_file(
-            self.cloned_repo,
-            self.human_message.get_issue_request(),
-            self.human_message.get_issue_metadata(),
-            file_change_requests,
-            branch,
-            self.comment_pr_diff_str,
-            assistant_conversation,
-            self.ticket_progress,
-            self.chat_logger,
-            additional_messages=additional_messages,
-            previous_modify_files_dict=previous_modify_files_dict,
-        )
-
-        commit_message = f"feat: Updated {len(new_files or [])} files"[:50]
-        return new_files, commit_message
-
-    def change_files_in_github_iterator(
-        self,
-        file_change_requests: list[FileChangeRequest],
-        branch: str,
-        blocked_dirs: list[str],
-        additional_messages: list[Message] = [],
-        username: str = ""
-    ) -> Generator[tuple[FileChangeRequest, bool], None, None]:
-        previous_modify_files_dict: dict[str, dict[str, str | list[str]]] | None = None
-        additional_messages_copy = copy.deepcopy(additional_messages)
-        (
-            changed_file,
-            commit,
-            new_file_contents
-        ) = self.handle_modify_file_main(
-            branch=branch,
-            assistant_conversation=None,
-            additional_messages=additional_messages_copy,
-            previous_modify_files_dict=previous_modify_files_dict,
-            file_change_requests=file_change_requests,
-            username=username
-        )
-        # update previous_modify_files_dict
-        if not previous_modify_files_dict:
-            previous_modify_files_dict = {}
-        if new_file_contents:
-            for file_name, file_content in new_file_contents.items():
-                previous_modify_files_dict[file_name] = copy.deepcopy(file_content)
-                # update status of corresponding fcr to be succeeded
-                for file_change_request in file_change_requests:
-                    if file_change_request.filename == file_name:
-                        file_change_request.status = "succeeded"
-        # set all fcrs without a corresponding change to be failed
-        for file_change_request in file_change_requests:
-            if file_change_request.status != "succeeded":
-                file_change_request.status = "failed"
-            # also update all commit hashes associated with the fcr
-            file_change_request.commit_hash_url = commit.html_url if commit else None
-
-        yield (
-            new_file_contents,
-            changed_file,
-            commit,
-            file_change_requests,
-        )
-
-    def handle_modify_file_main(
-        self,
-        file_change_requests: list[FileChangeRequest],
-        branch: str,
-        assistant_conversation: AssistantConversation | None = None,
-        additional_messages: list[Message] = [],
-        previous_modify_files_dict: dict[str, dict[str, str | list[str]]] = None,
-        username: str = "",
-    ): # this is enough to make changes to a branch
-        commit_message: str = None
-        try:
-            try:
-                (
-                    new_file_contents,
-                    suggested_commit_message,
-                ) = self.modify_file(
-                    file_change_requests,
-                    assistant_conversation=assistant_conversation,
-                    additional_messages=additional_messages,
-                    previous_modify_files_dict=previous_modify_files_dict,
-                )
-                commit_message = suggested_commit_message
-            except Exception as e:
-                logger.error(e)
-                raise e
-
-            # If no files were updated, log a warning and return
-            if not new_file_contents:
-                logger.warning(
-                    "No changes made to any file!"
-                )
-                return (
-                    False,
-                    None,
-                    new_file_contents
-                )
-            try:
-                new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in new_file_contents.items()}
-                previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
-                new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(self.repo, new_file_contents_to_commit, file_change_requests)
-                if files_removed and username:
-                    posthog.capture(
-                        username,
-                        "polluted_commits_error",
-                        properties={
-                            "old_keys": ",".join(previous_file_contents_to_commit.keys()),
-                            "new_keys": ",".join(new_file_contents_to_commit.keys()) 
-                        },
-                    )
-                result = commit_multi_file_changes(self.repo, new_file_contents_to_commit, commit_message, branch)
-            except AssistantRaisedException as e:
-                raise e
-            except Exception as e:
-                logger.info(f"Error in updating file, repulling and trying again {e}")
-                # file = self.get_file(file_change_request.filename, branch=branch)
-                # result = self.repo.update_file(
-                #     file_name,
-                #     commit_message,
-                #     new_file_contents,
-                #     file.sha,
-                #     branch=branch,
-                # )
-                raise e
-            return True, result, new_file_contents
-        except (MaxTokensExceeded, AssistantRaisedException) as e:
-            raise e
-        except Exception:
-            tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")
-            return False, None, {}

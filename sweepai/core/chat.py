@@ -1,9 +1,11 @@
 from math import inf
 import os
+import queue
 import re
+import threading
 import time
 import traceback
-from typing import Any, Literal
+from typing import Any, Iterator, Literal
 
 from anthropic import Anthropic, BadRequestError, AnthropicBedrock
 from openai import OpenAI
@@ -80,6 +82,13 @@ model_to_max_tokens = {
     "gpt-3.5-turbo-16k-0613": 16000,
 }
 default_temperature = 0.1
+
+def get_next_token(stream_: Iterator[str], token_queue: queue.Queue):
+    try:
+        for i, text in enumerate(stream_.text_stream):
+            token_queue.put((i, text))
+    except Exception as e_:
+        token_queue.put(e_)
 
 class MessageList(BaseModel):
     messages: list[Message] = [
@@ -403,8 +412,9 @@ class ChatGPT(MessageList):
         max_tokens: int = 4096,
         use_openai: bool = False,
         verbose: bool = True,
-        images: list[tuple[str, str, str]] | None = None
-    ):
+        images: list[tuple[str, str, str]] | None = None,
+        stream: bool = False,
+    ) -> str | Iterator[str]:
         # use openai
         if use_openai:
             OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
@@ -428,6 +438,67 @@ class ChatGPT(MessageList):
         NUM_ANTHROPIC_RETRIES = 6
         use_aws = True
         hit_content_filtering = False
+        if stream:
+            def llm_stream():
+                client = Anthropic(api_key=ANTHROPIC_API_KEY)
+                start_time = time.time()
+                message_dicts = [
+                    {
+                        "role": message.role,
+                        "content": message.content,
+                    } for message in self.messages if message.role != "system"
+                ]
+                message_dicts = sanitize_anthropic_messages(message_dicts)
+                # pylint: disable=E1129
+                with client.messages.stream(
+                    model=model,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    messages=message_dicts,
+                    system=system_message,  
+                    stop_sequences=stop_sequences,
+                    timeout=60,
+                ) as stream_:
+                    try:
+                        if verbose:
+                            print(f"Connected to {model}...")
+
+                        token_queue = queue.Queue()
+                        token_thread = threading.Thread(target=get_next_token, args=(stream_, token_queue))
+                        token_thread.daemon = True
+                        token_thread.start()
+
+                        token_timeout = 5  # Timeout threshold in seconds
+
+                        while token_thread.is_alive():
+                            try:
+                                item = token_queue.get(timeout=token_timeout)
+
+                                if item is None:
+                                    break
+
+                                i, text = item
+
+                                if verbose:
+                                    if i == 0:
+                                        print(f"Time to first token: {time.time() - start_time:.2f}s")
+                                    print(text, end="", flush=True)
+
+                                yield text
+
+                            except queue.Empty:
+                                if not token_thread.is_alive():
+                                    break
+                                raise TimeoutError(f"Time between tokens exceeded {token_timeout} seconds.")
+
+                    except TimeoutError as te:
+                        logger.exception(te)
+                        raise te
+                    except Exception as e_:
+                        logger.exception(e_)
+                        raise e_
+                return
+            return llm_stream()
         for i in range(NUM_ANTHROPIC_RETRIES):
             try:
                 @file_cache(redis=True, ignore_contents=True) # must be in the inner scope because this entire function manages state
@@ -557,3 +628,29 @@ class ChatGPT(MessageList):
         if len(self.prev_message_states) > 0:
             self.messages = self.prev_message_states.pop()
         return self.messages
+
+def call_llm(
+    system_prompt: str,
+    user_prompt: str,
+    params: dict,
+    use_anthropic: bool = True,
+    *args,
+    **kwargs,
+):
+    chat_gpt = ChatGPT.from_system_message_string(
+        prompt_string=system_prompt,
+    )
+
+    if use_anthropic:
+        return chat_gpt.chat_anthropic(
+            user_prompt.format(**params),
+            *args,
+            **kwargs,
+        )
+    else:
+        return chat_gpt.chat(
+            user_prompt.format(**params),
+            *args,
+            **kwargs,
+        )
+

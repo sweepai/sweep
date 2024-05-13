@@ -12,14 +12,14 @@ sweepai = "sweepai.cli:main"
 
 [project.urls]
 Repository = "https://github.com/sweepai/sweep"
-Community = "https://discord.gg/sweep"
+Community = "https://community.sweep.dev/"
 Documentation = "https://docs.sweep.dev"
 Homepage = "https://sweep.dev"
 "Bug Tracker" = "https://github.com/sweepai/sweep/issues"
 
 [project]
 name = "sweepai"
-version = "2.1.1"
+version = "2.1.2"
 description = "Sweep fixes GitHub issues"
 authors = [
     {name = "Kevin Lu", email = "kevin@sweep.dev"},
@@ -79,6 +79,7 @@ dependencies = [
   "scipy==1.12.0",
   "jira==3.8.0",
   "slack-sdk==3.27.1",
+  "jsonpatch==1.33",
 ]
 
 [tool.isort]

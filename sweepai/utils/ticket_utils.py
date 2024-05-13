@@ -18,7 +18,6 @@ from sweepai.core.lexical_search import (
 )
 from sweepai.core.sweep_bot import context_get_files_to_change
 from sweepai.logn.cache import file_cache
-from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.cohere_utils import cohere_rerank_call
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
@@ -34,62 +33,87 @@ files such as tests, docs and localization files. Therefore,
 we add adjustment scores to compensate for this bias.
 """
 
-prefix_adjustment = {
-    ".": 0.5,
-    "doc": 0.3,
-    "example": 0.7,
-}
-
-suffix_adjustment = {
-    ".cfg": 0.8,
-    ".ini": 0.8,
-    ".txt": 0.8,
-    ".rst": 0.8,
-    ".md": 0.8,
-    ".html": 0.8,
-    ".po": 0.5,
-    ".json": 0.8,
-    ".toml": 0.8,
-    ".yaml": 0.8,
-    ".yml": 0.8,
-    ".1": 0.5, # man pages
-    ".spec.ts": 0.6,
-    ".spec.js": 0.6,
-    ".test.ts": 0.6,
-    ".generated.ts": 0.5,
-    ".generated.graphql": 0.5,
-    ".generated.js": 0.5,
-    "ChangeLog": 0.5,
-}
-
-substring_adjustment = {
-    "tests/": 0.5,
-    "test/": 0.5,
-    "/test": 0.5,
-    "_test": 0.5,
-    "egg-info": 0.5,
-    "LICENSE": 0.5,
+adjustment_scores = {
+    "all": {
+        "prefix": {
+            ".": 0.5,
+        },
+        "suffix": {
+            ".cfg": 0.8,
+            ".ini": 0.8,
+            ".po": 0.5,
+            ".json": 0.8,
+            ".toml": 0.8,
+            ".yaml": 0.8,
+            ".yml": 0.8,
+        },
+        "substring": {
+            "egg-info": 0.5,
+        }
+    },
+    "docs": {
+        "prefix": {
+            ".": 0.5,
+            "doc": 0.3,
+            "example": 0.7,
+        },
+        "suffix": {
+            ".txt": 0.8,
+            ".rst": 0.8,
+            ".md": 0.8,
+            ".html": 0.8,
+            ".1": 0.5, # man page
+            "ChangeLog": 0.5,
+        },
+        "substring": {
+            "LICENSE": 0.5,
+        },
+    },
+    "tests": {
+        "suffix": {
+            ".spec.ts": 0.6,
+            ".spec.js": 0.6,
+            ".test.ts": 0.6,
+            ".generated.ts": 0.5,
+            ".generated.graphql": 0.5,
+            ".generated.js": 0.5,
+        },
+        "substring": {
+            "tests/": 0.5,
+            "test/": 0.5,
+            "/test": 0.5,
+            "_test": 0.5,
+        },
+    }
 }
 
 def apply_adjustment_score(
     snippet: str,
     old_score: float,
+    include_docs: bool = False,
+    include_tests: bool = False,
 ):
     snippet_score = old_score
     file_path, *_ = snippet.rsplit(":", 1)
     file_path = file_path.lower()
-    for prefix, adjustment in prefix_adjustment.items():
-        if file_path.startswith(prefix):
-            snippet_score *= adjustment
-            break
-    for suffix, adjustment in suffix_adjustment.items():
-        if file_path.endswith(suffix):
-            snippet_score *= adjustment
-            break
-    for substring, adjustment in substring_adjustment.items():
-        if substring in file_path:
-            snippet_score *= adjustment
-            break
+    adjustments_to_apply = [adjustment_scores["all"]]
+    if not include_docs:
+        adjustments_to_apply.append(adjustment_scores["docs"])
+    if not include_tests:
+        adjustments_to_apply.append(adjustment_scores["tests"])
+    for adjustment_dict in adjustments_to_apply:
+        for prefix, adjustment in adjustment_dict.get("prefix", {}).items():
+            if file_path.startswith(prefix):
+                snippet_score *= adjustment
+                break
+        for suffix, adjustment in adjustment_dict.get("suffix", {}).items():
+            if file_path.endswith(suffix):
+                snippet_score *= adjustment
+                break
+        for substring, adjustment in adjustment_dict.get("substring").items():
+            if substring in file_path:
+                snippet_score *= adjustment
+                break
     # Penalize numbers as they are usually examples of:
     # 1. Test files (e.g. test_utils_3*.py)
     # 2. Generated files (from builds or snapshot tests)
@@ -102,12 +126,16 @@ def apply_adjustment_score(
 
 NUM_SNIPPETS_TO_RERANK = 100
 
-@file_cache()
+# @file_cache()
 def multi_get_top_k_snippets(
     cloned_repo: ClonedRepo,
     queries: list[str],
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
+    include_docs: bool = False,
+    include_tests: bool = False,
+    *args,
+    **kwargs,
 ):
     """
     Handles multiple queries at once now. Makes the vector search faster.
@@ -147,7 +175,7 @@ def multi_get_top_k_snippets(
             else:
                 content_to_lexical_score_list[i][snippet.denotation] = snippet_score * vector_score
             content_to_lexical_score_list[i][snippet.denotation] = apply_adjustment_score(
-                snippet.denotation, content_to_lexical_score_list[i][snippet.denotation]
+                snippet.denotation, content_to_lexical_score_list[i][snippet.denotation], include_docs, include_tests
             )
     
     ranked_snippets_list = [
@@ -165,9 +193,11 @@ def get_top_k_snippets(
     query: str,
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
+    *args,
+    **kwargs,
 ):
     ranked_snippets_list, snippets, content_to_lexical_score_list = multi_get_top_k_snippets(
-        cloned_repo, [query], ticket_progress, k
+        cloned_repo, [query], ticket_progress, k, *args, **kwargs
     )
     return ranked_snippets_list[0], snippets, content_to_lexical_score_list[0]
 
@@ -175,6 +205,10 @@ def get_pointwise_reranked_snippet_scores(
     query: str,
     snippets: list[Snippet],
     snippet_scores: dict[str, float],
+    NUM_SNIPPETS_TO_KEEP=5,
+    NUM_SNIPPETS_TO_RERANK=100,
+    include_docs: bool = False,
+    include_tests: bool = False,
 ):
     """
     Ranks 1-5 snippets are frozen. They're just passed into Cohere since it helps with reranking. We multiply the scores by 1_000 to make them more significant.
@@ -190,22 +224,21 @@ def get_pointwise_reranked_snippet_scores(
         reverse=True,
     )
 
-    NUM_SNIPPETS_TO_KEEP = 5
-    NUM_SNIPPETS_TO_RERANK = 100
-
     response = cohere_rerank_call(
         model='rerank-english-v3.0',
         query=query,
-        documents=[snippet.xml for snippet in sorted_snippets[:NUM_SNIPPETS_TO_RERANK]],
+        documents=[f"{snippet.file_path}\n```\n{snippet.get_snippet(add_lines=False, add_ellipsis=False)}\n```" for snippet in sorted_snippets[:NUM_SNIPPETS_TO_RERANK]],
         max_chunks_per_doc=900 // NUM_SNIPPETS_TO_RERANK,
     )
 
-    new_snippet_scores = {k: v / 1000 for k, v in snippet_scores.items()}
+    new_snippet_scores = {k: v / 1_000_000 for k, v in snippet_scores.items()}
 
     for document in response.results:
         new_snippet_scores[sorted_snippets[document.index].denotation] = apply_adjustment_score(
             sorted_snippets[document.index].denotation,
             document.relevance_score,
+            include_docs=include_docs,
+            include_tests=include_tests
         )
 
     for snippet in sorted_snippets[:NUM_SNIPPETS_TO_KEEP]:
@@ -224,6 +257,10 @@ def multi_prep_snippets(
     k: int = 15,
     skip_reranking: bool = False, # This is only for pointwise reranking
     skip_pointwise_reranking: bool = False,
+    NUM_SNIPPETS_TO_KEEP=5,
+    NUM_SNIPPETS_TO_RERANK=100,
+    include_docs: bool = False,
+    include_tests: bool = False,
 ) -> RepoContextManager:
     """
     Assume 0th index is the main query.
@@ -232,7 +269,7 @@ def multi_prep_snippets(
     if len(queries) > 1:
         logger.info("Using multi query...")
         ranked_snippets_list, snippets, content_to_lexical_score_list = multi_get_top_k_snippets(
-            cloned_repo, queries, ticket_progress, k * 3 # k * 3 to have enough snippets to rerank
+            cloned_repo, queries, ticket_progress, k * 3, include_docs, include_tests # k * 3 to have enough snippets to rerank
         )
         # Use RRF to rerank snippets
         content_to_lexical_score = defaultdict(float)
@@ -241,7 +278,7 @@ def multi_prep_snippets(
                 content_to_lexical_score[snippet.denotation] += content_to_lexical_score_list[i][snippet.denotation] * (1 / 2 ** (rank_fusion_offset + j))
         if not skip_pointwise_reranking:
             content_to_lexical_score = get_pointwise_reranked_snippet_scores(
-                queries[0], snippets, content_to_lexical_score
+                queries[0], snippets, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK, include_docs, include_tests
             )
         ranked_snippets = sorted(
             snippets,
@@ -250,11 +287,11 @@ def multi_prep_snippets(
         )[:k]
     else:
         ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
-            cloned_repo, queries[0], ticket_progress, k
+            cloned_repo, queries[0], ticket_progress, k, include_docs, include_tests
         )
         if not skip_pointwise_reranking:
             content_to_lexical_score = get_pointwise_reranked_snippet_scores(
-                queries[0], snippets, content_to_lexical_score
+                queries[0], snippets, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK, include_docs, include_tests
             )
         ranked_snippets = sorted(
             snippets,
@@ -297,13 +334,15 @@ def prep_snippets(
     k: int = 15,
     skip_reranking: bool = False,
     use_multi_query: bool = True,
+    *args,
+    **kwargs,
 ) -> RepoContextManager:
     if use_multi_query:
         queries = [query, *generate_multi_queries(query)]
     else:
         queries = [query]
     return multi_prep_snippets(
-        cloned_repo, queries, ticket_progress, k, skip_reranking
+        cloned_repo, queries, ticket_progress, k, skip_reranking, *args, **kwargs
     )
 
 def get_relevant_context(
@@ -378,10 +417,8 @@ def fetch_relevant_files(
     on_ticket_start_time,
     tracking_id,
     is_paying_user,
-    is_consumer_tier,
     issue_url,
     chat_logger,
-    ticket_progress: TicketProgress,
     images = None
 ):
     logger.info("Fetching relevant files...")
@@ -391,11 +428,11 @@ def fetch_relevant_files(
         formatted_query = (f"{title.strip()}\n{summary.strip()}" + replies_text).strip(
             "\n"
         )
+        ticket_progress = None # refactor later
         repo_context_manager = prep_snippets(cloned_repo, search_query, ticket_progress)
 
         repo_context_manager, import_graph = integrate_graph_retrieval(search_query, repo_context_manager)
 
-        ticket_progress.save()
         repo_context_manager = get_relevant_context(
             formatted_query,
             repo_context_manager,
@@ -405,22 +442,11 @@ def fetch_relevant_files(
             images=images
         )
         snippets = repo_context_manager.current_top_snippets
-        ticket_progress.search_progress.final_snippets = snippets
-        ticket_progress.save()
         dir_obj = repo_context_manager.dir_obj
         tree = str(dir_obj)
     except Exception as e:
         trace = traceback.format_exc()
         logger.exception(f"{trace} (tracking ID: `{tracking_id}`)")
-        log_error(
-            is_paying_user,
-            is_consumer_tier,
-            username,
-            issue_url,
-            "File Fetch",
-            str(e) + "\n" + traceback.format_exc(),
-            priority=1,
-        )
         posthog.capture(
             username,
             "failed",
@@ -436,35 +462,6 @@ def fetch_relevant_files(
 
 SLOW_MODE = False
 SLOW_MODE = True
-
-
-def log_error(
-    is_paying_user,
-    is_trial_user,
-    username,
-    issue_url,
-    error_type,
-    exception,
-    priority=0,
-):
-    if is_paying_user or is_trial_user:
-        if priority == 1:
-            priority = 0
-        elif priority == 2:
-            priority = 1
-
-    prefix = ""
-    if is_trial_user:
-        prefix = " (TRIAL)"
-    if is_paying_user:
-        prefix = " (PRO)"
-
-    content = (
-        f"**{error_type} Error**{prefix}\n{username}:"
-        f" {issue_url}\n```{exception}```"
-    )
-    discord_log_error(content, priority=2)
-
 
 def center(text: str) -> str:
     return f"<div align='center'>{text}</div>"

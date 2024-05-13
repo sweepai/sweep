@@ -1,9 +1,7 @@
 import html
-import multiprocessing
 
 import typer
 from fastapi.testclient import TestClient
-from github import Github
 
 from sweepai.api import app
 from sweepai.utils.github_utils import get_github_client, get_installation_id, get_installation
@@ -59,9 +57,9 @@ def update_pr_review_comments(
     debug: bool = True,
 ):
     pr_url: str = pr_url or typer.prompt("PR URL")
-    print(f"Fetching issue metadata...")
+    print("Fetching issue metadata...")
     comment_requests = fetch_pr_review_request(pr_url)
-    print(f"Sending request...")
+    print("Sending request...")
 
     client = TestClient(app)
     for request in comment_requests:

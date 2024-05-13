@@ -43,6 +43,7 @@ from sweepai.config.server import (
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
 )
+from sweepai.chat.api import app as chat_app
 from sweepai.core.entities import PRChangeRequest
 from sweepai.global_threads import global_threads
 from sweepai.handlers.create_pr import (  # type: ignore
@@ -58,7 +59,6 @@ from sweepai.handlers.on_check_suite import (  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_jira_ticket import handle_jira_ticket
 from sweepai.handlers.on_ticket import on_ticket
-from sweepai.handlers.stack_pr import stack_pr
 from sweepai.utils.buttons import (
     check_button_activated,
     check_button_title_match,
@@ -82,6 +82,8 @@ from sweepai.web.events import (
 from sweepai.web.health import health_check
 
 app = FastAPI()
+
+app.mount("/chat", chat_app)
 
 events = {}
 on_ticket_events = {}
@@ -310,11 +312,6 @@ def handle_request(request_dict, event=None):
             )
         except Exception as e:
             logger.exception(f"Failed to send event to Hatchet: {e}")
-
-        # try:
-        #     worker()
-        # except Exception as e:
-        #     discord_log_error(str(e), priority=1)
         logger.info(f"Done handling {event}, {action}")
         return {"success": True}
 
@@ -467,7 +464,6 @@ def handle_event(request_dict, event):
                                     "success": False,
                                     "error_message": "The PR was created by a bot, so I won't attempt to fix it.",
                                 }
-                            tracking_id = get_hash()
                             chat_logger = ChatLogger(
                                 data={
                                     "username": attributor,
@@ -479,15 +475,15 @@ def handle_event(request_dict, event):
                                     "success": False,
                                     "error_message": "Disabled for free users",
                                 }
-                            stack_pr(
-                                request=f"[Sweep GHA Fix] The GitHub Actions run failed on {request.check_run.head_sha[:7]} ({repo.default_branch}) with the following error logs:\n\n```\n\n{logs}\n\n```",
-                                pr_number=pr.number,
-                                username=attributor,
-                                repo_full_name=repo.full_name,
-                                installation_id=request.installation.id,
-                                tracking_id=tracking_id,
-                                commit_hash=pr.head.sha,
-                            )
+                            # stack_pr(
+                            #     request=f"[Sweep GHA Fix] The GitHub Actions run failed on {request.check_run.head_sha[:7]} ({repo.default_branch}) with the following error logs:\n\n```\n\n{logs}\n\n```",
+                            #     pr_number=pr.number,
+                            #     username=attributor,
+                            #     repo_full_name=repo.full_name,
+                            #     installation_id=request.installation.id,
+                            #     tracking_id=tracking_id,
+                            #     commit_hash=pr.head.sha,
+                            # )
             case "pull_request", "opened":
                 _, g = get_github_client(request_dict["installation"]["id"])
                 repo = g.get_repo(request_dict["repository"]["full_name"])

@@ -858,6 +858,8 @@ def render_current_task(fcrs: list[FileChangeRequest]) -> str:
 
 # return replaces per fcr, -1 if there are any issues
 def get_replaces_per_fcr(fcr: FileChangeRequest) -> int:
+    if fcr.change_type == "create":
+        return 1
     original_code_pattern = r"<original_code>(.*?)</original_code>"
     new_code_pattern = r"<new_code>(.*?)</new_code>"
     original_code_matches = list(re.finditer(original_code_pattern, fcr.instructions, re.DOTALL))
@@ -976,9 +978,8 @@ def validate_indents(original_code, new_code, file_contents, correct_indent, rst
         original_code_lines = [line.rstrip() for line in original_code.split("\n")]
     else:
         original_code_lines = original_code.split("\n")
-    if len(original_code_lines) > 1:
+    if len(original_code_lines) > 1 and (best_span := contains_ignoring_whitespace(original_code, file_contents)):
         """This will match the whitespace from the code file itself"""
-        best_span = contains_ignoring_whitespace(original_code, file_contents)
         start_line, end_line = best_span
         original_code = "\n".join(file_contents.split("\n")[start_line:end_line])
     else:
@@ -1071,7 +1072,6 @@ def handle_function_call(
     chat_logger_messages: list[dict[str, str]] | None = None,
     use_openai: bool = False,
 ):
-    # iterate through modify_files_dict and generate diffs
     llm_response = ""
     tool_name = function_call.function_name
     tool_call = function_call.function_parameters
@@ -1095,7 +1095,7 @@ def handle_function_call(
                     if not os.path.exists(os.path.join(cloned_repo.repo_dir, file_name)) and file_name not in modify_files_dict:
                         error_message += f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!\n"
                         break
-                llm_state['initial_check_results'][file_name] = get_check_results(file_name, get_latest_contents(file_name, cloned_repo, modify_files_dict))
+                llm_state['initial_check_results'][file_name] = get_check_results(file_name, get_latest_contents(file_name, cloned_repo, modify_files_dict)) # TODO: consider not overriding this when we see the same file twice
                 original_code = tool_call["original_code"].strip("\n")
                 new_code = tool_call["new_code"].strip("\n")
                 if tool_call.get("append", "false").strip() == "true":
@@ -1301,7 +1301,7 @@ def handle_function_call(
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_response, llm_state = finish_applying_changes(modify_files_dict, llm_state, current_fcr_index)
     elif tool_name == "create_file":
-        handle_create_file(cloned_repo, modify_files_dict, tool_name, tool_call)
+        llm_response, modify_files_dict = handle_create_file(cloned_repo, modify_files_dict, tool_name, tool_call)
     else:
         llm_response = f"ERROR\nUnexpected tool name: {tool_name}"
     return llm_response, modify_files_dict, llm_state
