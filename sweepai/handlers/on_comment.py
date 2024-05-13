@@ -367,7 +367,7 @@ def on_comment(
 
             sweep_bot.comment_pr_diff_str = pr_diff_string
             sweep_bot.comment_pr_files_modified = pr_files_modified
-            modify_files_dict, changes_made, _, file_change_requests = handle_file_change_requests(
+            modify_files_dict, changes_made, file_change_requests = handle_file_change_requests(
                 file_change_requests=file_change_requests,
                 request=file_comment,
                 branch_name=branch_name,
