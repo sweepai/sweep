@@ -126,6 +126,7 @@ def apply_adjustment_score(
     return snippet_score
 
 NUM_SNIPPETS_TO_RERANK = 100
+VECTOR_SEARCH_WEIGHT = 1.5
 
 # @file_cache()
 def multi_get_top_k_snippets(
@@ -158,8 +159,6 @@ def multi_get_top_k_snippets(
 
     for snippet in snippets:
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
-    # We can mget the lexical search scores for all queries at once
-    # But it's not that slow anyways
     content_to_lexical_score_list = [search_index(query, lexical_index) for query in queries]
     files_to_scores_list = compute_vector_search_scores(queries, snippets)
 
@@ -168,10 +167,11 @@ def multi_get_top_k_snippets(
             vector_score = files_to_scores_list[i].get(snippet.denotation, 0.04)
             snippet_score = 0.02
             if snippet.denotation in content_to_lexical_score_list[i]:
-                # roughly fine tuned vector score weight based on average score from search_eval.py on 10 test cases Feb. 13, 2024
-                snippet_score = content_to_lexical_score_list[i][snippet.denotation] + (
-                    vector_score * 3.5
-                )
+                # roughly fine tuned vector score weight based on average score
+                # from search_eval.py on 50 test cases May 13th, 2024 on an internal benchmark
+                snippet_score = (content_to_lexical_score_list[i][snippet.denotation] + (
+                    vector_score * VECTOR_SEARCH_WEIGHT
+                )) / (VECTOR_SEARCH_WEIGHT + 1)
                 content_to_lexical_score_list[i][snippet.denotation] = snippet_score
             else:
                 content_to_lexical_score_list[i][snippet.denotation] = snippet_score * vector_score
@@ -280,8 +280,8 @@ def multi_prep_snippets(
     """
     Assume 0th index is the main query.
     """
-    rank_fusion_offset = 0
     if len(queries) > 1:
+        rank_fusion_offset = 0
         logger.info("Using multi query...")
         ranked_snippets_list, snippets, content_to_lexical_score_list = multi_get_top_k_snippets(
             cloned_repo, queries, ticket_progress, k * 3, include_docs, include_tests # k * 3 to have enough snippets to rerank
