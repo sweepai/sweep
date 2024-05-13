@@ -465,7 +465,6 @@ def get_files_to_change(
             model=ISSUE_EXCERPT_MODEL,
             temperature=0.1,
             images=images,
-            use_openai=True,
         )
         issue_excerpt_pattern = re.compile(r"<issue_excerpts>(.*?)</issue_excerpts>", re.DOTALL)
         issue_excerpt_match = issue_excerpt_pattern.search(issue_excerpt_response)
@@ -473,7 +472,6 @@ def get_files_to_change(
             raise Exception("Failed to match issue excerpts")
         issue_excerpts = issue_excerpt_match.group(1)
         issue_excerpts = issue_excerpts.strip("\n")
-        # breakpoint()
         MODEL="gpt-4o"
         files_to_change_response: str = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + (files_to_change_prompt.format(issue_excerpts=issue_excerpts)),
@@ -482,6 +480,7 @@ def get_files_to_change(
             use_openai=True,
             # images=images,
         )
+        # breakpoint()
         expected_plan_count = 1
         calls = 0
         # pylint: disable=E1101
@@ -495,6 +494,7 @@ def get_files_to_change(
                     use_openai=True
                     # images=images,
                 )
+                breakpoint()
                 # we can simply concatenate the responses
                 files_to_change_response += next_response
             except Exception as e:

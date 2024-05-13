@@ -604,8 +604,13 @@ def find_best_matches(
     file_contents_lines = haystack.split("\n")
     num_lines = len(file_contents_lines)
     num_non_whitespace_chars = sum(not char.isspace() for char in needle)
-    max_char_diff = 300
+    max_char_diff = max(100, int(num_non_whitespace_chars * 0.03))
+    tokenized_needle = tokenize_code(needle)
+
     for start_line in tqdm(range(num_lines), total=num_lines) if verbose else range(num_lines):
+        # if time.time() - absolute_start > 5:
+        #     breakpoint()
+        #     raise Exception("Took too long to find best matches")
         potential_choices = []
         end_lines = []
         end_line = start_line
@@ -616,8 +621,19 @@ def find_best_matches(
             num_chars += sum(not char.isspace() for char in file_contents_lines[end_line])
             end_line += 1
             if num_chars > num_non_whitespace_chars - max_char_diff:
-                potential_choices.append(current_string.rstrip('\n'))
+                if not potential_choices and needle.count("\n") > 30:
+                    ratio = fuzz.QRatio(
+                        tokenized_needle,
+                        tokenize_code(current_string),
+                        score_cutoff=40
+                    )
+                    if ratio == 0:
+                        break
+                potential_choices.append(current_string)
                 end_lines.append(end_line)
+        
+        if not potential_choices:
+            continue
 
         # This can deadlock somehow
         results = process.extract(
@@ -641,7 +657,7 @@ def find_best_matches(
         if set(range(start_line, end_line)) & covered_spans:
             continue
         covered_spans |= set(range(start_line, end_line))
-        deduped_best_matches.append((match, score))
+        deduped_best_matches.append((match.strip("\n"), score))
     return deduped_best_matches[:num_matches]
 
 def find_best_match(*args, **kwargs):
@@ -1075,7 +1091,7 @@ def handle_function_call(
     llm_response = ""
     tool_name = function_call.function_name
     tool_call = function_call.function_parameters
-    if tool_name == "submit_task":
+    if tool_name == "submit_task" or tool_name == "submit_result":
         llm_response, llm_state = handle_submit_task(modify_files_dict, llm_state)
     elif tool_name == "no_tool_call":
         if use_openai:
