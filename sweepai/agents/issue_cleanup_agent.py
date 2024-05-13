@@ -33,6 +33,7 @@ class IssueCleanupBot(ChatGPT):
                 issue_description=issue_description.strip("\n"),
             ),
             temperature=0.2,
+            model="gpt-4o"
         )
         issue_desc_matches = re.search(new_issue_desc_pattern, issue_desc_response, re.DOTALL)
         if not issue_desc_matches or not issue_desc_matches.group(1).strip():
