@@ -387,13 +387,9 @@ class ChatGPT(MessageList):
                                 "issue_url": self.chat_logger.data.get("issue_url"),
                             },
                         )
-                    except SystemExit:
-                        raise SystemExit
                     except Exception as e2:
                         logger.warning(e2)
                 return output
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 logger.warning(f"{e}\n{traceback.format_exc()}")
                 raise e
@@ -530,13 +526,23 @@ class ChatGPT(MessageList):
                         else:
                             parea_client.wrap_anthropic_client(client)
                     if use_openai:
+                        print("Starting OpenAI stream")
                         response = client.chat.completions.create(
                             model=model,
                             messages=self.messages_dicts,
                             max_tokens=max_tokens,
                             temperature=temperature,
                             stop=stop_sequences,
-                        ).choices[0].message.content
+                            stream=True,
+                        )
+                        text = ""
+                        for chunk in response:
+                            new_content = chunk.choices[0].delta.content
+                            text += new_content if new_content else ""
+                            if new_content:
+                                print(new_content, end="", flush=True)
+                        print() # clear the line
+                        return text
                     else:
                         if ANTHROPIC_AVAILABLE and use_aws: # streaming doesn't work with AWS
                             response = client.messages.create(
