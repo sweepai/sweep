@@ -3,6 +3,8 @@ Take a PR and provide an AI generated review of the PR.
 """
 from dataclasses import dataclass
 import re
+
+from tqdm import tqdm
 from sweepai.core.chat import ChatGPT
 from sweepai.core.review_annotations import get_diff_annotations
 from sweepai.core.sweep_bot import safe_decode
@@ -64,7 +66,7 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> list[PRChange]:
     file_diffs = comparison.files
 
     pr_diffs = []
-    for file in file_diffs:
+    for file in tqdm(file_diffs, desc="Annotating diffs"):
         file_name = file.filename
         diff = file.patch
         # we can later migrate this to use a cloned repo and fetch off of two hashes
@@ -132,25 +134,26 @@ patch_format = """\
 {annotation}
 </patch_annotation>"""
 
-def format_pr_change(pr_change: PRChange, idx: int=0):
+def format_pr_change(pr_change: PRChange, pr_idx: int=0):
     patches = ""
     for idx, patch in enumerate(pr_change.patches):
         patches += "\n" + patch_format.format(
             file_name=pr_change.file_name,
-            index=idx,
+            index=idx + 1,
             diff=patch.changes,
             annotation=pr_change.annotations[idx]
         )
     return pr_change_unformatted.format(
-        idx=idx,
+        idx=pr_idx + 1,
         patches=patches,
         file_contents=pr_change.new_code
     )
 
 def format_pr_changes(pr_changes: list[PRChange]):
-    formatted_pr_changes = pr_changes_prefix
+    formatted_pr_changes = ""
     for idx, pr_change in enumerate(pr_changes):
         formatted_pr_changes += format_pr_change(pr_change, idx)
+    breakpoint()
     return formatted_pr_changes
 
 system_prompt = """You are a careful and smart tech lead that wants to avoid production issues. You will be analyzing a set of diffs representing a pull request made to a piece of source code. Be very concise."""
@@ -200,12 +203,8 @@ class CodeReview:
     issues: str
 
 class PRReviewBot(ChatGPT):
-    def review_code_changes(self, pr_changes: list[PRChange]):
+    def review_code_changes(self, formatted_user_prompt: str):
         self.messages = []
-        formatted_user_prompt = user_prompt.format(
-            diff="\n".join([change.diff for change in pr_changes]),
-            new_code="\n".join([change.new_code for change in pr_changes]),
-        )
         code_review_response = self.chat_anthropic(
             content=formatted_user_prompt,
             temperature=0.2,
