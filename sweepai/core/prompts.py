@@ -509,13 +509,14 @@ file_path_2
 ...
 </relevant_files>
 
-4b. List all relevant read-only files from the provided set given the two approaches.
+4b. List all relevant read-only files from the provided set given the two approaches. Only include files that are CRUCIAL to reference while making changes in other files.
 
 - These files must be formatted in <read_only_files> tags like so:
 <read_only_files>
 file_path_1
 file_path_2
 ...
+[additional files as needed, 1-5 files]
 </read_only_files>
 
 Generate two different plans to address the user issue. The best plan will be chosen later."""
