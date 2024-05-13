@@ -165,7 +165,24 @@ Sign up for an Ngrok account and install the CLI from https://dashboard.ngrok.co
 Forwarding  https://4d8d8bf053be.ngrok.app -> http://localhost:8080
 ```
 
-Then proceed with step 4.
+#### 5. Update the GitHub Webhook URL
+
+Copy the forwarding URL from the ngrok output in step 4, for example:
+```
+https://4d8d8bf053be.ngrok.app
+```
+
+Go to your GitHub app and update the `Webhook URL` to the ngrok forwarding URL.
+
+For user accounts:
+```txt /GITHUB_BOT_USERNAME/
+https://github.com/settings/apps/GITHUB_BOT_USERNAME
+```
+
+For organizations:
+```txt /GITHUB_BOT_USERNAME/, /YOUR_ORGANIZATION/
+https://github.com/YOUR_ORGANIZATION/sweepai/settings/apps/GITHUB_BOT_USERNAME
+```
 </Tabs.Tab>
 </Tabs>
 </Steps>
