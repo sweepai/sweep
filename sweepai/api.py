@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import ctypes
-import json
 import threading
 import time
 from typing import Any, Optional
 
-import requests
 from fastapi import (
     Body,
     FastAPI,
@@ -34,7 +32,6 @@ from sweepai.config.client import (
 from sweepai.config.server import (
     BLACKLISTED_USERS,
     DISABLED_REPOS,
-    DISCORD_FEEDBACK_WEBHOOK_URL,
     ENV,
     GHA_AUTOFIX_ENABLED,
     GITHUB_BOT_USERNAME,
@@ -894,16 +891,6 @@ def handle_event(request_dict, event):
                     request.pull_request.user.login == GITHUB_BOT_USERNAME
                     and not request.sender.login.endswith("[bot]")
                 ):
-                    good_button = check_button_activated(
-                        SWEEP_GOOD_FEEDBACK,
-                        request.pull_request.body,
-                        request.changes,
-                    )
-                    bad_button = check_button_activated(
-                        SWEEP_BAD_FEEDBACK,
-                        request.pull_request.body,
-                        request.changes,
-                    )
                     try:
                         _, g = get_github_client(request.installation.id)
                         repo = g.get_repo(request.repository.full_name)
