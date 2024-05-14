@@ -218,4 +218,4 @@ eval/**/*.ipynb
 eval/**/*.json
 # be cautious that txt files are now ignored
 **.txt
-!sweep_chat/.env
+sweep_chat/.env
