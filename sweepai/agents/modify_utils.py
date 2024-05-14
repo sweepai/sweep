@@ -53,13 +53,13 @@ Explain why creating this new file is necessary to complete the task and how it 
 </justification>
 </create_file>
 
-# submit_result - Indicate that the task is complete and all requirements have been met. Provide the final code changes or solution.
+# submit_task - Indicate that the task is complete and all requirements have been met. Provide the final code changes or solution.
 To call this tool you must respond in the following xml format:
-<submit_result>
+<submit_task>
 <justification>
 Summarize the code changes made and explain how they fulfill the user's original request. Provide the complete, modified code if applicable.
 </justification>
-</submit_result>"""
+</submit_task>"""
 
 modify_tools = """<tool_description>
 <tool_name>make_change</tool_name>
