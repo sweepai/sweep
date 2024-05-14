@@ -87,7 +87,6 @@ def handle_file_change_requests(
             return (
                 modify_files_dict,
                 False,
-                None,
                 file_change_requests,
             )
         
