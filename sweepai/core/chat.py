@@ -55,6 +55,7 @@ OpenAIModel = (
     | Literal["gpt-4-0125-preview"]
     | Literal["gpt-4-turbo-2024-04-09"]
     | Literal["gpt-4-turbo"]
+    | Literal["gpt-4o"]
 )
 
 AnthropicModel = (
@@ -71,6 +72,7 @@ model_to_max_tokens = {
     "gpt-4-1106-preview": 128000,
     "gpt-4-0125-preview": 128000,
     "gpt-4-turbo-2024-04-09": 128000,
+    "gpt-4o": 128000,
     "claude-v1": 9000,
     "claude-v1.3-100k": 100000,
     "claude-instant-v1.3-100k": 100000,
@@ -419,7 +421,7 @@ class ChatGPT(MessageList):
         if use_openai:
             OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
             assert OPENAI_API_KEY
-            self.model = 'gpt-4-turbo'
+            self.model = 'gpt-4o'
         else:
             ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
             assert ANTHROPIC_API_KEY
@@ -439,7 +441,7 @@ class ChatGPT(MessageList):
         use_aws = True
         hit_content_filtering = False
         if stream:
-            def llm_stream():
+            def llm_stream_anthropic():
                 client = Anthropic(api_key=ANTHROPIC_API_KEY)
                 start_time = time.time()
                 message_dicts = [
@@ -498,7 +500,65 @@ class ChatGPT(MessageList):
                         logger.exception(e_)
                         raise e_
                 return
-            return llm_stream()
+            def llm_stream_openai():
+                client = OpenAI(api_key=OPENAI_API_KEY)
+                def get_next_token_openai(stream_: Iterator[str], token_queue: queue.Queue):
+                    try:
+                        for i, chunk in enumerate(stream_):
+                            text = chunk.choices[0].delta.content
+                            text = text if text else ""
+                            token_queue.put((i, text))
+                    except Exception as e_:
+                        token_queue.put(e_)
+
+                start_time = time.time()
+                with client.chat.completions.create(
+                    model=model,
+                    messages=self.messages_dicts,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    stop=stop_sequences,
+                    stream=True,
+                ) as stream_:
+                    try:
+                        if verbose:
+                            print(f"Connected to {model}...")
+
+                        token_queue = queue.Queue()
+                        token_thread = threading.Thread(target=get_next_token_openai, args=(stream_, token_queue))
+                        token_thread.daemon = True
+                        token_thread.start()
+
+                        token_timeout = 5  # Timeout threshold in seconds
+
+                        while token_thread.is_alive():
+                            try:
+                                item = token_queue.get(timeout=token_timeout)
+
+                                if item is None:
+                                    break
+
+                                i, text = item
+
+                                if verbose:
+                                    if i == 0:
+                                        print(f"Time to first token: {time.time() - start_time:.2f}s")
+                                    print(text, end="", flush=True)
+
+                                yield text
+
+                            except queue.Empty:
+                                if not token_thread.is_alive():
+                                    break
+                                raise TimeoutError(f"Time between tokens exceeded {token_timeout} seconds.")
+
+                    except TimeoutError as te:
+                        logger.exception(te)
+                        raise te
+                    except Exception as e_:
+                        logger.exception(e_)
+                        raise e_
+            return llm_stream_anthropic() if not use_openai else llm_stream_openai()
         for i in range(NUM_ANTHROPIC_RETRIES):
             try:
                 @file_cache(redis=True, ignore_contents=True) # must be in the inner scope because this entire function manages state
