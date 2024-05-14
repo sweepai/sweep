@@ -412,7 +412,8 @@ class ChatGPT(MessageList):
         images: list[tuple[str, str, str]] | None = None,
         stream: bool = False,
     ) -> str | Iterator[str]:
-        # use openai
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            use_openai = True
         if use_openai:
             OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
             assert OPENAI_API_KEY

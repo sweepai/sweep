@@ -476,12 +476,10 @@ def get_files_to_change(
             raise Exception("Failed to match issue excerpts")
         issue_excerpts = issue_excerpt_match.group(1)
         issue_excerpts = issue_excerpts.strip("\n")
-        MODEL="gpt-4o"
         files_to_change_response: str = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + (files_to_change_prompt.format(issue_excerpts=issue_excerpts)),
             model=MODEL,
             temperature=0.1,
-            use_openai=True,
             # images=images,
         )
         # breakpoint()
@@ -495,7 +493,6 @@ def get_files_to_change(
                     content="Continue generating, making sure to finish the plan coherently. You may be in the middle of an XML block or section of code.",
                     model=MODEL,
                     temperature=0.1,
-                    use_openai=True,
                     # images=images,
                 )
                 # we can simply concatenate the responses
@@ -525,8 +522,9 @@ def get_files_to_change(
             file_change_request.raw_relevant_files = " ".join(relevant_modules)
             file_change_requests.append(file_change_request)
         
-        # breakpoint()
         error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
+        # print(error_message)
+        # breakpoint()
 
         for _ in range(3):
             if not error_message:
@@ -537,10 +535,8 @@ def get_files_to_change(
                     allowed_indices=english_join([str(index) for index in range(len(error_indices))]),
                 ),
                 model=MODEL,
-                # model="claude-3-opus-20240229",
                 temperature=0.1,
-                images=images,
-                use_openai=True,
+                # images=images,
             )
             drops, matches = parse_patch_fcrs(fix_attempt)
             for index, new_fcr in matches:
@@ -556,7 +552,7 @@ def get_files_to_change(
             logger.debug("Old indices", error_indices)
             error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
             logger.debug("New indices", error_indices)
-        # breakpoint()
+            # breakpoint()
 
         validate_file_change_requests(file_change_requests, cloned_repo)
         return file_change_requests, files_to_change_response
