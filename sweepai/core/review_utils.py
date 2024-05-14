@@ -12,6 +12,7 @@ from sweepai.core.sweep_bot import safe_decode
 from sweepai.logn.cache import file_cache
 from sweepai.utils.event_logger import logger
 from sweepai.utils.chat_logger import ChatLogger
+from github.GithubException import GithubException
 from github.Repository import Repository
 from github.PullRequest import PullRequest
 
@@ -75,7 +76,13 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> list[PRChange]:
         diff = file.patch
         # we can later migrate this to use a cloned repo and fetch off of two hashes
         previous_filename = file.previous_filename or file.filename
-        old_code = safe_decode(repo=repo, path=previous_filename, ref=base_sha)
+        if file.status == "added":
+            old_code = ""
+        else:
+            try:
+                old_code = safe_decode(repo=repo, path=previous_filename, ref=base_sha)
+            except GithubException:
+                old_code = ""
         if file.status == "removed":
             new_code = ""
         else:
