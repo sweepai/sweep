@@ -513,17 +513,21 @@ def handle_event(request_dict, event):
                             #     commit_hash=pr.head.sha,
                             # )
             case "pull_request", "opened":
-                pr_request = PRRequest(**request_dict)
-                _, g = get_github_client(request_dict["installation"]["id"])
-                repo = g.get_repo(request_dict["repository"]["full_name"])
-                pr = repo.get_pull(request_dict["pull_request"]["number"])
-                # run pr review
-                call_review_pr(
-                    username=pr.user.login,
-                    pr=pr,
-                    repository=repo,
-                    installation_id=pr_request.installation.id,
-                )
+                try:
+                    pr_request = PRRequest(**request_dict)
+                    _, g = get_github_client(request_dict["installation"]["id"])
+                    repo = g.get_repo(request_dict["repository"]["full_name"])
+                    pr = repo.get_pull(request_dict["pull_request"]["number"])
+                    # run pr review
+                    call_review_pr(
+                        username=pr.user.login,
+                        pr=pr,
+                        repository=repo,
+                        installation_id=pr_request.installation.id,
+                    )
+                except Exception as e:
+                    logger.exception(f"Failed to review PR: {e}")
+                    raise e
             case "issues", "opened":
                 request = IssueRequest(**request_dict)
                 issue_title_lower = request.issue.title.lower()
@@ -889,7 +893,6 @@ def handle_event(request_dict, event):
                 if (
                     request.pull_request.user.login == GITHUB_BOT_USERNAME
                     and not request.sender.login.endswith("[bot]")
-                    and DISCORD_FEEDBACK_WEBHOOK_URL is not None
                 ):
                     good_button = check_button_activated(
                         SWEEP_GOOD_FEEDBACK,
@@ -901,88 +904,20 @@ def handle_event(request_dict, event):
                         request.pull_request.body,
                         request.changes,
                     )
-
-                    if good_button or bad_button:
-                        emoji = "😕"
-                        if good_button:
-                            emoji = "👍"
-                        elif bad_button:
-                            emoji = "👎"
-                        data = {
-                            "content": f"{emoji} {request.pull_request.html_url} ({request.sender.login})\n{request.pull_request.commits} commits, {request.pull_request.changed_files} files: +{request.pull_request.additions}, -{request.pull_request.deletions}"
-                        }
-                        headers = {"Content-Type": "application/json"}
-                        requests.post(
-                            DISCORD_FEEDBACK_WEBHOOK_URL,
-                            data=json.dumps(data),
-                            headers=headers,
+                    try:
+                        _, g = get_github_client(request.installation.id)
+                        repo = g.get_repo(request.repository.full_name)
+                        pr = repo.get_pull(request.pull_request.number)
+                        # run pr review
+                        call_review_pr(
+                            username=pr.user.login,
+                            pr=pr,
+                            repository=repo,
+                            installation_id=request.installation.id,
                         )
-
-                        # Send feedback to PostHog
-                        posthog.capture(
-                            request.sender.login,
-                            "feedback",
-                            properties={
-                                "repo_name": request.repository.full_name,
-                                "pr_url": request.pull_request.html_url,
-                                "pr_commits": request.pull_request.commits,
-                                "pr_additions": request.pull_request.additions,
-                                "pr_deletions": request.pull_request.deletions,
-                                "pr_changed_files": request.pull_request.changed_files,
-                                "username": request.sender.login,
-                                "good_button": good_button,
-                                "bad_button": bad_button,
-                            },
-                        )
-
-                        def remove_buttons_from_description(body):
-                            """
-                            Replace:
-                            ### PR Feedback...
-                            ...
-                            # (until it hits the next #)
-
-                            with
-                            ### PR Feedback: {emoji}
-                            #
-                            """
-                            lines = body.split("\n")
-                            if not lines[0].startswith("### PR Feedback"):
-                                return None
-                            # Find when the second # occurs
-                            i = 0
-                            for i, line in enumerate(lines):
-                                if line.startswith("#") and i > 0:
-                                    break
-
-                            return "\n".join(
-                                [
-                                    f"### PR Feedback: {emoji}",
-                                    *lines[i:],
-                                ]
-                            )
-
-                        # Update PR description to remove buttons
-                        try:
-                            _, g = get_github_client(request.installation.id)
-                            repo = g.get_repo(request.repository.full_name)
-                            pr = repo.get_pull(request.pull_request.number)
-                            new_body = remove_buttons_from_description(
-                                request.pull_request.body
-                            )
-                            if new_body is not None:
-                                pr.edit(body=new_body)
-                            # run pr review
-                            call_review_pr(
-                                username=pr.user.login,
-                                pr=pr,
-                                repository=repo,
-                                installation_id=request.installation.id,
-                            )
-                        except SystemExit:
-                            raise SystemExit
-                        except Exception as e:
-                            logger.exception(f"Failed to edit PR description: {e}")
+                    except Exception as e:
+                        logger.exception(f"Failed to review PR: {e}")
+                        raise e
             case "pull_request", "closed":
                 pr_request = PRRequest(**request_dict)
                 (

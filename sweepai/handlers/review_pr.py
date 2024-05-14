@@ -60,7 +60,7 @@ def review_pr(username: str, pr: PullRequest, repository: Repository, installati
         except Exception as e:
             posthog.capture(
                 username,
-                "review_pr_failed",
+                "review_pr failed",
                 properties={
                     **posthog_metadata,
                     "error": str(e),
@@ -71,7 +71,7 @@ def review_pr(username: str, pr: PullRequest, repository: Repository, installati
             raise e
         posthog.capture(
             username,
-            "success",
+            "review_pr success",
             properties={**posthog_metadata, "duration": round(time() - review_pr_start_time)},
         )
         logger.info("review_pr success in " + str(round(time() - review_pr_start_time)))
