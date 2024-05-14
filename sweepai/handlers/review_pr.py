@@ -51,12 +51,12 @@ def review_pr(username: str, pr: PullRequest, repository: Repository, installati
                 )
                 return {"success": False, "reason": "PR is closed"}
             # handle creating comments on the pr to tell the user we are going to begin reviewing the pr
-            comment_id = create_update_review_pr_comment(pr)
+            _comment_id = create_update_review_pr_comment(pr)
             pr_changes = get_pr_changes(repository, pr)
             logger.info(f"Fetched pr changes for {pr}.")
             formatted_pr_changes_by_file = format_pr_changes_by_file(pr_changes)
             code_review_by_file = review_bot.review_code_changes_by_file(formatted_pr_changes_by_file, chat_logger=chat_logger)
-            comment_id = create_update_review_pr_comment(pr, code_review_by_file=code_review_by_file)
+            _comment_id = create_update_review_pr_comment(pr, code_review_by_file=code_review_by_file)
         except Exception as e:
             posthog.capture(
                 username,

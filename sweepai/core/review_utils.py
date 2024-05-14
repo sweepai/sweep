@@ -252,6 +252,6 @@ class PRReviewBot(ChatGPT):
                     {
                         "model": self.model,
                         "messages": [{"role": message.role, "content": message.content} for message in self.messages],
-                        "output": f"END OF MESSAGES",
+                        "output": "END OF MESSAGES",
                     })
         return code_reviews_by_file

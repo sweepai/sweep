@@ -642,7 +642,7 @@ def render_pr_review_by_file(pr: PullRequest, code_review_by_file: dict[str, Cod
         if potential_issues:
             reviewed_files += f"<p><strong>Potential Issues</strong></p><ul>{potential_issues}</ul></details><hr>"
         else:
-            reviewed_files += f"<p><strong>No issues found with the reviewed changes</strong></p></details><hr>"
+            reviewed_files += "<p><strong>No issues found with the reviewed changes</strong></p></details><hr>"
     dropdown_section = dropdown_section.format(reviewed_files=reviewed_files)
     return body + dropdown_section
 
