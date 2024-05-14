@@ -20,7 +20,6 @@ def modify(
     previous_modify_files_dict: dict[str, dict[str, str]] = {},
 ) -> dict[str, dict[str, str]]:
     # join fcr in case of duplicates
-    use_openai = True
     if not fcrs:
         return previous_modify_files_dict
     user_message = create_user_message(
