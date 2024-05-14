@@ -1,10 +1,14 @@
+import hashlib
+import hmac
 import html
+import json
 import multiprocessing
 
 import typer
 from fastapi.testclient import TestClient
 
 from sweepai.api import app
+from sweepai.config.server import WEBHOOK_SECRET
 from sweepai.web.event_utils import fetch_issue_request
 
 
@@ -40,10 +44,20 @@ def test_issue_url(
     )
     print("Sending request...")
 
+    sha = hmac.new(
+        WEBHOOK_SECRET.encode("utf-8"),
+        msg=json.dumps(issue_request.model_dump()).encode("utf-8"),
+        digestmod=hashlib.sha256,
+    ).hexdigest()
     if debug:
         client = TestClient(app)
         response = client.post(
-            "/", json=issue_request.dict(), headers={"X-GitHub-Event": "issues"}
+            "/", 
+            json=issue_request.dict(),
+            headers={
+                "X-GitHub-Event": "issues",
+                "X-Hub-Signature-256": f"sha256={sha}"
+            }
         )
         print(response)
     else:

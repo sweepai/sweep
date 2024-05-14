@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ctypes
+import json
 import os
 import threading
 import time
@@ -63,6 +64,7 @@ from sweepai.utils.buttons import (
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import logger, posthog
 from sweepai.utils.github_utils import CURRENT_USERNAME, get_github_client
+from sweepai.utils.hash import verify_signature
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 from sweepai.utils.str_utils import BOT_SUFFIX, get_hash
@@ -344,10 +346,17 @@ def handle_request(request_dict, event=None):
 def webhook(
     request_dict: dict = Body(...),
     x_github_event: Optional[str] = Header(None, alias="X-GitHub-Event"),
+    x_hub_signature: Optional[str] = Header(None, alias="X-Hub-Signature-256"),
 ):
-    """Handle a webhook request from GitHub."""
+    """Handle a webhook request from GitHub"""
+    if not verify_signature(
+        payload_body=json.dumps(request_dict),
+        signature_header=x_hub_signature
+    ):
+        raise HTTPException(status_code=403, detail="Request signatures didn't match!")
     with logger.contextualize(tracking_id="main", env=ENV):
         action = request_dict.get("action", None)
+
         logger.info(f"Received event: {x_github_event}, {action}")
         return handle_request(request_dict, event=x_github_event)
 
