@@ -5,12 +5,13 @@ from dotenv import load_dotenv
 from github import Github
 from loguru import logger
 
-from sweepai.core.review_utils import PRReviewBot, format_pr_changes, get_pr_changes
+from sweepai.core.review_utils import PRReviewBot, format_pr_changes_by_file, get_pr_changes
+from sweepai.utils.chat_logger import ChatLogger
 
 load_dotenv(dotenv_path=".env", override=True, verbose=True)
 
 # Create a GitHub instance using your access token or username and password
-url = "https://github.com/sweepai/sweep/pull/3654"
+url = "https://github.com/poulh/legacyCodeConverter/pull/2"
 
 # Specify the repository and pull request number
 repo_name = url.split("https://github.com/")[-1].split("/pull")[0]
@@ -28,12 +29,12 @@ def temp_pr_changes(url):
     return pr_changes
 
 pr_changes = temp_pr_changes(url)
-
-formatted_pr_changes = format_pr_changes(pr_changes)
-print(formatted_pr_changes)
 breakpoint()
-exit()
-
-code_review = PRReviewBot().review_code_changes(pr_changes)
-logger.info("Code review summary:" + code_review.diff_summary)
-logger.info("Code review issues:" + code_review.issues)
+formatted_pr_changes_by_file = format_pr_changes_by_file(pr_changes)
+breakpoint()
+# breakpoint()
+# exit()
+chat_logger=ChatLogger({"username": "Code Review","title": "Code Review Test",})
+review_bot = PRReviewBot()
+code_review_by_file = review_bot.review_code_changes_by_file(formatted_pr_changes_by_file, chat_logger=chat_logger)
+breakpoint()

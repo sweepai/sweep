@@ -46,6 +46,7 @@ from sweepai.config.server import (
 from sweepai.chat.api import app as chat_app
 from sweepai.core.entities import PRChangeRequest
 from sweepai.global_threads import global_threads
+from sweepai.handlers.review_pr import review_pr
 from sweepai.handlers.create_pr import (  # type: ignore
     add_config_to_top_repos,
     create_gha_pr,
@@ -87,6 +88,7 @@ app.mount("/chat", chat_app)
 
 events = {}
 on_ticket_events = {}
+review_pr_events = {}
 
 security = HTTPBearer()
 
@@ -134,6 +136,15 @@ def run_on_comment(*args, **kwargs):
         tracking_id=tracking_id,
     ):
         on_comment(*args, **kwargs, tracking_id=tracking_id)
+
+def run_review_pr(*args, **kwargs):
+    tracking_id = get_hash()
+    with logger.contextualize(
+        **kwargs,
+        name="review_" + kwargs["username"],
+        tracking_id=tracking_id,
+    ):
+        review_pr(*args, **kwargs, tracking_id=tracking_id)
 
 
 def run_on_button_click(*args, **kwargs):
@@ -232,6 +243,23 @@ def call_on_comment(
         thread = threading.Thread(target=worker, name=key)
         thread.start()
         global_threads.append(thread)
+
+# add a review by sweep on the pr
+def call_review_pr(*args, **kwargs):
+    global review_pr_events
+    key = f"{kwargs['repository'].full_name}-{kwargs['pr'].number}"  # Full name, issue number as key
+
+    # Use multithreading
+    # Check if a previous process exists for the same key, cancel it
+    e = review_pr_events.get(key, None)
+    if e:
+        logger.info(f"Found previous thread for key {key} and cancelling it")
+        terminate_thread(e)
+
+    thread = threading.Thread(target=run_review_pr, args=args, kwargs=kwargs)
+    review_pr_events[key] = thread
+    thread.start()
+    global_threads.append(thread)
 
 
 @app.get("/health")
@@ -485,19 +513,17 @@ def handle_event(request_dict, event):
                             #     commit_hash=pr.head.sha,
                             # )
             case "pull_request", "opened":
+                pr_request = PRRequest(**request_dict)
                 _, g = get_github_client(request_dict["installation"]["id"])
                 repo = g.get_repo(request_dict["repository"]["full_name"])
                 pr = repo.get_pull(request_dict["pull_request"]["number"])
-                # if the pr already has a comment from sweep bot do nothing
-                time.sleep(10)
-                if any(
-                    comment.user.login == GITHUB_BOT_USERNAME
-                    for comment in pr.get_issue_comments()
-                ) or pr.title.startswith("Sweep:"):
-                    return {
-                        "success": True,
-                        "reason": "PR already has a comment from sweep bot",
-                    }
+                # run pr review
+                call_review_pr(
+                    username=pr.user.login,
+                    pr=pr,
+                    repository=repo,
+                    installation_id=pr_request.installation.id,
+                )
             case "issues", "opened":
                 request = IssueRequest(**request_dict)
                 issue_title_lower = request.issue.title.lower()
@@ -946,6 +972,13 @@ def handle_event(request_dict, event):
                             )
                             if new_body is not None:
                                 pr.edit(body=new_body)
+                            # run pr review
+                            call_review_pr(
+                                username=pr.user.login,
+                                pr=pr,
+                                repository=repo,
+                                installation_id=request.installation.id,
+                            )
                         except SystemExit:
                             raise SystemExit
                         except Exception as e:

@@ -73,7 +73,8 @@ class AnnotateDiffBot(ChatGPT):
                 ),
                 temperature=0.2,
                 model=CLAUDE_MODEL,
-                verbose=False
+                verbose=False,
+                use_openai=True
             )
         except Exception as e:
             logger.warning(f"AnnotateDiffBot failed with error: {e}")

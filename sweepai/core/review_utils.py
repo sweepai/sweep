@@ -6,12 +6,16 @@ import re
 
 from tqdm import tqdm
 from sweepai.core.chat import ChatGPT
+from sweepai.core.entities import Message
 from sweepai.core.review_annotations import get_diff_annotations
 from sweepai.core.sweep_bot import safe_decode
 from sweepai.logn.cache import file_cache
 from sweepai.utils.event_logger import logger
+from sweepai.utils.chat_logger import ChatLogger
 from github.Repository import Repository
 from github.PullRequest import PullRequest
+
+from sweepai.utils.str_utils import add_line_numbers
 
 def get_pr_diffs(repo: Repository, pr: PullRequest):
     base_sha = pr.base.sha
@@ -103,7 +107,7 @@ def split_diff_into_patches(diff: str) -> list[Patch]:
         line_numbers = re.findall(r'-(\d+),(\d+) \+(\d+),(\d+)', hunk)
         if line_numbers:
             old_start, old_count, new_start, new_count = map(int, line_numbers[0])
-            changes = hunk[hunk.index('@@')+2:].strip()
+            changes = hunk[hunk.index('@@'):].strip()
             patch = Patch(
                 old_start=old_start,
                 old_count=old_count,
@@ -117,13 +121,15 @@ def split_diff_into_patches(diff: str) -> list[Patch]:
 pr_changes_prefix = "The following changes were made in the PR. Each change contains all of the patches that were applied to a file, as well as the source code after the change.\n"
 
 pr_change_unformatted = """\
-<pr_change index="{idx}">
+<pr_change file_name="{file_name}">
 <file_patches>
 {patches}
 </file_patches>
-<source>
+
+And here is the full source code after applying the pull request changes:
+<source_code>
 {file_contents}
-</source>
+</source_code>
 </pr_change>"""
 
 patch_format = """\
@@ -144,17 +150,16 @@ def format_pr_change(pr_change: PRChange, pr_idx: int=0):
             annotation=pr_change.annotations[idx]
         )
     return pr_change_unformatted.format(
-        idx=pr_idx + 1,
+        file_name=pr_change.file_name,
         patches=patches,
-        file_contents=pr_change.new_code
+        file_contents=add_line_numbers(pr_change.new_code, start=1)
     )
 
-def format_pr_changes(pr_changes: list[PRChange]):
-    formatted_pr_changes = ""
+def format_pr_changes_by_file(pr_changes: list[PRChange]):
+    formatted_pr_changes_by_file = {}
     for idx, pr_change in enumerate(pr_changes):
-        formatted_pr_changes += format_pr_change(pr_change, idx)
-    breakpoint()
-    return formatted_pr_changes
+        formatted_pr_changes_by_file[pr_change.file_name] = format_pr_change(pr_change, idx)
+    return formatted_pr_changes_by_file
 
 system_prompt = """You are a careful and smart tech lead that wants to avoid production issues. You will be analyzing a set of diffs representing a pull request made to a piece of source code. Be very concise."""
 
@@ -165,15 +170,16 @@ Here are the changes in the pull request diffs:
 {diff}
 </diffs>
 
-And here is the full source code after applying the pull request changes:
-<source_code>
-{new_code}
-</source_code>
-
 # Instructions
 1. Analyze the code changes.
-    1a. Describe the key changes that were made in the diffs. (1 paragraph)
-    1b. Format your response using the following XML tags. Each summary should be a single sentence and formatted within a <diff_summary> tag.:
+    1a. Review each diff/patch individually, examining the code changes line-by-line.
+    1b. For each line of code changed, consider:
+        - What is the purpose of this line of code?
+        - How does this line of code interact with or impact the rest of the codebase?
+        - Is this line of code functionally correct? Could it introduce any bugs or errors?
+        - Is this line of code necessary? Or could it be an accidental change or commented out code?
+    1c. Describe the key changes that were made in the diffs. (1 paragraph)
+    1d. Format your response using the following XML tags. Each summary should be a single sentence and formatted within a <diff_summary> tag.:
 <diff_summaries>
 <diff_summary>
 {{Summary of changes}}
@@ -182,16 +188,25 @@ And here is the full source code after applying the pull request changes:
 </diff_summaries>
 
 2. Identify all issues.
-    2a. Determine whether there are any functional issues, bugs, edge cases, or error conditions that the code changes introduce or fail to properly handle. (1 paragraph)
-    2b. Determine whether there are any security vulnerabilities or potential security issues introduced by the code changes. (1 paragraph)
-    2c. Identify any other potential issues that the code changes may introduce that were not captured by 2a or 2b. (1 paragraph)
-    2d. Format the found issues and root causes using the following XML tags. Each issue should be a single sentence and formatted within an <issue> tag:
+    2a. Determine whether there are any functional issues, bugs, edge cases, or error conditions that the code changes introduce or fail to properly handle. Consider the line-by-line analysis from step 1b. (1 paragraph)
+    2b. Determine whether there are any security vulnerabilities or potential security issues introduced by the code changes. (1 paragraph) 
+    2c. Identify any other potential issues that the code changes may introduce that were not captured by 2a or 2b. This could include accidental changes, commented out code, or other suspicious modifications. (1 paragraph)
+    2d. Format the found issues and root causes using the following XML tags. Each issue description should be a single sentence. Include the corresponding start and end line numbers. Format these fields in an <issue> tag in the following manner:
 <issues>
 <issue>
-{{Issue 1}}
+<issue_description>
+{{Issue 1 description}}
+</issue_description>
+<start_line>
+{{Corresponding starting line number for Issue 1}}
+</start_line>
+<end_line>
+{{Corresponding ending line number for Issue 1 (this can be the same as the start_line)}}
+</end_line>
 </issue>
 ...
 </issues>
+If there are no issues found do not include the corresponding <issue> tag.
 
 Focus your analysis solely on potential functional issues with the code changes. Do not comment on stylistic, formatting, or other more subjective aspects of the code."""
 
@@ -199,27 +214,44 @@ CLAUDE_MODEL = "claude-3-opus-20240229"
 
 @dataclass
 class CodeReview:
+    file_name: str
     diff_summary: str
     issues: str
 
 class PRReviewBot(ChatGPT):
-    def review_code_changes(self, formatted_user_prompt: str):
-        self.messages = []
-        code_review_response = self.chat_anthropic(
-            content=formatted_user_prompt,
-            temperature=0.2,
-            model=CLAUDE_MODEL,
-        )
-        diff_summary = ""
-        diff_summary_pattern = r"<diff_summary>(.*?)</diff_summary>"
-        diff_summary_matches = re.findall(diff_summary_pattern, code_review_response, re.DOTALL)
-        if diff_summary_matches:
-            # join all of them into a single string
-            diff_summary = "\n".join([match.strip() for match in diff_summary_matches])
-        issues = ""
-        issues_pattern = r"<issues>(.*?)</issues>"
-        issues_matches = re.findall(issues_pattern, code_review_response, re.DOTALL)
-        if issues_matches:
-            issues = "\n".join([match.strip() for match in issues_matches])
-        code_review = CodeReview(diff_summary=diff_summary, issues=issues)
-        return code_review
+    def review_code_changes_by_file(self, pr_changes_by_file: dict[str, str], chat_logger: ChatLogger = None):
+        code_reviews_by_file = {}
+        for file_name, pr_changes in pr_changes_by_file.items():
+            self.messages = [
+                Message(
+                    role="system",
+                    content=system_prompt,
+                )
+            ]
+            formatted_user_prompt = user_prompt.format(diff=pr_changes)
+            code_review_response = self.chat_anthropic(
+                content=formatted_user_prompt,
+                temperature=0.2,
+                model=CLAUDE_MODEL,
+                use_openai=True
+            )
+            diff_summary = ""
+            diff_summary_pattern = r"<diff_summary>(.*?)</diff_summary>"
+            diff_summary_matches = re.findall(diff_summary_pattern, code_review_response, re.DOTALL)
+            if diff_summary_matches:
+                # join all of them into a single string
+                diff_summary = "\n".join([match.strip() for match in diff_summary_matches])
+            issues = ""
+            issues_pattern = r"<issues>(.*?)</issues>"
+            issues_matches = re.findall(issues_pattern, code_review_response, re.DOTALL)
+            if issues_matches:
+                issues = "\n".join([match.strip() for match in issues_matches])
+            code_reviews_by_file[file_name] = CodeReview(file_name=file_name, diff_summary=diff_summary, issues=issues)
+            if chat_logger:
+                chat_logger.add_chat(
+                    {
+                        "model": self.model,
+                        "messages": [{"role": message.role, "content": message.content} for message in self.messages],
+                        "output": f"END OF MESSAGES",
+                    })
+        return code_reviews_by_file

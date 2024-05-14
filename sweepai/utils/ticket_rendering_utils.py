@@ -12,6 +12,7 @@ import zipfile
 import markdown
 import requests
 from github import Github, Repository
+from github.PullRequest import PullRequest
 from github.Issue import Issue
 from loguru import logger
 from tqdm import tqdm
@@ -30,6 +31,7 @@ from sweepai.core.entities import (
     SandboxResponse,
 )
 from sweepai.core.entities import create_error_logs as entities_create_error_logs
+from sweepai.core.review_utils import CodeReview
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.create_pr import (
     safe_delete_sweep_branch,
@@ -110,12 +112,18 @@ Propose a fix to the failing github actions. You must edit the source code, not 
 {github_action_log}
 """
 
+SWEEP_PR_REVIEW_HEADER = "# Sweep: PR Review"
+
 
 # Add :eyes: emoji to ticket
 def add_emoji(issue: Issue, comment_id: int = None, reaction_content="eyes"):
     item_to_react_to = issue.get_comment(comment_id) if comment_id else issue
     item_to_react_to.create_reaction(reaction_content)
 
+# Add :eyes: emoji to ticket
+def add_emoji_to_pr(pr: PullRequest, comment_id: int = None, reaction_content="eyes"):
+    item_to_react_to = pr.get_comment(comment_id) if comment_id else pr
+    item_to_react_to.create_reaction(reaction_content)
 
 # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
 def remove_emoji(issue: Issue, comment_id: int = None, content_to_delete="eyes"):
@@ -592,3 +600,75 @@ def get_payment_messages(chat_logger: ChatLogger):
     )
 
     return payment_message, payment_message_start
+
+def parse_issues_from_code_review(pr: PullRequest, code_review: CodeReview):
+    files_to_blobs = {file.filename: file.blob_url for file in list(pr.get_files())}
+    issue_regex = r'<issue>(?P<issue>.*?)<\/issue>'
+    issue_matches = list(re.finditer(issue_regex, code_review.issues, re.DOTALL))
+    potential_issues = ""
+    for issue in issue_matches:
+        issue_content = issue.group('issue')
+        issue_params = ['issue_description', 'start_line', 'end_line']
+        issue_args = {}
+        for param in issue_params:
+            regex = rf'<{param}>(?P<{param}>.*?)<\/{param}>'
+            result = re.search(regex, issue_content, re.DOTALL)
+            issue_args[param] = result.group(param).strip('\n')
+        if issue_args['start_line'] == issue_args['end_line']:
+            issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue_args['start_line']}"
+        else:
+            issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue_args['start_line']}-L{issue_args['end_line']}"
+        potential_issues += f"<li>{issue_args['issue_description']}</li>\n\n{issue_blob_url}"
+
+    return potential_issues
+        
+
+# turns code_review_by_file into markdown string
+def render_pr_review_by_file(pr: PullRequest, code_review_by_file: dict[str, CodeReview]) -> str:
+    body = f"{SWEEP_PR_REVIEW_HEADER}\nSweep has finished reviewing your pull request.\n"
+
+    dropdown_section = """<details open>
+<summary><h3>Reviewed Files</h3></summary>
+<p></p>
+{reviewed_files}
+</details>"""
+    reviewed_files = ""
+    for file_name, code_review in code_review_by_file.items():
+        potential_issues = parse_issues_from_code_review(pr, code_review)
+        reviewed_files += f"""<details open>
+<summary><strong>{file_name}</strong></summary>
+<p><strong>Summary of changes made:</strong></p>
+<p>{code_review.diff_summary}</p>"""
+        if potential_issues:
+            reviewed_files += f"<p><strong>Potential Issues</strong></p><ul>{potential_issues}</ul></details><hr>"
+        else:
+            reviewed_files += f"<p><strong>No issues found with the reviewed changes</strong></p></details><hr>"
+    dropdown_section = dropdown_section.format(reviewed_files=reviewed_files)
+    return body + dropdown_section
+
+# handles the creation or update of the Sweep comment letting the user know that Sweep is reviewing a pr
+# returns the comment_id
+def create_update_review_pr_comment(pr: PullRequest, code_review_by_file: dict[str, CodeReview] | None = None) -> int:
+    comment_id = -1
+    sweep_comment = None
+    # comments that appear in the github ui in the conversation tab are considered issue comments
+    pr_comments = list(pr.get_issue_comments())
+    # make sure we don't already have a comment created
+    for comment in pr_comments:
+        # a comment has already been created
+        if comment.body.startswith(SWEEP_PR_REVIEW_HEADER):
+            comment_id = comment.id
+            sweep_comment = comment
+            break
+    
+    # comment has not yet been created
+    if not sweep_comment:
+        sweep_comment = pr.create_issue_comment(f"{SWEEP_PR_REVIEW_HEADER}\nSweep is currently reviewing your pr...")
+    
+    # update body of sweep_comment
+    if code_review_by_file:
+        rendered_pr_review = render_pr_review_by_file(pr, code_review_by_file)
+        sweep_comment.edit(rendered_pr_review)
+    comment_id = sweep_comment.id
+    return comment_id
+
