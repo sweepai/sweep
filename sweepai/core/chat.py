@@ -420,7 +420,6 @@ class ChatGPT(MessageList):
         if use_openai:
             OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
             assert OPENAI_API_KEY
-            # self.model = 'gpt-4-turbo'
             self.model = 'gpt-4o'
         else:
             ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
