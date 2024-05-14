@@ -81,7 +81,7 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> list[PRChange]:
         else:
             try:
                 old_code = safe_decode(repo=repo, path=previous_filename, ref=base_sha)
-            except GithubException as e:
+            except GithubException:
                 old_code = ""
         if file.status == "removed":
             new_code = ""
