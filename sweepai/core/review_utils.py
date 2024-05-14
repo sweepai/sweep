@@ -179,13 +179,16 @@ Here are the changes in the pull request diffs:
         - Is this line of code functionally correct? Could it introduce any bugs or errors?
         - Is this line of code necessary? Or could it be an accidental change or commented out code?
     1c. Describe the key changes that were made in the diffs. (1 paragraph)
-    1d. Format your response using the following XML tags. Each summary should be a single sentence and formatted within a <diff_summary> tag.:
-<diff_summaries>
-<diff_summary>
-{{Summary of changes}}
-</diff_summary>
+<thoughts>
+<thinking>
+{{Analysis of changes}}
+</thinking>
 ...
-</diff_summaries>
+</thoughts>
+    1d. Provide a final summary that should be a single sentence and formatted within a <diff_summary> tag.:
+<diff_summary>
+{{Final summary of changes}}
+</diff_summary>
 
 2. Identify all issues.
     2a. Determine whether there are any functional issues, bugs, edge cases, or error conditions that the code changes introduce or fail to properly handle. Consider the line-by-line analysis from step 1b. (1 paragraph)
