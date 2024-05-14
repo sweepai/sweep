@@ -80,22 +80,6 @@ class AnnotateCodeBot(ChatGPT):
         code_annotation = code_annotation.strip()
         return code_annotation
 
-# def get_annotated_source_code(source_code: str, issue_text: str):
-#     annotated_source_code = source_code
-#     code_chunks = chunk_code(source_code, "test.py", MAX_CHARS = 60 * 50)
-#     code_contents = [chunk.get_snippet(False, False) for chunk in code_chunks]
-#     for idx, code_content in enumerate(code_contents):
-#         annotation = AnnotateCodeBot().annotate_code(
-#             source_code=source_code,
-#             issue_text=issue_text,
-#             code_to_annotate=code_content,
-#         )
-#         if annotation != code_content:
-#             formatted_code_content = f'<original_code index="{idx}">\n' + code_content + "\n<original_code>\n"
-#             formatted_annotation = f'<code_summary index="{idx}">\n' + annotation + "\n<code_summary>\n"
-#             annotated_source_code = annotated_source_code.replace(code_content, formatted_code_content + formatted_annotation)
-#     return annotated_source_code
-
 def process_chunk(idx, code_content, source_code, issue_text, file_path):
     annotation = AnnotateCodeBot().annotate_code(
         source_code=source_code,
@@ -111,7 +95,7 @@ def process_chunk(idx, code_content, source_code, issue_text, file_path):
 @file_cache() # safe to cache
 def get_annotated_source_code(source_code: str, issue_text: str, file_path: str):
     annotated_source_code = source_code
-    code_chunks = chunk_code(source_code, "test.py", MAX_CHARS=60 * 50)
+    code_chunks = chunk_code(source_code, file_path, MAX_CHARS=60 * 50)
     code_contents = [chunk.get_snippet(False, False) for chunk in code_chunks]
 
     if NUM_WORKERS > 1:

@@ -2,7 +2,7 @@ import copy
 
 
 from loguru import logger
-from sweepai.agents.modify_utils import (create_user_message, get_replaces_per_fcr, render_current_task, render_plan, instructions, modify_tools, modify_tools_openai, SUBMIT_TASK_MOCK_FUNCTION_CALL, linter_warning_prompt, compile_fcr, validate_and_parse_function_call, validate_and_parse_function_call_openai, handle_function_call, tasks_completed, changes_made, get_current_task_index, MODEL, SLOW_MODEL)
+from sweepai.agents.modify_utils import (create_user_message, get_replaces_per_fcr, render_current_task, render_plan, instructions, modify_tools, modify_tools_openai, SUBMIT_TASK_MOCK_FUNCTION_CALL, linter_warning_prompt, compile_fcr, validate_and_parse_function_call, handle_function_call, tasks_completed, changes_made, get_current_task_index, MODEL)
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message
 from sweepai.utils.chat_logger import ChatLogger
@@ -20,6 +20,7 @@ def modify(
     previous_modify_files_dict: dict[str, dict[str, str]] = {},
 ) -> dict[str, dict[str, str]]:
     # join fcr in case of duplicates
+    use_openai = True
     if not fcrs:
         return previous_modify_files_dict
     user_message = create_user_message(
@@ -106,14 +107,15 @@ def modify(
     # used to determine if changes were made
     previous_modify_files_dict = copy.deepcopy(modify_files_dict)
     for i in range(len(fcrs) * 15):
-        if use_openai:
-            function_call = validate_and_parse_function_call_openai(function_calls_string, chat_gpt)
-        else:
-            function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
+        # if use_openai:
+        #     function_call = validate_and_parse_function_call_openai(function_calls_string, chat_gpt)
+        # else:
+        function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
         if function_call:
             num_of_tasks_done = tasks_completed(fcrs)
             # note that detailed_chat_logger_messages is meant to be modified in place by handle_function_call
             function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state, chat_logger_messages=detailed_chat_logger_messages, use_openai=use_openai)
+            print(function_output)
             fcrs = llm_state["fcrs"]
             if function_output == "DONE":
                 # add the diff of all changes to chat_logger
@@ -218,7 +220,8 @@ def modify(
                 if not function_calls_string:
                     if linter_warning_prompt in function_output:
                         llm_state["attempt_count"] = 3 # skip to opus if there is a linter warning
-                    model = MODEL if llm_state["attempt_count"] < 3 else SLOW_MODEL
+                    # model = MODEL if llm_state["attempt_count"] < 3 else SLOW_MODEL
+                    model = "gpt-4o"
                     logger.info(f"Using model: {model}")
                     function_calls_string = chat_gpt.chat_anthropic(
                         content=function_output,
@@ -231,7 +234,7 @@ def modify(
                             logger.warning(f"Function call {function_calls_string} has already been visited, retrying with a different model.")
                             llm_state["attempt_count"] = 3
                             function_calls_string = chat_gpt.chat_anthropic(
-                                content=SLOW_MODEL,
+                                content=function_output,
                                 model=model,
                                 stop_sequences=["</function_call>"],
                                 use_openai=use_openai,

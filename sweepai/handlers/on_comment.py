@@ -21,7 +21,7 @@ from sweepai.config.server import (
 from sweepai.core.entities import MockPR, NoFilesException
 from sweepai.core.sweep_bot import SweepBot, get_files_to_change, validate_file_change_requests
 from sweepai.handlers.create_pr import handle_file_change_requests
-from sweepai.handlers.on_review import get_pr_diffs
+from sweepai.core.review_utils import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog

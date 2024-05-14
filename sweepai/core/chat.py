@@ -71,6 +71,7 @@ model_to_max_tokens = {
     "gpt-4-1106-preview": 128000,
     "gpt-4-0125-preview": 128000,
     "gpt-4-turbo-2024-04-09": 128000,
+    "gpt-4o": 128000,
     "claude-v1": 9000,
     "claude-v1.3-100k": 100000,
     "claude-instant-v1.3-100k": 100000,
@@ -419,7 +420,8 @@ class ChatGPT(MessageList):
         if use_openai:
             OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
             assert OPENAI_API_KEY
-            self.model = 'gpt-4-turbo'
+            # self.model = 'gpt-4-turbo'
+            self.model = 'gpt-4o'
         else:
             ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
             assert ANTHROPIC_API_KEY
