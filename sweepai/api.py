@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ctypes
+import os
 import threading
 import time
 from typing import Any, Optional
@@ -513,13 +514,17 @@ def handle_event(request_dict, event):
                     _, g = get_github_client(request_dict["installation"]["id"])
                     repo = g.get_repo(request_dict["repository"]["full_name"])
                     pr = repo.get_pull(request_dict["pull_request"]["number"])
-                    # run pr review
-                    call_review_pr(
-                        username=pr.user.login,
-                        pr=pr,
-                        repository=repo,
-                        installation_id=pr_request.installation.id,
-                    )
+                    # check if review_pr is restricted
+                    allowed_repos = os.environ.get("PR_REVIEW_REPOS", "")
+                    allowed_repos_set = set(allowed_repos.split(',')) if allowed_repos else set()
+                    if not allowed_repos or repo.name in allowed_repos_set:
+                        # run pr review
+                        call_review_pr(
+                            username=pr.user.login,
+                            pr=pr,
+                            repository=repo,
+                            installation_id=pr_request.installation.id,
+                        )
                 except Exception as e:
                     logger.exception(f"Failed to review PR: {e}")
                     raise e
@@ -893,13 +898,17 @@ def handle_event(request_dict, event):
                         _, g = get_github_client(request.installation.id)
                         repo = g.get_repo(request.repository.full_name)
                         pr = repo.get_pull(request.pull_request.number)
-                        # run pr review
-                        call_review_pr(
-                            username=pr.user.login,
-                            pr=pr,
-                            repository=repo,
-                            installation_id=request.installation.id,
-                        )
+                        # check if review_pr is restricted
+                        allowed_repos = os.environ.get("PR_REVIEW_REPOS", "")
+                        allowed_repos_set = set(allowed_repos.split(',')) if allowed_repos else set()
+                        if not allowed_repos or repo.name in allowed_repos_set:
+                            # run pr review
+                            call_review_pr(
+                                username=pr.user.login,
+                                pr=pr,
+                                repository=repo,
+                                installation_id=request.installation.id,
+                            )
                     except Exception as e:
                         logger.exception(f"Failed to review PR: {e}")
                         raise e
