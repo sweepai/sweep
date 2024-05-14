@@ -24,8 +24,6 @@ from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
     REVERT_CHANGED_FILES_TITLE,
     RULES_TITLE,
-    SWEEP_BAD_FEEDBACK,
-    SWEEP_GOOD_FEEDBACK,
     SweepConfig,
     get_gha_enabled,
 )
