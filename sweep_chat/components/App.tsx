@@ -96,6 +96,8 @@ const SnippetBadge = ({
 
 const getFunctionCallHeaderString = (functionCall: Message["function_call"]) => {
   switch (functionCall?.function_name) {
+    case "analysis":
+      return functionCall.is_complete ? "Analysis" : "Analyzing..."
     case "self_critique":
       return functionCall.is_complete ? "Self critique" : "Self critiquing..."
     case "search_codebase":
