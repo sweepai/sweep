@@ -481,6 +481,7 @@ def get_files_to_change(
             model=MODEL,
             temperature=0.1,
             # images=images,
+            # use_openai=True,
         )
         # breakpoint()
         expected_plan_count = 1

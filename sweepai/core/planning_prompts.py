@@ -131,7 +131,7 @@ Instructions for creating the new file. Reference imports and entity names. Incl
 [additional creates]
 
 <modify file="file_path_2"> 
-Instructions for modifying one section of the file. 
+Instructions for modifying one section of the file. A detailed description of the changes you are going to make.
 
 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. This block must NOT be empty. The referenced original code span should be just enough to cover the change, with 10 extra lines above and below for context.
 
@@ -141,7 +141,7 @@ If imports are needed, they should be in a separate <modify> block. Use multiple
 </modify>
 
 <modify file="file_path_2">
-Instructions for modifying a different section of the same file. 
+Instructions for modifying one section of the file. A detailed description of the changes you are going to make.
 
 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. This block must NOT be empty. The referenced original code span should be just enough to cover the change, with 10 extra lines above and below for context.
 
