@@ -213,6 +213,10 @@ def get_error_message(
                     error_indices.append(i)
                     continue
                 original_code = parsed_fcr["original_code"][0].strip("\n")
+                if original_code == parsed_fcr["new_code"][0].strip("\n"):
+                    error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> and <new_code> are the same. You must provide a different code snippet in <new_code>.\n</error>\n\n"
+                    error_indices.append(i)
+                    continue
                 if not original_code:
                     error_message += f"<error index=\"{len(error_indices)}\">\nThe <original_code> can not be empty. If you would like to append code, copy the code you want to append the new code after into the <original_code>, then copy the same code into <new_code>, then finally append the new code after <new_code>.\n</error>\n\n"
                     error_indices.append(i)
@@ -488,13 +492,12 @@ def get_files_to_change(
             # ask for a second response
             try:
                 next_response: str = chat_gpt.chat_anthropic(
-                    content="",
+                    content="Continue generating, making sure to finish the plan coherently. You may be in the middle of an XML block or section of code.",
                     model=MODEL,
                     temperature=0.1,
-                    use_openai=True
+                    use_openai=True,
                     # images=images,
                 )
-                breakpoint()
                 # we can simply concatenate the responses
                 files_to_change_response += next_response
             except Exception as e:
@@ -522,6 +525,7 @@ def get_files_to_change(
             file_change_request.raw_relevant_files = " ".join(relevant_modules)
             file_change_requests.append(file_change_request)
         
+        # breakpoint()
         error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
 
         for _ in range(3):
@@ -552,6 +556,7 @@ def get_files_to_change(
             logger.debug("Old indices", error_indices)
             error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
             logger.debug("New indices", error_indices)
+        # breakpoint()
 
         validate_file_change_requests(file_change_requests, cloned_repo)
         return file_change_requests, files_to_change_response

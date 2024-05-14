@@ -46,7 +46,7 @@ def modify(
         "attempt_count": 0, # how many times we have attempted to apply the old/new code pair
         "visited_set": set(), # keep track of which outputs have been attempted
     }
-    full_instructions = instructions + (modify_tools_openai if use_openai else modify_tools)
+    full_instructions = instructions + modify_tools
     chat_gpt.messages = [Message(role="system", content=full_instructions)]
     try:
         if fcrs[0].change_type == "modify" and (compiled_fcr := compile_fcr(fcrs[0], 0)):
