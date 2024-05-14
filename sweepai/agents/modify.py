@@ -209,7 +209,7 @@ def modify(
                                 stop_sequences=["</function_call>"],
                                 model=MODEL,
                                 message_key="user_request",
-                                use_openai=use_openai,
+                                # use_openai=use_openai,
                             )
                         # update messages to make it seem as if it called the fcr
                         chat_gpt.messages.append(Message(
