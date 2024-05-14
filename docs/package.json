@@ -22,7 +22,7 @@
     "clsx": "^2.1.0",
     "diff-parser": "^0.0.1",
     "msgpackr": "^1.10.1",
-    "next": "^13.5.6",
+    "next": "^14.1.1",
     "nextra": "latest",
     "nextra-theme-docs": "latest",
     "parse-diff": "^0.11.1",

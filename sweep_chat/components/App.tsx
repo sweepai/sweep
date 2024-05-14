@@ -96,6 +96,8 @@ const SnippetBadge = ({
 
 const getFunctionCallHeaderString = (functionCall: Message["function_call"]) => {
   switch (functionCall?.function_name) {
+    case "analysis":
+      return functionCall.is_complete ? "Analysis" : "Analyzing..."
     case "self_critique":
       return functionCall.is_complete ? "Self critique" : "Self critiquing..."
     case "search_codebase":
@@ -259,9 +261,7 @@ function App() {
   const [repoNameDisabled, setRepoNameDisabled] = useState<boolean>(false)
 
   const [snippets, setSnippets] = useLocalStorage<Snippet[]>("snippets", [])
-  const [messages, setMessages] = useLocalStorage<Message[]>("messages", [
-    { content: defaultMessage, role: "assistant" },
-  ])
+  const [messages, setMessages] = useLocalStorage<Message[]>("messages", [])
   const [currentMessage, setCurrentMessage] = useLocalStorage<string>("currentMessage", "")
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [showSurvey, setShowSurvey] = useState<boolean>(false)
@@ -323,7 +323,7 @@ function App() {
         />
       )}
       <div className="flex justify-between w-full px-2 items-middle">
-        <h1 className="text-4xl font-bold mb-6">Sweep Chat</h1>
+        <h1 className="text-4xl font-bold mb-6">Sweep Search</h1>
         <div className="flex items-center mb-4">
           <img
             className="rounded-full w-10 h-10 mr-4"
@@ -414,7 +414,7 @@ function App() {
             className="mr-2"
             variant="secondary"
             onClick={async () => {
-              setMessages([{ content: defaultMessage, role: "assistant" }]);
+              setMessages([]);
               setCurrentMessage("");
               setIsLoading(false);
               setSnippets([]);
