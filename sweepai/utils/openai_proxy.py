@@ -242,7 +242,7 @@ class OpenAIProxy:
     ):
         client = OpenAI(api_key=OPENAI_API_KEY)
         if len(tools) == 0:
-            response: Iterable = client.chat.completions.create(
+            response = client.chat.completions.create(
                 model=model,
                 messages=messages,
                 max_tokens=max_tokens,
@@ -356,7 +356,7 @@ if __name__ == "__main__":
     )
     print("Generating response...", flush=True)
     text = ""
-    for chunk in response:
+    for chunk in list(response):
         new_content = chunk.choices[0].delta.content 
         text += new_content if new_content else ""
         if new_content:
