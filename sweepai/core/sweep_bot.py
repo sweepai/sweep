@@ -470,7 +470,6 @@ def get_files_to_change(
             model=ISSUE_EXCERPT_MODEL,
             temperature=0.1,
             images=images,
-            use_openai=True,
         )
         issue_excerpt_pattern = re.compile(r"<issue_excerpts>(.*?)</issue_excerpts>", re.DOTALL)
         issue_excerpt_match = issue_excerpt_pattern.search(issue_excerpt_response)
@@ -479,12 +478,10 @@ def get_files_to_change(
         issue_excerpts = issue_excerpt_match.group(1)
         issue_excerpts = issue_excerpts.strip("\n")
         # breakpoint()
-        MODEL="gpt-4o"
         files_to_change_response: str = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + (files_to_change_prompt.format(issue_excerpts=issue_excerpts)),
             model=MODEL,
             temperature=0.1,
-            use_openai=True,
             # images=images,
         )
         expected_plan_count = 1
@@ -497,7 +494,6 @@ def get_files_to_change(
                     content="",
                     model=MODEL,
                     temperature=0.1,
-                    use_openai=True
                     # images=images,
                 )
                 # we can simply concatenate the responses
@@ -541,7 +537,6 @@ def get_files_to_change(
                 # model="claude-3-opus-20240229",
                 temperature=0.1,
                 images=images,
-                use_openai=True,
             )
             drops, matches = parse_patch_fcrs(fix_attempt)
             for index, new_fcr in matches:
@@ -713,7 +708,6 @@ def context_get_files_to_change(
             content=joint_message + "\n\n" + (context_files_to_change_prompt),
             model=MODEL,
             temperature=0.1,
-            use_openai=True,
             images=images
         )
         relevant_files = []
@@ -894,7 +888,6 @@ def get_files_to_change_for_test(
             content=joint_message + "\n\n" + test_files_to_change_prompt,
             model=MODEL,
             temperature=0.1,
-            use_openai=True,
         )
         # breakpoint()
         max_tokens = 4096 * 3.5 * 0.9 # approx max tokens per response
@@ -908,7 +901,6 @@ def get_files_to_change_for_test(
                     content="",
                     model=MODEL,
                     temperature=0.1,
-                    use_openai=True
                 )
                 # we can simply concatenate the responses
                 files_to_change_response += second_response
@@ -1073,7 +1065,6 @@ def get_files_to_change_for_gha(
             content=joint_message + "\n\n" + gha_files_to_change_prompt,
             model=MODEL,
             temperature=0.1,
-            use_openai=True,
         )
         # breakpoint()
         max_tokens = 4096 * 3.5 * 0.8 # approx max tokens per response
@@ -1087,7 +1078,6 @@ def get_files_to_change_for_gha(
                     content="",
                     model=MODEL,
                     temperature=0.1,
-                    use_openai=True,
                 )
                 # we can simply concatenate the responses
                 files_to_change_response += second_response

@@ -204,3 +204,5 @@ SLACK_API_KEY = os.environ.get("SLACK_API_KEY", None)
 
 LICENSE_KEY = os.environ.get("LICENSE_KEY", None)
 ALTERNATE_AWS = os.environ.get("ALTERNATE_AWS", "none").lower() == "true"
+
+WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", None)
