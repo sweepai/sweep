@@ -348,7 +348,7 @@ def get_files_to_change(
     seed: int = 0,
     images: list[tuple[str, str, str]] | None = None
 ) -> tuple[list[FileChangeRequest], str]:
-    use_openai = False
+    use_openai = True
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
     messages.append(
@@ -519,7 +519,7 @@ def get_files_to_change(
             file_change_requests.append(file_change_request)
         
         error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
-        # breakpoint()
+        breakpoint()
 
         for _ in range(3):
             if not error_message:
@@ -571,6 +571,7 @@ def context_get_files_to_change(
     seed: int = 0,
     images: list[tuple[str, str, str]] | None = None
 ):
+    use_openai = True
     messages: list[Message] = []
     messages.append(
         Message(role="system", content=issue_excerpt_system_prompt, key="system")
@@ -595,36 +596,13 @@ def context_get_files_to_change(
     relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
     read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
     # attach all relevant snippets
-    if False:
-        formatted_relevant_snippets = []
-        for i, snippet in enumerate(tqdm(relevant_snippets)):
-            annotated_source_code, code_summaries = get_annotated_source_code(
-                source_code=snippet.get_snippet(add_lines=False),
-                issue_text=problem_statement,
-                file_path=snippet.file_path,
-            )
-            formatted_relevant_snippets.append(
-                relevant_snippet_template.format(
-                    i=i,
-                    file_path=snippet.file_path,
-                    content=annotated_source_code,
-                )
-            )
-            # cohere_rerank_response = cohere_rerank_call(
-            #     query=problem_statement,
-            #     documents=code_summaries,
-            # )
-        joined_relevant_snippets = "\n".join(
-            formatted_relevant_snippets
-        )
-    else:
-        joined_relevant_snippets = "\n".join(
-            relevant_snippet_template.format(
-                i=i,
-                file_path=snippet.file_path,
-                content=snippet.expand(300).get_snippet(add_lines=False),
-            ) for i, snippet in enumerate(relevant_snippets)
-        )
+    joined_relevant_snippets = "\n".join(
+        relevant_snippet_template.format(
+            i=i,
+            file_path=snippet.file_path,
+            content=snippet.expand(300).get_snippet(add_lines=False),
+        ) for i, snippet in enumerate(relevant_snippets)
+    )
     relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
     messages.append(
         Message(
@@ -649,17 +627,6 @@ def context_get_files_to_change(
                 key="relevant_snippets",
             )
         )
-    # previous_diffs = get_previous_diffs(
-    #     problem_statement,
-    #     cloned_repo=cloned_repo,
-    #     relevant_file_paths=[snippet.file_path for snippet in relevant_snippets],
-    # )
-    # messages.append( # temporarily disable in main
-    #     Message(
-    #         role="user",
-    #         content=previous_diffs,
-    #     )
-    # )
     if import_graph:
         graph_string = ""
         reverse_graph = import_graph.reverse()
@@ -707,7 +674,8 @@ def context_get_files_to_change(
             content=joint_message + "\n\n" + (context_files_to_change_prompt),
             model=MODEL,
             temperature=0.1,
-            images=images
+            images=images,
+            use_openai=use_openai,
         )
         relevant_files = []
         read_only_files = []

@@ -59,7 +59,7 @@ b. Detail ALL of the changes that need to be made to the codebase (excluding tes
 Here are the excerpts:
 {issue_excerpts}
 
-Reference the provided code files, summaries, entity names, and necessary files/directories. For each excerpt, think step-by-step about the best way to make the change. Then provide a specific detailed description of set of code changes spanning at least one change, with possibly more depending on the preceding excerpt. List all imports required. Be complete and precise. You must cover ALL changes that are required per excerpt.
+Reference the provided code files, summaries, entity names, and necessary files/directories. For each excerpt, CRITICALLY think step-by-step about the best way to make the change. Then provide a specific detailed description of set of code changes spanning at least one change, with possibly more depending on the preceding excerpt. List all imports required. Be complete and precise. You must cover ALL changes that are required per excerpt.
 
 c. Detail ALL changes that do not correspond to an excerpt from the user's issue. These changes should be necessary to resolve the issue but are not explicitly mentioned in the user's request. This code change should describe exactly what to do, referencing specific code entities in the relevant files. (optional)
 
