@@ -237,6 +237,10 @@ def get_error_message(
                         too_long_message = f"\nAlso, the <original_code> block you provided is quite long, with {len(original_code.splitlines())} lines of code. Consider isolating <original_code> and <updated_code> to only the section you want to edit to avoid errors copying the code." if len(original_code.splitlines()) > 50 else ""
                         ellipses_message = "\nYou must copy code out in full and may not use ellipses, abbreviations, or any short-hand notation in your code." if "# ..." in original_code or "// ..." in original_code else ""
 
+                        if not best_match.strip():
+                            error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nBut the code is no where to be found in the file. There are also no similar code snippets in this file.{too_long_message}{ellipses_message}\n</error>\n\n"
+                            continue
+
                         if best_score == 100:
                             continue
                         if best_score > 80:
@@ -481,9 +485,8 @@ def get_files_to_change(
             model=MODEL,
             temperature=0.1,
             # images=images,
-            # use_openai=True,
+            use_openai=True,
         )
-        # breakpoint()
         expected_plan_count = 1
         calls = 0
         # pylint: disable=E1101
@@ -495,6 +498,7 @@ def get_files_to_change(
                     model=MODEL,
                     temperature=0.1,
                     # images=images,
+                    use_openai=True,
                 )
                 # we can simply concatenate the responses
                 files_to_change_response += next_response
@@ -525,7 +529,6 @@ def get_files_to_change(
         
         error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
         # print(error_message)
-        # breakpoint()
 
         for _ in range(3):
             if not error_message:
@@ -538,6 +541,7 @@ def get_files_to_change(
                 model=MODEL,
                 temperature=0.1,
                 # images=images,
+                use_openai=True,
             )
             drops, matches = parse_patch_fcrs(fix_attempt)
             for index, new_fcr in matches:
@@ -554,6 +558,7 @@ def get_files_to_change(
             error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
             logger.debug("New indices", error_indices)
             # breakpoint()
+        # breakpoint()
 
         validate_file_change_requests(file_change_requests, cloned_repo)
         return file_change_requests, files_to_change_response

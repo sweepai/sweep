@@ -222,7 +222,8 @@ def modify(
                         llm_state["attempt_count"] = 3 # skip to opus if there is a linter warning
                     # model = MODEL if llm_state["attempt_count"] < 3 else SLOW_MODEL
                     model = "gpt-4o"
-                    logger.info(f"Using model: {model}")
+                    # model = "claude-3-opus-20240229"
+                    # logger.info(f"Using model: {model}")
                     function_calls_string = chat_gpt.chat_anthropic(
                         content=function_output,
                         model=model,

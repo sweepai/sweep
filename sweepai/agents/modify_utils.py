@@ -625,7 +625,7 @@ def find_best_matches(
                     ratio = fuzz.QRatio(
                         tokenized_needle,
                         tokenize_code(current_string),
-                        score_cutoff=40
+                        score_cutoff=threshold - 20,
                     )
                     if ratio == 0:
                         break
@@ -1094,10 +1094,10 @@ def handle_function_call(
     if tool_name == "submit_task" or tool_name == "submit_result":
         llm_response, llm_state = handle_submit_task(modify_files_dict, llm_state)
     elif tool_name == "no_tool_call":
-        if use_openai:
-            llm_response = NO_TOOL_CALL_PROMPT_OPENAI
-        else:
-            llm_response = NO_TOOL_CALL_PROMPT
+        # if use_openai:
+        #     llm_response = NO_TOOL_CALL_PROMPT_OPENAI
+        # else:
+        llm_response = NO_TOOL_CALL_PROMPT
     elif tool_name == "make_change":
         error_message = ""
         error_message = check_make_change_tool_call(tool_call, error_message)
@@ -1308,7 +1308,7 @@ def handle_function_call(
                 llm_state["attempt_lazy_change"] = True
 
                 llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
-            elif diff_string.count("\n+") + diff_string.count("\n-") > 10:
+            elif diff_string.count("\n+") + diff_string.count("\n-") > 20:
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
