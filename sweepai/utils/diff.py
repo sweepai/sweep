@@ -9,8 +9,8 @@ from sweepai.utils.search_and_replace import Match, find_best_match
 def generate_diff(old_code, new_code, **kwargs):
     if old_code == new_code:
         return ""
-    stripped_old_code = old_code.strip()
-    stripped_new_code = new_code.strip()
+    stripped_old_code = old_code.strip("\n")
+    stripped_new_code = new_code.strip("\n")
 
     # Split the code into lines, preserving the line endings
     old_lines = old_code.splitlines(keepends=True)

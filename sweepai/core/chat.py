@@ -411,6 +411,7 @@ class ChatGPT(MessageList):
         verbose: bool = True,
         images: list[tuple[str, str, str]] | None = None,
         stream: bool = False,
+        seed: int | None = None,
     ) -> str | Iterator[str]:
         if not os.environ.get("ANTHROPIC_API_KEY"):
             use_openai = True

@@ -383,36 +383,27 @@ def get_files_to_change(
     relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
     # read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
     # attach all relevant snippets
-    if True:
-        formatted_relevant_snippets = []
-        for i, snippet in enumerate(tqdm(relevant_snippets)):
-            annotated_source_code, code_summaries = get_annotated_source_code(
-                source_code=snippet.get_snippet(add_lines=False),
-                issue_text=problem_statement,
-                file_path=snippet.file_path,
-            )
-            formatted_relevant_snippets.append(
-                relevant_snippet_template.format(
-                    i=i,
-                    file_path=snippet.file_path,
-                    content=annotated_source_code,
-                )
-            )
-            # cohere_rerank_response = cohere_rerank_call(
-            #     query=problem_statement,
-            #     documents=code_summaries,
-            # )
-        joined_relevant_snippets = "\n".join(
-            formatted_relevant_snippets
+    formatted_relevant_snippets = []
+    for i, snippet in enumerate(tqdm(relevant_snippets)):
+        annotated_source_code, code_summaries = get_annotated_source_code(
+            source_code=snippet.get_snippet(add_lines=False),
+            issue_text=problem_statement,
+            file_path=snippet.file_path,
         )
-    else:
-        joined_relevant_snippets = "\n".join(
+        formatted_relevant_snippets.append(
             relevant_snippet_template.format(
                 i=i,
                 file_path=snippet.file_path,
-                content=snippet.expand(300).get_snippet(add_lines=False),
-            ) for i, snippet in enumerate(relevant_snippets)
+                content=annotated_source_code,
+            )
         )
+        # cohere_rerank_response = cohere_rerank_call(
+        #     query=problem_statement,
+        #     documents=code_summaries,
+        # )
+    joined_relevant_snippets = "\n".join(
+        formatted_relevant_snippets
+    )
     relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
     messages.append(
         Message(
@@ -421,17 +412,6 @@ def get_files_to_change(
             key="relevant_snippets",
         )
     )
-    # previous_diffs = get_previous_diffs(
-    #     problem_statement,
-    #     cloned_repo=cloned_repo,
-    #     relevant_file_paths=[snippet.file_path for snippet in relevant_snippets],
-    # )
-    # messages.append( # temporarily disable in main
-    #     Message(
-    #         role="user",
-    #         content=previous_diffs,
-    #     )
-    # )
     if additional_context:
         messages.append(
             Message(
@@ -479,6 +459,7 @@ def get_files_to_change(
             temperature=0.1,
             images=images,
             use_openai=True,
+            seed=seed
         )
         issue_excerpt_pattern = re.compile(r"<issue_excerpts>(.*?)</issue_excerpts>", re.DOTALL)
         issue_excerpt_match = issue_excerpt_pattern.search(issue_excerpt_response)
@@ -492,7 +473,9 @@ def get_files_to_change(
             temperature=0.1,
             # images=images,
             use_openai=True,
+            seed=seed
         )
+        # breakpoint()
         expected_plan_count = 1
         calls = 0
         # pylint: disable=E1101
@@ -505,6 +488,7 @@ def get_files_to_change(
                     temperature=0.1,
                     # images=images,
                     use_openai=True,
+                    seed=seed
                 )
                 # we can simply concatenate the responses
                 files_to_change_response += next_response
@@ -534,7 +518,6 @@ def get_files_to_change(
             file_change_requests.append(file_change_request)
         
         error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
-        # print(error_message)
 
         for _ in range(3):
             if not error_message:
@@ -547,6 +530,7 @@ def get_files_to_change(
                 model=MODEL,
                 temperature=0.1,
                 images=images,
+                seed=seed
             )
             drops, matches = parse_patch_fcrs(fix_attempt)
             for index, new_fcr in matches:
