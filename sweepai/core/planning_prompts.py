@@ -43,7 +43,7 @@ You will analyze the provided code files, repository, and GitHub issue to unders
 
 - Always include the full file path and reference the provided files.
 - Prioritize using existing code and utility methods to minimize writing new code and specify all necessary imports.
-- Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file.
+- Break the task into small steps, with each <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file.
 - To remove code, replace it with empty <new_code> tags.
 
 ## Instructions
@@ -63,11 +63,9 @@ c. Detail ALL changes that do not correspond to an excerpt from the user's issue
 
 ### 2. Plan:
 
-List all the changes that need to be made in the codebase, indicating whether they involve modifying an existing file or creating a new one.
+List all files that need to be changed in the codebase.
 
-Create: For creating files, describe the contents of the file, including necessary imports, type definitions, interfaces, and schemas. Then, write the code contents of the new file in to <new_code> blocks.
-
-Modify: For modifying files, first, write a detailed description of the changes you are going to make, making reference to entities. Then, copy the original code in <original_code> tags, and write the new updated code in <new_code> tags. If imports are needed, they should be in a separate <modify> block. Use multiple <modify> blocks for the same file to separate distinct changes.
+For each file to modify, first, write a detailed description of the changes you are going to make, making reference to entities. Then, copy the original code in <original_code> tags, and write the new updated code in <new_code> tags. If imports are needed, they should be in a separate <modify> block. Use multiple <modify> blocks for the same file to separate distinct changes.
 
 ## Format
 
@@ -94,16 +92,7 @@ c. Additional changes
 
 ### 2. Plan:
 <plan>  
-<create file="file_path_1">
-Description of the new file. Include necessary imports, type definitions, interfaces, and schemas.
-
-<new_code>
-The code contents of the new file.
-</new_code>
-</create>
-[additional creates]
-
-<modify file="file_path_2"> 
+<modify file="file_path_1"> 
 Instructions for modifying one section of the file, with a detailed description of the changes you are going to make.
 
 <original_code>
@@ -114,7 +103,6 @@ The original code that needs to be modified.
 The new updated code with the desired changes incorporated.
 </new_code>
 </modify>
-
 [additional modifies as needed, for the same file or different files]
 </plan>"""
 

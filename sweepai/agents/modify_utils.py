@@ -9,7 +9,7 @@ import stringzilla as sz
 from loguru import logger
 import rapidfuzz
 from tqdm import tqdm
-from sweepai.core.chat import ChatGPT, parse_function_calls
+from sweepai.core.chat import ChatGPT, parse_function_calls, tool_call_parameters
 from sweepai.core.entities import FileChangeRequest
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.diff import generate_diff
@@ -39,15 +39,12 @@ The new lines of code to replace the original code, implementing the SINGLE desi
 # create_file - Create a new code file in the specified location with the given file name and extension. This is useful when the task requires adding entirely new functionality or classes to the codebase.
 To call this tool you must respond in the following xml format:
 <create_file>
-<file_path>
-The path where the new file should be created, relative to the root of the codebase. Do not include the file name itself.
-</file_path>
 <file_name>
-he name to give the new file, including the extension. Ensure the name is clear, descriptive, and follows existing naming conventions.
+The full file path, including the extension. Ensure the name is clear, descriptive, and follows existing naming conventions.
 </file_name>
-<contents>
+<new_code>
 The initial contents of the new file.
-</contents>
+</new_code>
 <justification>
 Explain why creating this new file is necessary to complete the task and how it integrates with the existing codebase structure.
 </justification>
@@ -397,12 +394,6 @@ The new_code block you want to replace with the same surrounding context.
 # 2. Function Call
 Then, call the make_change function again with either the replace_all flag or additional context in the original_code block to specify which occurrence you want to replace."""
 
-tool_call_parameters = {
-    "make_change": ["justification", "file_name", "original_code", "new_code"],
-    "create_file": ["justification", "file_name", "file_path", "contents"],
-    "submit_task": ["justification"],
-}
-
 DEFAULT_FUNCTION_CALL = """<function_call>
 <make_change>
 <justification>
@@ -418,6 +409,20 @@ DEFAULT_FUNCTION_CALL = """<function_call>
 {new_code}
 </new_code>
 {flags}
+</make_change>
+</function_call>"""
+
+DEFAULT_CREATE_FUNCTION_CALL = """<function_call>
+<make_change>
+<justification>
+{justification}
+</justification>
+<file_name>
+{file_path}
+</file_name>
+<new_code>
+{new_code}
+</new_code>
 </make_change>
 </function_call>"""
 
@@ -741,6 +746,12 @@ def parse_fcr(fcr: FileChangeRequest):
 def compile_fcr(fcr: FileChangeRequest, index: int) -> str:
     # justification is wrong, fix this later!
     parsed_fcr = parse_fcr(fcr)
+    if fcr.change_type == "create":
+        return DEFAULT_CREATE_FUNCTION_CALL.format(
+            justification=parsed_fcr["justification"],
+            file_path=parsed_fcr["file_path"],
+            new_code=parsed_fcr["new_code"][index],
+        )
     if not parsed_fcr["new_code"]:
         return ""
     if not parsed_fcr["original_code"] and fcr.change_type == "modify":
@@ -871,25 +882,24 @@ def handle_create_file(cloned_repo, modify_files_dict, tool_name, tool_call) -> 
         if key not in tool_call
     )
     if not error_message:
-        new_file_path = tool_call["file_path"].strip()
         new_file_name = tool_call["file_name"].strip()
-        new_file_contents = tool_call["contents"].strip()
+        new_file_contents = tool_call["new_code"].strip()
+        new_file_path = os.path.dirname(new_file_name)
         new_file_dir = os.path.join(cloned_repo.repo_dir, new_file_path)
-        new_full_file_path = os.path.join(new_file_path, new_file_name)
-        new_full_file_path_with_cwd = os.path.join(cloned_repo.repo_dir, new_file_path, new_file_name)
+        new_full_file_path_with_cwd = os.path.join(cloned_repo.repo_dir, new_file_name)
         # ensure file doesn't already exist
         if os.path.exists(new_full_file_path_with_cwd):
-            error_message = f"The file {new_full_file_path} already exists. Modify this existing file instead of attempting to create a new one!"
+            error_message = f"The file {new_file_name} already exists. Modify this existing file instead of attempting to create a new one!"
             # ensure directory is valid
         if not os.path.isdir(new_file_dir):
             error_message = f"The directory {new_file_path} is not valid. Make sure you have the correct directory path!"
             # ensure that the directory of the new full path exists, in case the file name is weird
         if not os.path.exists(os.path.dirname(new_full_file_path_with_cwd)):
-            error_message = f"The directory {os.path.dirname(new_full_file_path)} does not exist. Make sure the new file you want to create exists within an existing directory!"
+            error_message = f"The directory {os.path.dirname(new_file_dir)} does not exist. Make sure the new file you want to create exists within an existing directory!"
             # if no issues, create the file by placing it in modify_files_dict
     if not error_message:
-        modify_files_dict[new_full_file_path] = {"contents": new_file_contents, "original_contents": ""}
-        success_message = f"The new file {new_full_file_path} has been created successfully with the following contents:\n\n{new_file_contents}"
+        modify_files_dict[new_file_name] = {"contents": new_file_contents, "original_contents": ""}
+        success_message = f"The new file {new_file_name} has been created successfully with the following contents:\n\n{new_file_contents}"
     if error_message:
         llm_response = f"ERROR\n\n{error_message}"
     else:
