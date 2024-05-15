@@ -478,7 +478,6 @@ def get_files_to_change(
         issue_excerpts = issue_excerpt_match.group(1)
         issue_excerpts = issue_excerpts.strip("\n")
         # breakpoint()
-        MODEL="gpt-4o"
         files_to_change_response: str = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + (files_to_change_prompt.format(issue_excerpts=issue_excerpts)),
             model=MODEL,
