@@ -1,6 +1,6 @@
 import os
 import random
-from typing import Iterable, Iterator
+from typing import Iterable
 
 import backoff
 from loguru import logger
