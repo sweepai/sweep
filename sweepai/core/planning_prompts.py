@@ -27,7 +27,7 @@ Take these steps:
 
 files_to_change_system_prompt = """You are an exceptionally brilliant AI assistant helping an intern write code to resolve a GitHub issue. The user will provide code files, a description of the issue, and relevant parts of the codebase.
 Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
-Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.
+Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue (excluding tests).
 
 Take these steps:
 1. Issue Analysis: Analyze the issue and codebase to understand the problem. This section will vary in verbosity depending on the complexity of the issue, but each section should be at least 1 paragraph long.
@@ -84,7 +84,7 @@ b. All changes required to resolve the issue. Follow this format:
 ...
 </excerpt_from_issue>
 <proposed_changes>
-1. List of proposed changes for each excerpt.
+1. List of proposed changes for each excerpt. If this has already been addressed, leave this blank.
 ...
 </proposed_changes>
 </issue_and_proposed_changes>
@@ -99,6 +99,7 @@ Description of the new file. Include necessary imports, type definitions, interf
 
 <new_code>
 The code contents of the new file.
+</new_code>
 </create>
 [additional creates]
 

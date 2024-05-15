@@ -349,7 +349,7 @@ def get_files_to_change(
     seed: int = 0,
     images: list[tuple[str, str, str]] | None = None
 ) -> tuple[list[FileChangeRequest], str]:
-    use_openai = True
+    use_openai = True,
     files_to_change_prompt = openai_files_to_change_prompt if use_openai else anthropic_files_to_change_prompt
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
@@ -464,7 +464,7 @@ def get_files_to_change(
             use_openai=use_openai,
             seed=seed
         )
-        breakpoint()
+        # breakpoint()
         issue_excerpt_pattern = re.compile(r"<issue_excerpts>(.*?)</issue_excerpts>", re.DOTALL)
         issue_excerpt_match = issue_excerpt_pattern.search(issue_excerpt_response)
         if not issue_excerpt_match:

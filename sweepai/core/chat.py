@@ -508,6 +508,7 @@ class ChatGPT(MessageList):
                     model: str = model,
                     use_openai: bool = use_openai,
                     use_aws: bool = True,
+                    seed: int = seed,
                 ) -> str: # add system message and model to cache
                     if use_openai:
                         client = OpenAI()
@@ -598,7 +599,7 @@ class ChatGPT(MessageList):
                 # need to modify message dicts if we have images
                 if images:
                     message_dicts = add_images_to_messages(message_dicts, images, use_openai=use_openai)
-                content = call_anthropic(message_dicts, self.messages[0].content, self.model, use_openai=use_openai, use_aws=use_aws)
+                content = call_anthropic(message_dicts, self.messages[0].content, self.model, use_openai=use_openai, use_aws=use_aws, seed=seed)
                 break
             except BadRequestError as e_:
                 e = e_ # sometimes prompt is too long
