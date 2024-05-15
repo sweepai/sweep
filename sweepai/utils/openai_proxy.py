@@ -1,6 +1,6 @@
 import os
 import random
-from typing import Iterator
+from typing import Iterable, Iterator
 
 import backoff
 from loguru import logger
@@ -242,7 +242,7 @@ class OpenAIProxy:
     ):
         client = OpenAI(api_key=OPENAI_API_KEY)
         if len(tools) == 0:
-            response: Iterator = client.chat.completions.create(
+            response: Iterable = client.chat.completions.create(
                 model=model,
                 messages=messages,
                 max_tokens=max_tokens,
@@ -356,8 +356,8 @@ if __name__ == "__main__":
     )
     print("Generating response...", flush=True)
     text = ""
-    for chunk in response: # type: Iterable
-        new_content = chunk.choices[0].delta.content
+    for chunk in response:
+        new_content = chunk.choices[0].delta.content 
         text += new_content if new_content else ""
         if new_content:
             print(new_content, end="", flush=True)
