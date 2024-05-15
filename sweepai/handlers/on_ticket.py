@@ -114,6 +114,7 @@ def on_ticket(
         if tracking_id is None:
             tracking_id = get_hash()
         logger.info(f"Starting on_ticket with title {title} and summary {summary}")
+        on_ticket_start_time = time()
         (
             title,
             slow_mode,
