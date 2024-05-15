@@ -52,14 +52,14 @@ You will complete the following steps.
 
 ### 1. Issue Analysis:
 
-a. Identify potential root causes of the issue by referencing specific code entities in the relevant files. Then, select which of the root causes the user is most likely to be interested in resolving based on the current state of the codebase. (write at least 1 paragraph)
+a. Identify extremely specific potential root causes of the issue by pinpointing specific code sections and code entities in the relevant files. Then, select which of the root causes the user is most likely to be interested in resolving based on the current state of the codebase. (write at least 1 paragraph)
 
 b. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. For each of the excerpts here write a detailed set of code changes spanning at least one change, with possibly more depending on the preceding excerpt. Be complete and precise. You must cover ALL changes that are required per excerpt.
 
 Here are the excerpts:
 {issue_excerpts}
 
-Reference the provided code files, summaries, entity names, and necessary files/directories. For each excerpt, think step-by-step about the best way to make the change, then provide a detailed set of code changes spanning at least one change, with possibly more depending on the preceding excerpt. List all imports required. Be complete and precise. You must cover ALL changes that are required per excerpt.
+Reference the provided code files, summaries, entity names, and necessary files/directories. For each excerpt, think step-by-step about the best way to make the change, then provide a specific detailed description of a set of code changes spanning, at least one change and possibly more depending on the preceding excerpt. List all imports required. Be complete and precise. You must cover ALL changes that are required per excerpt.
 
 c. Detail ALL changes that do not correspond to an excerpt from the user's issue. These changes should be necessary to resolve the issue but are not explicitly mentioned in the user's request. This code change should describe exactly what to do, referencing specific code entities in the relevant files. (optional)
 
