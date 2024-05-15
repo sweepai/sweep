@@ -189,11 +189,11 @@ Here are the changes in the pull request diffs:
     1c. Describe the key changes that were made in the diffs. (1 paragraph)
 <thoughts>
 <thinking>
-{{Analysis of changes}}
+{{Analysis of diff/patch 1}}
 </thinking>
 ...
 </thoughts>
-    1d. Provide a final summary that should be a single sentence and formatted within a <diff_summary> tag.:
+    1d. Provide a final summary for this file that should be a single sentence and formatted within a <diff_summary> tag.:
 <diff_summary>
 {{Final summary of changes}}
 </diff_summary>
@@ -203,7 +203,7 @@ Here are the changes in the pull request diffs:
     2b. Determine whether there are any security vulnerabilities or potential security issues introduced by the code changes. (1 paragraph) 
     2c. Identify any other potential issues that the code changes may introduce that were not captured by 2a or 2b. This could include accidental changes such as commented out code, or other suspicious modifications. (1 paragraph)
     2d. Only include issues that you are very confident will cause serious issues that prevent the pull request from being merged. For example, focus only on functional code changes and ignore changes to strings and comments that are purely descriptive.
-    2e. Format the found issues and root causes using the following XML tags. Each issue description should be a single sentence. Include the corresponding start and end line numbers, these line numbers should only include lines of code that have been changed. Do not reference the patch or patch number in the description. Format these fields in an <issue> tag in the following manner:
+    2e. Format the found issues and root causes using the following XML tags. Each issue description should be a single sentence. Include the corresponding start and end line numbers, these line numbers should only include lines of code that have been changed. DO NOT reference the patch or patch number in the description. Format these fields in an <issue> tag in the following manner:
 <issues>
 <issue>
 <issue_description>
@@ -297,7 +297,7 @@ class PRReviewBot(ChatGPT):
             formatted_user_prompt = user_prompt.format(diff=pr_changes)
             code_review_response = self.chat_anthropic(
                 content=formatted_user_prompt,
-                temperature=0.2,
+                temperature=0,
                 model=CLAUDE_MODEL,
                 use_openai=True
             )
@@ -350,7 +350,7 @@ class PRReviewBot(ChatGPT):
             formatted_user_prompt = user_prompt_review.format(file_name=file_name, potential_issues=potential_issues_string, pr_changes=f"{all_other_pr_changes}\n{formatted_pr_changes_by_file[file_name]}")
             code_review_response = self.chat_anthropic(
                 content=formatted_user_prompt,
-                temperature=0.2,
+                temperature=0,
                 model=CLAUDE_MODEL,
                 use_openai=True
             )

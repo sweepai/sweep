@@ -612,7 +612,7 @@ def parse_issues_from_code_review(issue_string: str):
         for param in issue_params:
             regex = rf'<{param}>(?P<{param}>.*?)<\/{param}>'
             result = re.search(regex, issue_content, re.DOTALL)
-            issue_args[param] = result.group(param).strip('\n')
+            issue_args[param] = result.group(param).strip()
         potential_issues.append(CodeReviewIssue(**issue_args))
     return potential_issues
 
@@ -627,6 +627,9 @@ def render_code_review_issues(pr: PullRequest, code_review: CodeReview):
             issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}-L{issue.end_line}"
         potential_issues += f"<li>{issue.issue_description}</li>\n\n{issue_blob_url}"
     return potential_issues
+
+def escape_html(text: str) -> str:
+    return text.replace('<', '&lt;').replace('>', '&gt;')
 
 # make sure code blocks are render properly in github comments markdown
 def format_code_sections(text: str) -> str:
@@ -651,7 +654,15 @@ def format_code_sections(text: str) -> str:
             # No more backticks found
             break
     result.append(text[last_index:])
-    return ''.join(result)
+    formatted_text = ''.join(result)
+    # Escape HTML characters within <code> tags
+    formatted_text = formatted_text.replace('<code>', '<code>').replace('</code>', '</code>')
+    parts = formatted_text.split('<code>')
+    for i in range(1, len(parts)):
+        code_content, rest = parts[i].split('</code>', 1)
+        parts[i] = escape_html(code_content) + '</code>' + rest
+    
+    return '<code>'.join(parts)
 
 # turns code_review_by_file into markdown string
 def render_pr_review_by_file(pr: PullRequest, code_review_by_file: dict[str, CodeReview]) -> str:
@@ -660,7 +671,7 @@ def render_pr_review_by_file(pr: PullRequest, code_review_by_file: dict[str, Cod
     for file_name, code_review in code_review_by_file.items():
         potential_issues = code_review.issues
         reviewed_files += f"""<details open>
-<summary><strong>{file_name}</strong></summary>
+<summary>{file_name}</summary>
 <p>{format_code_sections(code_review.diff_summary)}</p>"""
         if potential_issues:
             potential_issues_string = render_code_review_issues(pr, code_review)
