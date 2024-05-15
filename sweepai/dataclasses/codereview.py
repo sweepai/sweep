@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -29,4 +29,4 @@ class PRChange:
     new_code: str
     status: str
     patches: list[Patch]
-    annotations: list[str] = []
+    annotations: list[str] = field(default_factory=list)
