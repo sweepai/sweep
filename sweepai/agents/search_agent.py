@@ -42,7 +42,7 @@ Once you have found all the information you need to resolve the issue, use this 
 <description>
 Extremely highly detailed step-by-step plan of the code changes you will make in the repo to fix the bug or implement the feature to resolve the user's issue. 
 If you have any doubts of the correctness of your answer, you should ask more questions using the `ask_questions_about_codebase` tool.
-You will use actionable terms like "change" and "add" to describe the changes you will make, referencing specific methods or modules, instead of terms like "investagate" or "look into", as these should just be done by asking more questions.
+You will use actionable terms like "change" and "add" to describe the changes you will make, referencing specific methods or modules, instead of terms like "investigate" or "look into", as these should just be done by asking more questions.
 </description>
 </parameter>
 <parameter>
