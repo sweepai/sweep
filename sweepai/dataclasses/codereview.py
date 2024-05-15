@@ -29,4 +29,4 @@ class PRChange:
     new_code: str
     status: str
     patches: list[Patch]
-    annotations: list[str] = None
+    annotations: list[str] = []

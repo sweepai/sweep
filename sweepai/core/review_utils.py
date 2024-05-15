@@ -1,7 +1,6 @@
 """
 Take a PR and provide an AI generated review of the PR.
 """
-from dataclasses import dataclass, fields
 import re
 
 from tqdm import tqdm
@@ -9,7 +8,7 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 from sweepai.core.review_annotations import get_diff_annotations
 from sweepai.core.sweep_bot import safe_decode
-from sweepai.dataclasses.codereview import CodeReview, CodeReviewIssue, PRChange, Patch
+from sweepai.dataclasses.codereview import CodeReview, PRChange, Patch
 from sweepai.logn.cache import file_cache
 from sweepai.utils.event_logger import logger
 from sweepai.utils.chat_logger import ChatLogger
