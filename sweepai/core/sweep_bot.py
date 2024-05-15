@@ -40,7 +40,8 @@ from sweepai.core.prompts import (
 from sweepai.core.planning_prompts import (
     openai_files_to_change_prompt,
     anthropic_files_to_change_prompt,
-    files_to_change_system_prompt,
+    openai_files_to_change_system_prompt,
+    anthropic_files_to_change_system_prompt,
     issue_excerpt_prompt,
     issue_excerpt_system_prompt,
 )
@@ -450,7 +451,7 @@ def get_files_to_change(
             messages=[
                 Message(
                     role="system",
-                    content=files_to_change_system_prompt,
+                    content=openai_files_to_change_system_prompt if use_openai else anthropic_files_to_change_system_prompt,
                 ),
             ],
         )
