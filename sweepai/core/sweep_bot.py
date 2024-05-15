@@ -348,6 +348,7 @@ def get_files_to_change(
     seed: int = 0,
     images: list[tuple[str, str, str]] | None = None
 ) -> tuple[list[FileChangeRequest], str]:
+    use_openai = False
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
     messages.append(
@@ -458,7 +459,7 @@ def get_files_to_change(
             model=ISSUE_EXCERPT_MODEL,
             temperature=0.1,
             images=images,
-            use_openai=True,
+            use_openai=use_openai,
             seed=seed
         )
         issue_excerpt_pattern = re.compile(r"<issue_excerpts>(.*?)</issue_excerpts>", re.DOTALL)
@@ -471,8 +472,8 @@ def get_files_to_change(
             content=joint_message + "\n\n" + (files_to_change_prompt.format(issue_excerpts=issue_excerpts)),
             model=MODEL,
             temperature=0.1,
-            # images=images,
-            use_openai=True,
+            images=images,
+            use_openai=use_openai,
             seed=seed
         )
         expected_plan_count = 1
@@ -485,8 +486,8 @@ def get_files_to_change(
                     content="Continue generating, making sure to finish the plan coherently. You may be in the middle of an XML block or section of code.",
                     model=MODEL,
                     temperature=0.1,
-                    # images=images,
-                    use_openai=True,
+                    images=images,
+                    use_openai=use_openai,
                     seed=seed
                 )
                 # we can simply concatenate the responses
@@ -531,7 +532,7 @@ def get_files_to_change(
                 temperature=0.1,
                 images=images,
                 seed=seed,
-                use_openai=True
+                use_openai=use_openai
             )
             drops, matches = parse_patch_fcrs(fix_attempt)
             for index, new_fcr in matches:
