@@ -38,8 +38,9 @@ from sweepai.core.prompts import (
     fix_files_to_change_prompt
 )
 from sweepai.core.planning_prompts import (
+    openai_files_to_change_prompt,
+    anthropic_files_to_change_prompt,
     files_to_change_system_prompt,
-    files_to_change_prompt,
     issue_excerpt_prompt,
     issue_excerpt_system_prompt,
 )
@@ -218,6 +219,10 @@ def get_error_message(
                     error_indices.append(i)
                     continue
                 original_code = parsed_fcr["original_code"][0].strip("\n")
+                if original_code == parsed_fcr["new_code"][0].strip("\n"):
+                    error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> and <new_code> are the same. You must provide a different code snippet in <new_code>.\n</error>\n\n"
+                    error_indices.append(i)
+                    continue
                 if not original_code:
                     error_message += f"<error index=\"{len(error_indices)}\">\nThe <original_code> can not be empty. If you would like to append code, copy the code you want to append the new code after into the <original_code>, then copy the same code into <new_code>, then finally append the new code after <new_code>.\n</error>\n\n"
                     error_indices.append(i)
@@ -237,6 +242,10 @@ def get_error_message(
                         
                         too_long_message = f"\nAlso, the <original_code> block you provided is quite long, with {len(original_code.splitlines())} lines of code. Consider isolating <original_code> and <updated_code> to only the section you want to edit to avoid errors copying the code." if len(original_code.splitlines()) > 50 else ""
                         ellipses_message = "\nYou must copy code out in full and may not use ellipses, abbreviations, or any short-hand notation in your code." if "# ..." in original_code or "// ..." in original_code else ""
+
+                        if not best_match.strip():
+                            error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nBut the code is no where to be found in the file. There are also no similar code snippets in this file.{too_long_message}{ellipses_message}\n</error>\n\n"
+                            continue
 
                         if best_score == 100:
                             continue
@@ -340,6 +349,8 @@ def get_files_to_change(
     seed: int = 0,
     images: list[tuple[str, str, str]] | None = None
 ) -> tuple[list[FileChangeRequest], str]:
+    use_openai = True,
+    files_to_change_prompt = openai_files_to_change_prompt if use_openai else anthropic_files_to_change_prompt
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
     messages.append(
@@ -375,36 +386,27 @@ def get_files_to_change(
     relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
     # read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
     # attach all relevant snippets
-    if True:
-        formatted_relevant_snippets = []
-        for i, snippet in enumerate(tqdm(relevant_snippets)):
-            annotated_source_code, code_summaries = get_annotated_source_code(
-                source_code=snippet.get_snippet(add_lines=False),
-                issue_text=problem_statement,
-                file_path=snippet.file_path,
-            )
-            formatted_relevant_snippets.append(
-                relevant_snippet_template.format(
-                    i=i,
-                    file_path=snippet.file_path,
-                    content=annotated_source_code,
-                )
-            )
-            # cohere_rerank_response = cohere_rerank_call(
-            #     query=problem_statement,
-            #     documents=code_summaries,
-            # )
-        joined_relevant_snippets = "\n".join(
-            formatted_relevant_snippets
+    formatted_relevant_snippets = []
+    for i, snippet in enumerate(tqdm(relevant_snippets)):
+        annotated_source_code, code_summaries = get_annotated_source_code(
+            source_code=snippet.get_snippet(add_lines=False),
+            issue_text=problem_statement,
+            file_path=snippet.file_path,
         )
-    else:
-        joined_relevant_snippets = "\n".join(
+        formatted_relevant_snippets.append(
             relevant_snippet_template.format(
                 i=i,
                 file_path=snippet.file_path,
-                content=snippet.expand(300).get_snippet(add_lines=False),
-            ) for i, snippet in enumerate(relevant_snippets)
+                content=annotated_source_code,
+            )
         )
+        # cohere_rerank_response = cohere_rerank_call(
+        #     query=problem_statement,
+        #     documents=code_summaries,
+        # )
+    joined_relevant_snippets = "\n".join(
+        formatted_relevant_snippets
+    )
     relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
     messages.append(
         Message(
@@ -413,17 +415,6 @@ def get_files_to_change(
             key="relevant_snippets",
         )
     )
-    # previous_diffs = get_previous_diffs(
-    #     problem_statement,
-    #     cloned_repo=cloned_repo,
-    #     relevant_file_paths=[snippet.file_path for snippet in relevant_snippets],
-    # )
-    # messages.append( # temporarily disable in main
-    #     Message(
-    #         role="user",
-    #         content=previous_diffs,
-    #     )
-    # )
     if additional_context:
         messages.append(
             Message(
@@ -466,11 +457,14 @@ def get_files_to_change(
         ISSUE_EXCERPT_MODEL = "claude-3-haiku-20240307"
         MODEL = "claude-3-opus-20240229"
         issue_excerpt_response = issue_excerpt_chat_gpt.chat_anthropic(
-            content=joint_message + "\n\n" + (issue_excerpt_prompt),
+            content=joint_message + "\n\n" + issue_excerpt_prompt,
             model=ISSUE_EXCERPT_MODEL,
             temperature=0.1,
             images=images,
+            use_openai=use_openai,
+            seed=seed
         )
+        # breakpoint()
         issue_excerpt_pattern = re.compile(r"<issue_excerpts>(.*?)</issue_excerpts>", re.DOTALL)
         issue_excerpt_match = issue_excerpt_pattern.search(issue_excerpt_response)
         if not issue_excerpt_match:
@@ -479,10 +473,12 @@ def get_files_to_change(
         issue_excerpts = issue_excerpts.strip("\n")
         # breakpoint()
         files_to_change_response: str = chat_gpt.chat_anthropic(
-            content=joint_message + "\n\n" + (files_to_change_prompt.format(issue_excerpts=issue_excerpts)),
+            content=joint_message + "\n\n" + files_to_change_prompt.format(issue_excerpts=issue_excerpts),
             model=MODEL,
             temperature=0.1,
-            # images=images,
+            images=images,
+            use_openai=use_openai,
+            seed=seed
         )
         expected_plan_count = 1
         calls = 0
@@ -491,10 +487,12 @@ def get_files_to_change(
             # ask for a second response
             try:
                 next_response: str = chat_gpt.chat_anthropic(
-                    content="",
+                    content="Continue generating, making sure to finish the plan coherently. You may be in the middle of an XML block or section of code.",
                     model=MODEL,
                     temperature=0.1,
-                    # images=images,
+                    images=images,
+                    use_openai=use_openai,
+                    seed=seed
                 )
                 # we can simply concatenate the responses
                 files_to_change_response += next_response
@@ -524,6 +522,7 @@ def get_files_to_change(
             file_change_requests.append(file_change_request)
         
         error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
+        # breakpoint()
 
         for _ in range(3):
             if not error_message:
@@ -534,9 +533,10 @@ def get_files_to_change(
                     allowed_indices=english_join([str(index) for index in range(len(error_indices))]),
                 ),
                 model=MODEL,
-                # model="claude-3-opus-20240229",
                 temperature=0.1,
                 images=images,
+                seed=seed,
+                use_openai=use_openai
             )
             drops, matches = parse_patch_fcrs(fix_attempt)
             for index, new_fcr in matches:
@@ -552,6 +552,8 @@ def get_files_to_change(
             logger.debug("Old indices", error_indices)
             error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
             logger.debug("New indices", error_indices)
+            # breakpoint()
+        # breakpoint()
 
         validate_file_change_requests(file_change_requests, cloned_repo)
         return file_change_requests, files_to_change_response
@@ -572,6 +574,7 @@ def context_get_files_to_change(
     seed: int = 0,
     images: list[tuple[str, str, str]] | None = None
 ):
+    use_openai = True
     messages: list[Message] = []
     messages.append(
         Message(role="system", content=issue_excerpt_system_prompt, key="system")
@@ -596,36 +599,13 @@ def context_get_files_to_change(
     relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
     read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
     # attach all relevant snippets
-    if False:
-        formatted_relevant_snippets = []
-        for i, snippet in enumerate(tqdm(relevant_snippets)):
-            annotated_source_code, code_summaries = get_annotated_source_code(
-                source_code=snippet.get_snippet(add_lines=False),
-                issue_text=problem_statement,
-                file_path=snippet.file_path,
-            )
-            formatted_relevant_snippets.append(
-                relevant_snippet_template.format(
-                    i=i,
-                    file_path=snippet.file_path,
-                    content=annotated_source_code,
-                )
-            )
-            # cohere_rerank_response = cohere_rerank_call(
-            #     query=problem_statement,
-            #     documents=code_summaries,
-            # )
-        joined_relevant_snippets = "\n".join(
-            formatted_relevant_snippets
-        )
-    else:
-        joined_relevant_snippets = "\n".join(
-            relevant_snippet_template.format(
-                i=i,
-                file_path=snippet.file_path,
-                content=snippet.expand(300).get_snippet(add_lines=False),
-            ) for i, snippet in enumerate(relevant_snippets)
-        )
+    joined_relevant_snippets = "\n".join(
+        relevant_snippet_template.format(
+            i=i,
+            file_path=snippet.file_path,
+            content=snippet.expand(300).get_snippet(add_lines=False),
+        ) for i, snippet in enumerate(relevant_snippets)
+    )
     relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
     messages.append(
         Message(
@@ -650,17 +630,6 @@ def context_get_files_to_change(
                 key="relevant_snippets",
             )
         )
-    # previous_diffs = get_previous_diffs(
-    #     problem_statement,
-    #     cloned_repo=cloned_repo,
-    #     relevant_file_paths=[snippet.file_path for snippet in relevant_snippets],
-    # )
-    # messages.append( # temporarily disable in main
-    #     Message(
-    #         role="user",
-    #         content=previous_diffs,
-    #     )
-    # )
     if import_graph:
         graph_string = ""
         reverse_graph = import_graph.reverse()
@@ -708,7 +677,8 @@ def context_get_files_to_change(
             content=joint_message + "\n\n" + (context_files_to_change_prompt),
             model=MODEL,
             temperature=0.1,
-            images=images
+            images=images,
+            use_openai=use_openai,
         )
         relevant_files = []
         read_only_files = []
