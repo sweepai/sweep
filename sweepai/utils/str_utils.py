@@ -84,6 +84,9 @@ def blockquote(text: str):
     text = text.replace("\n•", "<br/>•")
     return f"<blockquote>{text}\n</blockquote>" if text else ""
 
+def bold(text: str):
+    return f"<b>{text}</b>" if text else ""
+
 
 def create_checkbox(title: str, body: str, checked: bool = False):
     return checkbox_template.format(
