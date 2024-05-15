@@ -2,7 +2,7 @@ import copy
 
 
 from loguru import logger
-from sweepai.agents.modify_utils import (NO_TOOL_CALL_PROMPT, SLOW_MODEL, create_user_message, get_replaces_per_fcr, render_current_task, render_plan, instructions, modify_tools, SUBMIT_TASK_MOCK_FUNCTION_CALL, linter_warning_prompt, compile_fcr, validate_and_parse_function_call, handle_function_call, tasks_completed, changes_made, get_current_task_index, MODEL)
+from sweepai.agents.modify_utils import (NO_TOOL_CALL_PROMPT, create_user_message, get_replaces_per_fcr, render_current_task, render_plan, instructions, modify_tools, SUBMIT_TASK_MOCK_FUNCTION_CALL, linter_warning_prompt, compile_fcr, validate_and_parse_function_call, handle_function_call, tasks_completed, changes_made, get_current_task_index, MODEL)
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message
 from sweepai.utils.chat_logger import ChatLogger
