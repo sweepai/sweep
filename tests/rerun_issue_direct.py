@@ -44,12 +44,14 @@ def test_issue_url(
     )
     print("Sending request...")
 
-    assert WEBHOOK_SECRET, "WEBHOOK_SECRET not set"
-    sha = hmac.new(
-        WEBHOOK_SECRET.encode("utf-8"),
-        msg=json.dumps(issue_request.model_dump()).encode("utf-8"),
-        digestmod=hashlib.sha256,
-    ).hexdigest()
+    # assert WEBHOOK_SECRET, "WEBHOOK_SECRET not set"
+    sha = ""
+    if WEBHOOK_SECRET:
+        sha = hmac.new(
+            WEBHOOK_SECRET.encode("utf-8"),
+            msg=json.dumps(issue_request.model_dump()).encode("utf-8"),
+            digestmod=hashlib.sha256,
+        ).hexdigest()
     if debug:
         client = TestClient(app)
         response = client.post(

@@ -206,4 +206,3 @@ LICENSE_KEY = os.environ.get("LICENSE_KEY", None)
 ALTERNATE_AWS = os.environ.get("ALTERNATE_AWS", "none").lower() == "true"
 
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", None)
-assert WEBHOOK_SECRET, "WEBHOOK_SECRET must be set. Run `openssl rand -base64 24` to generate a secret."
