@@ -8,7 +8,7 @@ def hash_sha256(text: str):
     return hashlib.sha256(text.encode("utf-8", "ignore")).hexdigest()
 
 def verify_signature(
-    payload_body: str,
+    payload_body: bytes,
     signature_header: str | None
 ):
     """Verify that the payload was sent from GitHub by validating SHA256.
@@ -26,7 +26,7 @@ def verify_signature(
         return False
     hash_object = hmac.new(
         WEBHOOK_SECRET.encode('utf-8'),
-        msg=payload_body.encode('utf-8'),
+        msg=payload_body,
         digestmod=hashlib.sha256
     )
     expected_signature = "sha256=" + hash_object.hexdigest()

@@ -9,6 +9,7 @@ from typing import Any, Optional
 
 from fastapi import (
     Body,
+    Depends,
     FastAPI,
     Header,
     HTTPException,
@@ -342,18 +343,21 @@ def handle_request(request_dict, event=None):
         return {"success": True}
 
 
-@app.post("/")
+# @app.post("/")
+async def validate_signature(
+    request: Request,
+    x_hub_signature: Optional[str] = Header(None, alias="X-Hub-Signature-256")
+):
+    payload_body = await request.body()
+    if not verify_signature(payload_body=payload_body, signature_header=x_hub_signature):
+        raise HTTPException(status_code=403, detail="Request signatures didn't match!")
+
+@app.post("/", dependencies=[Depends(validate_signature)])
 def webhook(
     request_dict: dict = Body(...),
     x_github_event: Optional[str] = Header(None, alias="X-GitHub-Event"),
-    x_hub_signature: Optional[str] = Header(None, alias="X-Hub-Signature-256"),
 ):
     """Handle a webhook request from GitHub"""
-    if not verify_signature(
-        payload_body=json.dumps(request_dict),
-        signature_header=x_hub_signature
-    ):
-        raise HTTPException(status_code=403, detail="Request signatures didn't match!")
     with logger.contextualize(tracking_id="main", env=ENV):
         action = request_dict.get("action", None)
 
