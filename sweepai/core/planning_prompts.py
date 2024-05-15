@@ -35,7 +35,7 @@ Take these steps:
 2. Plan: Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue."""
 
 # openai prompt
-files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
+openai_files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
 
 You will analyze the provided code files, repository, and GitHub issue to understand the requested change. Create a step-by-step plan for an intern to fully resolve the user's GitHub issue. Give extremely detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
 
@@ -54,12 +54,10 @@ You will complete the following steps.
 
 a. Identify extremely specific potential root causes of the issue by pinpointing the exact potential lines of code causing the issue. Then, select which of the root causes the user is most likely to be interested in resolving based on the current state of the codebase. (1 paragraph)
 
-b. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. For each of the excerpts here write a detailed set of code changes spanning at least one change, with possibly more depending on the preceding excerpt. Be complete and precise. You must cover ALL changes that are required per excerpt.
+b. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. For each of the excerpts here, CRITICALLY think step-by-step about the best way to make the change based on the issue description. Then, write a detailed set of code changes spanning at least one change, with possibly more depending on the preceding excerpt. List all imports required. Be complete and precise. You must cover ALL changes that are required per excerpt.
 
 Here are the excerpts:
 {issue_excerpts}
-
-Reference the provided code files, summaries, entity names, and necessary files/directories. For each excerpt, CRITICALLY think step-by-step about the best way to make the change. Then provide a specific detailed description of set of code changes spanning at least one change, with possibly more depending on the preceding excerpt. List all imports required. Be complete and precise. You must cover ALL changes that are required per excerpt.
 
 c. Detail ALL changes that do not correspond to an excerpt from the user's issue. These changes should be necessary to resolve the issue but are not explicitly mentioned in the user's request. This code change should describe exactly what to do, referencing specific code entities in the relevant files. (optional)
 

@@ -38,8 +38,9 @@ from sweepai.core.prompts import (
     fix_files_to_change_prompt
 )
 from sweepai.core.planning_prompts import (
+    openai_files_to_change_prompt,
+    anthropic_files_to_change_prompt,
     files_to_change_system_prompt,
-    files_to_change_prompt,
     issue_excerpt_prompt,
     issue_excerpt_system_prompt,
 )
@@ -349,6 +350,7 @@ def get_files_to_change(
     images: list[tuple[str, str, str]] | None = None
 ) -> tuple[list[FileChangeRequest], str]:
     use_openai = True
+    files_to_change_prompt = openai_files_to_change_prompt if use_openai else anthropic_files_to_change_prompt
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
     messages.append(
@@ -455,13 +457,14 @@ def get_files_to_change(
         ISSUE_EXCERPT_MODEL = "claude-3-haiku-20240307"
         MODEL = "claude-3-opus-20240229"
         issue_excerpt_response = issue_excerpt_chat_gpt.chat_anthropic(
-            content=joint_message + "\n\n" + (issue_excerpt_prompt),
+            content=joint_message + "\n\n" + issue_excerpt_prompt,
             model=ISSUE_EXCERPT_MODEL,
             temperature=0.1,
             images=images,
             use_openai=use_openai,
             seed=seed
         )
+        breakpoint()
         issue_excerpt_pattern = re.compile(r"<issue_excerpts>(.*?)</issue_excerpts>", re.DOTALL)
         issue_excerpt_match = issue_excerpt_pattern.search(issue_excerpt_response)
         if not issue_excerpt_match:
@@ -470,7 +473,7 @@ def get_files_to_change(
         issue_excerpts = issue_excerpts.strip("\n")
         # breakpoint()
         files_to_change_response: str = chat_gpt.chat_anthropic(
-            content=joint_message + "\n\n" + (files_to_change_prompt.format(issue_excerpts=issue_excerpts)),
+            content=joint_message + "\n\n" + files_to_change_prompt.format(issue_excerpts=issue_excerpts),
             model=MODEL,
             temperature=0.1,
             images=images,
