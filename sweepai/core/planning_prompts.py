@@ -13,7 +13,7 @@ A very short substring from the user's issue. This should correspond to a specif
 </issue_excerpts>"""
 
 
-files_to_change_system_prompt = """You are a meticulous AI assistant helping an intern write code to resolve a GitHub issue, and will be compensated greatly if the intern succeeds. The user will provide code files, a description of the issue, and relevant parts of the codebase.
+anthropic_files_to_change_system_prompt = """You are a meticulous AI assistant helping an intern write code to resolve a GitHub issue, and will be compensated greatly if the intern succeeds. The user will provide code files, a description of the issue, and relevant parts of the codebase.
 Your role is to carefully analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
 Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.
 
@@ -25,7 +25,7 @@ Take these steps:
         - Modify step 1. Copy the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
         - Modify step 2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>."""
 
-files_to_change_system_prompt = """You are an exceptionally brilliant AI assistant helping an intern write code to resolve a GitHub issue. The user will provide code files, a description of the issue, and relevant parts of the codebase.
+openai_files_to_change_system_prompt = """You are an exceptionally brilliant AI assistant helping an intern write code to resolve a GitHub issue. The user will provide code files, a description of the issue, and relevant parts of the codebase.
 Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
 Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue (excluding tests).
 
