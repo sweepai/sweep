@@ -8,6 +8,7 @@ from typing import Any, Optional
 
 from fastapi import (
     Body,
+    Depends,
     FastAPI,
     Header,
     HTTPException,
@@ -63,6 +64,7 @@ from sweepai.utils.buttons import (
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import logger, posthog
 from sweepai.utils.github_utils import CURRENT_USERNAME, get_github_client
+from sweepai.utils.hash import verify_signature
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 from sweepai.utils.str_utils import BOT_SUFFIX, get_hash
@@ -340,14 +342,24 @@ def handle_request(request_dict, event=None):
         return {"success": True}
 
 
-@app.post("/")
+# @app.post("/")
+async def validate_signature(
+    request: Request,
+    x_hub_signature: Optional[str] = Header(None, alias="X-Hub-Signature-256")
+):
+    payload_body = await request.body()
+    if not verify_signature(payload_body=payload_body, signature_header=x_hub_signature):
+        raise HTTPException(status_code=403, detail="Request signatures didn't match!")
+
+@app.post("/", dependencies=[Depends(validate_signature)])
 def webhook(
     request_dict: dict = Body(...),
     x_github_event: Optional[str] = Header(None, alias="X-GitHub-Event"),
 ):
-    """Handle a webhook request from GitHub."""
+    """Handle a webhook request from GitHub"""
     with logger.contextualize(tracking_id="main", env=ENV):
         action = request_dict.get("action", None)
+
         logger.info(f"Received event: {x_github_event}, {action}")
         return handle_request(request_dict, event=x_github_event)
 
