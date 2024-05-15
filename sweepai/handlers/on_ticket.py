@@ -71,6 +71,7 @@ from sweepai.utils.str_utils import (
     BOT_SUFFIX,
     FASTER_MODEL_MESSAGE,
     blockquote,
+    bold,
     bot_suffix,
     checkbox_template,
     collapsible_template,
@@ -394,7 +395,7 @@ def on_ticket(
                 logger.warning(f"Validation error: {error_message}")
                 edit_sweep_comment(
                     (
-                        f"The issue was rejected with the following response:\n\n**{error_message}**"
+                        f"The issue was rejected with the following response:\n\n{bold(error_message)}"
                     ),
                     -1,
                 )
