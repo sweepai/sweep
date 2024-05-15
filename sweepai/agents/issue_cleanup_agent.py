@@ -3,14 +3,14 @@ import re
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 
-system_prompt = """Remove any completely irrelevant text from the issue description. Keep stacktraces and informative debugging information"""
+system_prompt = """Remove any completely irrelevant text from the issue description. Keep relevant instructions, stacktraces and informative debugging information. Further, reformat any code with broken formatting."""
 
 prompt = """\
 <issue_description>
 {issue_description}
 </issue_description>
 
-Remove any completely irrelevant text from the issue description. Keep stacktraces and informative debugging information. Copy as much text verbatim as possible.
+Remove any completely irrelevant text from the issue description. Keep relevant instructions, stacktraces and informative debugging information. Further, reformat any code with broken formatting. Copy as much text verbatim as possible.
 
 Explain what needs to be removed.
 Then format your response in <new_issue_description> tags:"""
@@ -33,6 +33,7 @@ class IssueCleanupBot(ChatGPT):
                 issue_description=issue_description.strip("\n"),
             ),
             temperature=0.2,
+            model="gpt-4o"
         )
         issue_desc_matches = re.search(new_issue_desc_pattern, issue_desc_response, re.DOTALL)
         if not issue_desc_matches or not issue_desc_matches.group(1).strip():

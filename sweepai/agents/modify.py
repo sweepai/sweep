@@ -21,6 +21,7 @@ def modify(
     previous_modify_files_dict: dict[str, dict[str, str]] = {},
 ) -> dict[str, dict[str, str]]:
     # join fcr in case of duplicates
+    use_openai = True
     if not fcrs:
         return previous_modify_files_dict
     user_message = create_user_message(
@@ -107,7 +108,7 @@ def modify(
     # used to determine if changes were made
     previous_modify_files_dict = copy.deepcopy(modify_files_dict)
     for i in range(len(fcrs) * 15):
-        function_call: AnthropicFunctionCall = validate_and_parse_function_call(function_calls_string, chat_gpt)
+        function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
         if function_call:
             num_of_tasks_done = tasks_completed(fcrs)
             # note that detailed_chat_logger_messages is meant to be modified in place by handle_function_call
@@ -218,7 +219,7 @@ def modify(
                     if linter_warning_prompt in function_output:
                         llm_state["attempt_count"] = 3 # skip to opus if there is a linter warning
                     model = MODEL if llm_state["attempt_count"] < 3 else SLOW_MODEL
-                    logger.info(f"Using model: {model}")
+                    # logger.info(f"Using model: {model}")
                     function_calls_string = chat_gpt.chat_anthropic(
                         content=function_output,
                         model=model,
