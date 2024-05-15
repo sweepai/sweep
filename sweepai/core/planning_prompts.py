@@ -13,8 +13,8 @@ A very short substring from the user's issue. This should correspond to a specif
 </issue_excerpts>"""
 
 
-files_to_change_system_prompt = """You are an exceptionally brilliant AI assistant helping an intern write code to resolve a GitHub issue. The user will provide code files, a description of the issue, and relevant parts of the codebase.
-Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
+files_to_change_system_prompt = """You are a meticulous AI assistant helping an intern write code to resolve a GitHub issue, and will be compensated greatly if the intern succeeds. The user will provide code files, a description of the issue, and relevant parts of the codebase.
+Your role is to carefully analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
 Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.
 
 Take these steps:
@@ -37,7 +37,7 @@ Take these steps:
 # openai prompt
 files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
 
-You will analyze the provided code files, repository, and GitHub issue to understand the requested change. Create a step-by-step plan for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code files and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
+You will analyze the provided code files, repository, and GitHub issue to understand the requested change. Create a step-by-step plan for an intern to fully resolve the user's GitHub issue. Give extremely detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
 
 ## Guidelines
 
@@ -52,14 +52,14 @@ You will complete the following steps.
 
 ### 1. Issue Analysis:
 
-a. Identify extremely specific potential root causes of the issue by pinpointing specific code sections and code entities in the relevant files. Then, select which of the root causes the user is most likely to be interested in resolving based on the current state of the codebase. (write at least 1 paragraph)
+a. Identify extremely specific potential root causes of the issue by pinpointing the exact potential lines of code causing the issue. Then, select which of the root causes the user is most likely to be interested in resolving based on the current state of the codebase. (1 paragraph)
 
 b. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. For each of the excerpts here write a detailed set of code changes spanning at least one change, with possibly more depending on the preceding excerpt. Be complete and precise. You must cover ALL changes that are required per excerpt.
 
 Here are the excerpts:
 {issue_excerpts}
 
-Reference the provided code files, summaries, entity names, and necessary files/directories. For each excerpt, think step-by-step about the best way to make the change, then provide a specific detailed description of a set of code changes spanning, at least one change and possibly more depending on the preceding excerpt. List all imports required. Be complete and precise. You must cover ALL changes that are required per excerpt.
+Reference the provided code files, summaries, entity names, and necessary files/directories. For each excerpt, think step-by-step about the best way to make the change. Then provide a specific detailed description of set of code changes spanning at least one change, with possibly more depending on the preceding excerpt. List all imports required. Be complete and precise. You must cover ALL changes that are required per excerpt.
 
 c. Detail ALL changes that do not correspond to an excerpt from the user's issue. These changes should be necessary to resolve the issue but are not explicitly mentioned in the user's request. This code change should describe exactly what to do, referencing specific code entities in the relevant files. (optional)
 
@@ -73,7 +73,7 @@ Modify: For modifying files, first, write a detailed description of the changes 
 
 ## Format
 
-You will complete the above instructions by following this format:
+You will complete the above instructions by following this XML format:
 
 ### 1. Issue Analysis:
 <issue_analysis>

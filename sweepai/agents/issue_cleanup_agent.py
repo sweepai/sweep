@@ -3,14 +3,14 @@ import re
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 
-system_prompt = """Remove any completely irrelevant text from the issue description. Keep stacktraces and informative debugging information"""
+system_prompt = """Remove any completely irrelevant text from the issue description. Keep relevant instructions, stacktraces and informative debugging information"""
 
 prompt = """\
 <issue_description>
 {issue_description}
 </issue_description>
 
-Remove any completely irrelevant text from the issue description. Keep stacktraces and informative debugging information. Copy as much text verbatim as possible.
+Remove any completely irrelevant text from the issue description. Keep relevant instructions, stacktraces and informative debugging information. Copy as much text verbatim as possible.
 
 Explain what needs to be removed.
 Then format your response in <new_issue_description> tags:"""

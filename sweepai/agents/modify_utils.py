@@ -1104,7 +1104,7 @@ def handle_function_call(
             llm_response = f"ERROR\n\n{error_message}"
             llm_state["attempt_lazy_change"] = False
             llm_state["attempt_count"] += 1
-            if llm_state["attempt_count"] > 7:
+            if llm_state["attempt_count"] > 5:
                 for fcr in llm_state["fcrs"]:
                     if not fcr.is_completed:
                         fcr.is_completed = True
