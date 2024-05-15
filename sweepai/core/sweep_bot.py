@@ -468,6 +468,7 @@ def get_files_to_change(
             raise Exception("Failed to match issue excerpts")
         issue_excerpts = issue_excerpt_match.group(1)
         issue_excerpts = issue_excerpts.strip("\n")
+        # breakpoint()
         files_to_change_response: str = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + (files_to_change_prompt.format(issue_excerpts=issue_excerpts)),
             model=MODEL,
@@ -706,7 +707,6 @@ def context_get_files_to_change(
             content=joint_message + "\n\n" + (context_files_to_change_prompt),
             model=MODEL,
             temperature=0.1,
-            use_openai=True,
             images=images
         )
         relevant_files = []
@@ -887,7 +887,6 @@ def get_files_to_change_for_test(
             content=joint_message + "\n\n" + test_files_to_change_prompt,
             model=MODEL,
             temperature=0.1,
-            use_openai=True,
         )
         # breakpoint()
         max_tokens = 4096 * 3.5 * 0.9 # approx max tokens per response
@@ -901,7 +900,6 @@ def get_files_to_change_for_test(
                     content="",
                     model=MODEL,
                     temperature=0.1,
-                    use_openai=True
                 )
                 # we can simply concatenate the responses
                 files_to_change_response += second_response
@@ -1066,7 +1064,6 @@ def get_files_to_change_for_gha(
             content=joint_message + "\n\n" + gha_files_to_change_prompt,
             model=MODEL,
             temperature=0.1,
-            use_openai=True,
         )
         # breakpoint()
         max_tokens = 4096 * 3.5 * 0.8 # approx max tokens per response
@@ -1080,7 +1077,6 @@ def get_files_to_change_for_gha(
                     content="",
                     model=MODEL,
                     temperature=0.1,
-                    use_openai=True,
                 )
                 # we can simply concatenate the responses
                 files_to_change_response += second_response
