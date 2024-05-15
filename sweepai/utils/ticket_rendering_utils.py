@@ -610,9 +610,12 @@ def parse_issues_from_code_review(issue_string: str):
         issue_params = ['issue_description', 'start_line', 'end_line']
         issue_args = {}
         for param in issue_params:
-            regex = rf'<{param}>(?P<{param}>.*?)<\/{param}>'
+            regex = rf'<{param}>(?P<{param}>.*?)(<\/{param}>|\Z)'
             result = re.search(regex, issue_content, re.DOTALL)
-            issue_args[param] = result.group(param).strip()
+            if result:
+                issue_args[param] = result.group(param).strip()
+            else:
+                continue
         potential_issues.append(CodeReviewIssue(**issue_args))
     return potential_issues
 
