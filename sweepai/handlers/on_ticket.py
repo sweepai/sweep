@@ -3,7 +3,97 @@ on_ticket is the main function that is called when a new issue is created.
 It is only called by the webhook handler in sweepai/api.py.
 """
 
-from sweepai.utils.str_utils import bold
+import os
+from loguru import logger
+from time import time
+import copy
+import os  
+import traceback
+from time import time
+
+import openai
+import yaml
+import yamllint.config as yamllint_config  
+from github import BadCredentialsException
+from github.WorkflowRun import WorkflowRun
+from github.PullRequest import PullRequest as GithubPullRequest
+from loguru import logger
+from tabulate import tabulate
+from yamllint import linter
+
+from sweepai.core.context_pruning import RepoContextManager
+from sweepai.core.sweep_bot import GHA_PROMPT  
+from sweepai.agents.image_description_bot import ImageDescriptionBot
+from sweepai.config.client import (
+    RESET_FILE,
+    REVERT_CHANGED_FILES_TITLE, 
+    SweepConfig,
+    get_documentation_dict,
+    get_gha_enabled,
+)
+from sweepai.config.server import (
+    DEPLOYMENT_GHA_ENABLED,
+    ENV,
+    GITHUB_LABEL_NAME,
+    IS_SELF_HOSTED,
+    MONGODB_URI, 
+    PROGRESS_BASE_URL,
+)
+from sweepai.core.entities import (
+    FileChangeRequest,
+    MaxTokensExceeded,
+    MockPR,
+    NoFilesException,
+    PullRequest,
+)
+from sweepai.core.pr_reader import PRReader
+from sweepai.core.sweep_bot import SweepBot, get_files_to_change, get_files_to_change_for_gha, validate_file_change_requests
+from sweepai.handlers.create_pr import (
+    create_config_pr,
+    handle_file_change_requests,  
+)
+from sweepai.utils.image_utils import get_image_contents_from_urls, get_image_urls_from_issue
+from sweepai.utils.issue_validator import validate_issue
+from sweepai.utils.ticket_rendering_utils import add_emoji, process_summary, remove_emoji, create_error_logs, get_payment_messages, get_comment_header, send_email_to_user, get_failing_gha_logs, rewrite_pr_description, raise_on_no_file_change_requests, get_branch_diff_text, construct_sweep_bot, handle_empty_repository, delete_old_prs, custom_config  
+from sweepai.utils.validate_license import validate_license
+from sweepai.utils.buttons import Button, ButtonList
+from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import (
+    CURRENT_USERNAME,
+    ClonedRepo,
+    commit_multi_file_changes,
+    convert_pr_draft_field,
+    get_github_client,
+    sanitize_string_for_github,
+    validate_and_sanitize_multi_file_changes,
+)
+from sweepai.utils.slack_utils import add_slack_context  
+from sweepai.utils.str_utils import (
+    BOT_SUFFIX,
+    FASTER_MODEL_MESSAGE,
+    blockquote,
+    bot_suffix,
+    checkbox_template,
+    collapsible_template,
+    create_checkbox,
+    create_collapsible,
+    discord_suffix,
+    get_hash,
+    sep,
+    strip_sweep,
+    to_branch_name,
+    bold,
+)
+from sweepai.utils.ticket_utils import (
+    center,
+    fetch_relevant_files,
+    fire_and_forget_wrapper,
+    prep_snippets,
+)
+from sweepai.utils.user_settings import UserSettings
+from sweepai.utils.ticket_rendering_utils import process_summary, strip_sweep  , get_hash
+from sweepai.utils.validate_license import validate_license  
 
 def on_ticket(
     title: str,
