@@ -355,9 +355,10 @@ if __name__ == "__main__":
     )
     print("Generating response...", flush=True)
     text = ""
-    for chunk in response:
-        new_content = chunk.choices[0].delta.content
-        text += new_content if new_content else ""
-        if new_content:
-            print(new_content, end="", flush=True)
+    if isinstance(response, list):
+        for chunk in response:
+            new_content = chunk.choices[0].delta.content
+            text += new_content if new_content else ""
+            if new_content:
+                print(new_content, end="", flush=True)
     print()
