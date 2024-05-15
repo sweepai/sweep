@@ -413,7 +413,7 @@ class ChatGPT(MessageList):
         stream: bool = False,
         seed: int | None = None,
     ) -> str | Iterator[str]:
-        if not os.environ.get("ANTHROPIC_API_KEY"):
+        if not os.environ.get("ANTHROPIC_API_KEY") and not ANTHROPIC_AVAILABLE:
             use_openai = True
         if use_openai:
             OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")

@@ -475,7 +475,6 @@ def get_files_to_change(
             use_openai=True,
             seed=seed
         )
-        # breakpoint()
         expected_plan_count = 1
         calls = 0
         # pylint: disable=E1101
@@ -518,6 +517,7 @@ def get_files_to_change(
             file_change_requests.append(file_change_request)
         
         error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
+        # breakpoint()
 
         for _ in range(3):
             if not error_message:
@@ -530,7 +530,8 @@ def get_files_to_change(
                 model=MODEL,
                 temperature=0.1,
                 images=images,
-                seed=seed
+                seed=seed,
+                use_openai=True
             )
             drops, matches = parse_patch_fcrs(fix_attempt)
             for index, new_fcr in matches:
