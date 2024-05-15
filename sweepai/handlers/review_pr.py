@@ -56,6 +56,7 @@ def review_pr(username: str, pr: PullRequest, repository: Repository, installati
             logger.info(f"Fetched pr changes for {pr}.")
             formatted_pr_changes_by_file = format_pr_changes_by_file(pr_changes)
             code_review_by_file = review_bot.review_code_changes_by_file(formatted_pr_changes_by_file, chat_logger=chat_logger)
+            code_review_by_file = review_bot.review_code_issues_by_file(pr_changes, formatted_pr_changes_by_file, code_review_by_file, chat_logger=chat_logger)
             _comment_id = create_update_review_pr_comment(pr, code_review_by_file=code_review_by_file)
         except Exception as e:
             posthog.capture(
