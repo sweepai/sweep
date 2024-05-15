@@ -4,12 +4,10 @@ It is only called by the webhook handler in sweepai/api.py.
 """
 
 import os
-from loguru import logger
-from time import time
 import copy
-import os  
+import time
+
 import traceback
-from time import time
 
 import openai
 import yaml
@@ -55,7 +53,7 @@ from sweepai.handlers.create_pr import (
 from sweepai.utils.image_utils import get_image_contents_from_urls, get_image_urls_from_issue
 from sweepai.utils.issue_validator import validate_issue
 from sweepai.utils.ticket_rendering_utils import add_emoji, process_summary, remove_emoji, create_error_logs, get_payment_messages, get_comment_header, send_email_to_user, get_failing_gha_logs, rewrite_pr_description, raise_on_no_file_change_requests, get_branch_diff_text, construct_sweep_bot, handle_empty_repository, delete_old_prs, custom_config  
-from sweepai.utils.validate_license import validate_license
+
 from sweepai.utils.buttons import Button, ButtonList
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -92,8 +90,8 @@ from sweepai.utils.ticket_utils import (
     prep_snippets,
 )
 from sweepai.utils.user_settings import UserSettings
-from sweepai.utils.ticket_rendering_utils import process_summary, strip_sweep  , get_hash
-from sweepai.utils.validate_license import validate_license  
+from sweepai.utils.ticket_rendering_utils import process_summary
+
 
 def on_ticket(
     title: str,
@@ -109,13 +107,12 @@ def on_ticket(
     tracking_id: str | None = None,
 ):
     if not os.environ.get("CLI"):
-        assert validate_license(), "License key is invalid or expired. Please contact us at team@sweep.dev to upgrade to an enterprise license."
+        pass
     with logger.contextualize(
         tracking_id=tracking_id,
     ):
         if tracking_id is None:
             tracking_id = get_hash()
-        on_ticket_start_time = time()
         logger.info(f"Starting on_ticket with title {title} and summary {summary}")
         (
             title,
@@ -434,7 +431,7 @@ def on_ticket(
                 logger.warning(f"Validation error: {error_message}")
                 edit_sweep_comment(
                     (
-                        f"The issue was rejected with the following response:\n\n**{error_message}**"
+                        f"The issue was rejected with the following response:\n\n{bold(error_message)}"
                     ),
                     -1,
                 )
