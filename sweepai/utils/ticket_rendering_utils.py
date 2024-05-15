@@ -31,8 +31,8 @@ from sweepai.core.entities import (
     SandboxResponse,
 )
 from sweepai.core.entities import create_error_logs as entities_create_error_logs
-from sweepai.core.review_utils import CodeReview
 from sweepai.core.sweep_bot import SweepBot
+from sweepai.dataclasses.codereview import CodeReview, CodeReviewIssue
 from sweepai.handlers.create_pr import (
     safe_delete_sweep_branch,
 )
@@ -601,11 +601,10 @@ def get_payment_messages(chat_logger: ChatLogger):
 
     return payment_message, payment_message_start
 
-def parse_issues_from_code_review(pr: PullRequest, code_review: CodeReview):
-    files_to_blobs = {file.filename: file.blob_url for file in list(pr.get_files())}
+def parse_issues_from_code_review(issue_string: str):
     issue_regex = r'<issue>(?P<issue>.*?)<\/issue>'
-    issue_matches = list(re.finditer(issue_regex, code_review.issues, re.DOTALL))
-    potential_issues = ""
+    issue_matches = list(re.finditer(issue_regex, issue_string, re.DOTALL))
+    potential_issues = []
     for issue in issue_matches:
         issue_content = issue.group('issue')
         issue_params = ['issue_description', 'start_line', 'end_line']
@@ -614,37 +613,61 @@ def parse_issues_from_code_review(pr: PullRequest, code_review: CodeReview):
             regex = rf'<{param}>(?P<{param}>.*?)<\/{param}>'
             result = re.search(regex, issue_content, re.DOTALL)
             issue_args[param] = result.group(param).strip('\n')
-        if issue_args['start_line'] == issue_args['end_line']:
-            issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue_args['start_line']}"
-        else:
-            issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue_args['start_line']}-L{issue_args['end_line']}"
-        potential_issues += f"<li>{issue_args['issue_description']}</li>\n\n{issue_blob_url}"
-
+        potential_issues.append(CodeReviewIssue(**issue_args))
     return potential_issues
-        
+
+# converts the list of issues inside a code_review into markdown text to display in a github comment
+def render_code_review_issues(pr: PullRequest, code_review: CodeReview):
+    files_to_blobs = {file.filename: file.blob_url for file in list(pr.get_files())}
+    potential_issues = ""
+    for issue in code_review.issues:
+        if issue.start_line == issue.end_line:
+            issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}"
+        else:
+            issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}-L{issue.end_line}"
+        potential_issues += f"<li>{issue.issue_description}</li>\n\n{issue_blob_url}"
+    return potential_issues
+
+# make sure code blocks are render properly in github comments markdown
+def format_code_sections(text: str) -> str:
+    backtick_count = text.count("`")
+    if backtick_count % 2 != 0:
+        # If there's an odd number of backticks, return the original text
+        return text
+    result = []
+    last_index = 0
+    inside_code = False
+    while True:
+        try:
+            index = text.index('`', last_index)
+            result.append(text[last_index:index])
+            if inside_code:
+                result.append('</code>')
+            else:
+                result.append('<code>')
+            inside_code = not inside_code
+            last_index = index + 1
+        except ValueError:
+            # No more backticks found
+            break
+    result.append(text[last_index:])
+    return ''.join(result)
 
 # turns code_review_by_file into markdown string
 def render_pr_review_by_file(pr: PullRequest, code_review_by_file: dict[str, CodeReview]) -> str:
     body = f"{SWEEP_PR_REVIEW_HEADER}\nSweep has finished reviewing your pull request.\n"
-
-    dropdown_section = """<details open>
-<summary><h3>Reviewed Files</h3></summary>
-<p></p>
-{reviewed_files}
-</details>"""
     reviewed_files = ""
     for file_name, code_review in code_review_by_file.items():
-        potential_issues = parse_issues_from_code_review(pr, code_review)
+        potential_issues = code_review.issues
         reviewed_files += f"""<details open>
 <summary><strong>{file_name}</strong></summary>
-<p><strong>Summary of changes made:</strong></p>
-<p>{code_review.diff_summary}</p>"""
+<p>{format_code_sections(code_review.diff_summary)}</p>"""
         if potential_issues:
-            reviewed_files += f"<p><strong>Potential Issues</strong></p><ul>{potential_issues}</ul></details><hr>"
+            potential_issues_string = render_code_review_issues(pr, code_review)
+            reviewed_files += f"<p><strong>Potential Issues</strong></p><ul>{format_code_sections(potential_issues_string)}</ul></details><hr>"
         else:
             reviewed_files += "<p><strong>No issues found with the reviewed changes</strong></p></details><hr>"
-    dropdown_section = dropdown_section.format(reviewed_files=reviewed_files)
-    return body + dropdown_section
+    return body + reviewed_files
 
 # handles the creation or update of the Sweep comment letting the user know that Sweep is reviewing a pr
 # returns the comment_id
