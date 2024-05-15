@@ -21,7 +21,7 @@ from sweepai.config.server import (
 from sweepai.core.entities import MockPR, NoFilesException
 from sweepai.core.sweep_bot import SweepBot, get_files_to_change, validate_file_change_requests
 from sweepai.handlers.create_pr import handle_file_change_requests
-from sweepai.handlers.on_review import get_pr_diffs
+from sweepai.core.review_utils import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
@@ -367,7 +367,7 @@ def on_comment(
 
             sweep_bot.comment_pr_diff_str = pr_diff_string
             sweep_bot.comment_pr_files_modified = pr_files_modified
-            modify_files_dict, changes_made, _, file_change_requests = handle_file_change_requests(
+            modify_files_dict, changes_made, file_change_requests = handle_file_change_requests(
                 file_change_requests=file_change_requests,
                 request=file_comment,
                 branch_name=branch_name,

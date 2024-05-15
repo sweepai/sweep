@@ -9,7 +9,7 @@ import stringzilla as sz
 from loguru import logger
 import rapidfuzz
 from tqdm import tqdm
-from sweepai.core.chat import ChatGPT, parse_function_calls_for_openai
+from sweepai.core.chat import ChatGPT, parse_function_calls
 from sweepai.core.entities import FileChangeRequest
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.diff import generate_diff
@@ -17,7 +17,7 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.modify_utils import manual_code_check
 from sweepai.utils.utils import get_check_results
 
-modify_tools_openai = """
+modify_tools = """
 # make_change - Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments, and style. Changes should be minimal, self-contained, and address only one specific modification. If a change affects multiple separate code sections, use multiple calls to this tool, one for each section.
 To call this tool you must respond in the following xml format:
 
@@ -53,110 +53,13 @@ Explain why creating this new file is necessary to complete the task and how it 
 </justification>
 </create_file>
 
-# submit_result - Indicate that the task is complete and all requirements have been met. Provide the final code changes or solution.
+# submit_task - Indicate that the task is complete and all requirements have been met. Provide the final code changes or solution.
 To call this tool you must respond in the following xml format:
-<submit_result>
+<submit_task>
 <justification>
 Summarize the code changes made and explain how they fulfill the user's original request. Provide the complete, modified code if applicable.
 </justification>
-</submit_result>"""
-
-modify_tools = """<tool_description>
-<tool_name>make_change</tool_name>
-<description>
-Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments, and style. Changes should be minimal, self-contained, and address only one specific modification. If a change affects multiple separate code sections, use this tool for one change at a time, one for each section. For multiple changes, make them in separate calls.
-</description>
-<parameters>
-<parameter>
-<name>justification</name>
-<type>str</type>
-<description>
-Explain how this SINGLE change contributes to fulfilling the user's request.
-</description>
-</parameter>
-<parameter>
-<name>file_name</name>
-<type>str</type>
-<description>
-Name of the file where the change will be made. Ensure correct spelling as this is case-sensitive.
-</description>
-</parameter>
-<parameter>
-<name>original_code</name>
-<type>str</type>
-<description>
-The existing lines of code that need modification or replacement. This should be a short SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context. This CAN NOT be empty.
-</description>
-</parameter>
-<parameter>
-<name>new_code</name>
-<type>str</type>
-<description>
-The new lines of code to replace the original code, implementing the SINGLE desired change. If the change is complex, break it into smaller targeted changes and use separate make_change calls for each.
-</description>
-</parameter>
-<parameter>
-<name>append</name>
-<type>bool</type>
-<description>
-Optional: either true or false. If true, the new code will be appended to the original code. If false, the original code will be replaced by the new code. Use this to add new methods or test cases. Default is false.
-</description>
-</parameter>
-</parameters>
-</tool_description>
-
-<tool_description>
-<tool_name>create_file</tool_name>
-<description>
-Create a new code file in the specified location with the given file name and extension. This is useful when the task requires adding entirely new functionality or classes to the codebase.
-</description>
-<parameters>
-<parameter>
-<name>file_path</name>
-<type>str</type>
-<description>
-The path where the new file should be created, relative to the root of the codebase. Do not include the file name itself.
-</description>
-</parameter>
-<parameter>
-<name>file_name</name>
-<type>str</type>
-<description>
-The name to give the new file, including the extension. Ensure the name is clear, descriptive, and follows existing naming conventions.
-</description>
-</parameter>
-<parameter>
-<name>contents</name>
-<type>str</type>
-<description>
-The initial contents of the new file.
-</description>
-</parameter>
-<parameter>
-<name>justification</name>
-<type>str</type>
-<description>
-Explain why creating this new file is necessary to complete the task and how it integrates with the existing codebase structure.
-</description>
-</parameter>
-</parameters>
-</tool_description>
-
-<tool_description>
-<tool_name>submit_task</tool_name>
-<description>
-Indicate that the current task is complete.
-</description>
-<parameters>
-<parameter>
-<name>justification</name>
-<type>str</type>
-<description>
-Summarize the code changes made and explain how they fulfill the user's original request.
-</description>
-</parameter>
-</parameters>
-</tool_description>"""
+</submit_task>"""
 
 instructions = """You are an expert software developer tasked with editing code to fulfill the user's request. Your goal is to make the necessary changes to the codebase while following best practices and respecting existing conventions. 
 
@@ -180,13 +83,12 @@ In this environment, you have access to the following tools to assist in fulfill
 
 You MUST call them like this:
 <function_call>
-<invoke>
-<tool_name>$TOOL_NAME</tool_name>
-<parameters>
-<$PARAMETER_NAME>$PARAMETER_VALUE</$PARAMETER_NAME>
+<tool_name>
+<param1>
+param1 value
+</param1>
 ...
-</parameters>
-</invoke>
+</tool_name>
 </function_call>
 
 Here are the tools available:
@@ -194,31 +96,6 @@ Here are the tools available:
 """
 
 NO_TOOL_CALL_PROMPT = """FAILURE
-No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:
-
-<function_call>
-<invoke>
-<tool_name>tool_name</tool_name>
-<parameters>
-<param_name>param_value</param_name>
-</parameters>
-</invoke>
-</function_call>
-
-Here is an example:
-
-<function_call>
-<invoke>
-<tool_name>submit_task</tool_name>
-<parameters>
-<justification>The justification for making this change goes here.</justification>
-</parameters>
-</invoke>
-</function_call>
-
-If the current task is complete, call the submit_task function."""
-
-NO_TOOL_CALL_PROMPT_OPENAI = """FAILURE
 No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:
 
 <function_call>
@@ -527,9 +404,7 @@ tool_call_parameters = {
 }
 
 DEFAULT_FUNCTION_CALL = """<function_call>
-<invoke>
-<tool_name>make_change</tool_name>
-<parameters>
+<make_change>
 <justification>
 {justification}
 </justification>
@@ -541,20 +416,17 @@ DEFAULT_FUNCTION_CALL = """<function_call>
 </original_code>
 <new_code>
 {new_code}
-</new_code>{flags}
-</parameters>
-</invoke>
+</new_code>
+{flags}
+</make_change>
 </function_call>"""
 
 SUBMIT_TASK_MOCK_FUNCTION_CALL = """<function_call>
-<invoke>
-<tool_name>submit_task</tool_name>
-<parameters>
+<submit_task>
 <justification>
 {justification}
 </justification>
-</parameters>
-</invoke>
+</submit_task>
 </function_call>"""
 
 def english_join(items: list[str]) -> str:
@@ -688,10 +560,10 @@ def contains_ignoring_whitespace(needle: str, haystack: str):
 MODEL = "claude-3-haiku-20240307"
 SLOW_MODEL = "claude-3-opus-20240229" # try haiku
 
-def validate_and_parse_function_call_openai(
+def validate_and_parse_function_call(
     function_calls_string: str, chat_gpt: ChatGPT
 ) -> list[AnthropicFunctionCall]:
-    function_calls = parse_function_calls_for_openai(
+    function_calls = parse_function_calls(
         function_calls_string.strip("\n") + "\n</function_call>"
     )
     if len(function_calls) > 0:
@@ -703,42 +575,6 @@ def validate_and_parse_function_call_openai(
             chat_gpt.messages[-1].content = (
                 chat_gpt.messages[-1].content.rstrip("\n") + "\n</function_call>"
             )
-    return function_calls[0] if len(function_calls) > 0 else None
-
-
-def validate_and_parse_function_call(
-    function_calls_string: str, chat_gpt: ChatGPT
-) -> AnthropicFunctionCall:
-    function_calls = AnthropicFunctionCall.mock_function_calls_from_string(
-        function_calls_string.strip("\n") + "\n</function_call>"
-    )  # add end tag
-    if len(function_calls) > 0:
-        chat_gpt.messages[-1].content = (
-            chat_gpt.messages[-1].content.rstrip("\n") + "\n</function_call>"
-        )  # add end tag to assistant message
-        return function_calls[0] if len(function_calls) > 0 else None
-
-    # try adding </invoke> tag as well
-    function_calls = AnthropicFunctionCall.mock_function_calls_from_string(
-        function_calls_string.strip("\n") + "\n</invoke>\n</function_call>"
-    )
-    if len(function_calls) > 0:
-        # update state of chat_gpt
-        chat_gpt.messages[-1].content = (
-            chat_gpt.messages[-1].content.rstrip("\n") + "\n</invoke>\n</function_call>"
-        )
-        return function_calls[0] if len(function_calls) > 0 else None
-    # try adding </parameters> tag as well
-    function_calls = AnthropicFunctionCall.mock_function_calls_from_string(
-        function_calls_string.strip("\n")
-        + "\n</parameters>\n</invoke>\n</function_call>"
-    )
-    if len(function_calls) > 0:
-        # update state of chat_gpt
-        chat_gpt.messages[-1].content = (
-            chat_gpt.messages[-1].content.rstrip("\n")
-            + "\n</parameters>\n</invoke>\n</function_call>"
-        )
     return function_calls[0] if len(function_calls) > 0 else None
 
 def create_user_message( # TODO: has non-deterministic behavior
@@ -1094,10 +930,7 @@ def handle_function_call(
     if tool_name == "submit_task" or tool_name == "submit_result":
         llm_response, llm_state = handle_submit_task(modify_files_dict, llm_state)
     elif tool_name == "no_tool_call":
-        # if use_openai:
-        #     llm_response = NO_TOOL_CALL_PROMPT_OPENAI
-        # else:
-        llm_response = NO_TOOL_CALL_PROMPT
+        llm_response = NO_TOOL_CALL_PROMPT  
     elif tool_name == "make_change":
         error_message = ""
         error_message = check_make_change_tool_call(tool_call, error_message)

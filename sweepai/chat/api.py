@@ -119,8 +119,7 @@ You MUST follow the following XML-based format:
 
 Use GitHub-styled markdown for your responses. You must respond with the following three distinct sections:
 
-# 1. User Response
-
+# 1. Summary and analysis
 <user_response>
 ## Summary
 First, list and summarize each NEW file from the codebase provided from the last function output that is relevant to the user's question. You may not need to summarize all provided files.
@@ -128,13 +127,18 @@ First, list and summarize each NEW file from the codebase provided from the last
 ## New information
 Secondly, list all new information that was retrieved from the codebase that is relevant to the user's question, especially if it invalidates any previous beliefs or assumptions.
 
-## Updated answer
+Determine if you have sufficient information to answer the user's question. If not, determine the information you need to answer the question completely by making `search_codebase` tool calls.
+</analysis>
+
+# 2. User Response
+
+<user_response>
 Determine if you have sufficient information to answer the user's question. If not, determine the information you need to answer the question completely by making `search_codebase` tool calls.
 
 If so, rewrite your previous response with the new information and any invalidated beliefs or assumptions. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When explaining how to add new code, always write out the new code. When suggesting code changes, write out all the code changes required in the unified diff format.
 </user_response>
 
-# 2. Self-Critique
+# 3. Self-Critique
 
 <self_critique>
 Then, self-critique your answer and validate that you have completely answered the user's question. If the user's answer is relatively broad, you are done.
@@ -142,7 +146,7 @@ Then, self-critique your answer and validate that you have completely answered t
 Otherwise, if the user's question is specific, and asks to implement a feature or fix a bug, determine what additional information you need to answer the user's question. Specifically, validate that all interfaces are being used correctly based on the contents of the retrieved files -- if you cannot verify this, then you must find the relevant information such as the correct interface or schema to validate the usage. If you need to search the codebase for more information, such as for how a particular feature in the codebase works, use the `search_codebase` tool in the next section.
 </self_critique>
 
-# 3. Function Calls (Optional)
+# 4. Function Calls (Optional)
 
 Then, make each function call like so:
 <function_calls>
@@ -155,19 +159,20 @@ format_message = """You MUST follow the following XML-based format:
 
 Use GitHub-styled markdown for your responses. You must respond with the following three distinct sections:
 
-# 1. User Response
-
-<user_response>
-## Summary
+# 1. Summary and analysis
+<analysis>
 First, list and summarize each file from the codebase provided that is relevant to the user's question. You may not need to summarize all provided files.
 
-## Answer
-Determine if you have sufficient information to answer the user's question. If not, determine the information you need to answer the question completely by making `search_codebase` tool calls.
+Then, determine if you have sufficient information to answer the user's question. If not, determine the information you need to answer the question completely by making `search_codebase` tool calls.
+</analysis>
 
-If so, write a complete helpful response to the user's question in full detail. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When explaining how to add new code, always write out the new code. When suggesting code changes, write out all the code changes required in the unified diff format.
+# 2. User Response
+
+<user_response>
+Write a complete helpful response to the user's question in full detail. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When explaining how to add new code, always write out the new code. When suggesting code changes, write out all the code changes required in the unified diff format.
 </user_response>
 
-# 2. Self-Critique
+# 3. Self-Critique
 
 <self_critique>
 Then, self-critique your answer and validate that you have completely answered the user's question. If the user's answer is relatively broad, you are done.
@@ -175,7 +180,7 @@ Then, self-critique your answer and validate that you have completely answered t
 Otherwise, if the user's question is specific, and asks to implement a feature or fix a bug, determine what additional information you need to answer the user's question. Specifically, validate that all interfaces are being used correctly based on the contents of the retrieved files -- if you cannot verify this, then you must find the relevant information such as the correct interface or schema to validate the usage. If you need to search the codebase for more information, such as for how a particular feature in the codebase works, use the `search_codebase` tool in the next section.
 </self_critique>
 
-# 3. Function Calls (Optional)
+# 4. Function Calls (Optional)
 
 Then, make each function call like so:
 <function_calls>
@@ -307,68 +312,70 @@ def chat_codebase(
                 }
             )
         ] if len(messages) <= 2 else []
+
         yield new_messages
+
         for _ in range(5):
             stream = chat_gpt.chat_anthropic(
                 content=user_message,
                 model="claude-3-opus-20240229",
-                stop_sequences=["</function_call>"],
+                stop_sequences=["</function_call>", "</function_calls>"],
                 stream=True
             )
             
             result_string = ""
             user_response = ""
             self_critique = ""
+            current_messages = []
             for token in stream:
                 result_string += token
+                analysis = extract_xml_tag(result_string, "analysis", include_closing_tag=False) or ""
                 user_response = extract_xml_tag(result_string, "user_response", include_closing_tag=False) or ""
                 self_critique = extract_xml_tag(result_string, "self_critique", include_closing_tag=False)
+
+                current_messages = []
                 
-                if self_critique:
-                    yield [
-                        *new_messages,
+                if analysis:
+                    current_messages.append(
+                        Message(
+                            content=analysis,
+                            role="function",
+                            function_call={
+                                "function_name": "analysis",
+                                "function_parameters": {},
+                                "is_complete": bool(user_response),
+                            }
+                        )
+                    )
+                
+                if user_response:
+                    current_messages.append(
                         Message(
                             content=user_response,
-                            role="assistant"
-                        ),
+                            role="assistant",
+                        )
+                    )
+                
+                if self_critique:
+                    current_messages.append(
                         Message(
                             content=self_critique,
                             role="function",
                             function_call={
                                 "function_name": "self_critique",
                                 "function_parameters": {},
-                                "is_complete": False,
                             }
-                        ),
-                    ]
-                else:
-                    yield [
-                        *new_messages,
-                        Message(
-                            content=user_response,
-                            role="assistant"
                         )
-                    ]
-            
-            new_messages.append(
-                Message(
-                    content=user_response,
-                    role="assistant",
-                )
-            )
-
-            if self_critique:
-                new_messages.append(
-                    Message(
-                        content=self_critique,
-                        role="function",
-                        function_call={
-                            "function_name": "self_critique",
-                            "function_parameters": {},
-                            "is_complete": True,
-                        }
                     )
-                )
+                
+                yield [
+                    *new_messages,
+                    *current_messages
+                ]
+            
+            current_messages[-1].function_call["is_complete"] = True
+            
+            new_messages.extend(current_messages)
             
             yield new_messages
             

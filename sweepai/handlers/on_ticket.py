@@ -991,7 +991,7 @@ def on_ticket(
                             )
                             validate_file_change_requests(file_change_requests, cloned_repo)
                             previous_modify_files_dict: dict[str, dict[str, str | list[str]]] | None = None
-                            modify_files_dict, changed_file, commit, file_change_requests = handle_file_change_requests(
+                            modify_files_dict, _, file_change_requests = handle_file_change_requests(
                                 file_change_requests=file_change_requests,
                                 request=sweep_bot.human_message.get_issue_request(),
                                 branch_name=pull_request.branch_name,

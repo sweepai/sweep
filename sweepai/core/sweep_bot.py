@@ -128,13 +128,18 @@ def safe_decode(
     It's a strange bug that occurs when the file is too large and the GitHub API doesn't decode it properly and returns encoding="none".
     Reference: https://docs.github.com/en/rest/repos/contents?apiVersion=2022-11-28#get-repository-content
     """
-    contents = repo.get_contents(path, *args, **kwargs)
-    if contents.encoding == "none":
-        blob = repo.get_git_blob(contents.sha)
-        # this might be more correct but chatgpt said the latter is better
-        # return base64.b64decode(bytearray(blob.content, "utf-8")).decode("utf-8")
-        return base64.b64decode(blob.content).decode("utf-8")
-    return contents.decoded_content.decode("utf-8")
+    try:
+        contents = repo.get_contents(path, *args, **kwargs)
+        if contents.encoding == "none":
+            blob = repo.get_git_blob(contents.sha)
+            # this might be more correct but chatgpt said the latter is better
+            # return base64.b64decode(bytearray(blob.content, "utf-8")).decode("utf-8")
+            return base64.b64decode(blob.content).decode("utf-8")
+        return contents.decoded_content.decode("utf-8")
+    except GithubException as e:
+        raise e
+    except Exception as e:
+        raise e
 
 def remove_line_numbers(s: str) -> str:
     # Check if more than 50% of lines have line numbers
@@ -473,6 +478,7 @@ def get_files_to_change(
             model=ISSUE_EXCERPT_MODEL,
             temperature=0.1,
             images=images,
+            use_openai=True,
         )
         issue_excerpt_pattern = re.compile(r"<issue_excerpts>(.*?)</issue_excerpts>", re.DOTALL)
         issue_excerpt_match = issue_excerpt_pattern.search(issue_excerpt_response)
@@ -540,8 +546,7 @@ def get_files_to_change(
                 ),
                 model=MODEL,
                 temperature=0.1,
-                # images=images,
-                use_openai=True,
+                images=images,
             )
             drops, matches = parse_patch_fcrs(fix_attempt)
             for index, new_fcr in matches:
