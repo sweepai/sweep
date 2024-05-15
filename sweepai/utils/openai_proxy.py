@@ -252,7 +252,7 @@ class OpenAIProxy:
                 stream=True,
             )
             text = ""
-            for chunk in response:
+            for chunk in response: # type: Iterable
                 new_content = chunk.choices[0].delta.content
                 text += new_content if new_content else ""
                 if new_content:
@@ -355,7 +355,7 @@ if __name__ == "__main__":
     )
     print("Generating response...", flush=True)
     text = ""
-    for chunk in response:
+    for chunk in response: # type: Iterable
         new_content = chunk.choices[0].delta.content
         text += new_content if new_content else ""
         if new_content:
