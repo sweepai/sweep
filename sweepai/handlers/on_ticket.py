@@ -90,7 +90,7 @@ from sweepai.utils.ticket_utils import (
     prep_snippets,
 )
 from sweepai.utils.user_settings import UserSettings
-from sweepai.utils.ticket_rendering_utils import process_summary
+
 
 
 def on_ticket(
@@ -127,38 +127,7 @@ def on_ticket(
 
         # Rest of the function code
 
-def on_ticket(
-    title: str,
-    summary: str,
-    issue_number: int,
-    issue_url: str, # purely for logging purposes
-    username: str,
-    repo_full_name: str,
-    repo_description: str,
-    installation_id: int,
-    comment_id: int = None,
-    edited: bool = False,
-    tracking_id: str | None = None,
-):
-    if not os.environ.get("CLI"):
-        assert validate_license(), "License key is invalid or expired. Please contact us at team@sweep.dev to upgrade to an enterprise license."
-    with logger.contextualize(
-        tracking_id=tracking_id,
-    ):
-        if tracking_id is None:
-            tracking_id = get_hash()
-        on_ticket_start_time = time()
-        logger.info(f"Starting on_ticket with title {title} and summary {summary}")
-        (
-            title,
-            slow_mode,
-            do_map,
-            subissues_mode,
-            sandbox_mode,
-            fast_mode,
-            lint_mode,
-        ) = strip_sweep(title)
-        summary, repo_name, user_token, g, repo, current_issue, assignee, overrided_branch_name = process_summary(summary, issue_number, repo_full_name, installation_id)
+
 
         chat_logger: ChatLogger = (
             ChatLogger(
