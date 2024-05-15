@@ -156,7 +156,7 @@ def determine_model_from_chat_logger(chat_logger: ChatLogger, model: str):
 tool_call_parameters = {
     "make_change": ["justification", "file_name", "original_code", "new_code"],
     "create_file": ["justification", "file_name", "file_path", "contents"],
-    "submit_result": ["justification"],
+    "submit_task": ["justification"],
 }
 
 # returns a dictionary of the tool call parameters, assumes correct
@@ -171,7 +171,7 @@ def parse_function_call_parameters(tool_call_contents: str, parameters: list[str
     return tool_args
 
 # parse llm response for tool calls in xml format
-def parse_function_calls_for_openai(response_contents: str) -> list[dict[str, str]]:
+def parse_function_calls(response_contents: str) -> list[dict[str, str]]:
     tool_calls = []
     # first get all tool calls
     for tool_name in tool_call_parameters.keys():
