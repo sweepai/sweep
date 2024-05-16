@@ -362,13 +362,6 @@ def get_comment_header(
     pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
     return (
         f"{center(sweeping_gif)}"
-        + (
-            center(
-                f'\n\n<h2>✨ Track Sweep\'s progress on our <a href="{PROGRESS_BASE_URL}/issues/{tracking_id}">progress dashboard</a>!</h2>'
-            )
-            if MONGODB_URI is not None
-            else ""
-        )
         + f"<br/>{center(pbar)}"
         + ("\n" + stars_suffix if index != -1 else "")
         + "\n"
@@ -495,7 +488,6 @@ def send_email_to_user(title, issue_number, username, repo_full_name, tracking_i
                         issue_number=issue_number,
                         repo_full_name=repo_full_name,
                         pr_number=pr.number,
-                        progress_url=f"{PROGRESS_BASE_URL}/issues/{tracking_id}",
                         summary=markdown.markdown(pr_changes.body),
                         files_changed="\n".join(
                             [f"<li>{item}</li>" for item in files_changed]

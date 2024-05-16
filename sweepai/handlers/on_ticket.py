@@ -902,7 +902,7 @@ def on_ticket(
                 pr.add_to_labels(GITHUB_LABEL_NAME)
                 current_issue.create_reaction("rocket")
                 heres_pr_message = f'<h1 align="center">🚀 Here\'s the PR! <a href="{pr.html_url}">#{pr.number}</a></h1>'
-                progress_message = f'<div align="center"><b>See Sweep\'s progress at <a href="{PROGRESS_BASE_URL}/issues/{tracking_id}">the progress dashboard</a>!</b></div>'
+                progress_message = ''
                 edit_sweep_comment(
                     review_message + "\n\nSuccess! 🚀",
                     4,
