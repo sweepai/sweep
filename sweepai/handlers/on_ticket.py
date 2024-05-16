@@ -32,6 +32,8 @@ from sweepai.config.client import (
 from sweepai.config.server import (
     DEPLOYMENT_GHA_ENABLED,
     ENV,
+    GITHUB_LABEL_NAME,
+    IS_SELF_HOSTED,
     MONGODB_URI,
 )
 from sweepai.core.entities import (
