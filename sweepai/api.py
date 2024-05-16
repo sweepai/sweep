@@ -531,7 +531,7 @@ def handle_event(request_dict, event):
                     allowed_repos_set = set(allowed_repos.split(',')) if allowed_repos else set()
                     allowed_usernames = os.environ.get("PR_REVIEW_USERNAMES", "")
                     allowed_usernames_set = set(allowed_usernames.split(',')) if allowed_usernames else set()
-                    if not allowed_repos or repo.name in allowed_repos_set or pr.user.login in allowed_usernames_set:
+                    if (not allowed_repos or repo.name in allowed_repos_set) and (not allowed_usernames or pr.user.login in allowed_usernames_set):
                         # run pr review
                         call_review_pr(
                             username=pr.user.login,
