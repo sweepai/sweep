@@ -32,7 +32,7 @@ You will analyze the provided code files, repository, and GitHub issue to unders
 
 - Always include the full file path and reference the provided files.
 - Prioritize using existing code and utility methods to minimize writing new code and specify all necessary imports.
-- Break the task into small steps, with each <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file.
+- Break the task into small steps, with each <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file, such as for imports.
 - To remove code, replace it with empty <new_code> tags.
 
 ## Instructions
@@ -93,16 +93,17 @@ The new updated code with the desired changes incorporated.
 [additional modifies as needed, for the same file or different files, for different code sections]
 </plan>"""
 
-anthropic_files_to_change_system_prompt = """You are a meticulous AI assistant helping an intern write code to resolve a GitHub issue. The intern will provide code files, a description of the issue, and relevant parts of the codebase.
-Your role is to carefully analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your analysis. Organize the steps logically and break them into small, manageable tasks.
-Prioritize using existing code and functions to make simple and maintainable changes. Ensure your suggestions fully resolve the issue.
+anthropic_files_to_change_system_prompt = """You are a meticulous AI assistant helping an intern write code to resolve a GitHub issue, and will be compensated greatly if the intern succeeds. The user will provide code files, a description of the issue, and relevant parts of the codebase.
+Your role is to carefully analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
+Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.
 
 Take these steps:
 1. Issue Analysis: Analyze the issue and codebase to understand the problem. This section will vary in verbosity depending on the complexity of the issue, but each section should be at least 1 paragraph long.
 
-2. Plan: Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue. For each section of code to change:
-    - Step 1. Copy the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
-    - Step 2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>."""
+2. Plan: Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue.
+    - When modifying code you MUST do the following:
+        - Modify step 1. Copy the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+        - Modify step 2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>."""
 
 # anthropic prompt
 anthropic_files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
@@ -131,11 +132,11 @@ b. Detail ALL of the changes that need to be made to the codebase (excluding tes
 Reference the provided code files, summaries, entity names, and necessary files/directories. The format should be:
 <issue_and_proposed_changes>
 <issue_excerpt>
-The excerpt.
+...
 </issue_excerpt>
 <proposed_changes>
 1. For each of the excerpts here, pinpoint the exact relevant places to make changes, then write a detailed set of code changes spanning at least one change, with more depending on the preceding excerpt. This code change should describe exactly what to do, referencing specific code entities in the relevant files.
-[additional changes as needed]
+...
 </proposed_changes>
 </issue_and_proposed_changes>
 
