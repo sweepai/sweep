@@ -10,7 +10,6 @@ UPDATES_MESSAGE = f"""\
 <details>
 <summary><b>🎉 Latest improvements to Sweep:</b></summary>
 <ul>
-<li>New <a href="{PROGRESS_BASE_URL}">dashboard</a> launched for real-time tracking of Sweep issues, covering all stages from search to coding.</li>
 <li>Integration of OpenAI's latest Assistant API for more efficient and reliable code planning and editing, improving speed by 3x.</li>
 <li>Use the <a href="https://marketplace.visualstudio.com/items?itemName=GitHub.vscode-pull-request-github">GitHub issues extension</a> for creating Sweep issues directly from your editor.</li>
 </ul>
