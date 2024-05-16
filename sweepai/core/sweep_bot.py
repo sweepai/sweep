@@ -249,7 +249,7 @@ def get_error_message(
                     continue
             parsed_fcr = parse_fcr(file_change_request)
             if not parsed_fcr["original_code"]:
-                error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to provide both an <original_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task use the <drop> marker.\n</error>\n\n"
+                error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to provide an <original_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task use the <drop> marker.\n</error>\n\n"
                 error_indices.append(i)
                 continue
             if not parsed_fcr["new_code"]:
@@ -400,7 +400,8 @@ def get_files_to_change(
     seed: int = 0,
     images: list[tuple[str, str, str]] | None = None
 ) -> tuple[list[FileChangeRequest], str]:
-    use_openai = True
+    # use_openai = True
+    use_openai = False
     files_to_change_prompt = openai_files_to_change_prompt if use_openai else anthropic_files_to_change_prompt
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
