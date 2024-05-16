@@ -899,10 +899,10 @@ def handle_create_file(cloned_repo, modify_files_dict, tool_name, tool_call) -> 
             error_message = f"The file {new_file_name} already exists. Modify this existing file instead of attempting to create a new one!"
             # ensure directory is valid
         if not os.path.isdir(new_file_dir):
-            error_message = f"The directory {new_file_path} is not valid. Make sure you have the correct directory path!"
+            error_message = f"{new_file_path} is not a valid directory. Make sure you have the correct directory path!"
             # ensure that the directory of the new full path exists, in case the file name is weird
         if not os.path.exists(os.path.dirname(new_full_file_path_with_cwd)):
-            error_message = f"The directory {os.path.dirname(new_file_dir)} does not exist. Make sure the new file you want to create exists within an existing directory!"
+            error_message = f"The directory {new_file_path} does not exist. Make sure the new file you want to create exists within an existing directory!"
             # if no issues, create the file by placing it in modify_files_dict
     if not error_message:
         modify_files_dict[new_file_name] = {"contents": new_file_contents, "original_contents": ""}
