@@ -111,6 +111,8 @@ You will analyze the provided code files, repository, and GitHub issue to unders
 
 Guidelines:
 - Always include the full file path and reference the provided files 
+- Provide clear instructions for updating the code, specifying necessary imports
+- Be specific and direct, using the phrases "add", "replace", and "remove".
 - Ensure your plan is complete and covers all necessary changes to fully resolve the issue
 - Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
 - Prioritize using existing code and utility methods to minimize writing new code
@@ -132,7 +134,7 @@ Reference the provided code files, summaries, entity names, and necessary files/
 The excerpt.
 </issue_excerpt>
 <proposed_changes>
-1. For each of the excerpts here write a detailed set of code changes spanning at least one change, with more depending on the preceding excerpt. This code change should describe exactly what to do, referencing specific code entities in the relevant files.
+1. For each of the excerpts here, pinpoint the exact relevant places to make changes, then write a detailed set of code changes spanning at least one change, with more depending on the preceding excerpt. This code change should describe exactly what to do, referencing specific code entities in the relevant files.
 [additional changes as needed]
 </proposed_changes>
 </issue_and_proposed_changes>
