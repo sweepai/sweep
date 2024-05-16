@@ -1,4 +1,5 @@
 import base64
+import os
 import re
 import traceback
 from typing import Dict
@@ -210,7 +211,6 @@ def get_error_message(
             try:
                 file_contents = get_file_contents(file_change_request.filename)
             except FileNotFoundError as e:
-                logger.warning(f"Failed to get file contents for {file_change_request.filename} due to {e}")
                 for file_path in cloned_repo.get_file_list():
                     if file_path.endswith(file_change_request.filename):
                         logger.info(f"Found similar file {file_change_request.filename} at {file_path}")
@@ -218,15 +218,37 @@ def get_error_message(
                         file_change_request.filename = file_path
                 else:
                     parsed_fcr = parse_fcr(file_change_request)
-                    if parsed_fcr["original_code"]:
+                    if parsed_fcr["original_code"] and parsed_fcr["original_code"][0].strip():
+                        logger.warning(f"Failed to get file contents for {file_change_request.filename} due to {e}")
                         error_message += f"<error index=\"{len(error_indices)}\">\nThe file `{file_change_request.filename}` does not exist. Double-check your spelling.\n</error>\n\n"
                         error_indices.append(i)
                     else:
                         file_change_request.change_type = "create"
+                        file_name = file_change_request.filename
+
+                        file_dir = os.path.dirname(file_name)
+                        full_file_dir = os.path.join(cloned_repo.repo_dir, file_name)
+                        full_file_name = os.path.join(cloned_repo.repo_dir, file_name)
+
+                        current_error_message = ""
+
+                        if os.path.exists(full_file_name):
+                            current_error_message = f"The file {file_name} already exists. Modify this existing file instead of attempting to create a new one!"
+                        if not os.path.isdir(full_file_dir):
+                            current_error_message = f"{file_dir} is a file. Make sure you have the correct directory path!"
+                        if not os.path.exists(full_file_dir):
+                            similar_directories = cloned_repo.get_similar_directories(file_dir)
+                            if similar_directories:
+                                current_error_message = f"The directory {file_dir} does not exist. Did you mean one of the following directories?\n\n" + "\n".join(f"- {d}" for d in similar_directories)
+                            else:
+                                current_error_message = f"The directory {file_dir} does not exist. Make sure the new file you want to create exists within an existing directory!"
+
+                        if current_error_message:
+                            error_message += f"<error index=\"{len(error_indices)}\">\n{current_error_message}\n</error>\n\n"
+                            error_indices.append(i)
                     continue
             parsed_fcr = parse_fcr(file_change_request)
             if not parsed_fcr["original_code"]:
-                # breakpoint()
                 error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to provide both an <original_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task use the <drop> marker.\n</error>\n\n"
                 error_indices.append(i)
                 continue
@@ -276,6 +298,29 @@ def get_error_message(
                             # Same as case > 80
                             error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}\n</error>\n\n"
                     error_indices.append(i)
+        elif file_change_request.change_type == "create":
+            file_name = file_change_request.filename
+
+            file_dir = os.path.dirname(file_name)
+            full_file_dir = os.path.join(cloned_repo.repo_dir, file_dir)
+            full_file_name = os.path.join(cloned_repo.repo_dir, file_name)
+
+            current_error_message = ""
+
+            if os.path.exists(full_file_name):
+                current_error_message = f"The file {file_name} already exists. Modify this existing file instead of attempting to create a new one!"
+            if not os.path.isdir(full_file_dir):
+                current_error_message = f"{file_dir} is a file. Make sure you have the correct directory path!"
+            if not os.path.exists(full_file_dir):
+                similar_directories = cloned_repo.get_similar_directories(file_dir)
+                if similar_directories:
+                    current_error_message = f"The directory {file_dir} does not exist. Did you mean one of the following directories?\n\n" + "\n".join(f"- {d}" for d in similar_directories)
+                else:
+                    current_error_message = f"The directory {file_dir} does not exist. Make sure the new file you want to create exists within an existing directory!"
+
+            if current_error_message:
+                error_message += f"<error index=\"{len(error_indices)}\">\n{current_error_message}\n</error>\n\n"
+                error_indices.append(i)
     # if error_message:
     #     breakpoint()
     return error_message.strip('\n\n'), error_indices
