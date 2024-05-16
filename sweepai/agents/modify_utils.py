@@ -78,7 +78,7 @@ To complete the task, follow these steps:
 
 In this environment, you have access to the following tools to assist in fulfilling the user request:
 
-You MUST call them like this:
+You MUST call them like this. Be sure to close all XML tags properly:
 <function_call>
 <tool_name>
 <param1>
@@ -434,6 +434,13 @@ SUBMIT_TASK_MOCK_FUNCTION_CALL = """<function_call>
 </submit_task>
 </function_call>"""
 
+def strip_triple_quotes(text: str) -> str:
+    stripped_text = text.strip("\n").rstrip()
+    if text.startswith('```'):
+        lines = stripped_text.splitlines()
+        return "\n".join(lines[1:-1]).strip("\n")
+    return text
+
 def english_join(items: list[str]) -> str:
     if len(items) == 0:
         return ""
@@ -737,8 +744,8 @@ def parse_fcr(fcr: FileChangeRequest):
     return {
         "justification": justification.strip(),
         "file_path": fcr.filename,
-        "original_code": [original_code_match.group(1).strip("\n") for original_code_match in original_code_matches],
-        "new_code": [new_code_match.group(1).strip("\n") for new_code_match in new_code_matches],
+        "original_code": [strip_triple_quotes(original_code_match.group(1)) for original_code_match in original_code_matches],
+        "new_code": [strip_triple_quotes(new_code_match.group(1)) for new_code_match in new_code_matches],
         "replace_all": bool(replace_all_matches),
     }
 
@@ -826,7 +833,7 @@ def check_make_change_tool_call(tool_call, error_message):
             error_message += f"Missing {key} in tool call. Call the tool again but this time provide the {key}.\n"
             if key in ["new_code", "original_code"]:
                 error_message += "\n\nIt is likely the reason why you have missed these keys is because the original_code block you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
-    if not tool_call["original_code"].strip():
+    if not tool_call.get("original_code", "").strip():
         error_message = EMPTY_ORIGINAL_CODE_PROMPT
     return error_message
 
@@ -892,10 +899,10 @@ def handle_create_file(cloned_repo, modify_files_dict, tool_name, tool_call) -> 
             error_message = f"The file {new_file_name} already exists. Modify this existing file instead of attempting to create a new one!"
             # ensure directory is valid
         if not os.path.isdir(new_file_dir):
-            error_message = f"The directory {new_file_path} is not valid. Make sure you have the correct directory path!"
+            error_message = f"{new_file_path} is not a valid directory. Make sure you have the correct directory path!"
             # ensure that the directory of the new full path exists, in case the file name is weird
         if not os.path.exists(os.path.dirname(new_full_file_path_with_cwd)):
-            error_message = f"The directory {os.path.dirname(new_file_dir)} does not exist. Make sure the new file you want to create exists within an existing directory!"
+            error_message = f"The directory {new_file_path} does not exist. Make sure the new file you want to create exists within an existing directory!"
             # if no issues, create the file by placing it in modify_files_dict
     if not error_message:
         modify_files_dict[new_file_name] = {"contents": new_file_contents, "original_contents": ""}
@@ -955,8 +962,8 @@ def handle_function_call(
                         error_message += f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!\n"
                         break
                 llm_state['initial_check_results'][file_name] = get_check_results(file_name, get_latest_contents(file_name, cloned_repo, modify_files_dict)) # TODO: consider not overriding this when we see the same file twice
-                original_code = tool_call["original_code"].strip("\n")
-                new_code = tool_call["new_code"].strip("\n")
+                original_code = strip_triple_quotes(tool_call["original_code"]).strip("\n")
+                new_code = strip_triple_quotes(tool_call["new_code"]).strip("\n")
                 if tool_call.get("append", "false").strip() == "true":
                     new_code = original_code + "\n\n" + new_code
                 replace_all = tool_call.get("replace_all", "false").strip() == "true"
