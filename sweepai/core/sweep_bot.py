@@ -209,67 +209,72 @@ def get_error_message(
         if file_change_request.change_type == "modify":
             try:
                 file_contents = get_file_contents(file_change_request.filename)
-                parsed_fcr = parse_fcr(file_change_request)
-                if not parsed_fcr["original_code"]:
-                    # breakpoint()
-                    error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to provide both an <original_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task use the <drop> marker.\n</error>\n\n"
-                    error_indices.append(i)
-                    continue
-                if not parsed_fcr["new_code"]:
-                    error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to a <new_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task use the <drop> marker.\n</error>\n\n"
-                    error_indices.append(i)
-                    continue
-                original_code = parsed_fcr["original_code"][0].strip("\n")
-                if original_code == parsed_fcr["new_code"][0].strip("\n"):
-                    error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> and <new_code> are the same. You must provide a different code snippet in <new_code>.\n</error>\n\n"
-                    error_indices.append(i)
-                    continue
-                if not original_code:
-                    error_message += f"<error index=\"{len(error_indices)}\">\nThe <original_code> can not be empty. If you would like to append code, copy the code you want to append the new code after into the <original_code>, then copy the same code into <new_code>, then finally append the new code after <new_code>.\n</error>\n\n"
-                    error_indices.append(i)
-                else:
-                    if not contains_ignoring_whitespace(original_code, file_contents):
-                        threshold = 50
-                        best_match, current_best_score = find_best_match(original_code, file_contents, threshold=threshold, tokenized=True)
-                        max_indentation = find_max_indentation(file_contents)
-
-                        best_score = 0
-                        best_indent = 0
-                        for indent_count in range(0, max_indentation, 2):
-                            match_score = fuzz.ratio(indent(original_code, indent_count), best_match)
-                            if match_score > best_score:
-                                best_score = match_score
-                                best_indent = indent_count
-                        
-                        too_long_message = f"\nAlso, the <original_code> block you provided is quite long, with {len(original_code.splitlines())} lines of code. Consider isolating <original_code> and <updated_code> to only the section you want to edit to avoid errors copying the code." if len(original_code.splitlines()) > 50 else ""
-                        ellipses_message = "\nYou must copy code out in full and may not use ellipses, abbreviations, or any short-hand notation in your code." if "# ..." in original_code or "// ..." in original_code else ""
-
-                        if not best_match.strip():
-                            error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nBut the code is no where to be found in the file. There are also no similar code snippets in this file.{too_long_message}{ellipses_message}\n</error>\n\n"
-                            continue
-
-                        if best_score == 100:
-                            continue
-                        if best_score > 80:
-                            error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}\n</error>\n\n"
-                        else:
-                            best_matches = find_best_matches(original_code, file_contents, threshold=threshold, tokenized=True)
-                            if len(best_matches) > 1:
-                                best_matches_string = "\n\n".join([f"Code match {i}:\n```\n{match_}\n```" for i, (match_, score) in enumerate(best_matches)])
-                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify one of the following pieces of code instead?\n{best_matches_string}{too_long_message}{ellipses_message}\n</error>\n\n"
-                            else:
-                                # Same as case > 80
-                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}\n</error>\n\n"
-                        error_indices.append(i)
             except FileNotFoundError as e:
                 logger.warning(f"Failed to get file contents for {file_change_request.filename} due to {e}")
                 for file_path in cloned_repo.get_file_list():
                     if file_path.endswith(file_change_request.filename):
                         logger.info(f"Found similar file {file_change_request.filename} at {file_path}")
-                        get_file_contents(file_path)
+                        file_contents = get_file_contents(file_path)
                         file_change_request.filename = file_path
                 else:
-                    error_message += f"<error index=\"{len(error_indices)}\">\nThe file `{file_change_request.filename}` does not exist. Double-check your spelling. Did you mean to create a file with <create>?\n</error>\n\n"
+                    parsed_fcr = parse_fcr(file_change_request)
+                    if parsed_fcr["original_code"]:
+                        error_message += f"<error index=\"{len(error_indices)}\">\nThe file `{file_change_request.filename}` does not exist. Double-check your spelling.\n</error>\n\n"
+                        error_indices.append(i)
+                    else:
+                        file_change_request.change_type = "create"
+                    continue
+            parsed_fcr = parse_fcr(file_change_request)
+            if not parsed_fcr["original_code"]:
+                # breakpoint()
+                error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to provide both an <original_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task use the <drop> marker.\n</error>\n\n"
+                error_indices.append(i)
+                continue
+            if not parsed_fcr["new_code"]:
+                error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to a <new_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task use the <drop> marker.\n</error>\n\n"
+                error_indices.append(i)
+                continue
+            original_code = parsed_fcr["original_code"][0].strip("\n")
+            if original_code == parsed_fcr["new_code"][0].strip("\n"):
+                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> and <new_code> are the same. You must provide a different code snippet in <new_code>.\n</error>\n\n"
+                error_indices.append(i)
+                continue
+            if not original_code:
+                error_message += f"<error index=\"{len(error_indices)}\">\nThe <original_code> can not be empty. If you would like to append code, copy the code you want to append the new code after into the <original_code>, then copy the same code into <new_code>, then finally append the new code after <new_code>.\n</error>\n\n"
+                error_indices.append(i)
+            else:
+                if not contains_ignoring_whitespace(original_code, file_contents):
+                    threshold = 50
+                    best_match, current_best_score = find_best_match(original_code, file_contents, threshold=threshold, tokenized=True)
+                    max_indentation = find_max_indentation(file_contents)
+
+                    best_score = 0
+                    best_indent = 0
+                    for indent_count in range(0, max_indentation, 2):
+                        match_score = fuzz.ratio(indent(original_code, indent_count), best_match)
+                        if match_score > best_score:
+                            best_score = match_score
+                            best_indent = indent_count
+                    
+                    too_long_message = f"\nAlso, the <original_code> block you provided is quite long, with {len(original_code.splitlines())} lines of code. Consider isolating <original_code> and <updated_code> to only the section you want to edit to avoid errors copying the code." if len(original_code.splitlines()) > 50 else ""
+                    ellipses_message = "\nYou must copy code out in full and may not use ellipses, abbreviations, or any short-hand notation in your code." if "# ..." in original_code or "// ..." in original_code else ""
+
+                    if not best_match.strip():
+                        error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nBut the code is no where to be found in the file. There are also no similar code snippets in this file.{too_long_message}{ellipses_message}\n</error>\n\n"
+                        continue
+
+                    if best_score == 100:
+                        continue
+                    if best_score > 80:
+                        error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}\n</error>\n\n"
+                    else:
+                        best_matches = find_best_matches(original_code, file_contents, threshold=threshold, tokenized=True)
+                        if len(best_matches) > 1:
+                            best_matches_string = "\n\n".join([f"Code match {i}:\n```\n{match_}\n```" for i, (match_, score) in enumerate(best_matches)])
+                            error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify one of the following pieces of code instead?\n{best_matches_string}{too_long_message}{ellipses_message}\n</error>\n\n"
+                        else:
+                            # Same as case > 80
+                            error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}\n</error>\n\n"
                     error_indices.append(i)
     # if error_message:
     #     breakpoint()

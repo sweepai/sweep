@@ -612,7 +612,7 @@ def parse_issues_from_code_review(issue_string: str):
         issue_args = {}
         issue_failed = False
         for param in issue_params:
-            regex = rf'<{param}>(?P<{param}>.*?)<\/{param}>'
+            regex = rf'<{param}>(?P<{param}>.*?)(<\/{param}>|\Z)'
             result = re.search(regex, issue_content, re.DOTALL)
             try:
                 issue_args[param] = result.group(param).strip()
