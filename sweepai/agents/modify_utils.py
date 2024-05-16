@@ -434,6 +434,13 @@ SUBMIT_TASK_MOCK_FUNCTION_CALL = """<function_call>
 </submit_task>
 </function_call>"""
 
+def strip_triple_quotes(text: str) -> str:
+    stripped_text = text.strip("\n").rstrip()
+    if text.startswith('```'):
+        lines = stripped_text.splitlines()
+        return "\n".join(lines[1:-1]).strip("\n")
+    return text
+
 def english_join(items: list[str]) -> str:
     if len(items) == 0:
         return ""
@@ -737,8 +744,8 @@ def parse_fcr(fcr: FileChangeRequest):
     return {
         "justification": justification.strip(),
         "file_path": fcr.filename,
-        "original_code": [original_code_match.group(1).strip("\n") for original_code_match in original_code_matches],
-        "new_code": [new_code_match.group(1).strip("\n") for new_code_match in new_code_matches],
+        "original_code": [strip_triple_quotes(original_code_match.group(1)) for original_code_match in original_code_matches],
+        "new_code": [strip_triple_quotes(new_code_match.group(1)) for new_code_match in new_code_matches],
         "replace_all": bool(replace_all_matches),
     }
 
@@ -955,8 +962,8 @@ def handle_function_call(
                         error_message += f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!\n"
                         break
                 llm_state['initial_check_results'][file_name] = get_check_results(file_name, get_latest_contents(file_name, cloned_repo, modify_files_dict)) # TODO: consider not overriding this when we see the same file twice
-                original_code = tool_call["original_code"].strip("\n")
-                new_code = tool_call["new_code"].strip("\n")
+                original_code = strip_triple_quotes(tool_call["original_code"]).strip("\n")
+                new_code = strip_triple_quotes(tool_call["new_code"]).strip("\n")
                 if tool_call.get("append", "false").strip() == "true":
                     new_code = original_code + "\n\n" + new_code
                 replace_all = tool_call.get("replace_all", "false").strip() == "true"
