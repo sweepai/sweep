@@ -32,7 +32,9 @@ Prioritize using existing code and functions to make efficient and maintainable 
 Take these steps:
 1. Issue Analysis: Analyze the issue and codebase to understand the problem. This section will vary in verbosity depending on the complexity of the issue, but each section should be at least 1 paragraph long.
 
-2. Plan: Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue."""
+2. Plan: Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue.
+    - Copy the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are NEVER permitted.
+    - Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>."""
 
 # openai prompt
 openai_files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
@@ -54,7 +56,7 @@ You will complete the following steps.
 
 a. Identify extremely specific potential root causes of the issue by pinpointing the exact potential lines of code causing the issue. Then, select which of the root causes the user is most likely to be interested in resolving based on the current state of the codebase. (1 paragraph)
 
-b. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. For each of the excerpts here, CRITICALLY think step-by-step about the best way to make the change based on the issue description. Then, write a detailed set of code changes spanning at least one change, with possibly more depending on the preceding excerpt. List all imports required. Be complete and precise. You must cover ALL changes that are required per excerpt.
+b. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. For each of the excerpts here, CRITICALLY think step-by-step about whether the excerpt is relevant and the best way to make the change based on the issue description. Then, write a detailed set of code changes spanning at least one change, with possibly more depending on the preceding excerpt. List all imports required. Be complete and precise. You must cover ALL changes that are required per excerpt.
 
 Here are the excerpts:
 {issue_excerpts}
@@ -65,7 +67,11 @@ c. Detail ALL changes that do not correspond to an excerpt from the user's issue
 
 List all files that need to be changed in the codebase.
 
-For each file to modify, first, write a detailed description of the changes you are going to make, making reference to entities. Then, copy the original code in <original_code> tags, and write the new updated code in <new_code> tags. If imports are needed, they should be in a separate <modify> block. Use multiple <modify> blocks for the same file to separate distinct changes.
+For each section of code to modify, first, write a detailed description of the changes you are going to make, making reference to entities. Then, copy the original code verbatim from the code file into <original_code> tags, and write the new updated code in <new_code> tags. The referenced original code span should be a contiguous block long enough to cover the change.
+
+If multiple changes are needed in the same section of code, use a single <modify> block and apply all changes at once within that block. There should not be any overlapping changes in the same <modify> block.
+
+If imports are needed, they should be in a separate <modify> block. Use multiple <modify> blocks for the same file to separate distinct changes.
 
 ## Format
 
@@ -79,31 +85,31 @@ b. All changes required to resolve the issue. Follow this format:
 
 <issue_and_proposed_changes>
 <issue_excerpt>
-...
-</excerpt_from_issue>
+The excerpt.
+</issue_excerpt>
 <proposed_changes>
 1. List of proposed changes for each excerpt. If this has already been addressed, leave this blank.
-...
+[additional changes as needed]
 </proposed_changes>
 </issue_and_proposed_changes>
 
-c. Additional changes
+c. Additional changes (optional)
 </issue_analysis>
 
 ### 2. Plan:
 <plan>  
-<modify file="file_path_1"> 
+<modify file="file_path"> 
 Instructions for modifying one section of the file, with a detailed description of the changes you are going to make.
 
 <original_code>
-The original code that needs to be modified.
+The original code that needs to be modified, copied verbatim from the original file. Placeholder comments like "# existing code" are NEVER permitted, you must copy the code out in FULL.
 </original_code>
 
 <new_code>
 The new updated code with the desired changes incorporated.
 </new_code>
 </modify>
-[additional modifies as needed, for the same file or different files]
+[additional modifies as needed, for the same file or different files, for different code sections]
 </plan>"""
 
 # anthropic prompt

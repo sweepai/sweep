@@ -234,7 +234,7 @@ Updated new code, based on the corrections in <original_code>. Ensure all newly 
 
 Option b: To patch a task to create a file instead, create a create block like so:
 
-<create file="file_path">
+<create file="file_path" index="0">
 Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, and schemas. You may only have one new_code block in this section.
 <new_code>
 All the new code required to be added to the file.
