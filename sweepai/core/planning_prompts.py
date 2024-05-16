@@ -8,7 +8,7 @@ Segment the GitHub issue to identify every single one of the user's requests. Be
 Respond in the following format:
 <issue_excerpts>
 <issue_excerpt>
-A very short substring from the user's issue. This should correspond to a specific change in the codebase.
+A relevant, very short substring from the user's issue. This should correspond to a specific change in the codebase.
 </issue_excerpt>
 </issue_excerpts>"""
 
@@ -56,10 +56,7 @@ You will complete the following steps.
 
 a. Identify extremely specific potential root causes of the issue by pinpointing the exact potential lines of code causing the issue. Then, select which of the root causes the user is most likely to be interested in resolving based on the current state of the codebase. (1 paragraph)
 
-b. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. For each of the excerpts here, CRITICALLY think step-by-step about whether the excerpt is relevant and the best way to make the change based on the issue description. Then, write a detailed set of code changes spanning at least one change, with possibly more depending on the preceding excerpt. List all imports required. Be complete and precise. You must cover ALL changes that are required per excerpt.
-
-Here are the excerpts:
-{issue_excerpts}
+b. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. For each suggested change from the user, CRITICALLY think step-by-step about whether the excerpt is relevant and the best way to make the change based on the issue description. Then, write a detailed set of code changes spanning at least one change, with possibly more depending on the preceding excerpt. List all imports required. Be complete and precise. You must cover ALL changes that are required per excerpt.
 
 c. Detail ALL changes that do not correspond to an excerpt from the user's issue. These changes should be necessary to resolve the issue but are not explicitly mentioned in the user's request. This code change should describe exactly what to do, referencing specific code entities in the relevant files. (optional)
 
@@ -84,11 +81,8 @@ a. Root cause analysis
 b. All changes required to resolve the issue. Follow this format:
 
 <issue_and_proposed_changes>
-<issue_excerpt>
-The excerpt.
-</issue_excerpt>
 <proposed_changes>
-1. List of proposed changes for each excerpt. If this has already been addressed, leave this blank.
+1. List of proposed changes for each relevant suggested change from the user. If this has already been addressed, leave this blank.
 [additional changes as needed]
 </proposed_changes>
 </issue_and_proposed_changes>
