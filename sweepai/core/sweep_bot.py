@@ -515,7 +515,6 @@ def get_files_to_change(
             use_openai=use_openai,
             seed=seed
         )
-        breakpoint()
         issue_excerpt_pattern = re.compile(r"<issue_excerpts>(.*?)</issue_excerpts>", re.DOTALL)
         issue_excerpt_match = issue_excerpt_pattern.search(issue_excerpt_response)
         if not issue_excerpt_match:
