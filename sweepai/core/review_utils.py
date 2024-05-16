@@ -4,6 +4,7 @@ Take a PR and provide an AI generated review of the PR.
 import re
 
 from tqdm import tqdm
+from sweepai.config.client import SweepConfig
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 from sweepai.core.review_annotations import get_diff_annotations
@@ -47,6 +48,7 @@ def get_pr_diffs(repo: Repository, pr: PullRequest):
 
 @file_cache()
 def get_pr_changes(repo: Repository, pr: PullRequest) -> list[PRChange]:
+    sweep_config: SweepConfig = SweepConfig()
     base_sha = pr.base.sha
     head_sha = pr.head.sha
 
@@ -59,6 +61,11 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> list[PRChange]:
         diff = file.patch
         # we can later migrate this to use a cloned repo and fetch off of two hashes
         previous_filename = file.previous_filename or file.filename
+
+        # drop excluded files: for example package-lock.json files
+        if sweep_config.is_file_excluded(file_name):
+            continue
+
         if file.status == "added":
             old_code = ""
         else:

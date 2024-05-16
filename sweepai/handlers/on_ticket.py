@@ -35,7 +35,6 @@ from sweepai.config.server import (
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
     MONGODB_URI,
-    PROGRESS_BASE_URL,
 )
 from sweepai.core.entities import (
     FileChangeRequest,
