@@ -32,7 +32,9 @@ Prioritize using existing code and functions to make efficient and maintainable 
 Take these steps:
 1. Issue Analysis: Analyze the issue and codebase to understand the problem. This section will vary in verbosity depending on the complexity of the issue, but each section should be at least 1 paragraph long.
 
-2. Plan: Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue."""
+2. Plan: Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue.
+    - Copy the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
+    - Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>."""
 
 # openai prompt
 openai_files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
@@ -65,7 +67,9 @@ c. Detail ALL changes that do not correspond to an excerpt from the user's issue
 
 List all files that need to be changed in the codebase.
 
-For each file to modify, first, write a detailed description of the changes you are going to make, making reference to entities. Then, copy the original code in <original_code> tags, and write the new updated code in <new_code> tags. If imports are needed, they should be in a separate <modify> block. Use multiple <modify> blocks for the same file to separate distinct changes.
+For each file to modify, first, write a detailed description of the changes you are going to make, making reference to entities. Then, copy the original code verbatim from the code file into <original_code> tags, and write the new updated code in <new_code> tags. The referenced original code span should be a contiguous block long enough to cover the change.
+
+If imports are needed, they should be in a separate <modify> block. Use multiple <modify> blocks for the same file to separate distinct changes.
 
 ## Format
 
@@ -79,11 +83,11 @@ b. All changes required to resolve the issue. Follow this format:
 
 <issue_and_proposed_changes>
 <issue_excerpt>
-...
-</excerpt_from_issue>
+The excerpt.
+</issue_excerpt>
 <proposed_changes>
 1. List of proposed changes for each excerpt. If this has already been addressed, leave this blank.
-...
+[additional changes as needed]
 </proposed_changes>
 </issue_and_proposed_changes>
 
@@ -96,7 +100,7 @@ c. Additional changes
 Instructions for modifying one section of the file, with a detailed description of the changes you are going to make.
 
 <original_code>
-The original code that needs to be modified.
+The original code that needs to be modified, copied verbatim from the original file. Placeholder comments like "# existing code" are NOT permitted, you must copy the code out in FULL.
 </original_code>
 
 <new_code>
