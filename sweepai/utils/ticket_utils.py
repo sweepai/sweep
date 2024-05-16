@@ -1,6 +1,5 @@
 from collections import defaultdict
 import copy
-from os import sep
 import traceback
 from time import time
 
@@ -19,7 +18,7 @@ from sweepai.core.lexical_search import (
     search_index,
 )
 from sweepai.core.sweep_bot import context_get_files_to_change
-from sweepai.logn.cache import file_cache
+from sweepai.core.viz_utils import print_bar_chart
 from sweepai.utils.cohere_utils import cohere_rerank_call
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
@@ -89,44 +88,69 @@ adjustment_scores = {
     }
 }
 
-separation_features = {
-    "config": {
-        "prefix": [".", "config/", ".github/"],
-        "suffix": [".cfg", ".ini", ".po", ".json", ".toml", ".yaml", ".yml", "LICENSE"],
-    }, # could also include assets
-    "docs": {
-        "prefix": ["doc", "example"],
-        "suffix": [".txt", ".rst", ".md", ".html", ".1", "ChangeLog"],
+# the order here matters as the first match is used
+code_snippet_separation_features = {
+    "tools": {
+        "prefix": [".git/", ".github/", ".circleci/", ".travis/", ".jenkins/"],
+        "suffix": [".gitignore", ".dockerignore", "Dockerfile", "Makefile", "Rakefile", "Procfile"],
         "substring": [],
     },
-    "tests": {
-        "prefix": ["tests/", "test/"],
-        "suffix": [".spec.ts", ".spec.js", ".test.ts", ".generated.ts", ".generated.graphql", ".generated.js", "_test.py", "_test.ts", "_test.js"],
-        "substring": ["tests/", "test/", "/test", "_test"],
+    "scripts": {
+        "prefix": ["scripts/", "script/", "bin/"],
+        "suffix": [".sh", ".bat", ".cmd"],
+        "substring": [],
     },
     "junk": {
-        "prefix": ["node_modules/", ".venv/", "build/", "venv/", "patch/"],
-        "suffix": [],
-        "substring": [".egg-info"],
-    }
-} # otherwise it's tagged as source
+        "prefix": ["node_modules/", ".venv/", "build/", "venv/", "patch/", "target/", "bin/", "obj/"],
+        "suffix": [".cache", ".gradle", ".mvn", ".settings", ".lock", ".log", ".tmp", ".tmp/", ".tmp.lock", ".tmp.lock/"],
+        "substring": [".egg-info", "package-lock.json", "yarn.lock", ".cache", ".gradle", ".mvn"],
+    },
+    "dependencies": {
+        "prefix": [".", "config/", ".github/", "vendor/"],
+        "suffix": [".cfg", ".ini", ".po", "package.json", ".toml", ".yaml", ".yml", "LICENSE", ".lock"],
+        "substring": ["requirements", "pyproject", "Gemfile", "Cargo", "pom.xml", "build.gradle"],
+    },
+    "docs": {
+        "prefix": ["doc", "example", "README", "CHANGELOG"],
+        "suffix": [".txt", ".rst", ".md", ".html", ".1", ".adoc", ".rdoc"],
+        "substring": [],
+    },
+    # "config" : {
+    #     "prefix": [""],
+    #     "suffix": ["config.js", "config.ts", "config.json"],
+    #     "substring": [],
+    # },
+    "tests": {
+        "prefix": ["tests/", "test/", "spec/"],
+        "suffix": [
+            ".spec.ts", ".spec.js", ".test.ts", ".test.js",
+            "_test.py", "_test.ts", "_test.js", "_test.go",
+            "Test.java", "Tests.java", "Spec.java", "Specs.java",
+            "_spec.rb", "_specs.rb", ".feature",
+        ],
+        "substring": ["tests/", "test/", "/test", "_test", "rspec", ".test"],
+    },
+} 
+# otherwise it's tagged as source
+# we can make a config category later for css, config.ts, config.js. so far config files aren't many.
 
 def separate_snippets_by_type(snippets: list[Snippet]):
     results = {
-        "source": [],
-        "config": [],
+        "tools": [],
+        "scripts": [],
+        "junk": [],
+        "dependencies": [],
         "docs": [],
         "tests": [],
-        "junk": [],
+        "source": [],
     }
     for snippet in snippets:
-        for separation_dict in separation_features:
-            for type_name, separation in separation_dict.items():
-                if any(snippet.file_path.startswith(prefix) for prefix in separation["prefix"]) or any(snippet.file_path.endswith(suffix) for suffix in separation["suffix"]) or any(substring in snippet.file_path for substring in separation["substring"]):
-                    results[type_name].append(snippet)
-                    break
-            else:
-                results["source"].append(snippet)
+        for type_name, separation in code_snippet_separation_features.items():
+            if any(snippet.file_path.startswith(prefix) for prefix in separation["prefix"]) or any(snippet.file_path.endswith(suffix) for suffix in separation["suffix"]) or any(substring in snippet.file_path for substring in separation["substring"]):
+                results[type_name].append(snippet)
+                break
+        else:
+            results["source"].append(snippet)
     return results
 
 def apply_adjustment_score(
@@ -335,12 +359,15 @@ def multi_prep_snippets(
         ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
             cloned_repo, queries[0], ticket_progress, k, include_docs, include_tests
         )
-    # separated_snippets = separate_snippets_by_type(snippets)
-    # for separation_type, snippets_subset in separated_snippets.items():
-    #     print(f"Separation type: {separation_type}")
-    #     for snippet in snippets_subset:
-    #         print(snippet)
-    # breakpoint()
+    separated_snippets = separate_snippets_by_type(snippets)
+    get_file_extension = lambda snippet: snippet.file_path.split(".")[-1]
+    for separation_type, snippets_subset in separated_snippets.items():
+        print(f"\nSeparation type: {separation_type}\n\n")
+        for snippet in snippets_subset:
+            print(snippet)
+        print(set(get_file_extension(snippet) for snippet in snippets_subset))
+    print_bar_chart(separated_snippets)
+    breakpoint()
     if not skip_pointwise_reranking:
         directory_summaries = recursively_summarize_directory(snippets, cloned_repo)
         content_to_lexical_score = get_pointwise_reranked_snippet_scores(
@@ -545,19 +572,13 @@ def fire_and_forget_wrapper(call):
 
 if __name__ == "__main__":
     from sweepai.utils.github_utils import MockClonedRepo
-
     cloned_repo = MockClonedRepo(
         _repo_dir="/tmp/sweep",
         repo_full_name="sweepai/sweep",
     )
-    cloned_repo = MockClonedRepo(
-        _repo_dir="/tmp/pulse-alp",
-        repo_full_name="trilogy-group/pulse-alp",
-    )
     rcm = prep_snippets(
         cloned_repo,
-        # "I am trying to set up payment processing in my app using Stripe, but I keep getting a 400 error when I try to create a payment intent. I have checked the API key and the request body, but I can't figure out what's wrong. Here is the error message I'm getting: 'Invalid request: request parameters are invalid'. I have attached the relevant code snippets below. Can you help me find the part of the code that is causing this error?",
-        "Where can I find the section that checks if assembly line workers are active or disabled?",
+        "How does caching work in this repo?",
         use_multi_query=False,
         skip_reranking=True
     )
