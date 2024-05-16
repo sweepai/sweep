@@ -93,12 +93,12 @@ The excerpt.
 </proposed_changes>
 </issue_and_proposed_changes>
 
-c. Additional changes
+c. Additional changes (optional)
 </issue_analysis>
 
 ### 2. Plan:
 <plan>  
-<modify file="file_path_1"> 
+<modify file="file_path"> 
 Instructions for modifying one section of the file, with a detailed description of the changes you are going to make.
 
 <original_code>
