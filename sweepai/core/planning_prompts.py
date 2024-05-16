@@ -67,7 +67,9 @@ c. Detail ALL changes that do not correspond to an excerpt from the user's issue
 
 List all files that need to be changed in the codebase.
 
-For each file to modify, first, write a detailed description of the changes you are going to make, making reference to entities. Then, copy the original code verbatim from the code file into <original_code> tags, and write the new updated code in <new_code> tags. The referenced original code span should be a contiguous block long enough to cover the change.
+For each section of code to modify, first, write a detailed description of the changes you are going to make, making reference to entities. Then, copy the original code verbatim from the code file into <original_code> tags, and write the new updated code in <new_code> tags. The referenced original code span should be a contiguous block long enough to cover the change.
+
+If multiple changes are needed in the same section of code, use a single <modify> block and apply all changes at once within that block. There should not be any overlapping changes in the same <modify> block.
 
 If imports are needed, they should be in a separate <modify> block. Use multiple <modify> blocks for the same file to separate distinct changes.
 
@@ -107,7 +109,7 @@ The original code that needs to be modified, copied verbatim from the original f
 The new updated code with the desired changes incorporated.
 </new_code>
 </modify>
-[additional modifies as needed, for the same file or different files]
+[additional modifies as needed, for the same file or different files, for different code sections]
 </plan>"""
 
 # anthropic prompt
