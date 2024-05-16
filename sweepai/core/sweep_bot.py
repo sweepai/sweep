@@ -533,6 +533,7 @@ def get_files_to_change(
         )
         expected_plan_count = 1
         calls = 0
+        # breakpoint()
         # pylint: disable=E1101
         while files_to_change_response.count("</plan>") < expected_plan_count and calls < 3:
             # ask for a second response

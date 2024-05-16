@@ -78,7 +78,7 @@ To complete the task, follow these steps:
 
 In this environment, you have access to the following tools to assist in fulfilling the user request:
 
-You MUST call them like this:
+You MUST call them like this. Be sure to close all XML tags properly:
 <function_call>
 <tool_name>
 <param1>
@@ -833,7 +833,7 @@ def check_make_change_tool_call(tool_call, error_message):
             error_message += f"Missing {key} in tool call. Call the tool again but this time provide the {key}.\n"
             if key in ["new_code", "original_code"]:
                 error_message += "\n\nIt is likely the reason why you have missed these keys is because the original_code block you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
-    if not tool_call["original_code"].strip():
+    if not tool_call.get("original_code", "").strip():
         error_message = EMPTY_ORIGINAL_CODE_PROMPT
     return error_message
 
