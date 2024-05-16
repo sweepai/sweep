@@ -16,6 +16,7 @@ from github.PullRequest import PullRequest
 from github.Issue import Issue
 from loguru import logger
 from tqdm import tqdm
+import hashlib
 
 
 from sweepai.agents.pr_description_bot import PRDescriptionBot
@@ -609,26 +610,36 @@ def parse_issues_from_code_review(issue_string: str):
         issue_content = issue.group('issue')
         issue_params = ['issue_description', 'start_line', 'end_line']
         issue_args = {}
+        issue_failed = False
         for param in issue_params:
-            regex = rf'<{param}>(?P<{param}>.*?)(<\/{param}>|\Z)'
+            regex = rf'<{param}>(?P<{param}>.*?)<\/{param}>'
             result = re.search(regex, issue_content, re.DOTALL)
-            if result:
+            try:
                 issue_args[param] = result.group(param).strip()
-            else:
-                continue
-        potential_issues.append(CodeReviewIssue(**issue_args))
+            except AttributeError:
+                issue_failed = True
+                break
+        if not issue_failed:
+            potential_issues.append(CodeReviewIssue(**issue_args))
     return potential_issues
 
 # converts the list of issues inside a code_review into markdown text to display in a github comment
 def render_code_review_issues(pr: PullRequest, code_review: CodeReview):
     files_to_blobs = {file.filename: file.blob_url for file in list(pr.get_files())}
+    # generate the diff urls
+    files_to_diffs = {}
+    for file_name, _ in files_to_blobs.items():
+        sha_256 = hashlib.sha256(file_name.encode('utf-8')).hexdigest()
+        files_to_diffs[file_name] = f"{pr.html_url}/files#diff-{sha_256}"
     potential_issues = ""
     for issue in code_review.issues:
         if issue.start_line == issue.end_line:
             issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}"
+            issue_diff_url = f"{files_to_diffs[code_review.file_name]}R{issue.start_line}"
         else:
             issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}-L{issue.end_line}"
-        potential_issues += f"<li>{issue.issue_description}</li>\n\n{issue_blob_url}"
+            issue_diff_url = f"{files_to_diffs[code_review.file_name]}R{issue.start_line}-R{issue.end_line}"
+        potential_issues += f"<li>{issue.issue_description}</li>\n\n{issue_blob_url}\n[View Diff]({issue_diff_url})"
     return potential_issues
 
 def escape_html(text: str) -> str:
@@ -669,7 +680,7 @@ def format_code_sections(text: str) -> str:
 
 # turns code_review_by_file into markdown string
 def render_pr_review_by_file(pr: PullRequest, code_review_by_file: dict[str, CodeReview]) -> str:
-    body = f"{SWEEP_PR_REVIEW_HEADER}\nSweep has finished reviewing your pull request.\n"
+    body = f"{SWEEP_PR_REVIEW_HEADER}\n"
     reviewed_files = ""
     for file_name, code_review in code_review_by_file.items():
         potential_issues = code_review.issues
@@ -680,7 +691,7 @@ def render_pr_review_by_file(pr: PullRequest, code_review_by_file: dict[str, Cod
             potential_issues_string = render_code_review_issues(pr, code_review)
             reviewed_files += f"<p><strong>Potential Issues</strong></p><ul>{format_code_sections(potential_issues_string)}</ul></details><hr>"
         else:
-            reviewed_files += "<p><strong>No issues found with the reviewed changes</strong></p></details><hr>"
+            reviewed_files += "<p>No issues found with the reviewed changes</p></details><hr>"
     return body + reviewed_files
 
 # handles the creation or update of the Sweep comment letting the user know that Sweep is reviewing a pr

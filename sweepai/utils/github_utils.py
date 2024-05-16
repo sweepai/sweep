@@ -482,7 +482,7 @@ class ClonedRepo:
         from rapidfuzz.fuzz import QRatio
 
         # Fuzzy search over file names
-        file_name = os.path.basename(file_path)
+        # file_name = os.path.basename(file_path)
         all_file_paths = self.get_directory_list()
 
         # get top limit similar directories
