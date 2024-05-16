@@ -165,3 +165,10 @@ def objects_to_xml(objects: list[object], object_name: str, outer_field_name: st
     else:
         objects_string = f"<{object_name}>\n{objects_string}</{object_name}>"
     return objects_string
+
+def extract_xml_tag(string: str, tag: str, include_closing_tag: bool = True):
+    pattern = f"<{tag}>(.*?)</{tag}>" if include_closing_tag else f"<{tag}>(.*?)(\Z|</{tag}>)"
+    match_ = re.search(pattern, string, re.DOTALL)
+    if match_ is None:
+        return None
+    return match_.group(1).strip("\n")

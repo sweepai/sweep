@@ -5,6 +5,7 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Snippet
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
+from sweepai.utils.str_utils import extract_xml_tag
 from sweepai.utils.ticket_utils import prep_snippets
 
 SNIPPET_FORMAT = """<snippet>
@@ -290,13 +291,6 @@ def search_codebase(
     )
     rcm.current_top_snippets = [snippet for snippet in rcm.current_top_snippets][:5]
     return rcm
-
-def extract_xml_tag(string: str, tag: str, include_closing_tag: bool = True):
-    pattern = f"<{tag}>(.*?)</{tag}>" if include_closing_tag else f"<{tag}>(.*?)(\Z|</{tag}>)"
-    match_ = re.search(pattern, string, re.DOTALL)
-    if match_ is None:
-        return None
-    return match_.group(1).strip("\n")
 
 def search(
     github_issue: str,

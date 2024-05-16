@@ -14,10 +14,12 @@ from tqdm import tqdm
 from rapidfuzz import fuzz
 
 from sweepai.agents.modify_utils import contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, parse_fcr, indent
+from sweepai.agents.rg_extractor import get_list_of_entities
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEFAULT_GPT4_MODEL
 from sweepai.core.annotate_code_openai import get_annotated_source_code
 from sweepai.core.chat import ChatGPT
+from sweepai.core.context_pruning import run_ripgrep_command
 from sweepai.core.entities import (
     FileChangeRequest,
     Message,
@@ -49,6 +51,7 @@ from sweepai.core.planning_prompts import (
 from sweepai.utils.chat_logger import ChatLogger
 # from sweepai.utils.previous_diff_utils import get_relevant_commits
 from sweepai.utils.diff import generate_diff
+from sweepai.utils.modify_utils import cleaned_rg_output, post_process_rg_output
 from sweepai.utils.progress import (
     TicketProgress,
 )
@@ -694,6 +697,7 @@ def context_get_files_to_change(
                 if ".venv" in import_path or "build" in import_path:
                     continue
                 graph_string += f"- {import_path}\n"
+            graph_string = graph_string.strip('\n')
         messages.append(
             Message(
                 role="user",
@@ -710,48 +714,75 @@ def context_get_files_to_change(
         messages.append(
             Message(role="user", content=pr_diffs, key="pr_diffs")
         )
-    try:
-        print("messages")
-        for message in messages:
-            print(message.content + "\n\n")
-        joint_message = "\n\n".join(message.content for message in messages[1:])
-        print("messages", joint_message)
-        chat_gpt = ChatGPT(
-            messages=[
-                Message(
-                    role="system",
-                    content=context_files_to_change_system_prompt,
-                ),
-            ],
+
+    print("messages")
+    for message in messages:
+        print(message.content + "\n\n")
+    joint_message = "\n\n".join(message.content for message in messages[1:])
+    print("messages", joint_message)
+
+    entities_message = ""
+    entities = get_list_of_entities(joint_message + "\n\n" + context_files_to_change_prompt)
+    relevant_files = [snippet.file_path for snippet in relevant_snippets + read_only_snippets]
+    lines_cutoff = 20
+    for entity in entities:
+        rg_output = run_ripgrep_command(entity, cloned_repo.repo_dir)
+        file_output_dict = cleaned_rg_output(cloned_repo.repo_dir, SweepConfig(), rg_output)
+        file_output_dict = {file_path: output for file_path, output in file_output_dict.items() if file_path in relevant_files}
+        if file_output_dict:
+            entities_message += f"Here are the files that contain the keyword `{entity}`:\n\n"
+            for file_path, output in file_output_dict.items():
+                lines = output.splitlines()
+                if len(lines) > lines_cutoff:
+                    lines = lines[:lines_cutoff] + ["..."]
+                output = "\n".join(lines)
+                entities_message += f"File: {file_path}\n{output}\n\n"
+        print("file_output_dict", file_output_dict)
+    print(entities_message)
+
+    if entities_message:
+        entities_message = f"<keywords>\n{entities_message}\n</keywords>"
+        messages.append(
+            Message(
+                role="user",
+                content=entities_message,
+            )
         )
-        MODEL = "claude-3-opus-20240229"
-        files_to_change_response = chat_gpt.chat_anthropic(
-            content=joint_message + "\n\n" + (context_files_to_change_prompt),
-            model=MODEL,
-            temperature=0.1,
-            images=images,
-            use_openai=use_openai,
-        )
-        relevant_files = []
-        read_only_files = []
-        # parse out <relevant_files> block
-        relevant_files_pattern = re.compile(r"<relevant_files>(.*?)</relevant_files>", re.DOTALL)
-        relevant_files_matches = relevant_files_pattern.findall(files_to_change_response)
-        if relevant_files_matches:
-            relevant_files_str = '\n'.join(relevant_files_matches)
-            relevant_files = parse_filenames(relevant_files_str)
-        # parse out <read_only_files> block
-        read_only_files_pattern = re.compile(r"<read_only_files>(.*?)</read_only_files>", re.DOTALL)
-        read_only_files_matches = read_only_files_pattern.findall(files_to_change_response)
-        if read_only_files_matches:
-            read_only_files_str = '\n'.join(read_only_files_matches)
-            read_only_files = parse_filenames(read_only_files_str)
-        relevant_files = list(dict.fromkeys(relevant_files))
-        read_only_files = list(dict.fromkeys(read_only_files))
-        return relevant_files, read_only_files
-    except Exception as e:
-        logger.info(f"Failed to get context due to {e}")
-    return [], []
+        joint_message += "\n\n" + entities_message
+
+    chat_gpt = ChatGPT(
+        messages=[
+            Message(
+                role="system",
+                content=context_files_to_change_system_prompt,
+            ),
+        ],
+    )
+    MODEL = "claude-3-opus-20240229"
+    files_to_change_response = chat_gpt.chat_anthropic(
+        content=joint_message + "\n\n" + (context_files_to_change_prompt),
+        model=MODEL,
+        temperature=0.1,
+        images=images,
+        use_openai=use_openai,
+    )
+    relevant_files = []
+    read_only_files = []
+    # parse out <relevant_files> block
+    relevant_files_pattern = re.compile(r"<relevant_files>(.*?)</relevant_files>", re.DOTALL)
+    relevant_files_matches = relevant_files_pattern.findall(files_to_change_response)
+    if relevant_files_matches:
+        relevant_files_str = '\n'.join(relevant_files_matches)
+        relevant_files = parse_filenames(relevant_files_str)
+    # parse out <read_only_files> block
+    read_only_files_pattern = re.compile(r"<read_only_files>(.*?)</read_only_files>", re.DOTALL)
+    read_only_files_matches = read_only_files_pattern.findall(files_to_change_response)
+    if read_only_files_matches:
+        read_only_files_str = '\n'.join(read_only_files_matches)
+        read_only_files = parse_filenames(read_only_files_str)
+    relevant_files = list(dict.fromkeys(relevant_files))
+    read_only_files = list(dict.fromkeys(read_only_files))
+    return relevant_files, read_only_files
 
 def get_files_to_change_for_test(
     relevant_snippets: list[Snippet],

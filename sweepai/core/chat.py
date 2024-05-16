@@ -643,8 +643,7 @@ class ChatGPT(MessageList):
 def call_llm(
     system_prompt: str,
     user_prompt: str,
-    params: dict,
-    use_anthropic: bool = True,
+    params: dict = {},
     *args,
     **kwargs,
 ):
@@ -652,16 +651,11 @@ def call_llm(
         prompt_string=system_prompt,
     )
 
-    if use_anthropic:
-        return chat_gpt.chat_anthropic(
-            user_prompt.format(**params),
-            *args,
-            **kwargs,
-        )
-    else:
-        return chat_gpt.chat(
-            user_prompt.format(**params),
-            *args,
-            **kwargs,
-        )
+    if params:
+        user_prompt = user_prompt.format(**params)
 
+    return chat_gpt.chat_anthropic(
+        user_prompt,
+        *args,
+        **kwargs,
+    )
