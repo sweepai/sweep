@@ -1,20 +1,127 @@
-
-
+import multiprocessing
 import os
 from time import time
 import traceback
 from github.Repository import Repository
 from github.PullRequest import PullRequest
 from loguru import logger
-
+import numpy as np
+from sklearn.cluster import DBSCAN
 
 from sweepai.core.review_utils import PRReviewBot, format_pr_changes_by_file, get_pr_changes
+from sweepai.core.vector_db import embed_text_array
+from sweepai.dataclasses.codereview import CodeReview, PRChange
+from sweepai.utils.str_utils import object_to_xml
 from sweepai.utils.ticket_rendering_utils import create_update_review_pr_comment
 from sweepai.utils.ticket_utils import fire_and_forget_wrapper
 from sweepai.utils.validate_license import validate_license
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 
+# function that gets the code review for every file in the pr
+def get_code_reviews_for_file(pr_changes: list[PRChange], formatted_pr_changes_by_file: dict[str, str], chat_logger: ChatLogger | None = None):
+    review_bot = PRReviewBot()
+    code_review_by_file = review_bot.review_code_changes_by_file(formatted_pr_changes_by_file, chat_logger=chat_logger)
+    code_review_by_file = review_bot.review_code_issues_by_file(pr_changes, formatted_pr_changes_by_file, code_review_by_file, chat_logger=chat_logger)
+    return code_review_by_file
+
+# run 5 seperate instances of review_pr and then group the resulting issues and only take the issues that appear the majority of the time (> 3)
+def group_vote_review_pr(pr_changes: list[PRChange], formatted_pr_changes_by_file: dict[str, str], multiprocess: bool = True, chat_logger: ChatLogger | None = None):
+    majority_code_review_by_file = {}
+    code_reviews_by_file = []
+    GROUP_SIZE = 5
+    if multiprocess:
+        chat_logger = None
+        pool = multiprocessing.Pool(processes=5)
+        results = [
+            pool.apply_async(get_code_reviews_for_file, args=(pr_changes, formatted_pr_changes_by_file, chat_logger))
+            for _ in range(GROUP_SIZE)
+        ]
+        pool.close()
+        pool.join()
+        for result in results:
+            try:
+                code_review = result.get()
+                code_reviews_by_file.append(code_review)
+            except Exception as e:
+                logger.error(f"Error fetching result: {e}")
+    else:
+        for _ in range(GROUP_SIZE):
+            code_reviews_by_file.append(get_code_reviews_for_file(pr_changes, formatted_pr_changes_by_file))
+    
+    # embed each issue and then group by similarity score
+    # extract code issues for each file and prepare them for embedding
+    code_reviews_ready_for_embedding = [] 
+    for code_review_by_file in code_reviews_by_file:
+        prepped_code_review = {}
+        for file_name, code_review in code_review_by_file.items():
+            prepped_code_review[file_name] = [object_to_xml(code_issue, 'issue') for code_issue in code_review.issues]
+        code_reviews_ready_for_embedding.append(prepped_code_review)
+    
+    # embed all extracted texts
+    code_reviews_embeddings = []
+    for prepped_code_review in code_reviews_ready_for_embedding:
+        embedded_code_review = {}
+        for file_name, code_issues in prepped_code_review.items():
+            embedded_code_review[file_name] = embed_text_array(code_issues)
+        code_reviews_embeddings.append(embedded_code_review)
+    # dbscan - density based spatial clustering of app with noise
+    # format: {file_name: [label1, label2, ...]}
+    files_to_labels = {}
+    # corresponding issues for each file
+    # format: {file_name: [issue1, issue2, ...]}
+    files_to_issues = {}
+
+    # for each file combine all the embeddings together while determining the max amount of clusters
+    for file_name in formatted_pr_changes_by_file:
+        all_embeddings = []
+        all_issues = []
+        for i in range(GROUP_SIZE):
+            embeddings = code_reviews_embeddings[i][file_name]
+            code_review = code_reviews_by_file[i][file_name]
+            if embeddings:
+                embeddings = embeddings[0]
+                for embedding in embeddings:
+                    all_embeddings.append(embedding.flatten())
+                    all_issues.extend(code_review.issues)
+        files_to_issues[file_name] = all_issues
+        all_flattened_embeddings = np.array(all_embeddings)
+        # note DBSCAN expects a shape with less than or equal to 2 dimensions
+        try:
+            db = DBSCAN(eps=0.5, min_samples=3).fit(all_flattened_embeddings)
+        except ValueError as e:
+            logger.error(f"Error with dbscan {e}")
+        files_to_labels[file_name] = db.labels_
+    
+    LABEL_THRESHOLD = 4
+    # get the labels that have a count greater than the threshold
+    # format: {file_name: {label: [index, ...]}}
+    files_to_labels_indexes = {}
+    for file_name, labels in files_to_labels.items():
+        index_dict = {}
+        for i, v in enumerate(labels):
+            key = str(v)
+            if key not in index_dict:
+                index_dict[key] = []
+            index_dict[key].append(i)
+        files_to_labels_indexes[file_name] = index_dict
+
+    # create the final code_reviews_by_file
+    for file_name, labels_dict in files_to_labels_indexes.items():
+        # pick first one as diff summary doesnt really matter
+        final_code_review: CodeReview = code_reviews_by_file[0][file_name]
+        final_code_review.issues = []
+        for label, indexes in labels_dict.items():
+            final_issues = []
+            # -1 is considered as noise
+            if len(indexes) >= LABEL_THRESHOLD and label != "-1":
+                # add to final issues, first issue - TODO use similarity score of all issues against each other
+                final_issues.append(files_to_issues[file_name][indexes[0]])
+            final_code_review.issues = final_issues
+            
+        majority_code_review_by_file[file_name] = final_code_review
+
+    return majority_code_review_by_file
 
 def review_pr(username: str, pr: PullRequest, repository: Repository, installation_id: int, tracking_id: str | None = None):
     if not os.environ.get("CLI"):
@@ -24,7 +131,6 @@ def review_pr(username: str, pr: PullRequest, repository: Repository, installati
     ):
         review_pr_start_time = time()
         chat_logger: ChatLogger = ChatLogger({"username": username,"title": f"Review PR: {pr.number}"})
-        review_bot = PRReviewBot()
         posthog_metadata = {
             "pr_url": pr.html_url,
             "repo_full_name": repository.full_name,
@@ -53,10 +159,8 @@ def review_pr(username: str, pr: PullRequest, repository: Repository, installati
             # handle creating comments on the pr to tell the user we are going to begin reviewing the pr
             _comment_id = create_update_review_pr_comment(pr)
             pr_changes = get_pr_changes(repository, pr)
-            logger.info(f"Fetched pr changes for {pr}.")
             formatted_pr_changes_by_file = format_pr_changes_by_file(pr_changes)
-            code_review_by_file = review_bot.review_code_changes_by_file(formatted_pr_changes_by_file, chat_logger=chat_logger)
-            code_review_by_file = review_bot.review_code_issues_by_file(pr_changes, formatted_pr_changes_by_file, code_review_by_file, chat_logger=chat_logger)
+            code_review_by_file = group_vote_review_pr(pr_changes, formatted_pr_changes_by_file, multiprocess=True, chat_logger=chat_logger)
             _comment_id = create_update_review_pr_comment(pr, code_review_by_file=code_review_by_file)
         except Exception as e:
             posthog.capture(

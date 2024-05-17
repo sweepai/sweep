@@ -192,7 +192,7 @@ Here are the changes in the pull request diffs:
         - How does this line of code interact with or impact the rest of the codebase?
         - Is this line of code functionally correct? Could it introduce any bugs or errors?
         - Is this line of code necessary? Or could it be an accidental change or commented out code?
-    1c. Describe the key changes that were made in the diffs. (1 paragraph)
+    1c. Describe all changes that were made in the diffs. Respond in the following format. (1 paragraph)
 <thoughts>
 <thinking>
 {{Analysis of diff/patch 1}}
@@ -207,7 +207,7 @@ Here are the changes in the pull request diffs:
 2. Identify all issues.
     2a. Determine whether there are any functional issues, bugs, edge cases, or error conditions that the code changes introduce or fail to properly handle. Consider the line-by-line analysis from step 1b. (1 paragraph)
     2b. Determine whether there are any security vulnerabilities or potential security issues introduced by the code changes. (1 paragraph) 
-    2c. Identify any other potential issues that the code changes may introduce that were not captured by 2a or 2b. This could include accidental changes such as commented out code, or other suspicious modifications. (1 paragraph)
+    2c. Identify any other potential issues that the code changes may introduce that were not captured by 2a or 2b. This could include accidental changes such as commented out code. (1 paragraph)
     2d. Only include issues that you are very confident will cause serious issues that prevent the pull request from being merged. For example, focus only on functional code changes and ignore changes to strings and comments that are purely descriptive.
     2e. Format the found issues and root causes using the following XML tags. Each issue description should be a single sentence. Include the corresponding start and end line numbers, these line numbers should only include lines of code that have been changed. DO NOT reference the patch or patch number in the description. Format these fields in an <issue> tag in the following manner:
 <issues>

@@ -110,7 +110,9 @@ class SweepConfig(BaseModel):
         "LICENSE",
         "poetry.lock",
         'package-lock.json',
-        'package.json'
+        'package.json',
+        'pyproject.toml',
+        'requirements.txt'
     ]
     # cutoff for when we output truncated versions of strings, this is an arbitrary number and can be changed
     truncation_cutoff: int = 20000
