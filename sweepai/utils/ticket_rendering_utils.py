@@ -87,7 +87,6 @@ email_template = """Hey {name},
 🚀 I just finished creating a pull request for your issue ({repo_full_name}#{issue_number}) at <a href="{pr_url}">{repo_full_name}#{pr_number}</a>!
 
 <br/><br/>
-You can view how I created this pull request <a href="{progress_url}">here</a>.
 
 <h2>Summary</h2>
 <blockquote>
@@ -291,7 +290,6 @@ def get_comment_header(
     progress_headers: list[None | str],
     tracking_id: str | None,
     payment_message_start: str,
-    user_settings_message: str,
     errored: bool = False,
     pr_message: str = "",
     done: bool = False,
@@ -365,7 +363,6 @@ def get_comment_header(
         + ("\n" + stars_suffix if index != -1 else "")
         + "\n"
         + center(payment_message_start)
-        + f"\n\n---\n{user_settings_message}"
         + config_pr_message
         + f"\n\n---\n{actions_message}"
         + sandbox_execution_message
@@ -460,40 +457,40 @@ def send_email_to_user(title, issue_number, username, repo_full_name, tracking_i
     for fcr in file_change_requests:
         if fcr.change_type in ("create", "modify"):
             diff = list(
-                            difflib.unified_diff(
-                                (fcr.old_content or "").splitlines() or [],
-                                (fcr.new_content or "").splitlines() or [],
-                                lineterm="",
-                            )
-                        )
-            added = sum(
-                            1
-                            for line in diff
-                            if line.startswith("+") and not line.startswith("+++")
-                        )
-            removed = sum(
-                            1
-                            for line in diff
-                            if line.startswith("-") and not line.startswith("---")
-                        )
-            files_changed.append(
-                            f"<code>{fcr.filename}</code> (+{added}/-{removed})"
-                        )
-            user_settings.send_email(
-                    subject=f"Sweep Pull Request Complete for {repo_name}#{issue_number} {title}",
-                    html=email_template.format(
-                        name=name,
-                        pr_url=pr.html_url,
-                        issue_number=issue_number,
-                        repo_full_name=repo_full_name,
-                        pr_number=pr.number,
-                        summary=markdown.markdown(pr_changes.body),
-                        files_changed="\n".join(
-                            [f"<li>{item}</li>" for item in files_changed]
-                        ),
-                        sweeping_gif=sweeping_gif,
-                    ),
+                difflib.unified_diff(
+                    (fcr.old_content or "").splitlines() or [],
+                    (fcr.new_content or "").splitlines() or [],
+                    lineterm="",
                 )
+            )
+            added = sum(
+                1
+                for line in diff
+                if line.startswith("+") and not line.startswith("+++")
+            )
+            removed = sum(
+                1
+                for line in diff
+                if line.startswith("-") and not line.startswith("---")
+            )
+            files_changed.append(
+                f"<code>{fcr.filename}</code> (+{added}/-{removed})"
+            )
+    user_settings.send_email(
+        subject=f"Sweep Pull Request Complete for {repo_name}#{issue_number} {title}",
+        html=email_template.format(
+            name=name,
+            pr_url=pr.html_url,
+            issue_number=issue_number,
+            repo_full_name=repo_full_name,
+            pr_number=pr.number,
+            summary=markdown.markdown(pr_changes.body),
+            files_changed="\n".join(
+                [f"<li>{item}</li>" for item in files_changed]
+            ),
+            sweeping_gif=sweeping_gif,
+        ),
+    )
 
 def handle_empty_repository(comment_id, current_issue, progress_headers, issue_comment):
     first_comment = (
@@ -577,17 +574,17 @@ def get_payment_messages(chat_logger: ChatLogger):
     )
     user_type = "💎 <b>Sweep Pro</b>" if is_paying_user else "⚡ <b>Sweep Basic Tier</b>"
     gpt_tickets_left_message = (
-        f"{ticket_count} GPT-4 tickets left for the month"
+        f"{ticket_count} Sweep issues left for the month"
         if not is_paying_user
-        else "unlimited GPT-4 tickets"
+        else "unlimited Sweep issues"
     )
-    purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href={single_payment_link}>our payment portal</a>. For a one week free trial, try <a href={pro_payment_link}>Sweep Pro</a> (unlimited GPT-4 tickets)."
+    purchase_message = f"<br/><br/> For more Sweep issues, visit <a href={single_payment_link}>our payment portal</a>. For a one week free trial, try <a href={pro_payment_link}>Sweep Pro</a> (unlimited GPT-4 tickets)."
     payment_message = (
-        f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
+        f"{user_type}: You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
         + (purchase_message if not is_paying_user else "")
     )
     payment_message_start = (
-        f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
+        f"{user_type}: You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
         + (purchase_message if not is_paying_user else "")
     )
 
