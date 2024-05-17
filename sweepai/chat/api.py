@@ -1,3 +1,4 @@
+from typing import Any, Callable
 import jsonpatch
 from copy import deepcopy
 import json
@@ -13,9 +14,35 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import MockClonedRepo, get_installation_id, get_token
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.str_utils import get_hash
 from sweepai.utils.ticket_utils import prep_snippets
 
 app = FastAPI()
+
+def posthog_trace(
+    function: Callable[..., Any],
+    username: str,
+    *args,
+    metadata: dict = {},
+    **kwargs
+):
+    tracking_id = get_hash()[:10]
+    metadata = {**metadata, "tracking_id": tracking_id, "username": username}
+    posthog.capture(username, f"{function.__name__} start", properties=metadata)
+
+    try:
+        result = function(
+            *args,
+            metadata=metadata,
+            **kwargs
+        )
+    except Exception as e:
+        posthog.capture(username, f"{function.__name__} error", properties=metadata)
+        raise e
+    else:
+        posthog.capture(username, f"{function.__name__} success", properties=metadata)
+        return result
 
 def check_user_authenticated(
     repo_name: str,
@@ -266,11 +293,32 @@ def chat_codebase(
     repo_name: str = Body(...),
     messages: list[Message] = Body(...),
     snippets: list[Snippet] = Body(...),
-    use_patch: bool = Body(False)
+    use_patch: bool = Body(False),
+    access_token: str = Depends(get_token_header)
 ):
     if len(messages) == 0:
         raise ValueError("At least one message is required.")
+    
+    assert check_user_authenticated(repo_name, access_token)
 
+    username = Github(access_token).get_user().login
+
+    return posthog_trace(
+        chat_codebase_stream,
+        username,
+        repo_name,
+        messages,
+        snippets,
+        use_patch=use_patch
+    )
+
+def chat_codebase_stream(
+    repo_name: str,
+    messages: list[Message],
+    snippets: list[Snippet],
+    use_patch: bool = False,
+    metadata: dict = {}
+):
     # Stream
     chat_gpt = ChatGPT.from_system_message_string(
         prompt_string=system_message
@@ -318,7 +366,7 @@ def chat_codebase(
         for _ in range(5):
             stream = chat_gpt.chat_anthropic(
                 content=user_message,
-                model="claude-3-opus-20240229",
+                model="claude-3-sonnet-20240229",
                 stop_sequences=["</function_call>", "</function_calls>"],
                 stream=True
             )
@@ -435,6 +483,10 @@ def chat_codebase(
             else:
                 break
         yield new_messages
+        posthog.capture(metadata["username"], "chat_codebase complete", properties={
+            **metadata,
+            "messages": [message.model_dump() for message in messages],
+        })
     
     def postprocessed_stream(*args, use_patch=False, **kwargs):
         previous_state = []
