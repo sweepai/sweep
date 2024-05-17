@@ -173,11 +173,10 @@ class SweepConfig(BaseModel):
         default_branch = repo.default_branch
         try:
             sweep_yaml_dict = {}
-            try:
-                contents = repo.get_contents("sweep.yaml")
-                sweep_yaml_dict = yaml.safe_load(
-                    contents.decoded_content.decode("utf-8")
-                )
+            contents = repo.get_contents("sweep.yaml")
+            sweep_yaml_dict = yaml.safe_load(
+                contents.decoded_content.decode("utf-8")
+            )
             if "branch" not in sweep_yaml_dict:
                 return default_branch
             branch_name = sweep_yaml_dict["branch"]

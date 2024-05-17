@@ -470,6 +470,7 @@ def on_ticket(
             cloned_repo.token = user_token
             repo = g.get_repo(repo_full_name)
 
+            newline = "\n"
             edit_sweep_comment(
                 "I found the following snippets in your repository. I will now analyze these snippets and come up with a plan."
                 + "\n\n"
@@ -477,7 +478,7 @@ def on_ticket(
                     "Some code snippets I think are relevant in decreasing order of relevance (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
                     "\n".join(
                         [
-                            f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count('\n') - 1)}\n"
+                            f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline) - 1)}\n"
                             for snippet in snippets + repo_context_manager.read_only_snippets
                         ]
                     ),
