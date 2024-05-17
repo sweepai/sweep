@@ -481,10 +481,6 @@ def fire_and_forget_wrapper(call):
 if __name__ == "__main__":
     from sweepai.utils.github_utils import MockClonedRepo
     cloned_repo = MockClonedRepo(
-        _repo_dir="/mnt/sweep_benchmark/django__django-11612",
-        repo_full_name="django/django",
-    )
-    cloned_repo = MockClonedRepo(
         _repo_dir="/tmp/sweep",
         repo_full_name="sweepai/sweep",
     )
