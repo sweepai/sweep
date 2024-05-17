@@ -1,4 +1,3 @@
-import re
 
 from sweepai.config.client import SweepConfig
 

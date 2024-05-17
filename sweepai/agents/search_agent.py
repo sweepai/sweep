@@ -1,4 +1,3 @@
-import re
 from sweepai.agents.modify import validate_and_parse_function_call
 from sweepai.agents.question_answerer import CORRECTED_SUBMIT_SOURCES_FORMAT, QuestionAnswererException, rag
 from sweepai.core.chat import ChatGPT

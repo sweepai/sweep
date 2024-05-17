@@ -4,9 +4,8 @@ import os
 import re
 import time
 
-from sweepai.config.server import PROGRESS_BASE_URL
 
-UPDATES_MESSAGE = f"""\
+UPDATES_MESSAGE = """\
 <details>
 <summary><b>🎉 Latest improvements to Sweep:</b></summary>
 <ul>

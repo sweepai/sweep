@@ -14,7 +14,6 @@ from tqdm import tqdm
 from rapidfuzz import fuzz
 
 from sweepai.agents.modify_utils import contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, parse_fcr, indent
-from sweepai.agents.rg_extractor import get_list_of_entities
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEFAULT_GPT4_MODEL
 from sweepai.core.annotate_code_openai import get_annotated_source_code
@@ -50,7 +49,6 @@ from sweepai.core.planning_prompts import (
 from sweepai.utils.chat_logger import ChatLogger
 # from sweepai.utils.previous_diff_utils import get_relevant_commits
 from sweepai.utils.diff import generate_diff
-from sweepai.utils.modify_utils import cleaned_rg_output, post_process_rg_output
 from sweepai.utils.progress import (
     TicketProgress,
 )
