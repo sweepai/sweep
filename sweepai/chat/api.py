@@ -309,6 +309,12 @@ def chat_codebase(
         repo_name,
         messages,
         snippets,
+        metadata={
+            "repo_name": repo_name,
+            "message": messages[-1].content,
+            "messages": [message.model_dump() for message in messages],
+            "snippets": [snippet.model_dump() for snippet in snippets],
+        },
         use_patch=use_patch
     )
 
