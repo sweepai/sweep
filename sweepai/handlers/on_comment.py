@@ -18,10 +18,10 @@ from sweepai.config.server import (
     GITHUB_BOT_USERNAME,
     MONGODB_URI,
 )
-from sweepai.core.entities import MockPR, NoFilesException
+from sweepai.core.entities import MockPR, NoFilesException, Snippet
 from sweepai.core.sweep_bot import SweepBot, get_files_to_change, validate_file_change_requests
 from sweepai.handlers.create_pr import handle_file_change_requests
-from sweepai.core.review_utils import get_pr_diffs
+from sweepai.core.review_utils import get_pr_changes, get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
@@ -59,6 +59,7 @@ def on_comment(
     with logger.contextualize(
         tracking_id=tracking_id,
     ):
+        # Initialization logic start
         logger.info(
             f"Calling on_comment() with the following arguments: {comment},"
             f" {repo_full_name}, {repo_description}, {pr_path}"
@@ -81,7 +82,11 @@ def on_comment(
         diffs = get_pr_diffs(repo, pr)
         pr_chunk = None
         formatted_pr_chunk = None
+        if pr.state == "closed":
+            return {"success": True, "message": "PR is closed. No event fired."}
+        # Initialization logic end
 
+        # Payment logic start
         assignee = pr.assignee.login if pr.assignee else None
         issue_number_match = re.search(r"Fixes #(?P<issue_number>\d+).", pr_body or "")
         original_issue = None
@@ -132,7 +137,9 @@ def on_comment(
         
         if use_faster_model:
             raise Exception(FASTER_MODEL_MESSAGE)
+        # Payment logic end
 
+        # Telemetry logic start
         assignee = pr.assignee.login if pr.assignee else None
 
         metadata = {
@@ -169,6 +176,8 @@ def on_comment(
             },
         )
         logger.info(f"Getting repo {repo_full_name}")
+        # Telemetry logic end
+
         file_comment = bool(pr_path) and bool(pr_line_position)
 
         item_to_react_to = None
@@ -182,9 +191,6 @@ def on_comment(
                 bot_comment.edit(new_comment + BOT_SUFFIX)
 
         try:
-            # Check if the PR is closed
-            if pr.state == "closed":
-                return {"success": True, "message": "PR is closed. No event fired."}
             if comment_id:
                 try:
                     item_to_react_to = pr.get_issue_comment(comment_id)
@@ -255,29 +261,29 @@ def on_comment(
                     + "\n".join(pr_lines[pr_line_position:end])
                 )
                 if comment_id:
-                    try:
-                        bot_comment = pr.create_review_comment_reply(
-                            comment_id, "Working on it..." + BOT_SUFFIX
-                        )
-                    except Exception as e:
-                        print(e)
+                    bot_comment = pr.create_review_comment_reply(
+                        comment_id, "Working on it..." + BOT_SUFFIX
+                    )
             else:
                 formatted_pr_chunk = None  # pr_file
                 bot_comment = pr.create_issue_comment("Working on it..." + BOT_SUFFIX)
-            try:
-                search_query = (comment).strip("\n")
-                formatted_query = (f"{comment}").strip("\n")
-                repo_context_manager = prep_snippets(
-                    cloned_repo, search_query, TicketProgress(tracking_id="none")
-                )
-                snippets = repo_context_manager.current_top_snippets
-                tree = str(repo_context_manager.dir_obj)
-                cloned_repo = repo_context_manager.cloned_repo
-            except Exception as e:
-                logger.error(traceback.format_exc())
-                raise e
-            get_documentation_dict(repo)
-            docs_results = ""
+
+            search_query = comment.strip("\n")
+            formatted_query = comment.strip("\n")
+            repo_context_manager = prep_snippets(
+                cloned_repo, search_query, TicketProgress(tracking_id="none")
+            )
+            snippets = repo_context_manager.current_top_snippets
+            tree = str(repo_context_manager.dir_obj)
+            cloned_repo = repo_context_manager.cloned_repo
+
+            pr_diffs, _dropped_files = get_pr_changes(repo, pr)
+            snippets_modified = [Snippet.from_file(
+                pr_diff.file_name, cloned_repo.get_file_contents(pr_diff.file_name)
+            ) for pr_diff in pr_diffs]
+            snippets = snippets_modified + snippets
+            snippets = snippets[:num_of_snippets_to_query]
+
             logger.info("Getting response from ChatGPT...")
             human_message = HumanMessageCommentPrompt(
                 comment=comment,
@@ -291,14 +297,10 @@ def on_comment(
                 pr_file_path=pr_file_path,  # may be None
                 pr_chunk=formatted_pr_chunk,  # may be None
                 original_line=original_line if pr_chunk else None,
-                relevant_docs=docs_results,
+                relevant_docs=""
             )
             logger.info(f"Human prompt{human_message.construct_prompt()}")
-
-            if use_faster_model:
-                raise Exception("GPT-3.5 is not supported for comments")
             sweep_bot = SweepBot.from_system_message_content(
-                # human_message=human_message, model="claude-v1.3-100k", repo=repo
                 human_message=human_message,
                 repo=repo,
                 chat_logger=chat_logger,
@@ -307,14 +309,14 @@ def on_comment(
             )
         except Exception as e:
             stack_trace = traceback.format_exc()
-            logger.error(stack_trace)
+            logger.exception(e)
             elapsed_time = time.time() - start_time
             posthog.capture(
                 username,
                 "failed",
                 properties={
                     "error": str(e),
-                    "reason": f"An error occured! The stack trace is below:\n\n{stack_trace}",
+                    "traceback": f"An error occured! The stack trace is below:\n\n{stack_trace}",
                     "duration": elapsed_time,
                     "tracking_id": tracking_id,
                     **metadata,
@@ -326,7 +328,7 @@ def on_comment(
         try:
             logger.info("Fetching files to modify/create...")
             if file_comment:
-                formatted_query = f"The user left this comment: <comment>\n{comment}\n</comment>\nThis was where they left their comment:\n<review_code_chunk>\n{formatted_pr_chunk}\n</review_code_chunk>.\n\nResolve their comment."
+                formatted_query = f"The user left this comment in `{pr_path}`:\n<comment>\n{comment}\n</comment>\nThis was where they left their comment:\n<review_code_chunk>\n{formatted_pr_chunk}\n</review_code_chunk>.\n\nResolve their comment."
             file_change_requests, plan = get_files_to_change(
                 relevant_snippets=repo_context_manager.current_top_snippets,
                 read_only_snippets=repo_context_manager.read_only_snippets,

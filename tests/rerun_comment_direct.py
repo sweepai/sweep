@@ -57,7 +57,7 @@ def pull_request_url(
         username=comment_object.user.login,
         installation_id=installation_id,
         pr_number=pr_number,
-        comment_id=comment_id,
+        comment_id=int(comment_id),
         chat_logger=None
     )
 

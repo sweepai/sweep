@@ -449,10 +449,6 @@ def get_files_to_change(
                 content=annotated_source_code,
             )
         )
-        # cohere_rerank_response = cohere_rerank_call(
-        #     query=problem_statement,
-        #     documents=code_summaries,
-        # )
     joined_relevant_snippets = "\n".join(
         formatted_relevant_snippets
     )
@@ -576,6 +572,7 @@ def get_files_to_change(
             file_change_requests.append(file_change_request)
         
         error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
+        breakpoint()
 
         for _ in range(3):
             if not error_message:
