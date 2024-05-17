@@ -339,7 +339,6 @@ def get_comment_header(
             pr_message
             + config_pr_message
             + f"\n\n{actions_message}"
-            + sandbox_execution_message
         )
 
     total = len(progress_headers)
@@ -352,7 +351,6 @@ def get_comment_header(
         return (
             f"{center(sweeping_gif)}<br/>{center(pbar)}\n\n"
             + f"\n\n{actions_message}"
-            + sandbox_execution_message
         )
     pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
     return (
@@ -363,7 +361,6 @@ def get_comment_header(
         + center(payment_message_start)
         + config_pr_message
         + f"\n\n{actions_message}"
-        + sandbox_execution_message
     )
 
 def process_summary(summary, issue_number, repo_full_name, installation_id):

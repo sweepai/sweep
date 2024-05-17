@@ -225,7 +225,6 @@ def on_ticket(
                 None,
                 "Step 1: 🔎 Searching",
                 "Step 2: ⌨️ Coding",
-                "Step 3: 🔁 Code Review",
             ]
 
             issue_comment = None
@@ -317,7 +316,7 @@ def on_ticket(
                     if agg_message is None:
                         agg_message = msg
                     else:
-                        agg_message = agg_message + f"\n{sep}" + msg
+                        agg_message = agg_message + "\n" + msg
 
                 suffix = bot_suffix + discord_suffix
                 if errored:
@@ -335,7 +334,7 @@ def on_ticket(
                     if table is not None:
                         agg_message = (
                             agg_message
-                            + f"\n{sep}Please look at the generated plan. If something looks"
+                            + f"\nPlease look at the generated plan. If something looks"
                             f" wrong, please add more details to your issue.\n\n{table}"
                         )
                     suffix = bot_suffix  # don't include discord suffix for error messages
@@ -355,7 +354,7 @@ def on_ticket(
                     initial_sandbox_response=initial_sandbox_response,
                     initial_sandbox_response_file=initial_sandbox_response_file,
                     config_pr_url=config_pr_url
-                )}\n{sep}{agg_message}{suffix}"""
+                )}\n{agg_message}{suffix}"""
                 try:
                     issue_comment.edit(msg)
                 except BadCredentialsException:
@@ -634,8 +633,6 @@ def on_ticket(
                         for filename, instructions, check in checkboxes_progress
                     ]
                 )
-                create_collapsible("Checklist", checkboxes_contents, opened=True)
-
                 file_change_requests[0].status = "running"
 
                 condensed_checkboxes_contents = "\n".join(
@@ -819,15 +816,6 @@ def on_ticket(
                     body=condensed_checkboxes_contents,
                     opened="open",
                 )
-                for _ in range(3):
-                    try:
-                        current_issue.edit(
-                            body=summary + "\n\n" + condensed_checkboxes_collapsible
-                        )
-                        break
-                    except Exception:
-                        from time import sleep
-                        sleep(1)
                 edit_sweep_comment(checkboxes_contents, 2)
                 pr_changes = MockPR(
                     file_count=len(modify_files_dict),
@@ -841,32 +829,12 @@ def on_ticket(
                 )
                 pr_changes = rewrite_pr_description(issue_number, repo, overrided_branch_name, pull_request, pr_changes)
 
-                edit_sweep_comment(
-                    "I have finished coding the issue. I am now reviewing it for completeness.",
-                    3,
-                )
                 change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
                 review_message = (
                     "Here are my self-reviews of my changes at" + change_location
                 )
 
-                try:
-                    fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
-                except Exception:
-                    pass
-
-                changes_required, review_message = False, ""
-                if changes_required:
-                    edit_sweep_comment(
-                        review_message
-                        + "\n\nI finished incorporating these changes.",
-                        3,
-                    )
-                else:
-                    edit_sweep_comment(
-                        f"I have finished reviewing the code for completeness. I did not find errors for {change_location}",
-                        3,
-                    )
+                fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
 
                 revert_buttons = []
                 for changed_file in set(changed_files):

@@ -479,14 +479,6 @@ def fire_and_forget_wrapper(call):
             return call(*args, **kwargs)
         except Exception:
             pass
-        # def run_in_thread(call, *a, **kw):
-        #     try:
-        #         call(*a, **kw)
-        #     except:
-        #         pass
-
-        # thread = Thread(target=run_in_thread, args=(call,) + args, kwargs=kwargs)
-        # thread.start()
 
     return wrapper
 
