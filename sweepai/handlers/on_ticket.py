@@ -546,13 +546,17 @@ def on_ticket(
                 planning_markdown = ""
                 for fcr in file_change_requests:
                     parsed_fcr = parse_fcr(fcr)
-                    if parsed_fcr:
+                    if parsed_fcr and parsed_fcr["new_code"]:
                         planning_markdown += f"#### `{fcr.filename}`\n"
                         planning_markdown += f"{blockquote(parsed_fcr['justification'])}\n\n"
-                        planning_markdown += f"""```diff\n{generate_diff(
-                            parsed_fcr["original_code"][0],
-                            parsed_fcr["new_code"][0],
-                        )}\n```\n"""
+                        if parsed_fcr["original_code"]:
+                            planning_markdown += f"""```diff\n{generate_diff(
+                                parsed_fcr["original_code"][0],
+                                parsed_fcr["new_code"][0],
+                            )}\n```\n"""
+                        else:
+                            _file_base_name, ext = os.path.splitext(fcr.filename)
+                            planning_markdown += f"```{ext}\n{parsed_fcr['new_code'][0]}\n```\n"
                     else:
                         planning_markdown += f"#### `{fcr.filename}`\n{blockquote(fcr.instructions)}\n"
 
@@ -683,18 +687,6 @@ def on_ticket(
             revert_buttons_list = ButtonList(
                 buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
             )
-
-            # delete failing sweep yaml if applicable
-            if sweep_yml_failed:
-                try:
-                    repo.delete_file(
-                        "sweep.yaml",
-                        "Delete failing sweep.yaml",
-                        branch=pr_changes.pr_head,
-                        sha=repo.get_contents("sweep.yaml").sha,
-                    )
-                except Exception:
-                    pass
 
             # create draft pr, then convert to regular pr later
             pr: GithubPullRequest = repo.create_pull(
