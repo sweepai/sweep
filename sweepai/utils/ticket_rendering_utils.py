@@ -479,7 +479,7 @@ def send_email_to_user(title, issue_number, username, repo_full_name, tracking_i
             files_changed.append(
                             f"<code>{fcr.filename}</code> (+{added}/-{removed})"
                         )
-    user_settings.send_email(
+            user_settings.send_email(
                     subject=f"Sweep Pull Request Complete for {repo_name}#{issue_number} {title}",
                     html=email_template.format(
                         name=name,

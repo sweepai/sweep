@@ -578,7 +578,7 @@ def get_files_to_change(
             file_change_requests.append(file_change_request)
         
         error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
-        breakpoint()
+        # breakpoint()
 
         for _ in range(3):
             if not error_message:
@@ -608,7 +608,7 @@ def get_files_to_change(
             logger.debug("Old indices", error_indices)
             error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
             logger.debug("New indices", error_indices)
-            breakpoint()
+            # breakpoint()
         # breakpoint()
 
         validate_file_change_requests(file_change_requests, cloned_repo)
