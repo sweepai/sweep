@@ -320,18 +320,12 @@ def on_ticket(
                         + "\n"
                         + message
                         + (
-                            "\n\nFor bonus GPT-4 tickets, please report this bug on"
-                            f" **[Discourse](https://community.sweep.dev/)** (tracking ID: `{tracking_id}`)."
+                            "\n\nFor bonus Sweep issues, please report this bug on our"
+                            f" **[community forum](https://community.sweep.dev/)** (tracking ID: `{tracking_id}`)."
                             if add_bonus_message
                             else ""
                         )
                     )
-                    if table is not None:
-                        agg_message = (
-                            agg_message
-                            + f"\nPlease look at the generated plan. If something looks"
-                            f" wrong, please add more details to your issue.\n\n{table}"
-                        )
                     suffix = bot_suffix  # don't include discord suffix for error messages
 
                 # Update the issue comment
@@ -461,7 +455,7 @@ def on_ticket(
                     (
                         "It looks like an issue has occurred around fetching the files."
                         f" The exception was {str(e)}. If this error persists"
-                        f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our Discourse (https://community.sweep.dev/) for support (tracking_id={tracking_id})"
+                        f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our [community forum](https://community.sweep.dev/) for support (tracking_id={tracking_id})"
                     ),
                     -1,
                 )
