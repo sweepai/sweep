@@ -46,7 +46,7 @@ Determine if you have sufficient information to answer the user's question. If n
 <user_response>
 Determine if you have sufficient information to answer the user's question. If not, determine the information you need to answer the question completely by making `search_codebase` tool calls.
 
-If so, rewrite your previous response with the new information and any invalidated beliefs or assumptions. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When explaining how to add new code, always write out the new code. When suggesting code changes, write out all the code changes required in the unified diff format.
+If so, rewrite your previous response with the new information and any invalidated beliefs or assumptions. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When explaining how to add new code, always write out the new code. When suggesting code changes, you MUST write out all the code changes required in the unified diff format for clarity.
 </user_response>
 
 # 3. Self-Critique
@@ -80,7 +80,7 @@ Then, determine if you have sufficient information to answer the user's question
 # 2. User Response
 
 <user_response>
-Write a complete helpful response to the user's question in full detail. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When explaining how to add new code, always write out the new code. When suggesting code changes, write out all the code changes required in the unified diff format.
+Write a complete helpful response to the user's question in full detail. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When explaining how to add new code, always write out the new code. When suggesting code changes, you MUST write out all the code changes required in the unified diff format for clarity.
 </user_response>
 
 # 3. Self-Critique
