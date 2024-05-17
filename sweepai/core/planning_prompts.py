@@ -108,7 +108,10 @@ Take these steps:
 2. Plan: Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue.
     - When modifying code you MUST do the following:
         - Modify step 1. Copy the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted.
-        - Modify step 2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>."""
+        - Modify step 2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+    - When creating files you MUST do the following:
+        - Create step 1. Describe in detail EVERYTHING you will need in this file.
+        - Create step 2. Write the new file in <new_file> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this file will be created in the mentioned <file_path>."""
 
 # anthropic prompt
 anthropic_files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
