@@ -227,7 +227,7 @@ def get_error_message(
                         file_name = file_change_request.filename
 
                         file_dir = os.path.dirname(file_name)
-                        full_file_dir = os.path.join(cloned_repo.repo_dir, file_name)
+                        full_file_dir = os.path.join(cloned_repo.repo_dir, file_dir)
                         full_file_name = os.path.join(cloned_repo.repo_dir, file_name)
 
                         current_error_message = ""
@@ -578,7 +578,7 @@ def get_files_to_change(
             file_change_requests.append(file_change_request)
         
         error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
-        # breakpoint()
+        breakpoint()
 
         for _ in range(3):
             if not error_message:

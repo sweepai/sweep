@@ -533,7 +533,7 @@ def on_ticket(
                     if parsed_fcr and parsed_fcr["new_code"]:
                         planning_markdown += f"#### `{fcr.filename}`\n"
                         planning_markdown += f"{blockquote(parsed_fcr['justification'])}\n\n"
-                        if parsed_fcr["original_code"]:
+                        if parsed_fcr["original_code"] and parsed_fcr["original_code"][0].strip():
                             planning_markdown += f"""```diff\n{generate_diff(
                                 parsed_fcr["original_code"][0],
                                 parsed_fcr["new_code"][0],
