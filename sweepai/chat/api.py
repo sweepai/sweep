@@ -15,7 +15,7 @@ from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snip
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
-from sweepai.utils.github_utils import MockClonedRepo, get_installation_id, get_token
+from sweepai.utils.github_utils import MockClonedRepo
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.str_utils import get_hash
 from sweepai.utils.ticket_utils import prep_snippets
