@@ -56,6 +56,7 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> list[PRChange]:
     file_diffs = comparison.files
 
     pr_diffs = []
+    dropped_files = []
     for file in tqdm(file_diffs, desc="Annotating diffs"):
         file_name = file.filename
         diff = file.patch
@@ -64,6 +65,7 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> list[PRChange]:
 
         # drop excluded files: for example package-lock.json files
         if sweep_config.is_file_excluded(file_name):
+            dropped_files.append(file_name)
             continue
 
         if file.status == "added":
@@ -95,7 +97,7 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> list[PRChange]:
         pr_diffs.append(
             pr_change
         )
-    return pr_diffs
+    return pr_diffs, dropped_files
 
 def split_diff_into_patches(diff: str) -> list[Patch]:
     patches = []
@@ -319,7 +321,7 @@ class PRReviewBot(ChatGPT):
             if issues_matches:
                 issues = "\n".join([match.strip() for match in issues_matches])
             potential_issues = parse_issues_from_code_review(issues)
-            code_reviews_by_file[file_name] = CodeReview(file_name=file_name, diff_summary=diff_summary, issues=potential_issues)
+            code_reviews_by_file[file_name] = CodeReview(file_name=file_name, diff_summary=diff_summary, issues=potential_issues, potential_issues=[])
             if chat_logger:
                 chat_logger.add_chat(
                     {

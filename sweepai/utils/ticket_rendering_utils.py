@@ -615,23 +615,26 @@ def parse_issues_from_code_review(issue_string: str):
     return potential_issues
 
 # converts the list of issues inside a code_review into markdown text to display in a github comment
-def render_code_review_issues(pr: PullRequest, code_review: CodeReview):
+def render_code_review_issues(pr: PullRequest, code_review: CodeReview, issue_type: str = ""):
     files_to_blobs = {file.filename: file.blob_url for file in list(pr.get_files())}
     # generate the diff urls
     files_to_diffs = {}
     for file_name, _ in files_to_blobs.items():
         sha_256 = hashlib.sha256(file_name.encode('utf-8')).hexdigest()
         files_to_diffs[file_name] = f"{pr.html_url}/files#diff-{sha_256}"
-    potential_issues = ""
-    for issue in code_review.issues:
+    code_issues = code_review.issues
+    if issue_type == "potential":
+        code_issues = code_review.potential_issues
+    code_issues_string = ""
+    for issue in code_issues:
         if issue.start_line == issue.end_line:
             issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}"
             issue_diff_url = f"{files_to_diffs[code_review.file_name]}R{issue.start_line}"
         else:
             issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}-L{issue.end_line}"
             issue_diff_url = f"{files_to_diffs[code_review.file_name]}R{issue.start_line}-R{issue.end_line}"
-        potential_issues += f"<li>{issue.issue_description}</li>\n\n{issue_blob_url}\n[View Diff]({issue_diff_url})"
-    return potential_issues
+        code_issues_string += f"<li>{issue.issue_description}</li>\n\n{issue_blob_url}\n[View Diff]({issue_diff_url})"
+    return code_issues_string
 
 def escape_html(text: str) -> str:
     return text.replace('<', '&lt;').replace('>', '&gt;')
@@ -670,24 +673,32 @@ def format_code_sections(text: str) -> str:
     return '<code>'.join(parts)
 
 # turns code_review_by_file into markdown string
-def render_pr_review_by_file(pr: PullRequest, code_review_by_file: dict[str, CodeReview]) -> str:
+def render_pr_review_by_file(pr: PullRequest, code_review_by_file: dict[str, CodeReview], dropped_files: list[str] = []) -> str:
     body = f"{SWEEP_PR_REVIEW_HEADER}\n"
     reviewed_files = ""
     for file_name, code_review in code_review_by_file.items():
-        potential_issues = code_review.issues
+        sweep_issues = code_review.issues
+        potential_issues = code_review.potential_issues
         reviewed_files += f"""<details open>
 <summary>{file_name}</summary>
 <p>{format_code_sections(code_review.diff_summary)}</p>"""
+        if sweep_issues:
+            sweep_issues_string = render_code_review_issues(pr, code_review)
+            reviewed_files += f"<p><strong>Sweep Found These Issues</strong></p><ul>{format_code_sections(sweep_issues_string)}</ul>"
         if potential_issues:
-            potential_issues_string = render_code_review_issues(pr, code_review)
-            reviewed_files += f"<p><strong>Sweep Found These Issues</strong></p><ul>{format_code_sections(potential_issues_string)}</ul></details><hr>"
-        else:
-            reviewed_files += "<p>No issues found with the reviewed changes</p></details><hr>"
+            potential_issues_string = render_code_review_issues(pr, code_review, issue_type="potential")
+            reviewed_files += f"<details><summary><strong>Potential Issues</strong></summary><p>Sweep isn't 100% sure if the following are issues or not but they may be worth taking a look at.</p><ul>{format_code_sections(potential_issues_string)}</ul></details>"
+        reviewed_files += "</details><hr>"
+    if len(dropped_files) == 1:
+        reviewed_files += f"<p>{dropped_files[0]} was not reviewed because our filter identified it as typically a non-human-readable or less important file (e.g., dist files, package.json, images). If this is an error, please let us know.</p>"
+    elif len(dropped_files) > 1:
+        dropped_files_string = "".join([f"<li>{file}</li>" for file in dropped_files])
+        reviewed_files += f"<p>The following files were not reviewed because our filter identified them as typically non-human-readable or less important files (e.g., dist files, package.json, images). If this is an error, please let us know.</p><ul>{dropped_files_string}</ul>"
     return body + reviewed_files
 
 # handles the creation or update of the Sweep comment letting the user know that Sweep is reviewing a pr
 # returns the comment_id
-def create_update_review_pr_comment(pr: PullRequest, code_review_by_file: dict[str, CodeReview] | None = None) -> int:
+def create_update_review_pr_comment(pr: PullRequest, code_review_by_file: dict[str, CodeReview] | None = None, dropped_files: list[str] = []) -> int:
     comment_id = -1
     sweep_comment = None
     # comments that appear in the github ui in the conversation tab are considered issue comments
@@ -706,7 +717,7 @@ def create_update_review_pr_comment(pr: PullRequest, code_review_by_file: dict[s
     
     # update body of sweep_comment
     if code_review_by_file:
-        rendered_pr_review = render_pr_review_by_file(pr, code_review_by_file)
+        rendered_pr_review = render_pr_review_by_file(pr, code_review_by_file, dropped_files=dropped_files)
         sweep_comment.edit(rendered_pr_review)
     comment_id = sweep_comment.id
     return comment_id
