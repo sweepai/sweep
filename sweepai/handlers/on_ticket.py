@@ -498,6 +498,19 @@ def on_ticket(
                 repo_description = "No description provided."
 
             internal_message_summary += replies_text
+            sweep_bot = construct_sweep_bot(
+                repo=repo,
+                repo_name=repo_name,
+                issue_url=issue_url,
+                repo_description=repo_description,
+                title=title,
+                message_summary=internal_message_summary,
+                cloned_repo=cloned_repo,
+                chat_logger=chat_logger,
+                snippets=snippets,
+                tree=tree,
+                comments=comments,
+            )
 
             try:
                 newline = "\n"
@@ -774,6 +787,19 @@ def on_ticket(
                             changes_made=diffs,
                         )
                         repo_context_manager: RepoContextManager = prep_snippets(cloned_repo=cloned_repo, query=(title + internal_message_summary + replies_text).strip("\n"), ticket_progress=None) # need to do this, can use the old query for speed
+                        sweep_bot: SweepBot = construct_sweep_bot(
+                            repo=repo,
+                            repo_name=repo_name,
+                            issue_url=issue_url,
+                            repo_description=repo_description,
+                            title="Fix the following errors to complete the user request.",
+                            message_summary=all_information_prompt,
+                            cloned_repo=cloned_repo,
+                            chat_logger=chat_logger,
+                            snippets=snippets,
+                            tree=tree,
+                            comments=comments,
+                        )
                         file_change_requests, plan = get_files_to_change_for_gha(
                             relevant_snippets=repo_context_manager.current_top_snippets,
                             read_only_snippets=repo_context_manager.read_only_snippets,
