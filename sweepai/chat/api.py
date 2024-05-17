@@ -80,21 +80,21 @@ def check_repo_exists_endpoint(repo_name: str, access_token: str = Depends(get_t
     if not check_user_authenticated(repo_name, access_token):
         return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
 
-#     username = Github(access_token).get_user().login
-#     return posthog_trace(
-#         check_repo_exists,
-#         username,
-#         repo_name,
-#         access_token,
-#         metadata={
-#             "repo_name": repo_name,
-#         }
-#     )
+    username = Github(access_token).get_user().login
 
-# def check_repo_exists(
-#     repo_name: str,
-#     access_token: str
-# ):
+    return check_repo_exists(
+        username,
+        repo_name,
+        metadata={
+            "repo_name": repo_name,
+        }
+    )
+
+@posthog_trace
+def check_repo_exists(
+    repo_name: str,
+    metadata: dict = {},
+):
     org_name, repo = repo_name.split("/")
     if os.path.exists(f"/tmp/{repo}"):
         return {"success": True}
@@ -107,6 +107,36 @@ def check_repo_exists_endpoint(repo_name: str, access_token: str = Depends(get_t
         return {"success": True}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+@app.get("/backend/search")
+def search_codebase_endpoint(
+    repo_name: str,
+    query: str,
+    access_token: str = Depends(get_token_header)
+):
+    if not check_user_authenticated(repo_name, access_token):
+        return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
+    username = Github(access_token).get_user().login
+    return [snippet.model_dump() for snippet in wrapped_search_codebase(
+        username,
+        repo_name,
+        query,
+        metadata={
+            "repo_name": repo_name,
+            "query": query,
+        }
+    )]
+
+@posthog_trace
+def wrapped_search_codebase(
+    repo_name: str,
+    query: str,
+    metadata: dict = {},
+):
+    return search_codebase(
+        repo_name,
+        query
+    )
 
 def search_codebase(
     repo_name: str,
@@ -122,16 +152,6 @@ def search_codebase(
     cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name)
     repo_context_manager = prep_snippets(cloned_repo, query, use_multi_query=False, NUM_SNIPPETS_TO_KEEP=0)
     return repo_context_manager.current_top_snippets
-
-@app.get("/backend/search")
-def search_codebase_endpoint(
-    repo_name: str,
-    query: str,
-    access_token: str = Depends(get_token_header)
-):
-    if not check_user_authenticated(repo_name, access_token):
-        return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
-    return [snippet.model_dump() for snippet in search_codebase(repo_name, query)]
 
 @app.post("/backend/chat")
 def chat_codebase(
