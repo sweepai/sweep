@@ -386,7 +386,7 @@ def on_ticket(
                     "success": False,
                     "error_message": "We deprecated supporting GPT 3.5.",
                 }
-            
+
             internal_message_summary = summary
             internal_message_summary += add_slack_context(internal_message_summary)
             error_message = validate_issue(title + internal_message_summary)
@@ -433,7 +433,7 @@ def on_ticket(
                 image_contents = get_image_contents_from_urls(image_urls)
                 if image_contents: # doing it here to avoid editing the original issue
                     internal_message_summary += ImageDescriptionBot().describe_images(text=title + internal_message_summary, images=image_contents)
-                
+
                 snippets, tree, _, repo_context_manager = fetch_relevant_files(
                     cloned_repo,
                     title,
@@ -561,6 +561,8 @@ def on_ticket(
                     1,
                 )
                 logger.info("Fetching files to modify/create...")
+
+                # 生成Plan
                 file_change_requests, plan = get_files_to_change(
                     relevant_snippets=repo_context_manager.current_top_snippets,
                     read_only_snippets=repo_context_manager.read_only_snippets,
@@ -570,6 +572,8 @@ def on_ticket(
                     images=image_contents
                 )
                 validate_file_change_requests(file_change_requests, cloned_repo)
+                # End 生成Plan
+
                 raise_on_no_file_change_requests(title, summary, edit_sweep_comment, file_change_requests)
 
                 file_change_requests: list[
@@ -669,7 +673,7 @@ def on_ticket(
                             "polluted_commits_error",
                             properties={
                                 "old_keys": ",".join(previous_file_contents_to_commit.keys()),
-                                "new_keys": ",".join(new_file_contents_to_commit.keys()) 
+                                "new_keys": ",".join(new_file_contents_to_commit.keys())
                             },
                         )
                     commit = commit_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, commit_message, pull_request.branch_name)
@@ -1012,7 +1016,7 @@ def on_ticket(
                                         "polluted_commits_error",
                                         properties={
                                             "old_keys": ",".join(previous_file_contents_to_commit.keys()),
-                                            "new_keys": ",".join(new_file_contents_to_commit.keys()) 
+                                            "new_keys": ",".join(new_file_contents_to_commit.keys())
                                         },
                                     )
                                 commit = commit_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, commit_message, pull_request.branch_name)
@@ -1105,7 +1109,7 @@ def on_ticket(
                             " for assistance: https://community.sweep.dev/"
                         ),
                         -1,
-                    )  
+                    )
                 else:
                     edit_sweep_comment(
                         (
