@@ -45,15 +45,7 @@ if GITHUB_APP_ID is None:
         GITHUB_APP_ID = "327588"
 GITHUB_BOT_USERNAME = os.environ.get("GITHUB_BOT_USERNAME")
 
-# deprecated: left to support old logic
-if not GITHUB_BOT_USERNAME:
-    if ENV == "prod":
-        GITHUB_BOT_USERNAME = "sweep-ai[bot]"
-    elif ENV == "dev":
-        GITHUB_BOT_USERNAME = "sweep-nightly[bot]"
-    elif ENV == "staging":
-        GITHUB_BOT_USERNAME = "sweep-canary[bot]"
-elif not GITHUB_BOT_USERNAME.endswith("[bot]"):
+if GITHUB_BOT_USERNAME and not GITHUB_BOT_USERNAME.endswith("[bot]"):
     GITHUB_BOT_USERNAME = GITHUB_BOT_USERNAME + "[bot]"
 
 GITHUB_LABEL_NAME = os.environ.get("GITHUB_LABEL_NAME", "sweep")
