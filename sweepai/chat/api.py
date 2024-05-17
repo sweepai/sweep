@@ -1,3 +1,4 @@
+from functools import wraps
 from typing import Any, Callable
 import jsonpatch
 from copy import deepcopy
@@ -23,27 +24,31 @@ app = FastAPI()
 
 def posthog_trace(
     function: Callable[..., Any],
-    username: str,
-    *args,
-    metadata: dict = {},
-    **kwargs
 ):
-    tracking_id = get_hash()[:10]
-    metadata = {**metadata, "tracking_id": tracking_id, "username": username}
-    posthog.capture(username, f"{function.__name__} start", properties=metadata)
+    @wraps(function)
+    def wrapper(
+        username: str,
+        *args,
+        metadata: dict = {},
+        **kwargs
+    ):
+        tracking_id = get_hash()[:10]
+        metadata = {**metadata, "tracking_id": tracking_id, "username": username}
+        posthog.capture(username, f"{function.__name__} start", properties=metadata)
 
-    try:
-        result = function(
-            *args,
-            metadata=metadata,
-            **kwargs
-        )
-    except Exception as e:
-        posthog.capture(username, f"{function.__name__} error", properties=metadata)
-        raise e
-    else:
-        posthog.capture(username, f"{function.__name__} success", properties=metadata)
-        return result
+        try:
+            result = function(
+                *args,
+                metadata=metadata,
+                **kwargs
+            )
+        except Exception as e:
+            posthog.capture(username, f"{function.__name__} error", properties=metadata)
+            raise e
+        else:
+            posthog.capture(username, f"{function.__name__} success", properties=metadata)
+            return result
+    return wrapper
 
 def check_user_authenticated(
     repo_name: str,
@@ -71,9 +76,25 @@ async def get_token_header(authorization: str = Header(...)):
     return authorization.removeprefix("Bearer ")
 
 @app.get("/backend/repo")
-def check_repo_exists(repo_name: str, access_token: str = Depends(get_token_header)):
+def check_repo_exists_endpoint(repo_name: str, access_token: str = Depends(get_token_header)):
     if not check_user_authenticated(repo_name, access_token):
         return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
+
+#     username = Github(access_token).get_user().login
+#     return posthog_trace(
+#         check_repo_exists,
+#         username,
+#         repo_name,
+#         access_token,
+#         metadata={
+#             "repo_name": repo_name,
+#         }
+#     )
+
+# def check_repo_exists(
+#     repo_name: str,
+#     access_token: str
+# ):
     org_name, repo = repo_name.split("/")
     if os.path.exists(f"/tmp/{repo}"):
         return {"success": True}
@@ -127,8 +148,7 @@ def chat_codebase(
 
     username = Github(access_token).get_user().login
 
-    return posthog_trace(
-        chat_codebase_stream,
+    return chat_codebase_stream(
         username,
         repo_name,
         messages,
@@ -142,12 +162,13 @@ def chat_codebase(
         use_patch=use_patch
     )
 
+@posthog_trace
 def chat_codebase_stream(
     repo_name: str,
     messages: list[Message],
     snippets: list[Snippet],
+    metadata: dict = {},
     use_patch: bool = False,
-    metadata: dict = {}
 ):
     # Stream
     chat_gpt = ChatGPT.from_system_message_string(
