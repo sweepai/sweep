@@ -542,7 +542,7 @@ function App() {
                     }
 
                     const surveyID = process.env.NEXT_PUBLIC_SURVEY_ID
-                    if (surveyID && localStorage.getItem(`hasInteractedWithSurvey_${surveyID}`)) {
+                    if (surveyID && !localStorage.getItem(`hasInteractedWithSurvey_${surveyID}`)) {
                       setShowSurvey(true);
                     }
                     setIsLoading(false);

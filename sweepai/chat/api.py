@@ -15,7 +15,7 @@ from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snip
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
-from sweepai.utils.github_utils import MockClonedRepo, get_installation_id, get_token
+from sweepai.utils.github_utils import MockClonedRepo
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.str_utils import get_hash
 from sweepai.utils.ticket_utils import prep_snippets
@@ -85,6 +85,7 @@ def check_repo_exists_endpoint(repo_name: str, access_token: str = Depends(get_t
     return check_repo_exists(
         username,
         repo_name,
+        access_token,
         metadata={
             "repo_name": repo_name,
         }
@@ -93,6 +94,7 @@ def check_repo_exists_endpoint(repo_name: str, access_token: str = Depends(get_t
 @posthog_trace
 def check_repo_exists(
     repo_name: str,
+    access_token: str,
     metadata: dict = {},
 ):
     org_name, repo = repo_name.split("/")
@@ -100,9 +102,7 @@ def check_repo_exists(
         return {"success": True}
     try:
         print(f"Cloning {repo_name} to /tmp/{repo}")
-        installation_id = int(get_installation_id(org_name))
-        token = get_token(installation_id)
-        git.Repo.clone_from(f"https://x-access-token:{token}@github.com/{repo_name}", f"/tmp/{repo}")
+        git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"/tmp/{repo}")
         print(f"Cloned {repo_name} to /tmp/{repo}")
         return {"success": True}
     except Exception as e:
@@ -121,6 +121,7 @@ def search_codebase_endpoint(
         username,
         repo_name,
         query,
+        access_token,
         metadata={
             "repo_name": repo_name,
             "query": query,
@@ -131,23 +132,24 @@ def search_codebase_endpoint(
 def wrapped_search_codebase(
     repo_name: str,
     query: str,
+    access_token: str,
     metadata: dict = {},
 ):
     return search_codebase(
         repo_name,
-        query
+        query,
+        access_token
     )
 
 def search_codebase(
     repo_name: str,
     query: str,
+    access_token: str,
 ):
     org_name, repo = repo_name.split("/")
     if not os.path.exists(f"/tmp/{repo}"):
         print(f"Cloning {repo_name} to /tmp/{repo}")
-        installation_id = int(get_installation_id(org_name))
-        token = get_token(installation_id)
-        git.Repo.clone_from(f"https://x-access-token:{token}@github.com/{repo_name}", f"/tmp/{repo}")
+        git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"/tmp/{repo}")
         print(f"Cloned {repo_name} to /tmp/{repo}")
     cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name)
     repo_context_manager = prep_snippets(cloned_repo, query, use_multi_query=False, NUM_SNIPPETS_TO_KEEP=0)
@@ -173,6 +175,7 @@ def chat_codebase(
         repo_name,
         messages,
         snippets,
+        access_token,
         metadata={
             "repo_name": repo_name,
             "message": messages[-1].content,
@@ -187,6 +190,7 @@ def chat_codebase_stream(
     repo_name: str,
     messages: list[Message],
     snippets: list[Snippet],
+    access_token: str,
     metadata: dict = {},
     use_patch: bool = False,
 ):
@@ -216,7 +220,7 @@ def chat_codebase_stream(
         *messages[:-1]
     ]
 
-    def stream_state(initial_user_message: str, snippets: list[Snippet], messages: list[Message]):
+    def stream_state(initial_user_message: str, snippets: list[Snippet], messages: list[Message], access_token: str):
         user_message = initial_user_message
         fetched_snippets = snippets
         new_messages = [
@@ -237,7 +241,8 @@ def chat_codebase_stream(
         for _ in range(5):
             stream = chat_gpt.chat_anthropic(
                 content=user_message,
-                model="claude-3-opus-20240229",
+                # model="claude-3-opus-20240229",
+                model="claude-3-sonnet-20240229",
                 stop_sequences=["</function_call>", "</function_calls>"],
                 stream=True
             )
@@ -304,6 +309,9 @@ def chat_codebase_stream(
                     role="assistant",
                 )
             )
+
+            result_string = result_string.replace("<function_calls>", "<function_call>")
+            result_string += "</function_call>"
             
             function_call = validate_and_parse_function_call(result_string, chat_gpt)
             
@@ -321,7 +329,7 @@ def chat_codebase_stream(
                     )
                 ]
                 
-                function_output, new_snippets = handle_function_call(function_call, repo_name, fetched_snippets)
+                function_output, new_snippets = handle_function_call(function_call, repo_name, fetched_snippets, access_token)
                 
                 yield [
                     *new_messages,
@@ -382,18 +390,20 @@ def chat_codebase_stream(
             messages[-1].content + "\n\n" + format_message,
             snippets,
             messages,
+            access_token,
             use_patch=use_patch
         )
     )
 
-def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, snippets: list[Snippet]):
+def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, snippets: list[Snippet], access_token: str):
     NUM_SNIPPETS = 5
     if function_call.function_name == "search_codebase":
         if "query" not in function_call.function_parameters:
             return "ERROR\n\nQuery parameter is required."
         new_snippets = search_codebase(
             repo_name=repo_name,
-            query=function_call.function_parameters["query"]
+            query=function_call.function_parameters["query"],
+            access_token=access_token
         )
         fetched_snippet_denotations = [snippet.denotation for snippet in snippets]
         new_snippets_to_add = [snippet for snippet in new_snippets if snippet.denotation not in fetched_snippet_denotations]

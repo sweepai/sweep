@@ -2,14 +2,11 @@ example_tool_calls = """Here is an illustrative example of how to use the tools:
 
 To ask questions about the codebase:
 <function_call>
-<invoke>
-<tool_name>search_codebase</tool_name>
-<parameters>
+<search_codebase>
 <query>
 How do we the user-provided password hash against the stored hash from the database in the user-authentication service?
 </query>
-</parameters>
-</invoke>
+</search_codebase>
 </function_call>
 
 Notice that the `query` parameter is a single, extremely detailed, specific natural language search question.
@@ -62,10 +59,10 @@ Otherwise, if the user's question is specific, and asks to implement a feature o
 
 # 4. Function Calls (Optional)
 
-Then, make each function call like so:
-<function_calls>
-[the list of function calls go here, using the valid XML format for function calls]
-</function_calls>""" + example_tool_calls
+Then, make each a function call like so:
+<function_call>
+[the function call goes here, using the valid XML format for function calls]
+</function_call>""" + example_tool_calls
 
 format_message = """You MUST follow the following XML-based format:
 
@@ -94,44 +91,27 @@ Then, self-critique your answer and validate that you have completely answered t
 Otherwise, if the user's question is specific, and asks to implement a feature or fix a bug, determine what additional information you need to answer the user's question. Specifically, validate that all interfaces are being used correctly based on the contents of the retrieved files -- if you cannot verify this, then you must find the relevant information such as the correct interface or schema to validate the usage. If you need to search the codebase for more information, such as for how a particular feature in the codebase works, use the `search_codebase` tool in the next section.
 </self_critique>
 
-# 4. Function Calls (Optional)
+# 4. Function Call (Optional)
 
-Then, make each function call like so:
-<function_calls>
-[the list of function calls go here, using the valid XML format for function calls]
-</function_calls>
+Then, make each a function call like so:
+<function_call>
+[the function call goes here, using the valid XML format for function calls]
+</function_call>
 
 """ + example_tool_calls
 
 tools_available = """You have access to the following tools to assist in fulfilling the user request:
-<tool_description>
-<tool_name>search_codebase</tool_name>
-<description>
-</description>
-<parameters>
-<parameter>
-<name>query</name>
-<type>str</type>
-<description>
+<search_codebase>
+<query>
 Single, detailed, specific natural language search question to search the codebase for relevant snippets. This should be in the form of a natural language question, like "What is the structure of the User model in the authentication module?"
-</description>
-</parameter>
-<parameter>
-<name>include_docs</name>
-<type>str</type>
-<description>
-(Optional) Include documentation in the search results. Default is false.
-</description>
-</parameter>
-<parameter>
-<name>include_tests</name>
-<type>str</type>
-<description>
-(Optional) Include test files in the search results. Default is false.
-</description>
-</parameter>
-</parameters>
-</tool_description>
+</query>
+<include_docs>
+(Optional) Include documentation in the search results. Default is false. Either true or false.
+</include_docs>
+<include_tests>
+(Optional) Include documentation in the search results. Default is false. Either true or false.
+</include_tests>
+</search_codebase>
 
 """ + example_tool_calls
 
@@ -143,13 +123,12 @@ Once you have collected and analyzed the relevant snippets, use the `submit_task
 
 You MUST call them like this:
 <function_call>
-<invoke>
-<tool_name>$TOOL_NAME</tool_name>
-<parameters>
-<$PARAMETER_NAME>$PARAMETER_VALUE</$PARAMETER_NAME>
+<tool_name>
+<param1>
+param1 value
+</param1>
 ...
-</parameters>
-</invoke>
+</tool_name>
 </function_call>
 
 Here are the tools available:
