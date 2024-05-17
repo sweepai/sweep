@@ -503,8 +503,6 @@ def get_payment_messages(chat_logger: ChatLogger):
         is_consumer_tier = False
         use_faster_model = False
 
-    tracking_id = chat_logger.data["tracking_id"] if MONGODB_URI is not None else None
-
     # Find the first comment made by the bot
     tickets_allocated = 5
     if is_consumer_tier:
@@ -541,11 +539,11 @@ def get_payment_messages(chat_logger: ChatLogger):
     )
     purchase_message = f"<br/><br/> For more Sweep issues, visit <a href={single_payment_link}>our payment portal</a>. For a one week free trial, try <a href={pro_payment_link}>Sweep Pro</a> (unlimited GPT-4 tickets)."
     payment_message = (
-        f"{user_type}: You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
+        f"{user_type}: You have {gpt_tickets_left_message}{daily_message}"
         + (purchase_message if not is_paying_user else "")
     )
     payment_message_start = (
-        f"{user_type}: You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
+        f"{user_type}: You have {gpt_tickets_left_message}{daily_message}"
         + (purchase_message if not is_paying_user else "")
     )
 
