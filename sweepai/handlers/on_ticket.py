@@ -472,10 +472,10 @@ def on_ticket(
 
             newline = "\n"
             edit_sweep_comment(
-                "I found the following snippets in your repository. I will now analyze these snippets and come up with a plan."
+                "Here are the code search results. I'm now analyzing these search results to write the PR."
                 + "\n\n"
                 + create_collapsible(
-                    "Some code snippets I think are relevant in decreasing order of relevance (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
+                    "Relevant code snippets (click to expand). Mentioned files will always appear here.",
                     "\n".join(
                         [
                             f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline) - 1)}\n"
@@ -615,7 +615,7 @@ def on_ticket(
                     )
                 commit = commit_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, commit_message, pull_request.branch_name)
                 edit_sweep_comment(
-                    f"Your changes have been successfully made in the branch [`{pull_request.branch_name}`](https://github.com/{repo_full_name}/tree/{pull_request.branch_name}).",
+                    f"Your changes have been successfully made to the branch [`{pull_request.branch_name}`](https://github.com/{repo_full_name}/tree/{pull_request.branch_name}). I have validated these changes using a syntax checker and a linter.",
                     3,
                 )
             except Exception as e:
