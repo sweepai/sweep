@@ -10,7 +10,7 @@ import numpy as np
 from sklearn.cluster import DBSCAN
 
 from sweepai.core.review_utils import PRReviewBot, format_pr_changes_by_file, get_pr_changes
-from sweepai.core.vector_db import embed_text_array
+from sweepai.core.vector_db import cosine_similarity, embed_text_array
 from sweepai.dataclasses.codereview import CodeReview, PRChange
 from sweepai.utils.str_utils import object_to_xml
 from sweepai.utils.ticket_rendering_utils import create_update_review_pr_comment
@@ -18,6 +18,18 @@ from sweepai.utils.ticket_utils import fire_and_forget_wrapper
 from sweepai.utils.validate_license import validate_license
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
+
+# get the best issue to return based on group vote
+def get_group_voted_best_issue_index(file_name: str, label: str, files_to_labels_indexes: dict[str, dict[str, list[int]]], files_to_embeddings: dict[str, any], index_length: int):
+    similarity_scores = [0 for _ in range(index_length)]
+    for index_i in range(index_length):
+        for index_j in range(index_length):
+            if index_i != index_j:
+                embedding_i = files_to_embeddings[file_name][index_i].reshape(1,512)
+                embedding_j = files_to_embeddings[file_name][index_j].reshape(1,512)
+                similarity_scores[index_i] += cosine_similarity(embedding_i, embedding_j)[0][0]
+    max_index = files_to_labels_indexes[file_name][label][np.argmax(similarity_scores)]
+    return max_index
 
 # function that gets the code review for every file in the pr
 def get_code_reviews_for_file(pr_changes: list[PRChange], formatted_pr_changes_by_file: dict[str, str], chat_logger: ChatLogger | None = None):
@@ -50,12 +62,13 @@ def group_vote_review_pr(pr_changes: list[PRChange], formatted_pr_changes_by_fil
         for _ in range(GROUP_SIZE):
             code_reviews_by_file.append(get_code_reviews_for_file(pr_changes, formatted_pr_changes_by_file))
     
-    # embed each issue and then group by similarity score
+    # embed each issue and then cluster them
     # extract code issues for each file and prepare them for embedding
     code_reviews_ready_for_embedding = [] 
     for code_review_by_file in code_reviews_by_file:
         prepped_code_review = {}
         for file_name, code_review in code_review_by_file.items():
+            # using object_to_xml may not be the most optimal as it adds extra xml tags
             prepped_code_review[file_name] = [object_to_xml(code_issue, 'issue') for code_issue in code_review.issues]
         code_reviews_ready_for_embedding.append(prepped_code_review)
     
@@ -72,6 +85,9 @@ def group_vote_review_pr(pr_changes: list[PRChange], formatted_pr_changes_by_fil
     # corresponding issues for each file
     # format: {file_name: [issue1, issue2, ...]}
     files_to_issues = {}
+    # corresponding embeddings for each file
+    # format: {file_name: [embedding1, embedding2, ...]}
+    files_to_embeddings = {}
 
     # for each file combine all the embeddings together while determining the max amount of clusters
     for file_name in formatted_pr_changes_by_file:
@@ -87,6 +103,7 @@ def group_vote_review_pr(pr_changes: list[PRChange], formatted_pr_changes_by_fil
                     all_issues.extend(code_review.issues)
         files_to_issues[file_name] = all_issues
         all_flattened_embeddings = np.array(all_embeddings)
+        files_to_embeddings[file_name] = all_flattened_embeddings
         # note DBSCAN expects a shape with less than or equal to 2 dimensions
         try:
             if all_flattened_embeddings.size:
@@ -119,14 +136,16 @@ def group_vote_review_pr(pr_changes: list[PRChange], formatted_pr_changes_by_fil
         final_issues = []
         potential_issues = []
         for label, indexes in labels_dict.items():
+            index_length = len(indexes)
             # -1 is considered as noise
-            if len(indexes) >= LABEL_THRESHOLD and label != "-1":
+            if index_length >= LABEL_THRESHOLD and label != "-1":
+                max_index = get_group_voted_best_issue_index(file_name, label, files_to_labels_indexes, files_to_embeddings, index_length)
                 # add to final issues, first issue - TODO use similarity score of all issues against each other
-                final_issues.append(files_to_issues[file_name][indexes[0]])
+                final_issues.append(files_to_issues[file_name][max_index])
             # get potential issues which are one below the label_threshold
-            if len(indexes) == LABEL_THRESHOLD - 1 and label != "-1":
-                # add to final issues, first issue - TODO use similarity score of all issues against each other
-                potential_issues.append(files_to_issues[file_name][indexes[0]])
+            if index_length == LABEL_THRESHOLD - 1 and label != "-1":
+                max_index = get_group_voted_best_issue_index(file_name, label, files_to_labels_indexes, files_to_embeddings, index_length)
+                potential_issues.append(files_to_issues[file_name][max_index])
         final_code_review.issues = final_issues
         final_code_review.potential_issues = potential_issues
         majority_code_review_by_file[file_name] = copy.deepcopy(final_code_review)
