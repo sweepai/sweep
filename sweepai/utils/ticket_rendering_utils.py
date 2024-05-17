@@ -559,7 +559,6 @@ def get_payment_messages(chat_logger: ChatLogger):
         else 999
     )
 
-    model_name = "GPT-4"
     single_payment_link = "https://buy.stripe.com/00g3fh7qF85q0AE14d"
     pro_payment_link = "https://buy.stripe.com/00g5npeT71H2gzCfZ8"
     daily_message = (

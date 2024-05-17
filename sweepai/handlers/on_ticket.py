@@ -8,7 +8,6 @@ import os
 import traceback
 from time import time
 
-import openai
 import yaml
 import yamllint.config as yamllint_config
 from github import BadCredentialsException
@@ -27,7 +26,6 @@ from sweepai.config.client import (
     RESET_FILE,
     REVERT_CHANGED_FILES_TITLE,
     SweepConfig,
-    get_documentation_dict,
     get_gha_enabled,
 )
 from sweepai.config.server import (
@@ -39,7 +37,6 @@ from sweepai.config.server import (
 )
 from sweepai.core.entities import (
     FileChangeRequest,
-    MaxTokensExceeded,
     MockPR,
     NoFilesException,
     PullRequest,
@@ -53,7 +50,7 @@ from sweepai.handlers.create_pr import (
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.image_utils import get_image_contents_from_urls, get_image_urls_from_issue
 from sweepai.utils.issue_validator import validate_issue
-from sweepai.utils.ticket_rendering_utils import add_emoji, process_summary, remove_emoji, create_error_logs, get_payment_messages, get_comment_header, send_email_to_user, get_failing_gha_logs, rewrite_pr_description, raise_on_no_file_change_requests, get_branch_diff_text, construct_sweep_bot, handle_empty_repository, delete_old_prs, custom_config
+from sweepai.utils.ticket_rendering_utils import add_emoji, process_summary, remove_emoji, get_payment_messages, get_comment_header, send_email_to_user, get_failing_gha_logs, rewrite_pr_description, raise_on_no_file_change_requests, get_branch_diff_text, construct_sweep_bot, handle_empty_repository, delete_old_prs, custom_config
 from sweepai.utils.validate_license import validate_license
 from sweepai.utils.buttons import Button, ButtonList
 from sweepai.utils.chat_logger import ChatLogger
@@ -74,9 +71,6 @@ from sweepai.utils.str_utils import (
     blockquote,
     bold,
     bot_suffix,
-    checkbox_template,
-    collapsible_template,
-    create_checkbox,
     create_collapsible,
     discord_suffix,
     get_hash,
@@ -236,9 +230,6 @@ def on_ticket(
             )
 
             config_pr_url = None
-            user_settings: UserSettings = UserSettings.from_username(username=username)
-            user_settings_message = user_settings.get_message()
-
             cloned_repo: ClonedRepo = ClonedRepo(
                 repo_full_name,
                 installation_id=installation_id,
@@ -642,7 +633,7 @@ def on_ticket(
             # VALIDATION (modify)
             try:
                 edit_sweep_comment(
-                    f"I'm currently validating your changes using parsers and linters to check for mistakes like syntax errors or undefined variables. If I see any of these errors, I will automatically fix them.",
+                    "I'm currently validating your changes using parsers and linters to check for mistakes like syntax errors or undefined variables. If I see any of these errors, I will automatically fix them.",
                     3,
                 )
                 pull_request: PullRequest = PullRequest(
@@ -715,23 +706,7 @@ def on_ticket(
             if modify_files_dict:
                 for file_name, _ in modify_files_dict.items():
                     changed_files.append(file_name)
-            commit_hash: str = (
-                commit
-                if isinstance(commit, str)
-                else (
-                    commit.sha
-                    if commit is not None
-                    else repo.get_branch(
-                        pull_request.branch_name
-                    ).commit.sha
-                )
-            )
-            commit_url = (
-                f"https://github.com/{repo_full_name}/commit/{commit_hash}"
-            )
-            commit_url_display = (
-                f"<a href='{commit_url}'><code>{commit_hash[:7]}</code></a>"
-            )
+
             # Refresh token
             try:
                 current_issue = repo.get_issue(number=issue_number)
