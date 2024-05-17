@@ -249,38 +249,6 @@ def delete_old_prs(repo: Repository, issue_number: int):
             safe_delete_sweep_branch(pr, repo)
             break
 
-def construct_sweep_bot(
-        repo: Repository,
-        repo_name: str,
-        issue_url: str,
-        repo_description: str,
-        title: str,
-        message_summary: str,
-        cloned_repo: ClonedRepo,
-        chat_logger: ChatLogger,
-        snippets: Any = None,
-        tree: Any = None,
-        comments: Any = None,
-    ) -> SweepBot:
-    human_message = HumanMessagePrompt(
-        repo_name=repo_name,
-        issue_url=issue_url,
-        repo_description=repo_description.strip(),
-        title=title,
-        summary=message_summary,
-        snippets=snippets,
-        tree=tree,
-    )
-    sweep_bot = SweepBot.from_system_message_content(
-        human_message=human_message,
-        repo=repo,
-        is_reply=bool(comments),
-        chat_logger=chat_logger,
-        cloned_repo=cloned_repo,
-    )
-    return sweep_bot
-
-
 def get_comment_header(
     index: int,
     g: Github,
