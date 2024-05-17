@@ -174,6 +174,7 @@ def validate_and_sanitize_multi_file_changes(repo: Repository, file_changes: dic
             file_removed = True
     return sanitized_file_changes, file_removed
 
+# 将生成结果提交到github
 # commits multiple files in a single commit, returns the commit object
 def commit_multi_file_changes(repo: Repository, file_changes: dict[str, str], commit_message: str, branch: str):
     assert file_changes

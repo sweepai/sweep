@@ -932,7 +932,7 @@ def finish_applying_changes(modify_files_dict, llm_state, current_fcr_index):
     llm_state["attempt_lazy_change"] = True # successful application with no warning message means we can attempt lazy change again
     llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
     return llm_response, llm_state
-
+# 处理FunctionCall
 def handle_function_call(
     cloned_repo: ClonedRepo,
     function_call: AnthropicFunctionCall,

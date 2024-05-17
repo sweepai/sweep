@@ -73,6 +73,7 @@ def handle_file_change_requests(
                 for file_path in file_change_request.relevant_files:
                     relevant_filepaths.append(file_path)
         # actual modification logic
+        # 实际的修改逻辑，核心函数
         modify_files_dict = modify(
             fcrs=file_change_requests,
             request=request,

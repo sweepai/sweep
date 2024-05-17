@@ -661,6 +661,9 @@ def on_ticket(
                     installation_id=installation_id,
                     chat_logger=chat_logger,
                 )
+                # 其中key是文件路径，value是该文件的一些数据用dict表示，这个dict中contents是文件的内容
+                modify_files_dict: dict[str, dict[str, str]] = modify_files_dict #数据结构
+
                 # End Fuction 代码生成的唯一入口
                 commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]
                 try:
@@ -676,6 +679,8 @@ def on_ticket(
                                 "new_keys": ",".join(new_file_contents_to_commit.keys())
                             },
                         )
+                    # 将生成的代码提交到Github中
+                    # new_file_contents_to_commit 是一个key和value都是str的dict，key是文件路径，value是文件内容
                     commit = commit_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, commit_message, pull_request.branch_name)
                 except Exception as e:
                     logger.info(f"Error in updating file{e}")

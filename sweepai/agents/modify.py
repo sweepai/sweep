@@ -11,6 +11,7 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 
 
+# 核心中的核心！
 def modify(
     fcrs: list[FileChangeRequest],
     request: str,
@@ -112,6 +113,7 @@ def modify(
         if function_call:
             num_of_tasks_done = tasks_completed(fcrs)
             # note that detailed_chat_logger_messages is meant to be modified in place by handle_function_call
+            # handle function call is important Func!!
             function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state, chat_logger_messages=detailed_chat_logger_messages, use_openai=use_openai)
             print(function_output)
             fcrs = llm_state["fcrs"]
