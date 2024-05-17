@@ -25,7 +25,7 @@ def temp_pr_changes(url):
     repo = g.get_repo(repo_name)
     pr = repo.get_pull(pr_number)
     # Fetch the diff
-    pr_changes = get_pr_changes(repo, pr)
+    pr_changes, _ = get_pr_changes(repo, pr)
     return pr_changes
 
 pr_changes = temp_pr_changes(url)
