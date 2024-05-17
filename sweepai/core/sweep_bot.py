@@ -1,11 +1,10 @@
 import base64
 import os
 import re
-import traceback
 from typing import Dict
 
 from github.ContentFile import ContentFile
-from github.GithubException import GithubException, UnknownObjectException
+from github.GithubException import GithubException
 from github.Repository import Repository
 from loguru import logger
 from networkx import Graph
@@ -14,7 +13,7 @@ from tqdm import tqdm
 from rapidfuzz import fuzz
 
 from sweepai.agents.modify_utils import contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, parse_fcr, indent
-from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
+from sweepai.config.client import SweepConfig, get_branch_name_config
 from sweepai.config.server import DEFAULT_GPT4_MODEL
 from sweepai.core.annotate_code_openai import get_annotated_source_code
 from sweepai.core.chat import ChatGPT
@@ -52,7 +51,6 @@ from sweepai.utils.diff import generate_diff
 from sweepai.utils.progress import (
     TicketProgress,
 )
-from sweepai.utils.str_utils import get_hash
 from sweepai.utils.github_utils import ClonedRepo
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"

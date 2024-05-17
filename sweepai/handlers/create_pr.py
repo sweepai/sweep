@@ -24,7 +24,6 @@ from sweepai.core.entities import (
     MaxTokensExceeded,
 )
 from sweepai.core.sweep_bot import SweepBot
-from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, create_branch, get_github_client
 

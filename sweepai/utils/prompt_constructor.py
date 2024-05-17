@@ -14,9 +14,6 @@ def get_issue_request(
     summary = (
         summary if not summary.strip().endswith("_No response_") else ""
     )
-    issue_description = (
-        f"\nIssue Description: {summary}" if summary else ""
-    )
     return f"""Issue Title: {title}"""
 
 class HumanMessagePrompt(BaseModel):

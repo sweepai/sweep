@@ -6,7 +6,6 @@ It is only called by the webhook handler in sweepai/api.py.
 import difflib
 import io
 import re
-from typing import Any
 import zipfile
 
 import markdown
@@ -24,14 +23,10 @@ from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
     SweepConfig,
 )
-from sweepai.config.server import (
-    MONGODB_URI,
-)
 from sweepai.core.entities import (
     SandboxResponse,
 )
 from sweepai.core.entities import create_error_logs as entities_create_error_logs
-from sweepai.core.sweep_bot import SweepBot
 from sweepai.dataclasses.codereview import CodeReview, CodeReviewIssue
 from sweepai.handlers.create_pr import (
     safe_delete_sweep_branch,
@@ -41,11 +36,9 @@ from sweepai.utils.buttons import create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.github_utils import (
     CURRENT_USERNAME,
-    ClonedRepo,
     get_github_client,
     get_token,
 )
-from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.str_utils import (
     BOT_SUFFIX,
     blockquote,

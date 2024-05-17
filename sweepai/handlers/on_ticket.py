@@ -8,14 +8,11 @@ import os
 import traceback
 from time import time
 
-import yaml
-import yamllint.config as yamllint_config
 from github import BadCredentialsException
 from github.WorkflowRun import WorkflowRun
 from github.PullRequest import PullRequest as GithubPullRequest
 from loguru import logger
 from tabulate import tabulate
-from yamllint import linter
 
 
 from sweepai.agents.modify_utils import parse_fcr
@@ -36,22 +33,20 @@ from sweepai.config.server import (
     MONGODB_URI,
 )
 from sweepai.core.entities import (
-    FileChangeRequest,
     MockPR,
     NoFilesException,
     PullRequest,
 )
 from sweepai.core.pr_reader import PRReader
-from sweepai.core.sweep_bot import SweepBot, get_files_to_change, get_files_to_change_for_gha, validate_file_change_requests
+from sweepai.core.sweep_bot import get_files_to_change, get_files_to_change_for_gha, validate_file_change_requests
 from sweepai.handlers.create_pr import (
-    create_config_pr,
     handle_file_change_requests,
 )
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.image_utils import get_image_contents_from_urls, get_image_urls_from_issue
 from sweepai.utils.issue_validator import validate_issue
 from sweepai.utils.prompt_constructor import get_issue_request
-from sweepai.utils.ticket_rendering_utils import add_emoji, process_summary, remove_emoji, get_payment_messages, get_comment_header, send_email_to_user, get_failing_gha_logs, rewrite_pr_description, raise_on_no_file_change_requests, get_branch_diff_text, handle_empty_repository, delete_old_prs, custom_config
+from sweepai.utils.ticket_rendering_utils import add_emoji, process_summary, remove_emoji, get_payment_messages, get_comment_header, send_email_to_user, get_failing_gha_logs, rewrite_pr_description, raise_on_no_file_change_requests, get_branch_diff_text, handle_empty_repository, delete_old_prs
 from sweepai.utils.validate_license import validate_license
 from sweepai.utils.buttons import Button, ButtonList
 from sweepai.utils.chat_logger import ChatLogger
@@ -510,21 +505,6 @@ def on_ticket(
                 )
                 validate_file_change_requests(file_change_requests, cloned_repo)
                 raise_on_no_file_change_requests(title, summary, edit_sweep_comment, file_change_requests)
-
-                table = tabulate(
-                    [
-                        [
-                            file_change_request.entity_display,
-                            file_change_request.instructions_display.replace(
-                                "\n", "<br/>"
-                            ).replace("```", "\\```"),
-                        ]
-                        for file_change_request in file_change_requests
-                        if file_change_request.change_type != "check"
-                    ],
-                    headers=["File Path", "Proposed Changes"],
-                    tablefmt="pipe",
-                )
 
                 # Render plan start
                 planning_markdown = ""
