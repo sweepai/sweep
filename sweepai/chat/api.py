@@ -85,6 +85,7 @@ def check_repo_exists_endpoint(repo_name: str, access_token: str = Depends(get_t
     return check_repo_exists(
         username,
         repo_name,
+        access_token,
         metadata={
             "repo_name": repo_name,
         }
@@ -93,6 +94,7 @@ def check_repo_exists_endpoint(repo_name: str, access_token: str = Depends(get_t
 @posthog_trace
 def check_repo_exists(
     repo_name: str,
+    access_token: str,
     metadata: dict = {},
 ):
     org_name, repo = repo_name.split("/")
@@ -100,9 +102,7 @@ def check_repo_exists(
         return {"success": True}
     try:
         print(f"Cloning {repo_name} to /tmp/{repo}")
-        installation_id = int(get_installation_id(org_name))
-        token = get_token(installation_id)
-        git.Repo.clone_from(f"https://x-access-token:{token}@github.com/{repo_name}", f"/tmp/{repo}")
+        git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"/tmp/{repo}")
         print(f"Cloned {repo_name} to /tmp/{repo}")
         return {"success": True}
     except Exception as e:
@@ -121,6 +121,7 @@ def search_codebase_endpoint(
         username,
         repo_name,
         query,
+        access_token,
         metadata={
             "repo_name": repo_name,
             "query": query,
@@ -131,23 +132,24 @@ def search_codebase_endpoint(
 def wrapped_search_codebase(
     repo_name: str,
     query: str,
+    access_token: str,
     metadata: dict = {},
 ):
     return search_codebase(
         repo_name,
-        query
+        query,
+        access_token
     )
 
 def search_codebase(
     repo_name: str,
     query: str,
+    access_token: str,
 ):
     org_name, repo = repo_name.split("/")
     if not os.path.exists(f"/tmp/{repo}"):
         print(f"Cloning {repo_name} to /tmp/{repo}")
-        installation_id = int(get_installation_id(org_name))
-        token = get_token(installation_id)
-        git.Repo.clone_from(f"https://x-access-token:{token}@github.com/{repo_name}", f"/tmp/{repo}")
+        git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"/tmp/{repo}")
         print(f"Cloned {repo_name} to /tmp/{repo}")
     cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name)
     repo_context_manager = prep_snippets(cloned_repo, query, use_multi_query=False, NUM_SNIPPETS_TO_KEEP=0)
