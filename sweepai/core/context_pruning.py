@@ -172,11 +172,15 @@ def escape_ripgrep(text):
         text = text.replace(s, "\\" + s)
     return text
 
-def run_ripgrep_command(code_entity, repo_dir):
+def run_ripgrep_command(code_entity, repo_dir, *args):
+    # Updated for the new context
     rg_command = [
         "rg",
         "-n",
+        "-w",
         "-i",
+        "-C=3",
+        "--heading",
         code_entity,
         repo_dir,
     ]

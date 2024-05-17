@@ -1,3 +1,4 @@
+
 from sweepai.config.client import SweepConfig
 
 # post process rip grep output to be more condensed
@@ -47,6 +48,17 @@ def post_process_rg_output(root_directory: str, sweep_config: SweepConfig, outpu
         for filename, content in file_name_and_contents:
             processed_output += f"File: {filename} contained the following matching lines of code:\n" + content + "\n"
     return processed_output, file_output_dict, file_to_num_occurrences
+
+def cleaned_rg_output(root_directory: str, sweep_config: SweepConfig, output: str):
+    results = {}
+    for block in output.split("\n\n"):
+        if not block.strip():
+            continue
+        file_path, *contents = block.split("\n")
+        if sweep_config.is_file_excluded_aggressive(root_directory, file_path):
+            continue
+        results[file_path.removeprefix(root_directory).removeprefix("/")] = "\n".join(contents)
+    return results
 
 # try and find code_snippet inside file_contents given various levels of indentation, and right strip the lines of code
 # if successful returns the num of spaces required to find the code match and if we need to rstrip the old code or not

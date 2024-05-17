@@ -23,6 +23,8 @@ Take these steps:
     - Copy the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are NEVER permitted.
     - Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>."""
 
+# Should encourage to start from last header
+
 # openai prompt
 openai_files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a user's GitHub issue.
 
@@ -51,7 +53,9 @@ c. Detail ALL changes that do not correspond to an excerpt from the user's issue
 
 List all files that need to be changed in the codebase.
 
-For each section of code to modify, first, write a detailed description of the changes you are going to make, making reference to entities. Then, copy the original code verbatim from the code file into <original_code> tags, and write the new updated code in <new_code> tags. The referenced original code span should be a contiguous block long enough to cover the change.
+For each section of code to modify, first, write a detailed description of the changes you are going to make, making reference to entities. Then, determine where you want to start making this change. Typically, you would want to start from the last function or class header from the file, but you may also start from the last header like an if block or for loop.
+
+Then, copy the original code verbatim from the code file starting from this header into <original_code> tags, and write the new updated code in <new_code> tags. The referenced original code span should be a contiguous block long enough to cover the change.
 
 If multiple changes are needed in the same section of code, use a single <modify> block and apply all changes at once within that block. There should not be any overlapping changes in the same <modify> block.
 
@@ -66,13 +70,8 @@ You will complete the above instructions by following this XML format:
 a. Root cause analysis
 
 b. All changes required to resolve the issue. Follow this format:
-
-<issue_and_proposed_changes>
-<proposed_changes>
-1. List of proposed changes for each relevant suggested change from the user. If this has already been addressed, leave this blank.
-[additional changes as needed]
-</proposed_changes>
-</issue_and_proposed_changes>
+    1. List of proposed changes for each relevant suggested change from the user.
+    [additional changes as needed]
 
 c. Additional changes (optional)
 </issue_analysis>
@@ -112,10 +111,6 @@ You will analyze the provided code files, repository, and GitHub issue to unders
 
 Guidelines:
 - Always include the full file path and reference the provided files 
-- Provide clear instructions for updating the code, specifying necessary imports
-- Be specific and direct, using the phrases "add", "replace", and "remove".
-- Ensure your plan is complete and covers all necessary changes to fully resolve the issue
-- Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
 - Prioritize using existing code and utility methods to minimize writing new code
 - Break the task into small steps, with each <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file, such as for imports.
 - To remove code, replace it with empty <new_code> tags.
