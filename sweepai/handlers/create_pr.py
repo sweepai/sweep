@@ -38,6 +38,7 @@ INSTRUCTIONS_FOR_REVIEW = """\
 * Edit the original issue to get Sweep to recreate the PR from scratch"""
 
 # this should be the only modification function
+# 代码生成的唯一入口，很重要
 def handle_file_change_requests(
     file_change_requests: list[FileChangeRequest],
     branch_name: str,

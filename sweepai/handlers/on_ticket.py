@@ -386,7 +386,6 @@ def on_ticket(
                     "success": False,
                     "error_message": "We deprecated supporting GPT 3.5.",
                 }
-
             internal_message_summary = summary
             internal_message_summary += add_slack_context(internal_message_summary)
             error_message = validate_issue(title + internal_message_summary)
@@ -433,7 +432,6 @@ def on_ticket(
                 image_contents = get_image_contents_from_urls(image_urls)
                 if image_contents: # doing it here to avoid editing the original issue
                     internal_message_summary += ImageDescriptionBot().describe_images(text=title + internal_message_summary, images=image_contents)
-
                 snippets, tree, _, repo_context_manager = fetch_relevant_files(
                     cloned_repo,
                     title,
@@ -653,6 +651,7 @@ def on_ticket(
                 pull_request.branch_name = sweep_bot.create_branch(
                     pull_request.branch_name, base_branch=overrided_branch_name
                 )
+                # Main Fuction 代码生成的唯一入口
                 modify_files_dict, changed_file, file_change_requests = handle_file_change_requests(
                     file_change_requests=file_change_requests,
                     request=sweep_bot.human_message.get_issue_request(),
@@ -662,6 +661,7 @@ def on_ticket(
                     installation_id=installation_id,
                     chat_logger=chat_logger,
                 )
+                # End Fuction 代码生成的唯一入口
                 commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]
                 try:
                     new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
