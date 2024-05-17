@@ -555,8 +555,7 @@ def on_ticket(
             try:
                 newline = "\n"
                 edit_sweep_comment(
-                    "I found the following snippets in your repository. I will now analyze"
-                    " these snippets and come up with a plan."
+                    "I found the following snippets in your repository. I will now analyze these snippets and come up with a plan."
                     + "\n\n"
                     + create_collapsible(
                         "Some code snippets I think are relevant in decreasing order of relevance (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
@@ -574,9 +573,8 @@ def on_ticket(
                         )
                         if prs_extracted
                         else ""
-                    )
-                    + (f"\n\n{docs_results}\n\n" if docs_results else ""),
-                    1,
+                    ),
+                    1
                 )
                 logger.info("Fetching files to modify/create...")
                 file_change_requests, plan = get_files_to_change(
@@ -641,7 +639,12 @@ def on_ticket(
                 )
                 raise e
 
+            # VALIDATION (modify)
             try:
+                edit_sweep_comment(
+                    f"I'm currently validating your changes using parsers and linters to check for mistakes like syntax errors or undefined variables. If I see any of these errors, I will automatically fix them.",
+                    3,
+                )
                 pull_request: PullRequest = PullRequest(
                     title="Sweep: " + title,
                     branch_name="sweep/" + to_branch_name(title),
@@ -661,29 +664,30 @@ def on_ticket(
                     chat_logger=chat_logger,
                 )
                 commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]
-                try:
-                    new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
-                    previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
-                    new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, file_change_requests)
-                    if files_removed and username:
-                        posthog.capture(
-                            username,
-                            "polluted_commits_error",
-                            properties={
-                                "old_keys": ",".join(previous_file_contents_to_commit.keys()),
-                                "new_keys": ",".join(new_file_contents_to_commit.keys()) 
-                            },
-                        )
-                    commit = commit_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, commit_message, pull_request.branch_name)
-                except Exception as e:
-                    logger.info(f"Error in updating file: {e}")
-                    raise e
+                new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
+                previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
+                new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, file_change_requests)
+                if files_removed and username:
+                    posthog.capture(
+                        username,
+                        "polluted_commits_error",
+                        properties={
+                            "old_keys": ",".join(previous_file_contents_to_commit.keys()),
+                            "new_keys": ",".join(new_file_contents_to_commit.keys()) 
+                        },
+                    )
+                commit = commit_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, commit_message, pull_request.branch_name)
+                edit_sweep_comment(
+                    f"Your changes have been successfully made in the branch [`{pull_request.branch_name}`](https://github.com/{repo_full_name}/tree/{pull_request.branch_name}).",
+                    3,
+                )
             except Exception as e:
                 logger.exception(e)
                 edit_sweep_comment(
                     (
                         "I'm sorry, but it looks like an error has occurred due to"
-                        + f" a code editing failure. The error message is {str(e)}. Feel free to add more details to the issue description"
+                        + f" a code validation failure. The error message is {str(e)}. Here were the changes I had planned:\n\n{planning_markdown}\n\n"
+                        + "Feel free to add more details to the issue description"
                         + " so Sweep can better address it. Alternatively, reach out to Kevin or William for help at"
                         + " https://community.sweep.dev/."
                     ),
@@ -781,7 +785,6 @@ def on_ticket(
                 body=pr_changes.body,
                 head=pr_changes.pr_head,
                 base=overrided_branch_name or SweepConfig.get_branch(repo),
-                # removed draft PR
                 draft=False,
             )
 
