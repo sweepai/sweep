@@ -7,7 +7,6 @@ from loguru import logger
 from tqdm import tqdm
 import networkx as nx
 
-from sweepai.agents.summarize_directory import recursively_summarize_directory
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import COHERE_API_KEY
 from sweepai.core.context_pruning import RepoContextManager, add_relevant_files_to_top_snippets, build_import_trees, integrate_graph_retrieval
@@ -18,7 +17,7 @@ from sweepai.core.lexical_search import (
     search_index,
 )
 from sweepai.core.sweep_bot import context_get_files_to_change
-from sweepai.core.viz_utils import print_bar_chart
+from sweepai.dataclasses.separatedsnippets import SeparatedSnippets
 from sweepai.utils.cohere_utils import cohere_rerank_call
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
@@ -27,80 +26,15 @@ from sweepai.utils.openai_listwise_reranker import listwise_rerank_snippets
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.tree_utils import DirectoryTree
 
-"""
-Input queries are in natural language so both lexical search 
-and vector search have a heavy bias towards natural language
-files such as tests, docs and localization files. Therefore,
-we add adjustment scores to compensate for this bias.
-"""
-
-adjustment_scores = {
-    "all": {
-        "prefix": {
-            ".": 0.5,
-        },
-        "suffix": {
-            ".cfg": 0.8,
-            ".ini": 0.8,
-            ".po": 0.5,
-            ".json": 0.8,
-            ".toml": 0.8,
-            ".yaml": 0.8,
-            ".yml": 0.8,
-        },
-        "substring": {
-            "egg-info": 0.5,
-        }
-    },
-    "docs": {
-        "prefix": {
-            ".": 0.5,
-            "doc": 0.3,
-            "example": 0.7,
-        },
-        "suffix": {
-            ".txt": 0.8,
-            ".rst": 0.8,
-            ".md": 0.8,
-            ".html": 0.8,
-            ".1": 0.5, # man page
-            "ChangeLog": 0.5,
-        },
-        "substring": {
-            "LICENSE": 0.5,
-        },
-    },
-    "tests": {
-        "suffix": {
-            ".spec.ts": 0.6,
-            ".spec.js": 0.6,
-            ".test.ts": 0.6,
-            ".generated.ts": 0.5,
-            ".generated.graphql": 0.5,
-            ".generated.js": 0.5,
-        },
-        "substring": {
-            "tests/": 0.5,
-            "test/": 0.5,
-            "/test": 0.5,
-            "_test": 0.5,
-        },
-    }
-}
 
 # the order here matters as the first match is used
 code_snippet_separation_features = {
     "tools": {
-        "prefix": [".git/", ".github/", ".circleci/", ".travis/", ".jenkins/"],
-        "suffix": [".gitignore", ".dockerignore", "Dockerfile", "Makefile", "Rakefile", "Procfile"],
+        "prefix": [".git/", ".github/", ".circleci/", ".travis/", ".jenkins/", "scripts/", "script/", "bin/"],
+        "suffix": [".gitignore", ".dockerignore", "Dockerfile", "Makefile", "Rakefile", "Procfile", ".sh", ".bat", ".cmd"],
         "substring": [],
     },
-    "scripts": {
-        "prefix": ["scripts/", "script/", "bin/"],
-        "suffix": [".sh", ".bat", ".cmd"],
-        "substring": [],
-    },
-    "junk": {
+    "junk": { # we will discard this and not show it to the LLM
         "prefix": ["node_modules/", ".venv/", "build/", "venv/", "patch/", "target/", "bin/", "obj/"],
         "suffix": [".cache", ".gradle", ".mvn", ".settings", ".lock", ".log", ".tmp", ".tmp/", ".tmp.lock", ".tmp.lock/"],
         "substring": [".egg-info", "package-lock.json", "yarn.lock", ".cache", ".gradle", ".mvn"],
@@ -134,52 +68,32 @@ code_snippet_separation_features = {
 # otherwise it's tagged as source
 # we can make a config category later for css, config.ts, config.js. so far config files aren't many.
 
-def separate_snippets_by_type(snippets: list[Snippet]):
-    results = {
-        "tools": [],
-        "scripts": [],
-        "junk": [],
-        "dependencies": [],
-        "docs": [],
-        "tests": [],
-        "source": [],
-    }
+type_to_percentile_cutoff = { # lower gets more snippets
+    "tools": 0.3,
+    "dependencies": 0.3,
+    "docs": 0.3,
+    "tests": 0.3,
+    "source": 0.15,
+}
+
+def separate_snippets_by_type(snippets: list[Snippet]) -> SeparatedSnippets:
+    separated_snippets = SeparatedSnippets()
     for snippet in snippets:
         for type_name, separation in code_snippet_separation_features.items():
             if any(snippet.file_path.startswith(prefix) for prefix in separation["prefix"]) or any(snippet.file_path.endswith(suffix) for suffix in separation["suffix"]) or any(substring in snippet.file_path for substring in separation["substring"]):
-                results[type_name].append(snippet)
+                separated_snippets.add_snippet(snippet, type_name)
                 break
         else:
-            results["source"].append(snippet)
-    return results
+            separated_snippets.add_snippet(snippet, "source")
+    return separated_snippets
 
 def apply_adjustment_score(
-    snippet: str,
+    snippet_path: str,
     old_score: float,
-    include_docs: bool = False,
-    include_tests: bool = False,
 ):
     snippet_score = old_score
-    file_path, *_ = snippet.rsplit(":", 1)
+    file_path, *_ = snippet_path.rsplit(":", 1)
     file_path = file_path.lower()
-    adjustments_to_apply = [adjustment_scores["all"]]
-    if not include_docs:
-        adjustments_to_apply.append(adjustment_scores["docs"])
-    if not include_tests:
-        adjustments_to_apply.append(adjustment_scores["tests"])
-    for adjustment_dict in adjustments_to_apply:
-        for prefix, adjustment in adjustment_dict.get("prefix", {}).items():
-            if file_path.startswith(prefix):
-                snippet_score *= adjustment
-                break
-        for suffix, adjustment in adjustment_dict.get("suffix", {}).items():
-            if file_path.endswith(suffix):
-                snippet_score *= adjustment
-                break
-        for substring, adjustment in adjustment_dict.get("substring").items():
-            if substring in file_path:
-                snippet_score *= adjustment
-                break
     # Penalize numbers as they are usually examples of:
     # 1. Test files (e.g. test_utils_3*.py)
     # 2. Generated files (from builds or snapshot tests)
@@ -241,7 +155,7 @@ def multi_get_top_k_snippets(
             else:
                 content_to_lexical_score_list[i][snippet.denotation] = snippet_score * vector_score
             content_to_lexical_score_list[i][snippet.denotation] = apply_adjustment_score(
-                snippet.denotation, content_to_lexical_score_list[i][snippet.denotation], include_docs, include_tests
+                snippet_path=snippet.denotation, old_score=content_to_lexical_score_list[i][snippet.denotation]
             )
     
     ranked_snippets_list = [
@@ -273,9 +187,6 @@ def get_pointwise_reranked_snippet_scores(
     snippet_scores: dict[str, float],
     NUM_SNIPPETS_TO_KEEP=5,
     NUM_SNIPPETS_TO_RERANK=100,
-    include_docs: bool = False,
-    include_tests: bool = False,
-    directory_summaries: dict = {}
 ):
     """
     Ranks 1-5 snippets are frozen. They're just passed into Cohere since it helps with reranking. We multiply the scores by 1_000 to make them more significant.
@@ -294,13 +205,13 @@ def get_pointwise_reranked_snippet_scores(
     snippet_representations = []
     for snippet in sorted_snippets[:NUM_SNIPPETS_TO_RERANK]:
         representation = f"{snippet.file_path}\n```\n{snippet.get_snippet(add_lines=False, add_ellipsis=False)}\n```"
-        subdirs = []
-        for subdir in directory_summaries:
-            if snippet.file_path.startswith(subdir):
-                subdirs.append(subdir)
-        subdirs = sorted(subdirs)
-        for subdir in subdirs[-1:]:
-            representation = representation + f"\n\nHere is a summary of the subdirectory {subdir}:\n\n" + directory_summaries[subdir]
+        # subdirs = []
+        # for subdir in directory_summaries:
+        #     if snippet.file_path.startswith(subdir):
+        #         subdirs.append(subdir)
+        # subdirs = sorted(subdirs)
+        # for subdir in subdirs[-1:]:
+        #     representation = representation + f"\n\nHere is a summary of the subdirectory {subdir}:\n\n" + directory_summaries[subdir]
         snippet_representations.append(representation)
 
     response = cohere_rerank_call(
@@ -314,10 +225,8 @@ def get_pointwise_reranked_snippet_scores(
 
     for document in response.results:
         new_snippet_scores[sorted_snippets[document.index].denotation] = apply_adjustment_score(
-            sorted_snippets[document.index].denotation,
-            document.relevance_score,
-            include_docs=include_docs,
-            include_tests=include_tests
+            snippet_path=sorted_snippets[document.index].denotation,
+            old_score=document.relevance_score,
         )
 
     for snippet in sorted_snippets[:NUM_SNIPPETS_TO_KEEP]:
@@ -360,42 +269,41 @@ def multi_prep_snippets(
             cloned_repo, queries[0], ticket_progress, k, include_docs, include_tests
         )
     separated_snippets = separate_snippets_by_type(snippets)
-    get_file_extension = lambda snippet: snippet.file_path.split(".")[-1]
-    for separation_type, snippets_subset in separated_snippets.items():
-        print(f"\nSeparation type: {separation_type}\n\n")
-        for snippet in snippets_subset:
-            print(snippet)
-        print(set(get_file_extension(snippet) for snippet in snippets_subset))
-    print_bar_chart(separated_snippets)
-    breakpoint()
     if not skip_pointwise_reranking:
-        directory_summaries = recursively_summarize_directory(snippets, cloned_repo)
-        content_to_lexical_score = get_pointwise_reranked_snippet_scores(
-            queries[0], snippets, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK, include_docs, include_tests, directory_summaries
-        )
-    ranked_snippets = sorted(
-        snippets,
-        key=lambda snippet: content_to_lexical_score[snippet.denotation],
-        reverse=True,
-    )[:k]
-    if ticket_progress:
-        ticket_progress.search_progress.retrieved_snippets = ranked_snippets
-        ticket_progress.save()
+        ranked_snippets = []
+        for type_name, snippets_subset in separated_snippets:
+            if type_name == "junk":
+                continue
+            new_content_to_lexical_scores = get_pointwise_reranked_snippet_scores(
+                queries[0], snippets_subset, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK
+            )
+            # set all keys of new_content_to_lexical_scores to content_to_lexical_score
+            for key in new_content_to_lexical_scores:
+                content_to_lexical_score[key] = new_content_to_lexical_scores[key]
+            snippets_subset = sorted(
+                snippets_subset,
+                key=lambda snippet: new_content_to_lexical_scores[snippet.denotation],
+                reverse=True,
+            )
+            separated_snippets.override_list(attribute_name=type_name, new_list=snippets_subset)
+            logger.info(f"Reranked {type_name}")
+            # cutoff snippets at percentile
+            top_score = snippets_subset[0].score
+            for snippet in snippets_subset:
+                percentile = snippet.score / top_score
+                if percentile < type_to_percentile_cutoff[type_name]:
+                    break
+                ranked_snippets.append(snippet)
+        breakpoint()
+    else:
+        ranked_snippets = sorted(
+            snippets,
+            key=lambda snippet: content_to_lexical_score[snippet.denotation],
+            reverse=True,
+        )[:k]
     # you can use snippet.denotation and snippet.get_snippet()
     if not skip_reranking and skip_pointwise_reranking:
         ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(queries[0], ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
-    snippet_paths = [snippet.file_path for snippet in ranked_snippets]
-    prefixes = []
-    for snippet_path in snippet_paths:
-        snippet_depth = len(snippet_path.split("/"))
-        for idx in range(snippet_depth):  # heuristic
-            if idx > snippet_depth // 2:
-                prefixes.append("/".join(snippet_path.split("/")[:idx]) + "/")
-        prefixes.append(snippet_path)
-    # _, dir_obj = cloned_repo.list_directory_tree(
-    #     included_directories=list(set(prefixes)),
-    #     included_files=list(set(snippet_paths)),
-    # )
     dir_obj = DirectoryTree() # init dummy one for now, this shouldn't be used
     repo_context_manager = RepoContextManager(
         dir_obj=dir_obj,
@@ -572,6 +480,10 @@ def fire_and_forget_wrapper(call):
 
 if __name__ == "__main__":
     from sweepai.utils.github_utils import MockClonedRepo
+    cloned_repo = MockClonedRepo(
+        _repo_dir="/mnt/sweep_benchmark/django__django-11612",
+        repo_full_name="django/django",
+    )
     cloned_repo = MockClonedRepo(
         _repo_dir="/tmp/sweep",
         repo_full_name="sweepai/sweep",
