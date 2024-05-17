@@ -285,7 +285,6 @@ def get_comment_header(
     index: int,
     g: Github,
     repo_full_name: str,
-    user_settings: UserSettings,
     progress_headers: list[None | str],
     tracking_id: str | None,
     payment_message_start: str,

@@ -84,7 +84,6 @@ from sweepai.utils.ticket_utils import (
     fire_and_forget_wrapper,
     prep_snippets,
 )
-from sweepai.utils.user_settings import UserSettings
 
 def on_ticket(
     title: str,
@@ -246,7 +245,7 @@ def on_ticket(
                 " time using Sweep, I'm indexing your repository, which will take a few minutes."
             )
             first_comment = (
-                f"{get_comment_header(0, g, repo_full_name, user_settings, progress_headers, tracking_id, payment_message_start)}\n{sep}I am currently looking into this ticket! I"
+                f"{get_comment_header(0, g, repo_full_name, progress_headers, tracking_id, payment_message_start)}\n{sep}I am currently looking into this ticket! I"
                 " will update the progress of the ticket in this comment. I am currently"
                 f" searching through your code, looking for relevant snippets.\n{sep}##"
                 f" {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
@@ -338,7 +337,6 @@ def on_ticket(
                     current_index, 
                     g, 
                     repo_full_name,
-                    user_settings,
                     progress_headers,
                     tracking_id,
                     payment_message_start,
