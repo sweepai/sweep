@@ -250,7 +250,7 @@ def on_ticket(
                 return {"success": False}
             indexing_message = (
                 "I'm searching for relevant snippets in your repository. If this is your first"
-                " time using Sweep, I'm indexing your repository. You can monitor the progress using the progress dashboard"
+                " time using Sweep, I'm indexing your repository, which will take a few minutes."
             )
             first_comment = (
                 f"{get_comment_header(0, g, repo_full_name, user_settings, progress_headers, tracking_id, payment_message_start)}\n{sep}I am currently looking into this ticket! I"
@@ -341,7 +341,21 @@ def on_ticket(
                     suffix = bot_suffix  # don't include discord suffix for error messages
 
                 # Update the issue comment
-                msg = f"{get_comment_header(current_index, g, repo_full_name, user_settings, progress_headers, tracking_id, payment_message_start, user_settings_message, errored=errored, pr_message=pr_message, done=done, initial_sandbox_response=initial_sandbox_response, initial_sandbox_response_file=initial_sandbox_response_file, config_pr_url=config_pr_url)}\n{sep}{agg_message}{suffix}"
+                msg = f"""{get_comment_header(
+                    current_index, 
+                    g, 
+                    repo_full_name,
+                    user_settings,
+                    progress_headers,
+                    tracking_id,
+                    payment_message_start,
+                    errored=errored,
+                    pr_message=pr_message,
+                    done=done,
+                    initial_sandbox_response=initial_sandbox_response,
+                    initial_sandbox_response_file=initial_sandbox_response_file,
+                    config_pr_url=config_pr_url
+                )}\n{sep}{agg_message}{suffix}"""
                 try:
                     issue_comment.edit(msg)
                 except BadCredentialsException:

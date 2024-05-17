@@ -48,7 +48,6 @@ from sweepai.utils.github_utils import (
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.str_utils import (
     BOT_SUFFIX,
-    UPDATES_MESSAGE,
     blockquote,
     bot_suffix,
     clean_logs,
@@ -339,8 +338,7 @@ def get_comment_header(
         return (
             pr_message
             + config_pr_message
-            + f"\n\n---\n{user_settings.get_message(completed=True)}"
-            + f"\n\n---\n{actions_message}"
+            + f"\n\n{actions_message}"
             + sandbox_execution_message
         )
 
@@ -353,7 +351,7 @@ def get_comment_header(
         pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Errored&width=600' alt='{index}%' />"
         return (
             f"{center(sweeping_gif)}<br/>{center(pbar)}\n\n"
-            + f"\n\n---\n{actions_message}"
+            + f"\n\n{actions_message}"
             + sandbox_execution_message
         )
     pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
@@ -364,7 +362,7 @@ def get_comment_header(
         + "\n"
         + center(payment_message_start)
         + config_pr_message
-        + f"\n\n---\n{actions_message}"
+        + f"\n\n{actions_message}"
         + sandbox_execution_message
     )
 
@@ -444,7 +442,7 @@ def rewrite_pr_description(issue_number, repo, overrided_branch_name, pull_reque
     if new_description:
         pr_changes.body = (
             f"{new_description}\n\nFixes"
-            f" #{issue_number}.\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}{BOT_SUFFIX}"
+            f" #{issue_number}.\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}{BOT_SUFFIX}"
         )
     return pr_changes
 
