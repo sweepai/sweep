@@ -4,6 +4,7 @@ import os
 import re
 import time
 
+
 UPDATES_MESSAGE = """\
 <details>
 <summary><b>🎉 Latest improvements to Sweep:</b></summary>
@@ -163,3 +164,10 @@ def objects_to_xml(objects: list[object], object_name: str, outer_field_name: st
     else:
         objects_string = f"<{object_name}s>\n{objects_string}</{object_name}s>"
     return objects_string
+
+def extract_xml_tag(string: str, tag: str, include_closing_tag: bool = True):
+    pattern = f"<{tag}>(.*?)</{tag}>" if include_closing_tag else f"<{tag}>(.*?)(\Z|</{tag}>)"
+    match_ = re.search(pattern, string, re.DOTALL)
+    if match_ is None:
+        return None
+    return match_.group(1).strip("\n")
