@@ -112,10 +112,6 @@ You will analyze the provided code files, repository, and GitHub issue to unders
 
 Guidelines:
 - Always include the full file path and reference the provided files 
-- Provide clear instructions for updating the code, specifying necessary imports
-- Be specific and direct, using the phrases "add", "replace", and "remove".
-- Ensure your plan is complete and covers all necessary changes to fully resolve the issue
-- Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
 - Prioritize using existing code and utility methods to minimize writing new code
 - Break the task into small steps, with each <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file, such as for imports.
 - To remove code, replace it with empty <new_code> tags.

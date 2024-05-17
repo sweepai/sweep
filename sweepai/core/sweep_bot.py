@@ -403,8 +403,8 @@ def get_files_to_change(
     seed: int = 0,
     images: list[tuple[str, str, str]] | None = None
 ) -> tuple[list[FileChangeRequest], str]:
-    # use_openai = True
-    use_openai = False
+    use_openai = True
+    # use_openai = False
     files_to_change_prompt = openai_files_to_change_prompt if use_openai else anthropic_files_to_change_prompt
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
@@ -511,20 +511,52 @@ def get_files_to_change(
         )
         ISSUE_EXCERPT_MODEL = "claude-3-haiku-20240307"
         MODEL = "claude-3-opus-20240229"
-        issue_excerpt_response = issue_excerpt_chat_gpt.chat_anthropic(
-            content=joint_message + "\n\n" + issue_excerpt_prompt,
-            model=ISSUE_EXCERPT_MODEL,
-            temperature=0.1,
-            images=images,
-            use_openai=use_openai,
-            seed=seed
-        )
-        issue_excerpt_pattern = re.compile(r"<issue_excerpts>(.*?)</issue_excerpts>", re.DOTALL)
-        issue_excerpt_match = issue_excerpt_pattern.search(issue_excerpt_response)
-        if not issue_excerpt_match:
-            raise Exception("Failed to match issue excerpts")
-        issue_excerpts = issue_excerpt_match.group(1)
-        issue_excerpts = issue_excerpts.strip("\n")
+        issue_excerpts = ""
+        if not use_openai:
+            issue_excerpt_response = issue_excerpt_chat_gpt.chat_anthropic(
+                content=joint_message + "\n\n" + issue_excerpt_prompt,
+                model=ISSUE_EXCERPT_MODEL,
+                temperature=0.1,
+                images=images,
+                use_openai=use_openai,
+                seed=seed
+            )
+            issue_excerpt_pattern = re.compile(r"<issue_excerpts>(.*?)</issue_excerpts>", re.DOTALL)
+            issue_excerpt_match = issue_excerpt_pattern.search(issue_excerpt_response)
+            if not issue_excerpt_match:
+                raise Exception("Failed to match issue excerpts")
+            issue_excerpts = issue_excerpt_match.group(1)
+            issue_excerpts = issue_excerpts.strip("\n")
+
+        # entities_message = ""
+        # entities = get_list_of_entities(joint_message + "\n\n" + context_files_to_change_prompt)
+        # relevant_files = [snippet.file_path for snippet in relevant_snippets + read_only_snippets]
+        # lines_cutoff = 20
+        # for entity in entities:
+        #     rg_output = run_ripgrep_command(entity, cloned_repo.repo_dir)
+        #     file_output_dict = cleaned_rg_output(cloned_repo.repo_dir, SweepConfig(), rg_output)
+        #     file_output_dict = {file_path: output for file_path, output in file_output_dict.items() if file_path in relevant_files}
+        #     if file_output_dict:
+        #         entities_message += f"Here are the files that contain the keyword `{entity}`:\n\n"
+        #         for file_path, output in file_output_dict.items():
+        #             lines = output.splitlines()
+        #             if len(lines) > lines_cutoff:
+        #                 lines = lines[:lines_cutoff] + ["..."]
+        #             output = "\n".join(lines)
+        #             entities_message += f"File: {file_path}\n{output}\n\n"
+        #     print("file_output_dict", file_output_dict)
+        # print(entities_message)
+
+        # if entities_message:
+        #     entities_message = f"<keywords>\n{entities_message}\n</keywords>"
+        #     messages.append(
+        #         Message(
+        #             role="user",
+        #             content=entities_message,
+        #         )
+        #     )
+        #     joint_message += "\n" + entities_message
+
         # breakpoint()
         files_to_change_response: str = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + files_to_change_prompt.format(issue_excerpts=issue_excerpts),
@@ -532,7 +564,7 @@ def get_files_to_change(
             temperature=0.1,
             images=images,
             use_openai=use_openai,
-            seed=seed
+            seed=seed + 1
         )
         expected_plan_count = 1
         calls = 0
@@ -629,7 +661,7 @@ def context_get_files_to_change(
     seed: int = 0,
     images: list[tuple[str, str, str]] | None = None
 ):
-    use_openai = True
+    use_openai = False
     messages: list[Message] = []
     messages.append(
         Message(role="system", content=issue_excerpt_system_prompt, key="system")
@@ -760,7 +792,7 @@ def context_get_files_to_change(
     )
     MODEL = "claude-3-opus-20240229"
     files_to_change_response = chat_gpt.chat_anthropic(
-        content=joint_message + "\n\n" + (context_files_to_change_prompt),
+        content=joint_message + "\n\n" + context_files_to_change_prompt,
         model=MODEL,
         temperature=0.1,
         images=images,
