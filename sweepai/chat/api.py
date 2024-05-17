@@ -309,9 +309,11 @@ def chat_codebase_stream(
                     role="assistant",
                 )
             )
+
+            result_string = result_string.replace("<function_calls>", "<function_call>")
+            result_string += "</function_call>"
             
             function_call = validate_and_parse_function_call(result_string, chat_gpt)
-            breakpoint()
             
             if function_call:
                 yield [
