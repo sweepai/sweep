@@ -50,6 +50,7 @@ from sweepai.handlers.create_pr import (
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.image_utils import get_image_contents_from_urls, get_image_urls_from_issue
 from sweepai.utils.issue_validator import validate_issue
+from sweepai.utils.prompt_constructor import get_issue_request
 from sweepai.utils.ticket_rendering_utils import add_emoji, process_summary, remove_emoji, get_payment_messages, get_comment_header, send_email_to_user, get_failing_gha_logs, rewrite_pr_description, raise_on_no_file_change_requests, get_branch_diff_text, construct_sweep_bot, handle_empty_repository, delete_old_prs, custom_config
 from sweepai.utils.validate_license import validate_license
 from sweepai.utils.buttons import Button, ButtonList
@@ -500,19 +501,7 @@ def on_ticket(
                 repo_description = "No description provided."
 
             internal_message_summary += replies_text
-            issue_request = construct_sweep_bot(
-                repo=repo,
-                repo_name=repo_name,
-                issue_url=issue_url,
-                repo_description=repo_description,
-                title=title,
-                message_summary=internal_message_summary,
-                cloned_repo=cloned_repo,
-                chat_logger=chat_logger,
-                snippets=snippets,
-                tree=tree,
-                comments=comments,
-            ).human_message.get_issue_request()
+            issue_request = get_issue_request(title, internal_message_summary)
 
             try:
                 newline = "\n"
@@ -779,19 +768,10 @@ def on_ticket(
                             changes_made=diffs,
                         )
                         repo_context_manager: RepoContextManager = prep_snippets(cloned_repo=cloned_repo, query=(title + internal_message_summary + replies_text).strip("\n"), ticket_progress=None) # need to do this, can use the old query for speed
-                        issue_request = construct_sweep_bot(
-                            repo=repo,
-                            repo_name=repo_name,
-                            issue_url=issue_url,
-                            repo_description=repo_description,
-                            title="Fix the following errors to complete the user request.",
-                            message_summary=all_information_prompt,
-                            cloned_repo=cloned_repo,
-                            chat_logger=chat_logger,
-                            snippets=snippets,
-                            tree=tree,
-                            comments=comments,
-                        ).human_message.get_issue_request()
+                        issue_request = get_issue_request(
+                            "Fix the following errors to complete the user request.",
+                            all_information_prompt,
+                        )
                         file_change_requests, plan = get_files_to_change_for_gha(
                             relevant_snippets=repo_context_manager.current_top_snippets,
                             read_only_snippets=repo_context_manager.read_only_snippets,
