@@ -573,7 +573,7 @@ def on_ticket(
                 )
                 logger.info("Making PR...")
                 pull_request.branch_name = create_branch(
-                    pull_request.branch_name, base_branch=overrided_branch_name
+                    cloned_repo.repo, pull_request.branch_name, base_branch=overrided_branch_name
                 )
                 modify_files_dict, changed_file, file_change_requests = handle_file_change_requests(
                     file_change_requests=file_change_requests,

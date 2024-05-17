@@ -190,7 +190,7 @@ def create_config_pr(
     title = "Configure Sweep"
     branch_name = GITHUB_CONFIG_BRANCH
     if sweep_bot is not None:
-        branch_name = create_branch(branch_name, retry=False)
+        branch_name = create_branch(repo, branch_name, retry=False)
         try:
             sweep_bot.repo.create_file(
                 "sweep.yaml",
