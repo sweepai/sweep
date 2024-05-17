@@ -175,6 +175,7 @@ def chat_codebase(
         repo_name,
         messages,
         snippets,
+        access_token,
         metadata={
             "repo_name": repo_name,
             "message": messages[-1].content,
@@ -189,6 +190,7 @@ def chat_codebase_stream(
     repo_name: str,
     messages: list[Message],
     snippets: list[Snippet],
+    access_token: str,
     metadata: dict = {},
     use_patch: bool = False,
 ):
@@ -218,7 +220,7 @@ def chat_codebase_stream(
         *messages[:-1]
     ]
 
-    def stream_state(initial_user_message: str, snippets: list[Snippet], messages: list[Message]):
+    def stream_state(initial_user_message: str, snippets: list[Snippet], messages: list[Message], access_token: str):
         user_message = initial_user_message
         fetched_snippets = snippets
         new_messages = [
@@ -239,7 +241,8 @@ def chat_codebase_stream(
         for _ in range(5):
             stream = chat_gpt.chat_anthropic(
                 content=user_message,
-                model="claude-3-opus-20240229",
+                # model="claude-3-opus-20240229",
+                model="claude-3-sonnet-20240229",
                 stop_sequences=["</function_call>", "</function_calls>"],
                 stream=True
             )
@@ -308,6 +311,7 @@ def chat_codebase_stream(
             )
             
             function_call = validate_and_parse_function_call(result_string, chat_gpt)
+            breakpoint()
             
             if function_call:
                 yield [
@@ -323,7 +327,7 @@ def chat_codebase_stream(
                     )
                 ]
                 
-                function_output, new_snippets = handle_function_call(function_call, repo_name, fetched_snippets)
+                function_output, new_snippets = handle_function_call(function_call, repo_name, fetched_snippets, access_token)
                 
                 yield [
                     *new_messages,
@@ -384,18 +388,20 @@ def chat_codebase_stream(
             messages[-1].content + "\n\n" + format_message,
             snippets,
             messages,
+            access_token,
             use_patch=use_patch
         )
     )
 
-def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, snippets: list[Snippet]):
+def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, snippets: list[Snippet], access_token: str):
     NUM_SNIPPETS = 5
     if function_call.function_name == "search_codebase":
         if "query" not in function_call.function_parameters:
             return "ERROR\n\nQuery parameter is required."
         new_snippets = search_codebase(
             repo_name=repo_name,
-            query=function_call.function_parameters["query"]
+            query=function_call.function_parameters["query"],
+            access_token=access_token
         )
         fetched_snippet_denotations = [snippet.denotation for snippet in snippets]
         new_snippets_to_add = [snippet for snippet in new_snippets if snippet.denotation not in fetched_snippet_denotations]

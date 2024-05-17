@@ -104,34 +104,17 @@ Then, make each function call like so:
 """ + example_tool_calls
 
 tools_available = """You have access to the following tools to assist in fulfilling the user request:
-<tool_description>
-<tool_name>search_codebase</tool_name>
-<description>
-</description>
-<parameters>
-<parameter>
-<name>query</name>
-<type>str</type>
-<description>
+<search_codebase>
+<query>
 Single, detailed, specific natural language search question to search the codebase for relevant snippets. This should be in the form of a natural language question, like "What is the structure of the User model in the authentication module?"
-</description>
-</parameter>
-<parameter>
-<name>include_docs</name>
-<type>str</type>
-<description>
-(Optional) Include documentation in the search results. Default is false.
-</description>
-</parameter>
-<parameter>
-<name>include_tests</name>
-<type>str</type>
-<description>
-(Optional) Include test files in the search results. Default is false.
-</description>
-</parameter>
-</parameters>
-</tool_description>
+</query>
+<include_docs>
+(Optional) Include documentation in the search results. Default is false. Either true or false.
+</include_docs>
+<include_tests>
+(Optional) Include documentation in the search results. Default is false. Either true or false.
+</include_tests>
+</search_codebase>
 
 """ + example_tool_calls
 
@@ -143,13 +126,12 @@ Once you have collected and analyzed the relevant snippets, use the `submit_task
 
 You MUST call them like this:
 <function_call>
-<invoke>
-<tool_name>$TOOL_NAME</tool_name>
-<parameters>
-<$PARAMETER_NAME>$PARAMETER_VALUE</$PARAMETER_NAME>
+<tool_name>
+<param1>
+param1 value
+</param1>
 ...
-</parameters>
-</invoke>
+</tool_name>
 </function_call>
 
 Here are the tools available:
