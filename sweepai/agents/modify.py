@@ -2,12 +2,13 @@ import copy
 
 
 from loguru import logger
-from sweepai.agents.modify_utils import (create_user_message, get_replaces_per_fcr, render_current_task, render_plan, instructions, modify_tools, modify_tools_openai, SUBMIT_TASK_MOCK_FUNCTION_CALL, linter_warning_prompt, compile_fcr, validate_and_parse_function_call, validate_and_parse_function_call_openai, handle_function_call, tasks_completed, changes_made, get_current_task_index, MODEL, SLOW_MODEL)
+from sweepai.agents.modify_utils import (NO_TOOL_CALL_PROMPT, SLOW_MODEL, create_user_message, get_replaces_per_fcr, render_current_task, render_plan, instructions, modify_tools, SUBMIT_TASK_MOCK_FUNCTION_CALL, linter_warning_prompt, compile_fcr, validate_and_parse_function_call, handle_function_call, tasks_completed, changes_made, get_current_task_index, MODEL)
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 
 
 def modify(
@@ -20,6 +21,7 @@ def modify(
     previous_modify_files_dict: dict[str, dict[str, str]] = {},
 ) -> dict[str, dict[str, str]]:
     # join fcr in case of duplicates
+    use_openai = True
     if not fcrs:
         return previous_modify_files_dict
     user_message = create_user_message(
@@ -45,7 +47,7 @@ def modify(
         "attempt_count": 0, # how many times we have attempted to apply the old/new code pair
         "visited_set": set(), # keep track of which outputs have been attempted
     }
-    full_instructions = instructions + (modify_tools_openai if use_openai else modify_tools)
+    full_instructions = instructions + modify_tools
     chat_gpt.messages = [Message(role="system", content=full_instructions)]
     try:
         if fcrs[0].change_type == "modify" and (compiled_fcr := compile_fcr(fcrs[0], 0)):
@@ -58,7 +60,7 @@ def modify(
             # update messages to make it seem as if it called the fcr
             # update state if it's bad
             # TODO: handling logic to be moved out
-            function_call = validate_and_parse_function_call(function_calls_string, chat_gpt) # this will raise if it's bad but compile_fcr should guarantee it's good
+            function_call: AnthropicFunctionCall = validate_and_parse_function_call(function_calls_string, chat_gpt) # this will raise if it's bad but compile_fcr should guarantee it's good
             if function_call.function_parameters["original_code"] == function_call.function_parameters["new_code"]:
                 current_fcr_index = get_current_task_index(llm_state["fcrs"])
                 llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
@@ -106,14 +108,12 @@ def modify(
     # used to determine if changes were made
     previous_modify_files_dict = copy.deepcopy(modify_files_dict)
     for i in range(len(fcrs) * 15):
-        if use_openai:
-            function_call = validate_and_parse_function_call_openai(function_calls_string, chat_gpt)
-        else:
-            function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
+        function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
         if function_call:
             num_of_tasks_done = tasks_completed(fcrs)
             # note that detailed_chat_logger_messages is meant to be modified in place by handle_function_call
             function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state, chat_logger_messages=detailed_chat_logger_messages, use_openai=use_openai)
+            print(function_output)
             fcrs = llm_state["fcrs"]
             if function_output == "DONE":
                 # add the diff of all changes to chat_logger
@@ -155,8 +155,7 @@ def modify(
                     llm_state["user_message_index_chat_logger"] = len(detailed_chat_logger_messages) - 1
                 previous_modify_files_dict = copy.deepcopy(modify_files_dict)
         else:
-            function_output = "FAILURE: No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:\n" \
-                + "<function_call>\n<invoke>\n<tool_name>tool_name</tool_name>\n<parameters>\n<param_name>param_value</param_name>\n</parameters>\n</invoke>\n</function_call>"
+            function_output = NO_TOOL_CALL_PROMPT
         if chat_logger:
             if i == len(fcrs) * 10 - 1:
                 chat_logger.add_chat(
@@ -186,6 +185,7 @@ def modify(
                     if fcrs[current_fcr_index].change_type == "modify" and (compiled_fcr := compile_fcr(fcrs[current_fcr_index], change_in_fcr_index)):
                         function_calls_string = compiled_fcr
                         function_call = validate_and_parse_function_call(function_calls_string, chat_gpt) # this will raise if it's bad but compile_fcr should guarantee it's good
+                        logger.info(f"Function call:\n{function_call}")
                         if function_call.function_parameters["original_code"] == function_call.function_parameters["new_code"]:
                             current_fcr_index = get_current_task_index(llm_state["fcrs"])
                             llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
@@ -219,7 +219,7 @@ def modify(
                     if linter_warning_prompt in function_output:
                         llm_state["attempt_count"] = 3 # skip to opus if there is a linter warning
                     model = MODEL if llm_state["attempt_count"] < 3 else SLOW_MODEL
-                    logger.info(f"Using model: {model}")
+                    # logger.info(f"Using model: {model}")
                     function_calls_string = chat_gpt.chat_anthropic(
                         content=function_output,
                         model=model,
@@ -231,7 +231,7 @@ def modify(
                             logger.warning(f"Function call {function_calls_string} has already been visited, retrying with a different model.")
                             llm_state["attempt_count"] = 3
                             function_calls_string = chat_gpt.chat_anthropic(
-                                content=SLOW_MODEL,
+                                content=function_output,
                                 model=model,
                                 stop_sequences=["</function_call>"],
                                 use_openai=use_openai,

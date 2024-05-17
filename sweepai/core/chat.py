@@ -71,6 +71,7 @@ model_to_max_tokens = {
     "gpt-4-1106-preview": 128000,
     "gpt-4-0125-preview": 128000,
     "gpt-4-turbo-2024-04-09": 128000,
+    "gpt-4o": 128000,
     "claude-v1": 9000,
     "claude-v1.3-100k": 100000,
     "claude-instant-v1.3-100k": 100000,
@@ -154,8 +155,8 @@ def determine_model_from_chat_logger(chat_logger: ChatLogger, model: str):
 
 tool_call_parameters = {
     "make_change": ["justification", "file_name", "original_code", "new_code"],
-    "create_file": ["justification", "file_name", "file_path", "contents"],
-    "submit_result": ["justification"],
+    "create_file": ["justification", "file_name", "new_code"],
+    "submit_task": ["justification"],
 }
 
 # returns a dictionary of the tool call parameters, assumes correct
@@ -170,7 +171,7 @@ def parse_function_call_parameters(tool_call_contents: str, parameters: list[str
     return tool_args
 
 # parse llm response for tool calls in xml format
-def parse_function_calls_for_openai(response_contents: str) -> list[dict[str, str]]:
+def parse_function_calls(response_contents: str) -> list[dict[str, str]]:
     tool_calls = []
     # first get all tool calls
     for tool_name in tool_call_parameters.keys():
@@ -386,13 +387,9 @@ class ChatGPT(MessageList):
                                 "issue_url": self.chat_logger.data.get("issue_url"),
                             },
                         )
-                    except SystemExit:
-                        raise SystemExit
                     except Exception as e2:
                         logger.warning(e2)
                 return output
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 logger.warning(f"{e}\n{traceback.format_exc()}")
                 raise e
@@ -414,12 +411,15 @@ class ChatGPT(MessageList):
         verbose: bool = True,
         images: list[tuple[str, str, str]] | None = None,
         stream: bool = False,
+        seed: int | None = None,
     ) -> str | Iterator[str]:
-        # use openai
+        if not os.environ.get("ANTHROPIC_API_KEY") and not ANTHROPIC_AVAILABLE:
+            use_openai = True
         if use_openai:
             OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
             assert OPENAI_API_KEY
-            self.model = 'gpt-4-turbo'
+            # self.model = 'gpt-4-turbo'
+            self.model = 'gpt-4o'
         else:
             ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
             assert ANTHROPIC_API_KEY
@@ -508,6 +508,7 @@ class ChatGPT(MessageList):
                     model: str = model,
                     use_openai: bool = use_openai,
                     use_aws: bool = True,
+                    seed: int = seed,
                 ) -> str: # add system message and model to cache
                     if use_openai:
                         client = OpenAI()
@@ -528,13 +529,23 @@ class ChatGPT(MessageList):
                         else:
                             parea_client.wrap_anthropic_client(client)
                     if use_openai:
+                        print("Starting OpenAI stream")
                         response = client.chat.completions.create(
                             model=model,
                             messages=self.messages_dicts,
                             max_tokens=max_tokens,
                             temperature=temperature,
                             stop=stop_sequences,
-                        ).choices[0].message.content
+                            stream=True,
+                        )
+                        text = ""
+                        for chunk in response:
+                            new_content = chunk.choices[0].delta.content
+                            text += new_content if new_content else ""
+                            if new_content:
+                                print(new_content, end="", flush=True)
+                        print() # clear the line
+                        return text
                     else:
                         if ANTHROPIC_AVAILABLE and use_aws: # streaming doesn't work with AWS
                             response = client.messages.create(
@@ -588,7 +599,7 @@ class ChatGPT(MessageList):
                 # need to modify message dicts if we have images
                 if images:
                     message_dicts = add_images_to_messages(message_dicts, images, use_openai=use_openai)
-                content = call_anthropic(message_dicts, self.messages[0].content, self.model, use_openai=use_openai, use_aws=use_aws)
+                content = call_anthropic(message_dicts, self.messages[0].content, self.model, use_openai=use_openai, use_aws=use_aws, seed=seed)
                 break
             except BadRequestError as e_:
                 e = e_ # sometimes prompt is too long

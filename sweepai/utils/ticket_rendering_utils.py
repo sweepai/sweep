@@ -12,9 +12,11 @@ import zipfile
 import markdown
 import requests
 from github import Github, Repository
+from github.PullRequest import PullRequest
 from github.Issue import Issue
 from loguru import logger
 from tqdm import tqdm
+import hashlib
 
 
 from sweepai.agents.pr_description_bot import PRDescriptionBot
@@ -24,13 +26,13 @@ from sweepai.config.client import (
 )
 from sweepai.config.server import (
     MONGODB_URI,
-    PROGRESS_BASE_URL,
 )
 from sweepai.core.entities import (
     SandboxResponse,
 )
 from sweepai.core.entities import create_error_logs as entities_create_error_logs
 from sweepai.core.sweep_bot import SweepBot
+from sweepai.dataclasses.codereview import CodeReview, CodeReviewIssue
 from sweepai.handlers.create_pr import (
     safe_delete_sweep_branch,
 )
@@ -110,12 +112,18 @@ Propose a fix to the failing github actions. You must edit the source code, not 
 {github_action_log}
 """
 
+SWEEP_PR_REVIEW_HEADER = "# Sweep: PR Review"
+
 
 # Add :eyes: emoji to ticket
 def add_emoji(issue: Issue, comment_id: int = None, reaction_content="eyes"):
     item_to_react_to = issue.get_comment(comment_id) if comment_id else issue
     item_to_react_to.create_reaction(reaction_content)
 
+# Add :eyes: emoji to ticket
+def add_emoji_to_pr(pr: PullRequest, comment_id: int = None, reaction_content="eyes"):
+    item_to_react_to = pr.get_comment(comment_id) if comment_id else pr
+    item_to_react_to.create_reaction(reaction_content)
 
 # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
 def remove_emoji(issue: Issue, comment_id: int = None, content_to_delete="eyes"):
@@ -353,13 +361,6 @@ def get_comment_header(
     pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
     return (
         f"{center(sweeping_gif)}"
-        + (
-            center(
-                f'\n\n<h2>✨ Track Sweep\'s progress on our <a href="{PROGRESS_BASE_URL}/issues/{tracking_id}">progress dashboard</a>!</h2>'
-            )
-            if MONGODB_URI is not None
-            else ""
-        )
         + f"<br/>{center(pbar)}"
         + ("\n" + stars_suffix if index != -1 else "")
         + "\n"
@@ -486,7 +487,6 @@ def send_email_to_user(title, issue_number, username, repo_full_name, tracking_i
                         issue_number=issue_number,
                         repo_full_name=repo_full_name,
                         pr_number=pr.number,
-                        progress_url=f"{PROGRESS_BASE_URL}/issues/{tracking_id}",
                         summary=markdown.markdown(pr_changes.body),
                         files_changed="\n".join(
                             [f"<li>{item}</li>" for item in files_changed]
@@ -592,3 +592,122 @@ def get_payment_messages(chat_logger: ChatLogger):
     )
 
     return payment_message, payment_message_start
+
+def parse_issues_from_code_review(issue_string: str):
+    issue_regex = r'<issue>(?P<issue>.*?)<\/issue>'
+    issue_matches = list(re.finditer(issue_regex, issue_string, re.DOTALL))
+    potential_issues = []
+    for issue in issue_matches:
+        issue_content = issue.group('issue')
+        issue_params = ['issue_description', 'start_line', 'end_line']
+        issue_args = {}
+        issue_failed = False
+        for param in issue_params:
+            regex = rf'<{param}>(?P<{param}>.*?)<\/{param}>'
+            result = re.search(regex, issue_content, re.DOTALL)
+            try:
+                issue_args[param] = result.group(param).strip()
+            except AttributeError:
+                issue_failed = True
+                break
+        if not issue_failed:
+            potential_issues.append(CodeReviewIssue(**issue_args))
+    return potential_issues
+
+# converts the list of issues inside a code_review into markdown text to display in a github comment
+def render_code_review_issues(pr: PullRequest, code_review: CodeReview):
+    files_to_blobs = {file.filename: file.blob_url for file in list(pr.get_files())}
+    # generate the diff urls
+    files_to_diffs = {}
+    for file_name, _ in files_to_blobs.items():
+        sha_256 = hashlib.sha256(file_name.encode('utf-8')).hexdigest()
+        files_to_diffs[file_name] = f"{pr.html_url}/files#diff-{sha_256}"
+    potential_issues = ""
+    for issue in code_review.issues:
+        if issue.start_line == issue.end_line:
+            issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}"
+            issue_diff_url = f"{files_to_diffs[code_review.file_name]}R{issue.start_line}"
+        else:
+            issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}-L{issue.end_line}"
+            issue_diff_url = f"{files_to_diffs[code_review.file_name]}R{issue.start_line}-R{issue.end_line}"
+        potential_issues += f"<li>{issue.issue_description}</li>\n\n{issue_blob_url}\n[View Diff]({issue_diff_url})"
+    return potential_issues
+
+def escape_html(text: str) -> str:
+    return text.replace('<', '&lt;').replace('>', '&gt;')
+
+# make sure code blocks are render properly in github comments markdown
+def format_code_sections(text: str) -> str:
+    backtick_count = text.count("`")
+    if backtick_count % 2 != 0:
+        # If there's an odd number of backticks, return the original text
+        return text
+    result = []
+    last_index = 0
+    inside_code = False
+    while True:
+        try:
+            index = text.index('`', last_index)
+            result.append(text[last_index:index])
+            if inside_code:
+                result.append('</code>')
+            else:
+                result.append('<code>')
+            inside_code = not inside_code
+            last_index = index + 1
+        except ValueError:
+            # No more backticks found
+            break
+    result.append(text[last_index:])
+    formatted_text = ''.join(result)
+    # Escape HTML characters within <code> tags
+    formatted_text = formatted_text.replace('<code>', '<code>').replace('</code>', '</code>')
+    parts = formatted_text.split('<code>')
+    for i in range(1, len(parts)):
+        code_content, rest = parts[i].split('</code>', 1)
+        parts[i] = escape_html(code_content) + '</code>' + rest
+    
+    return '<code>'.join(parts)
+
+# turns code_review_by_file into markdown string
+def render_pr_review_by_file(pr: PullRequest, code_review_by_file: dict[str, CodeReview]) -> str:
+    body = f"{SWEEP_PR_REVIEW_HEADER}\n"
+    reviewed_files = ""
+    for file_name, code_review in code_review_by_file.items():
+        potential_issues = code_review.issues
+        reviewed_files += f"""<details open>
+<summary>{file_name}</summary>
+<p>{format_code_sections(code_review.diff_summary)}</p>"""
+        if potential_issues:
+            potential_issues_string = render_code_review_issues(pr, code_review)
+            reviewed_files += f"<p><strong>Potential Issues</strong></p><ul>{format_code_sections(potential_issues_string)}</ul></details><hr>"
+        else:
+            reviewed_files += "<p>No issues found with the reviewed changes</p></details><hr>"
+    return body + reviewed_files
+
+# handles the creation or update of the Sweep comment letting the user know that Sweep is reviewing a pr
+# returns the comment_id
+def create_update_review_pr_comment(pr: PullRequest, code_review_by_file: dict[str, CodeReview] | None = None) -> int:
+    comment_id = -1
+    sweep_comment = None
+    # comments that appear in the github ui in the conversation tab are considered issue comments
+    pr_comments = list(pr.get_issue_comments())
+    # make sure we don't already have a comment created
+    for comment in pr_comments:
+        # a comment has already been created
+        if comment.body.startswith(SWEEP_PR_REVIEW_HEADER):
+            comment_id = comment.id
+            sweep_comment = comment
+            break
+    
+    # comment has not yet been created
+    if not sweep_comment:
+        sweep_comment = pr.create_issue_comment(f"{SWEEP_PR_REVIEW_HEADER}\nSweep is currently reviewing your pr...")
+    
+    # update body of sweep_comment
+    if code_review_by_file:
+        rendered_pr_review = render_pr_review_by_file(pr, code_review_by_file)
+        sweep_comment.edit(rendered_pr_review)
+    comment_id = sweep_comment.id
+    return comment_id
+

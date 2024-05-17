@@ -176,6 +176,7 @@ def validate_and_sanitize_multi_file_changes(repo: Repository, file_changes: dic
 
 # commits multiple files in a single commit, returns the commit object
 def commit_multi_file_changes(repo: Repository, file_changes: dict[str, str], commit_message: str, branch: str):
+    assert file_changes
     blobs_to_commit = []
     # convert to blob
     for path, content in file_changes.items():
@@ -377,7 +378,7 @@ class ClonedRepo:
             dir_obj = remove_all_not_included(dir_obj, included_directories)
         return directory_tree, dir_obj
 
-    def get_file_list(self) -> str:
+    def get_file_list(self):
         root_directory = self.repo_dir
         files = []
         sweep_config: SweepConfig = SweepConfig()
@@ -394,6 +395,26 @@ class ClonedRepo:
                     if not sweep_config.is_file_excluded(item_path):
                         files.append(item_path)  # Add the file to the list
                 elif os.path.isdir(item_path):
+                    dfs_helper(item_path)  # Recursive call to explore subdirectory
+
+        dfs_helper(root_directory)
+        files = [file[len(root_directory) + 1 :] for file in files]
+        return files
+    
+    def get_directory_list(self):
+        root_directory = self.repo_dir
+        files = []
+        sweep_config: SweepConfig = SweepConfig()
+        def dfs_helper(directory):
+            nonlocal files
+            for item in os.listdir(directory):
+                if item == ".git":
+                    continue
+                if item in sweep_config.exclude_dirs: # this saves a lot of time
+                    continue
+                item_path = os.path.join(directory, item)
+                if os.path.isdir(item_path):
+                    files.append(item_path)  # Add the file to the list
                     dfs_helper(item_path)  # Recursive call to explore subdirectory
 
         dfs_helper(root_directory)
@@ -456,6 +477,24 @@ class ClonedRepo:
         except Exception:
             logger.error(f"An error occurred: {traceback.print_exc()}")
         return commit_history
+    
+    def get_similar_directories(self, file_path: str, limit: int = 5):
+        from rapidfuzz.fuzz import QRatio
+
+        # Fuzzy search over file names
+        # file_name = os.path.basename(file_path)
+        all_file_paths = self.get_directory_list()
+
+        # get top limit similar directories
+        sorted_file_paths = sorted(
+            all_file_paths,
+            key=lambda file_name_: QRatio(file_name_, file_path),
+            reverse=True,
+        )
+
+        filtered_file_paths = list(filter(lambda file_name_: QRatio(file_name_, file_path) > 50, sorted_file_paths))
+
+        return filtered_file_paths[:limit]
 
     def get_similar_file_paths(self, file_path: str, limit: int = 10):
         from rapidfuzz.fuzz import ratio

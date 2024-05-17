@@ -9,7 +9,7 @@ import stringzilla as sz
 from loguru import logger
 import rapidfuzz
 from tqdm import tqdm
-from sweepai.core.chat import ChatGPT, parse_function_calls_for_openai
+from sweepai.core.chat import ChatGPT, parse_function_calls, tool_call_parameters
 from sweepai.core.entities import FileChangeRequest
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.diff import generate_diff
@@ -17,7 +17,7 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.modify_utils import manual_code_check
 from sweepai.utils.utils import get_check_results
 
-modify_tools_openai = """
+modify_tools = """
 # make_change - Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments, and style. Changes should be minimal, self-contained, and address only one specific modification. If a change affects multiple separate code sections, use multiple calls to this tool, one for each section.
 To call this tool you must respond in the following xml format:
 
@@ -39,124 +39,24 @@ The new lines of code to replace the original code, implementing the SINGLE desi
 # create_file - Create a new code file in the specified location with the given file name and extension. This is useful when the task requires adding entirely new functionality or classes to the codebase.
 To call this tool you must respond in the following xml format:
 <create_file>
-<file_path>
-The path where the new file should be created, relative to the root of the codebase. Do not include the file name itself.
-</file_path>
 <file_name>
-he name to give the new file, including the extension. Ensure the name is clear, descriptive, and follows existing naming conventions.
+The full file path, including the extension. Ensure the name is clear, descriptive, and follows existing naming conventions.
 </file_name>
-<contents>
+<new_code>
 The initial contents of the new file.
-</contents>
+</new_code>
 <justification>
 Explain why creating this new file is necessary to complete the task and how it integrates with the existing codebase structure.
 </justification>
 </create_file>
 
-# submit_result - Indicate that the task is complete and all requirements have been met. Provide the final code changes or solution.
+# submit_task - Indicate that the task is complete and all requirements have been met. Provide the final code changes or solution.
 To call this tool you must respond in the following xml format:
-<submit_result>
+<submit_task>
 <justification>
 Summarize the code changes made and explain how they fulfill the user's original request. Provide the complete, modified code if applicable.
 </justification>
-</submit_result>"""
-
-modify_tools = """<tool_description>
-<tool_name>make_change</tool_name>
-<description>
-Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments, and style. Changes should be minimal, self-contained, and address only one specific modification. If a change affects multiple separate code sections, use this tool for one change at a time, one for each section. For multiple changes, make them in separate calls.
-</description>
-<parameters>
-<parameter>
-<name>justification</name>
-<type>str</type>
-<description>
-Explain how this SINGLE change contributes to fulfilling the user's request.
-</description>
-</parameter>
-<parameter>
-<name>file_name</name>
-<type>str</type>
-<description>
-Name of the file where the change will be made. Ensure correct spelling as this is case-sensitive.
-</description>
-</parameter>
-<parameter>
-<name>original_code</name>
-<type>str</type>
-<description>
-The existing lines of code that need modification or replacement. This should be a short SINGLE, CONTINUOUS block of code, not multiple separate sections. Include unchanged surrounding lines for context. This CAN NOT be empty.
-</description>
-</parameter>
-<parameter>
-<name>new_code</name>
-<type>str</type>
-<description>
-The new lines of code to replace the original code, implementing the SINGLE desired change. If the change is complex, break it into smaller targeted changes and use separate make_change calls for each.
-</description>
-</parameter>
-<parameter>
-<name>append</name>
-<type>bool</type>
-<description>
-Optional: either true or false. If true, the new code will be appended to the original code. If false, the original code will be replaced by the new code. Use this to add new methods or test cases. Default is false.
-</description>
-</parameter>
-</parameters>
-</tool_description>
-
-<tool_description>
-<tool_name>create_file</tool_name>
-<description>
-Create a new code file in the specified location with the given file name and extension. This is useful when the task requires adding entirely new functionality or classes to the codebase.
-</description>
-<parameters>
-<parameter>
-<name>file_path</name>
-<type>str</type>
-<description>
-The path where the new file should be created, relative to the root of the codebase. Do not include the file name itself.
-</description>
-</parameter>
-<parameter>
-<name>file_name</name>
-<type>str</type>
-<description>
-The name to give the new file, including the extension. Ensure the name is clear, descriptive, and follows existing naming conventions.
-</description>
-</parameter>
-<parameter>
-<name>contents</name>
-<type>str</type>
-<description>
-The initial contents of the new file.
-</description>
-</parameter>
-<parameter>
-<name>justification</name>
-<type>str</type>
-<description>
-Explain why creating this new file is necessary to complete the task and how it integrates with the existing codebase structure.
-</description>
-</parameter>
-</parameters>
-</tool_description>
-
-<tool_description>
-<tool_name>submit_task</tool_name>
-<description>
-Indicate that the current task is complete.
-</description>
-<parameters>
-<parameter>
-<name>justification</name>
-<type>str</type>
-<description>
-Summarize the code changes made and explain how they fulfill the user's original request.
-</description>
-</parameter>
-</parameters>
-</tool_description>"""
+</submit_task>"""
 
 instructions = """You are an expert software developer tasked with editing code to fulfill the user's request. Your goal is to make the necessary changes to the codebase while following best practices and respecting existing conventions. 
 
@@ -178,15 +78,14 @@ To complete the task, follow these steps:
 
 In this environment, you have access to the following tools to assist in fulfilling the user request:
 
-You MUST call them like this:
+You MUST call them like this. Be sure to close all XML tags properly:
 <function_call>
-<invoke>
-<tool_name>$TOOL_NAME</tool_name>
-<parameters>
-<$PARAMETER_NAME>$PARAMETER_VALUE</$PARAMETER_NAME>
+<tool_name>
+<param1>
+param1 value
+</param1>
 ...
-</parameters>
-</invoke>
+</tool_name>
 </function_call>
 
 Here are the tools available:
@@ -194,31 +93,6 @@ Here are the tools available:
 """
 
 NO_TOOL_CALL_PROMPT = """FAILURE
-No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:
-
-<function_call>
-<invoke>
-<tool_name>tool_name</tool_name>
-<parameters>
-<param_name>param_value</param_name>
-</parameters>
-</invoke>
-</function_call>
-
-Here is an example:
-
-<function_call>
-<invoke>
-<tool_name>submit_task</tool_name>
-<parameters>
-<justification>The justification for making this change goes here.</justification>
-</parameters>
-</invoke>
-</function_call>
-
-If the current task is complete, call the submit_task function."""
-
-NO_TOOL_CALL_PROMPT_OPENAI = """FAILURE
 No function calls were made or your last function call was incorrectly formatted. The correct syntax for function calling is this:
 
 <function_call>
@@ -520,16 +394,8 @@ The new_code block you want to replace with the same surrounding context.
 # 2. Function Call
 Then, call the make_change function again with either the replace_all flag or additional context in the original_code block to specify which occurrence you want to replace."""
 
-tool_call_parameters = {
-    "make_change": ["justification", "file_name", "original_code", "new_code"],
-    "create_file": ["justification", "file_name", "file_path", "contents"],
-    "submit_task": ["justification"],
-}
-
 DEFAULT_FUNCTION_CALL = """<function_call>
-<invoke>
-<tool_name>make_change</tool_name>
-<parameters>
+<make_change>
 <justification>
 {justification}
 </justification>
@@ -541,21 +407,39 @@ DEFAULT_FUNCTION_CALL = """<function_call>
 </original_code>
 <new_code>
 {new_code}
-</new_code>{flags}
-</parameters>
-</invoke>
+</new_code>
+{flags}
+</make_change>
 </function_call>"""
 
-SUBMIT_TASK_MOCK_FUNCTION_CALL = """<function_call>
-<invoke>
-<tool_name>submit_task</tool_name>
-<parameters>
+DEFAULT_CREATE_FUNCTION_CALL = """<function_call>
+<make_change>
 <justification>
 {justification}
 </justification>
-</parameters>
-</invoke>
+<file_name>
+{file_path}
+</file_name>
+<new_code>
+{new_code}
+</new_code>
+</make_change>
 </function_call>"""
+
+SUBMIT_TASK_MOCK_FUNCTION_CALL = """<function_call>
+<submit_task>
+<justification>
+{justification}
+</justification>
+</submit_task>
+</function_call>"""
+
+def strip_triple_quotes(text: str) -> str:
+    stripped_text = text.strip("\n").rstrip()
+    if text.startswith('```'):
+        lines = stripped_text.splitlines()
+        return "\n".join(lines[1:-1]).strip("\n")
+    return text
 
 def english_join(items: list[str]) -> str:
     if len(items) == 0:
@@ -604,8 +488,13 @@ def find_best_matches(
     file_contents_lines = haystack.split("\n")
     num_lines = len(file_contents_lines)
     num_non_whitespace_chars = sum(not char.isspace() for char in needle)
-    max_char_diff = 300
+    max_char_diff = max(100, int(num_non_whitespace_chars * 0.03))
+    tokenized_needle = tokenize_code(needle)
+
     for start_line in tqdm(range(num_lines), total=num_lines) if verbose else range(num_lines):
+        # if time.time() - absolute_start > 5:
+        #     breakpoint()
+        #     raise Exception("Took too long to find best matches")
         potential_choices = []
         end_lines = []
         end_line = start_line
@@ -616,8 +505,19 @@ def find_best_matches(
             num_chars += sum(not char.isspace() for char in file_contents_lines[end_line])
             end_line += 1
             if num_chars > num_non_whitespace_chars - max_char_diff:
-                potential_choices.append(current_string.rstrip('\n'))
+                if not potential_choices and needle.count("\n") > 30:
+                    ratio = fuzz.QRatio(
+                        tokenized_needle,
+                        tokenize_code(current_string),
+                        score_cutoff=threshold - 20,
+                    )
+                    if ratio == 0:
+                        break
+                potential_choices.append(current_string)
                 end_lines.append(end_line)
+        
+        if not potential_choices:
+            continue
 
         # This can deadlock somehow
         results = process.extract(
@@ -641,7 +541,7 @@ def find_best_matches(
         if set(range(start_line, end_line)) & covered_spans:
             continue
         covered_spans |= set(range(start_line, end_line))
-        deduped_best_matches.append((match, score))
+        deduped_best_matches.append((match.strip("\n"), score))
     return deduped_best_matches[:num_matches]
 
 def find_best_match(*args, **kwargs):
@@ -672,10 +572,10 @@ def contains_ignoring_whitespace(needle: str, haystack: str):
 MODEL = "claude-3-haiku-20240307"
 SLOW_MODEL = "claude-3-opus-20240229" # try haiku
 
-def validate_and_parse_function_call_openai(
+def validate_and_parse_function_call(
     function_calls_string: str, chat_gpt: ChatGPT
-) -> list[AnthropicFunctionCall]:
-    function_calls = parse_function_calls_for_openai(
+) -> AnthropicFunctionCall:
+    function_calls = parse_function_calls(
         function_calls_string.strip("\n") + "\n</function_call>"
     )
     if len(function_calls) > 0:
@@ -687,42 +587,6 @@ def validate_and_parse_function_call_openai(
             chat_gpt.messages[-1].content = (
                 chat_gpt.messages[-1].content.rstrip("\n") + "\n</function_call>"
             )
-    return function_calls[0] if len(function_calls) > 0 else None
-
-
-def validate_and_parse_function_call(
-    function_calls_string: str, chat_gpt: ChatGPT
-) -> AnthropicFunctionCall:
-    function_calls = AnthropicFunctionCall.mock_function_calls_from_string(
-        function_calls_string.strip("\n") + "\n</function_call>"
-    )  # add end tag
-    if len(function_calls) > 0:
-        chat_gpt.messages[-1].content = (
-            chat_gpt.messages[-1].content.rstrip("\n") + "\n</function_call>"
-        )  # add end tag to assistant message
-        return function_calls[0] if len(function_calls) > 0 else None
-
-    # try adding </invoke> tag as well
-    function_calls = AnthropicFunctionCall.mock_function_calls_from_string(
-        function_calls_string.strip("\n") + "\n</invoke>\n</function_call>"
-    )
-    if len(function_calls) > 0:
-        # update state of chat_gpt
-        chat_gpt.messages[-1].content = (
-            chat_gpt.messages[-1].content.rstrip("\n") + "\n</invoke>\n</function_call>"
-        )
-        return function_calls[0] if len(function_calls) > 0 else None
-    # try adding </parameters> tag as well
-    function_calls = AnthropicFunctionCall.mock_function_calls_from_string(
-        function_calls_string.strip("\n")
-        + "\n</parameters>\n</invoke>\n</function_call>"
-    )
-    if len(function_calls) > 0:
-        # update state of chat_gpt
-        chat_gpt.messages[-1].content = (
-            chat_gpt.messages[-1].content.rstrip("\n")
-            + "\n</parameters>\n</invoke>\n</function_call>"
-        )
     return function_calls[0] if len(function_calls) > 0 else None
 
 def create_user_message( # TODO: has non-deterministic behavior
@@ -880,8 +744,8 @@ def parse_fcr(fcr: FileChangeRequest):
     return {
         "justification": justification.strip(),
         "file_path": fcr.filename,
-        "original_code": [original_code_match.group(1).strip("\n") for original_code_match in original_code_matches],
-        "new_code": [new_code_match.group(1).strip("\n") for new_code_match in new_code_matches],
+        "original_code": [strip_triple_quotes(original_code_match.group(1)) for original_code_match in original_code_matches],
+        "new_code": [strip_triple_quotes(new_code_match.group(1)) for new_code_match in new_code_matches],
         "replace_all": bool(replace_all_matches),
     }
 
@@ -889,6 +753,12 @@ def parse_fcr(fcr: FileChangeRequest):
 def compile_fcr(fcr: FileChangeRequest, index: int) -> str:
     # justification is wrong, fix this later!
     parsed_fcr = parse_fcr(fcr)
+    if fcr.change_type == "create":
+        return DEFAULT_CREATE_FUNCTION_CALL.format(
+            justification=parsed_fcr["justification"],
+            file_path=parsed_fcr["file_path"],
+            new_code=parsed_fcr["new_code"][index],
+        )
     if not parsed_fcr["new_code"]:
         return ""
     if not parsed_fcr["original_code"] and fcr.change_type == "modify":
@@ -963,7 +833,7 @@ def check_make_change_tool_call(tool_call, error_message):
             error_message += f"Missing {key} in tool call. Call the tool again but this time provide the {key}.\n"
             if key in ["new_code", "original_code"]:
                 error_message += "\n\nIt is likely the reason why you have missed these keys is because the original_code block you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
-    if not tool_call["original_code"].strip():
+    if not tool_call.get("original_code", "").strip():
         error_message = EMPTY_ORIGINAL_CODE_PROMPT
     return error_message
 
@@ -1019,25 +889,24 @@ def handle_create_file(cloned_repo, modify_files_dict, tool_name, tool_call) -> 
         if key not in tool_call
     )
     if not error_message:
-        new_file_path = tool_call["file_path"].strip()
         new_file_name = tool_call["file_name"].strip()
-        new_file_contents = tool_call["contents"].strip()
+        new_file_contents = tool_call["new_code"].strip()
+        new_file_path = os.path.dirname(new_file_name)
         new_file_dir = os.path.join(cloned_repo.repo_dir, new_file_path)
-        new_full_file_path = os.path.join(new_file_path, new_file_name)
-        new_full_file_path_with_cwd = os.path.join(cloned_repo.repo_dir, new_file_path, new_file_name)
+        new_full_file_path_with_cwd = os.path.join(cloned_repo.repo_dir, new_file_name)
         # ensure file doesn't already exist
         if os.path.exists(new_full_file_path_with_cwd):
-            error_message = f"The file {new_full_file_path} already exists. Modify this existing file instead of attempting to create a new one!"
+            error_message = f"The file {new_file_name} already exists. Modify this existing file instead of attempting to create a new one!"
             # ensure directory is valid
         if not os.path.isdir(new_file_dir):
-            error_message = f"The directory {new_file_path} is not valid. Make sure you have the correct directory path!"
+            error_message = f"{new_file_path} is not a valid directory. Make sure you have the correct directory path!"
             # ensure that the directory of the new full path exists, in case the file name is weird
         if not os.path.exists(os.path.dirname(new_full_file_path_with_cwd)):
-            error_message = f"The directory {os.path.dirname(new_full_file_path)} does not exist. Make sure the new file you want to create exists within an existing directory!"
+            error_message = f"The directory {new_file_path} does not exist. Make sure the new file you want to create exists within an existing directory!"
             # if no issues, create the file by placing it in modify_files_dict
     if not error_message:
-        modify_files_dict[new_full_file_path] = {"contents": new_file_contents, "original_contents": ""}
-        success_message = f"The new file {new_full_file_path} has been created successfully with the following contents:\n\n{new_file_contents}"
+        modify_files_dict[new_file_name] = {"contents": new_file_contents, "original_contents": ""}
+        success_message = f"The new file {new_file_name} has been created successfully with the following contents:\n\n{new_file_contents}"
     if error_message:
         llm_response = f"ERROR\n\n{error_message}"
     else:
@@ -1075,13 +944,10 @@ def handle_function_call(
     llm_response = ""
     tool_name = function_call.function_name
     tool_call = function_call.function_parameters
-    if tool_name == "submit_task":
+    if tool_name == "submit_task" or tool_name == "submit_result":
         llm_response, llm_state = handle_submit_task(modify_files_dict, llm_state)
     elif tool_name == "no_tool_call":
-        if use_openai:
-            llm_response = NO_TOOL_CALL_PROMPT_OPENAI
-        else:
-            llm_response = NO_TOOL_CALL_PROMPT
+        llm_response = NO_TOOL_CALL_PROMPT  
     elif tool_name == "make_change":
         error_message = ""
         error_message = check_make_change_tool_call(tool_call, error_message)
@@ -1096,8 +962,8 @@ def handle_function_call(
                         error_message += f"The file {file_name} does not exist. Make sure that you have spelled the file name correctly!\n"
                         break
                 llm_state['initial_check_results'][file_name] = get_check_results(file_name, get_latest_contents(file_name, cloned_repo, modify_files_dict)) # TODO: consider not overriding this when we see the same file twice
-                original_code = tool_call["original_code"].strip("\n")
-                new_code = tool_call["new_code"].strip("\n")
+                original_code = strip_triple_quotes(tool_call["original_code"]).strip("\n")
+                new_code = strip_triple_quotes(tool_call["new_code"]).strip("\n")
                 if tool_call.get("append", "false").strip() == "true":
                     new_code = original_code + "\n\n" + new_code
                 replace_all = tool_call.get("replace_all", "false").strip() == "true"
@@ -1255,7 +1121,7 @@ def handle_function_call(
             llm_response = f"ERROR\n\n{error_message}"
             llm_state["attempt_lazy_change"] = False
             llm_state["attempt_count"] += 1
-            if llm_state["attempt_count"] > 7:
+            if llm_state["attempt_count"] > 5:
                 for fcr in llm_state["fcrs"]:
                     if not fcr.is_completed:
                         fcr.is_completed = True
@@ -1292,7 +1158,7 @@ def handle_function_call(
                 llm_state["attempt_lazy_change"] = True
 
                 llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
-            elif diff_string.count("\n+") + diff_string.count("\n-") > 10:
+            elif diff_string.count("\n+") + diff_string.count("\n-") > 20:
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_state["attempt_lazy_change"] = False # no longer attempt lazy change

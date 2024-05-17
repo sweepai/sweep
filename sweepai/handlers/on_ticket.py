@@ -35,7 +35,6 @@ from sweepai.config.server import (
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
     MONGODB_URI,
-    PROGRESS_BASE_URL,
 )
 from sweepai.core.entities import (
     FileChangeRequest,
@@ -71,6 +70,7 @@ from sweepai.utils.str_utils import (
     BOT_SUFFIX,
     FASTER_MODEL_MESSAGE,
     blockquote,
+    bold,
     bot_suffix,
     checkbox_template,
     collapsible_template,
@@ -394,7 +394,7 @@ def on_ticket(
                 logger.warning(f"Validation error: {error_message}")
                 edit_sweep_comment(
                     (
-                        f"The issue was rejected with the following response:\n\n**{error_message}**"
+                        f"The issue was rejected with the following response:\n\n{bold(error_message)}"
                     ),
                     -1,
                 )
@@ -901,7 +901,7 @@ def on_ticket(
                 pr.add_to_labels(GITHUB_LABEL_NAME)
                 current_issue.create_reaction("rocket")
                 heres_pr_message = f'<h1 align="center">🚀 Here\'s the PR! <a href="{pr.html_url}">#{pr.number}</a></h1>'
-                progress_message = f'<div align="center"><b>See Sweep\'s progress at <a href="{PROGRESS_BASE_URL}/issues/{tracking_id}">the progress dashboard</a>!</b></div>'
+                progress_message = ''
                 edit_sweep_comment(
                     review_message + "\n\nSuccess! 🚀",
                     4,
@@ -991,7 +991,7 @@ def on_ticket(
                             )
                             validate_file_change_requests(file_change_requests, cloned_repo)
                             previous_modify_files_dict: dict[str, dict[str, str | list[str]]] | None = None
-                            modify_files_dict, changed_file, commit, file_change_requests = handle_file_change_requests(
+                            modify_files_dict, _, file_change_requests = handle_file_change_requests(
                                 file_change_requests=file_change_requests,
                                 request=sweep_bot.human_message.get_issue_request(),
                                 branch_name=pull_request.branch_name,

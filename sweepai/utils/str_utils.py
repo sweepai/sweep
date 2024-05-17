@@ -1,15 +1,13 @@
+from dataclasses import fields
 import hashlib
 import os
 import re
 import time
 
-from sweepai.config.server import PROGRESS_BASE_URL
-
-UPDATES_MESSAGE = f"""\
+UPDATES_MESSAGE = """\
 <details>
 <summary><b>🎉 Latest improvements to Sweep:</b></summary>
 <ul>
-<li>New <a href="{PROGRESS_BASE_URL}">dashboard</a> launched for real-time tracking of Sweep issues, covering all stages from search to coding.</li>
 <li>Integration of OpenAI's latest Assistant API for more efficient and reliable code planning and editing, improving speed by 3x.</li>
 <li>Use the <a href="https://marketplace.visualstudio.com/items?itemName=GitHub.vscode-pull-request-github">GitHub issues extension</a> for creating Sweep issues directly from your editor.</li>
 </ul>
@@ -84,6 +82,9 @@ def blockquote(text: str):
     text = text.replace("\n•", "<br/>•")
     return f"<blockquote>{text}\n</blockquote>" if text else ""
 
+def bold(text: str):
+    return f"<b>{text}</b>" if text else ""
+
 
 def create_checkbox(title: str, body: str, checked: bool = False):
     return checkbox_template.format(
@@ -144,3 +145,21 @@ def get_all_indices_of_substring(content: str, substring: str):
         indices.append(index)
         start = index + 1  # Move past the last found occurrence
     return indices
+
+# converts a single arbitrary object to xml string format
+def object_to_xml(object: object, object_name: str):
+    object_fields = [f"<{field.name}>\n{getattr(object, field.name)}\n</{field.name}>" for field in fields(object)]
+    fields_strings = "\n".join(object_fields)
+    object_string = f"<{object_name}>\n{fields_strings}\n</{object_name}>"
+    return object_string
+
+# converts a list of objects to xml string format
+def objects_to_xml(objects: list[object], object_name: str, outer_field_name: str = ""):
+    objects_string = ""
+    for object in objects:
+        objects_string += f"{object_to_xml(object, object_name)}\n"
+    if outer_field_name:
+        objects_string = f"<{outer_field_name}>\n{objects_string}</{outer_field_name}>"
+    else:
+        objects_string = f"<{object_name}>\n{objects_string}</{object_name}>"
+    return objects_string

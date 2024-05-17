@@ -1,6 +1,7 @@
 import json
 from dataclasses import dataclass
-from datetime import datetime  # Correctly import the datetime class
+from datetime import datetime
+from typing import Any  # Correctly import the datetime class
 
 import requests
 from loguru import logger
@@ -20,7 +21,7 @@ class PosthogClient:
         self,
         distinct_id: str | None = None,
         event: str | None = None,
-        properties: dict[str, str] | None = None,
+        properties: dict[str, Any] | None = None,
         **kwargs,
     ):
         if self.API_KEY is None:

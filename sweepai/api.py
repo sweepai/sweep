@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import ctypes
-import json
+import os
 import threading
 import time
 from typing import Any, Optional
 
-import requests
 from fastapi import (
     Body,
+    Depends,
     FastAPI,
     Header,
     HTTPException,
@@ -26,15 +26,12 @@ from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
     REVERT_CHANGED_FILES_TITLE,
     RULES_TITLE,
-    SWEEP_BAD_FEEDBACK,
-    SWEEP_GOOD_FEEDBACK,
     SweepConfig,
     get_gha_enabled,
 )
 from sweepai.config.server import (
     BLACKLISTED_USERS,
     DISABLED_REPOS,
-    DISCORD_FEEDBACK_WEBHOOK_URL,
     ENV,
     GHA_AUTOFIX_ENABLED,
     GITHUB_BOT_USERNAME,
@@ -46,6 +43,7 @@ from sweepai.config.server import (
 from sweepai.chat.api import app as chat_app
 from sweepai.core.entities import PRChangeRequest
 from sweepai.global_threads import global_threads
+from sweepai.handlers.review_pr import review_pr
 from sweepai.handlers.create_pr import (  # type: ignore
     add_config_to_top_repos,
     create_gha_pr,
@@ -66,6 +64,7 @@ from sweepai.utils.buttons import (
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import logger, posthog
 from sweepai.utils.github_utils import CURRENT_USERNAME, get_github_client
+from sweepai.utils.hash import verify_signature
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 from sweepai.utils.str_utils import BOT_SUFFIX, get_hash
@@ -87,6 +86,7 @@ app.mount("/chat", chat_app)
 
 events = {}
 on_ticket_events = {}
+review_pr_events = {}
 
 security = HTTPBearer()
 
@@ -134,6 +134,15 @@ def run_on_comment(*args, **kwargs):
         tracking_id=tracking_id,
     ):
         on_comment(*args, **kwargs, tracking_id=tracking_id)
+
+def run_review_pr(*args, **kwargs):
+    tracking_id = get_hash()
+    with logger.contextualize(
+        **kwargs,
+        name="review_" + kwargs["username"],
+        tracking_id=tracking_id,
+    ):
+        review_pr(*args, **kwargs, tracking_id=tracking_id)
 
 
 def run_on_button_click(*args, **kwargs):
@@ -233,6 +242,23 @@ def call_on_comment(
         thread.start()
         global_threads.append(thread)
 
+# add a review by sweep on the pr
+def call_review_pr(*args, **kwargs):
+    global review_pr_events
+    key = f"{kwargs['repository'].full_name}-{kwargs['pr'].number}"  # Full name, issue number as key
+
+    # Use multithreading
+    # Check if a previous process exists for the same key, cancel it
+    e = review_pr_events.get(key, None)
+    if e:
+        logger.info(f"Found previous thread for key {key} and cancelling it")
+        terminate_thread(e)
+
+    thread = threading.Thread(target=run_review_pr, args=args, kwargs=kwargs)
+    review_pr_events[key] = thread
+    thread.start()
+    global_threads.append(thread)
+
 
 @app.get("/health")
 def redirect_to_health():
@@ -316,14 +342,24 @@ def handle_request(request_dict, event=None):
         return {"success": True}
 
 
-@app.post("/")
+# @app.post("/")
+async def validate_signature(
+    request: Request,
+    x_hub_signature: Optional[str] = Header(None, alias="X-Hub-Signature-256")
+):
+    payload_body = await request.body()
+    if not verify_signature(payload_body=payload_body, signature_header=x_hub_signature):
+        raise HTTPException(status_code=403, detail="Request signatures didn't match!")
+
+@app.post("/", dependencies=[Depends(validate_signature)])
 def webhook(
     request_dict: dict = Body(...),
     x_github_event: Optional[str] = Header(None, alias="X-GitHub-Event"),
 ):
-    """Handle a webhook request from GitHub."""
+    """Handle a webhook request from GitHub"""
     with logger.contextualize(tracking_id="main", env=ENV):
         action = request_dict.get("action", None)
+
         logger.info(f"Received event: {x_github_event}, {action}")
         return handle_request(request_dict, event=x_github_event)
 
@@ -485,19 +521,27 @@ def handle_event(request_dict, event):
                             #     commit_hash=pr.head.sha,
                             # )
             case "pull_request", "opened":
-                _, g = get_github_client(request_dict["installation"]["id"])
-                repo = g.get_repo(request_dict["repository"]["full_name"])
-                pr = repo.get_pull(request_dict["pull_request"]["number"])
-                # if the pr already has a comment from sweep bot do nothing
-                time.sleep(10)
-                if any(
-                    comment.user.login == GITHUB_BOT_USERNAME
-                    for comment in pr.get_issue_comments()
-                ) or pr.title.startswith("Sweep:"):
-                    return {
-                        "success": True,
-                        "reason": "PR already has a comment from sweep bot",
-                    }
+                try:
+                    pr_request = PRRequest(**request_dict)
+                    _, g = get_github_client(request_dict["installation"]["id"])
+                    repo = g.get_repo(request_dict["repository"]["full_name"])
+                    pr = repo.get_pull(request_dict["pull_request"]["number"])
+                    # check if review_pr is restricted
+                    allowed_repos = os.environ.get("PR_REVIEW_REPOS", "")
+                    allowed_repos_set = set(allowed_repos.split(',')) if allowed_repos else set()
+                    allowed_usernames = os.environ.get("PR_REVIEW_USERNAMES", "")
+                    allowed_usernames_set = set(allowed_usernames.split(',')) if allowed_usernames else set()
+                    if (not allowed_repos or repo.name in allowed_repos_set) and (not allowed_usernames or pr.user.login in allowed_usernames_set):
+                        # run pr review
+                        call_review_pr(
+                            username=pr.user.login,
+                            pr=pr,
+                            repository=repo,
+                            installation_id=pr_request.installation.id,
+                        )
+                except Exception as e:
+                    logger.exception(f"Failed to review PR: {e}")
+                    raise e
             case "issues", "opened":
                 request = IssueRequest(**request_dict)
                 issue_title_lower = request.issue.title.lower()
@@ -863,93 +907,25 @@ def handle_event(request_dict, event):
                 if (
                     request.pull_request.user.login == GITHUB_BOT_USERNAME
                     and not request.sender.login.endswith("[bot]")
-                    and DISCORD_FEEDBACK_WEBHOOK_URL is not None
                 ):
-                    good_button = check_button_activated(
-                        SWEEP_GOOD_FEEDBACK,
-                        request.pull_request.body,
-                        request.changes,
-                    )
-                    bad_button = check_button_activated(
-                        SWEEP_BAD_FEEDBACK,
-                        request.pull_request.body,
-                        request.changes,
-                    )
-
-                    if good_button or bad_button:
-                        emoji = "😕"
-                        if good_button:
-                            emoji = "👍"
-                        elif bad_button:
-                            emoji = "👎"
-                        data = {
-                            "content": f"{emoji} {request.pull_request.html_url} ({request.sender.login})\n{request.pull_request.commits} commits, {request.pull_request.changed_files} files: +{request.pull_request.additions}, -{request.pull_request.deletions}"
-                        }
-                        headers = {"Content-Type": "application/json"}
-                        requests.post(
-                            DISCORD_FEEDBACK_WEBHOOK_URL,
-                            data=json.dumps(data),
-                            headers=headers,
-                        )
-
-                        # Send feedback to PostHog
-                        posthog.capture(
-                            request.sender.login,
-                            "feedback",
-                            properties={
-                                "repo_name": request.repository.full_name,
-                                "pr_url": request.pull_request.html_url,
-                                "pr_commits": request.pull_request.commits,
-                                "pr_additions": request.pull_request.additions,
-                                "pr_deletions": request.pull_request.deletions,
-                                "pr_changed_files": request.pull_request.changed_files,
-                                "username": request.sender.login,
-                                "good_button": good_button,
-                                "bad_button": bad_button,
-                            },
-                        )
-
-                        def remove_buttons_from_description(body):
-                            """
-                            Replace:
-                            ### PR Feedback...
-                            ...
-                            # (until it hits the next #)
-
-                            with
-                            ### PR Feedback: {emoji}
-                            #
-                            """
-                            lines = body.split("\n")
-                            if not lines[0].startswith("### PR Feedback"):
-                                return None
-                            # Find when the second # occurs
-                            i = 0
-                            for i, line in enumerate(lines):
-                                if line.startswith("#") and i > 0:
-                                    break
-
-                            return "\n".join(
-                                [
-                                    f"### PR Feedback: {emoji}",
-                                    *lines[i:],
-                                ]
+                    try:
+                        _, g = get_github_client(request.installation.id)
+                        repo = g.get_repo(request.repository.full_name)
+                        pr = repo.get_pull(request.pull_request.number)
+                        # check if review_pr is restricted
+                        allowed_repos = os.environ.get("PR_REVIEW_REPOS", "")
+                        allowed_repos_set = set(allowed_repos.split(',')) if allowed_repos else set()
+                        if not allowed_repos or repo.name in allowed_repos_set:
+                            # run pr review
+                            call_review_pr(
+                                username=pr.user.login,
+                                pr=pr,
+                                repository=repo,
+                                installation_id=request.installation.id,
                             )
-
-                        # Update PR description to remove buttons
-                        try:
-                            _, g = get_github_client(request.installation.id)
-                            repo = g.get_repo(request.repository.full_name)
-                            pr = repo.get_pull(request.pull_request.number)
-                            new_body = remove_buttons_from_description(
-                                request.pull_request.body
-                            )
-                            if new_body is not None:
-                                pr.edit(body=new_body)
-                        except SystemExit:
-                            raise SystemExit
-                        except Exception as e:
-                            logger.exception(f"Failed to edit PR description: {e}")
+                    except Exception as e:
+                        logger.exception(f"Failed to review PR: {e}")
+                        raise e
             case "pull_request", "closed":
                 pr_request = PRRequest(**request_dict)
                 (

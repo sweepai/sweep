@@ -234,7 +234,7 @@ Updated new code, based on the corrections in <original_code>. Ensure all newly 
 
 Option b: To patch a task to create a file instead, create a create block like so:
 
-<create file="file_path">
+<create file="file_path" index="0">
 Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, and schemas. You may only have one new_code block in this section.
 <new_code>
 All the new code required to be added to the file.
@@ -509,13 +509,14 @@ file_path_2
 ...
 </relevant_files>
 
-4b. List all relevant read-only files from the provided set given the two approaches.
+4b. List all relevant read-only files from the provided set given the two approaches. Only include files that are CRUCIAL to reference while making changes in other files.
 
 - These files must be formatted in <read_only_files> tags like so:
 <read_only_files>
 file_path_1
 file_path_2
 ...
+[additional files as needed, 1-5 files]
 </read_only_files>
 
 Generate two different plans to address the user issue. The best plan will be chosen later."""
