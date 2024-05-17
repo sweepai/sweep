@@ -336,9 +336,6 @@ def on_comment(
                 cloned_repo=cloned_repo,
             )
             validate_file_change_requests(file_change_requests, repo_context_manager.cloned_repo)
-            file_change_requests = sweep_bot.validate_file_change_requests(
-                file_change_requests, branch=branch_name
-            )
 
             sweep_response = "I couldn't find any relevant files to change."
             if file_change_requests:

@@ -470,100 +470,37 @@ def on_ticket(
             cloned_repo.token = user_token
             repo = g.get_repo(repo_full_name)
 
+            edit_sweep_comment(
+                "I found the following snippets in your repository. I will now analyze these snippets and come up with a plan."
+                + "\n\n"
+                + create_collapsible(
+                    "Some code snippets I think are relevant in decreasing order of relevance (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
+                    "\n".join(
+                        [
+                            f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count('\n') - 1)}\n"
+                            for snippet in snippets + repo_context_manager.read_only_snippets
+                        ]
+                    ),
+                )
+                + (
+                    create_collapsible(
+                        "I also found that you mentioned the following Pull Requests that may be helpful:",
+                        blockquote(prs_extracted),
+                    )
+                    if prs_extracted
+                    else ""
+                ),
+                1
+            )
+
             # Fetch git commit history
             if not repo_description:
                 repo_description = "No description provided."
 
             internal_message_summary += replies_text
 
-            sweep_bot = construct_sweep_bot(
-                repo=repo,
-                repo_name=repo_name,
-                issue_url=issue_url,
-                repo_description=repo_description,
-                title=title,
-                message_summary=internal_message_summary,
-                cloned_repo=cloned_repo,
-                chat_logger=chat_logger,
-                snippets=snippets,
-                tree=tree,
-                comments=comments,
-            )
-
-            # START - Sweep YAML logic
-            # Check repository for sweep.yml file.
-            sweep_yml_exists = False
-            sweep_yml_failed = False
-            for content_file in repo.get_contents(""):
-                if content_file.name == "sweep.yaml":
-                    sweep_yml_exists = True
-
-                    # Check if YAML is valid
-                    yaml_content = content_file.decoded_content.decode("utf-8")
-                    sweep_yaml_dict = {}
-                    try:
-                        sweep_yaml_dict = yaml.safe_load(yaml_content)
-                    except Exception:
-                        logger.error(f"Failed to load YAML file: {yaml_content}")
-                    if len(sweep_yaml_dict) > 0:
-                        break
-                    linter_config = yamllint_config.YamlLintConfig(custom_config)
-                    problems = list(linter.run(yaml_content, linter_config))
-                    if problems:
-                        errors = [
-                            f"Line {problem.line}: {problem.desc} (rule: {problem.rule})"
-                            for problem in problems
-                        ]
-                        error_message = "\n".join(errors)
-                        markdown_error_message = f"**There is something wrong with your [sweep.yaml](https://github.com/{repo_full_name}/blob/main/sweep.yaml):**\n```\n{error_message}\n```"
-                        sweep_yml_failed = True
-                        logger.error(markdown_error_message)
-                        edit_sweep_comment(markdown_error_message, -1)
-                    else:
-                        logger.info("The YAML file is valid. No errors found.")
-                    break
-
-            # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
-            if not sweep_yml_exists:
-                try:
-                    logger.info("Creating sweep.yaml file...")
-                    config_pr = create_config_pr(sweep_bot, cloned_repo=cloned_repo)
-                    config_pr_url = config_pr.html_url
-                    edit_sweep_comment(message="", index=-2)
-                except Exception as e:
-                    logger.error(
-                        "Failed to create new branch for sweep.yaml file.\n",
-                        e,
-                        traceback.format_exc(),
-                    )
-            else:
-                logger.info("sweep.yaml file already exists.")
-            # END - Sweep YAML logic
-
             try:
                 newline = "\n"
-                edit_sweep_comment(
-                    "I found the following snippets in your repository. I will now analyze these snippets and come up with a plan."
-                    + "\n\n"
-                    + create_collapsible(
-                        "Some code snippets I think are relevant in decreasing order of relevance (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
-                        "\n".join(
-                            [
-                                f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline) - 1)}\n"
-                                for snippet in snippets + repo_context_manager.read_only_snippets
-                            ]
-                        ),
-                    )
-                    + (
-                        create_collapsible(
-                            "I also found that you mentioned the following Pull Requests that may be helpful:",
-                            blockquote(prs_extracted),
-                        )
-                        if prs_extracted
-                        else ""
-                    ),
-                    1
-                )
                 logger.info("Fetching files to modify/create...")
                 file_change_requests, plan = get_files_to_change(
                     relevant_snippets=repo_context_manager.current_top_snippets,
@@ -575,12 +512,6 @@ def on_ticket(
                 )
                 validate_file_change_requests(file_change_requests, cloned_repo)
                 raise_on_no_file_change_requests(title, summary, edit_sweep_comment, file_change_requests)
-
-                file_change_requests: list[
-                    FileChangeRequest
-                ] = sweep_bot.validate_file_change_requests(
-                    file_change_requests,
-                )
 
                 table = tabulate(
                     [
@@ -843,19 +774,6 @@ def on_ticket(
                             changes_made=diffs,
                         )
                         repo_context_manager: RepoContextManager = prep_snippets(cloned_repo=cloned_repo, query=(title + internal_message_summary + replies_text).strip("\n"), ticket_progress=None) # need to do this, can use the old query for speed
-                        sweep_bot: SweepBot = construct_sweep_bot(
-                            repo=repo,
-                            repo_name=repo_name,
-                            issue_url=issue_url,
-                            repo_description=repo_description,
-                            title="Fix the following errors to complete the user request.",
-                            message_summary=all_information_prompt,
-                            cloned_repo=cloned_repo,
-                            chat_logger=chat_logger,
-                            snippets=snippets,
-                            tree=tree,
-                            comments=comments,
-                        )
                         file_change_requests, plan = get_files_to_change_for_gha(
                             relevant_snippets=repo_context_manager.current_top_snippets,
                             read_only_snippets=repo_context_manager.read_only_snippets,

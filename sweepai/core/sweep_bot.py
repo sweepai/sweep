@@ -1322,80 +1322,6 @@ class GithubBot(BaseModel):
             except Exception:
                 logger.error(snippet)
 
-    def validate_file_change_requests(
-        self, file_change_requests: list[FileChangeRequest], branch: str = ""
-    ):
-        blocked_dirs = get_blocked_dirs(self.repo)
-        created_files = []
-        for file_change_request in file_change_requests:
-            try:
-                contents = None
-                try:
-                    contents = self.repo.get_contents(
-                        file_change_request.filename,
-                        branch or SweepConfig.get_branch(self.repo),
-                    )
-                except UnknownObjectException:
-                    for prefix in [
-                        self.repo.full_name,
-                        self.repo.owner.login,
-                        self.repo.name,
-                    ]:
-                        try:
-                            new_filename = file_change_request.filename.replace(
-                                prefix + "/", "", 1
-                            )
-                            contents = self.repo.get_contents(
-                                new_filename,
-                                branch or SweepConfig.get_branch(self.repo),
-                            )
-                            file_change_request.filename = new_filename
-                            break
-                        except UnknownObjectException:
-                            pass
-                    else:
-                        contents = None
-                except SystemExit:
-                    raise SystemExit
-                except Exception as e:
-                    logger.error(f"FileChange Validation Error: {e}")
-
-                if (
-                    contents or file_change_request.filename in created_files
-                ) and file_change_request.change_type == "create":
-                    file_change_request.change_type = "modify"
-                elif (
-                    not (contents or file_change_request.filename in created_files)
-                    and file_change_request.change_type == "modify"
-                ):
-                    file_change_request.change_type = "create"
-                
-                if contents is not None:
-                    try:
-                        file_change_request.old_content = safe_decode(self.repo, file_change_request.filename, ref=SweepConfig.get_branch(self.repo))
-                    except Exception as e:
-                        logger.info(f"Error: {e}")
-                        file_change_request.old_content = ""
-
-                created_files.append(file_change_request.filename)
-
-                block_status = is_blocked(file_change_request.filename, blocked_dirs)
-                if block_status["success"]:
-                    # red X emoji
-                    file_change_request.instructions = (
-                        f'❌ Unable to modify files in `{block_status["path"]}`\nEdit'
-                        " `sweep.yaml` to configure."
-                    )
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.info(traceback.format_exc())
-                raise e
-        file_change_requests = [
-            file_change_request for file_change_request in file_change_requests
-        ]
-        return file_change_requests
-
 
 ASSET_BRANCH_NAME = "sweep/assets"
 
@@ -1404,14 +1330,3 @@ class SweepBot(CodeGenBot, GithubBot):
     comment_pr_diff_str: str | None = None
     comment_pr_files_modified: Dict[str, str] | None = None
     ticket_progress: TicketProgress | None = None
-
-
-    def validate_file_change_requests(
-        self,
-        file_change_requests: list[FileChangeRequest],
-        branch: str = "",
-    ):
-        file_change_requests = super().validate_file_change_requests(
-            file_change_requests, branch
-        )
-        return file_change_requests
