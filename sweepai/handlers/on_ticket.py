@@ -19,6 +19,7 @@ from tabulate import tabulate
 from yamllint import linter
 
 
+from sweepai.agents.modify_utils import parse_fcr
 from sweepai.core.context_pruning import RepoContextManager
 from sweepai.core.sweep_bot import GHA_PROMPT
 from sweepai.agents.image_description_bot import ImageDescriptionBot
@@ -49,6 +50,7 @@ from sweepai.handlers.create_pr import (
     create_config_pr,
     handle_file_change_requests,
 )
+from sweepai.utils.diff import generate_diff
 from sweepai.utils.image_utils import get_image_contents_from_urls, get_image_urls_from_issue
 from sweepai.utils.issue_validator import validate_issue
 from sweepai.utils.ticket_rendering_utils import add_emoji, process_summary, remove_emoji, create_error_logs, get_payment_messages, get_comment_header, send_email_to_user, get_failing_gha_logs, rewrite_pr_description, raise_on_no_file_change_requests, get_branch_diff_text, construct_sweep_bot, handle_empty_repository, delete_old_prs, custom_config
@@ -606,6 +608,7 @@ def on_ticket(
                     tablefmt="pipe",
                 )
 
+                # Render plan start
                 files_progress: list[tuple[str, str, str, str]] = [
                     (
                         file_change_request.entity_display,
@@ -627,28 +630,25 @@ def on_ticket(
                 ]
                 checkboxes_contents = "\n".join(
                     [
-                        create_checkbox(
-                            f"`{filename}`", blockquote(instructions), check == "X"
-                        )
+                        f"#### `{filename}`\n{blockquote(instructions)}\n"
                         for filename, instructions, check in checkboxes_progress
                     ]
                 )
-                file_change_requests[0].status = "running"
+                planning_markdown = ""
+                for fcr in file_change_requests:
+                    parsed_fcr = parse_fcr(fcr)
+                    if parsed_fcr:
+                        planning_markdown += f"#### `{fcr.filename}`\n"
+                        planning_markdown += f"{blockquote(parsed_fcr['justification'])}\n\n"
+                        planning_markdown += f"""```diff\n{generate_diff(
+                            parsed_fcr["original_code"][0],
+                            parsed_fcr["new_code"][0],
+                        )}\n```\n"""
+                    else:
+                        planning_markdown += f"#### `{fcr.filename}`\n{blockquote(fcr.instructions)}\n"
 
-                condensed_checkboxes_contents = "\n".join(
-                    [
-                        create_checkbox(f"`{filename}`", "", check == "X").strip()
-                        for filename, instructions, check in checkboxes_progress
-                    ]
-                )
-                condensed_checkboxes_collapsible = create_collapsible(
-                    "Checklist", condensed_checkboxes_contents, opened=True
-                )
-
-                current_issue = repo.get_issue(number=issue_number)
-                current_issue.edit(
-                    body=summary + "\n\n" + condensed_checkboxes_collapsible
-                )
+                edit_sweep_comment(planning_markdown, 2)
+                # Render plan end
 
                 delete_branch = False
                 pull_request: PullRequest = PullRequest(
@@ -693,7 +693,6 @@ def on_ticket(
                         file_change_request.status = "failed"
                     # also update all commit hashes associated with the fcr
                     file_change_request.commit_hash_url = commit.html_url if commit else None
-                edit_sweep_comment(checkboxes_contents, 2)
                 if not file_change_requests:
                     raise NoFilesException()
                 changed_files = []
@@ -726,96 +725,19 @@ def on_ticket(
                         "✓"
                     ),
                 )
-                checkboxes_progress = [
-                    (
-                        file_change_request.display_summary
-                        + " "
-                        + file_change_request.status_display
-                        + " "
-                        + (file_change_request.commit_hash_url or "")
-                        + f" [Edit]({file_change_request.get_edit_url(repo.full_name, pull_request.branch_name)})",
-                        file_change_request.instructions_ticket_display
-                        + f"\n\n{file_change_request.diff_display}",
-                        (
-                            "X"
-                            if file_change_request.status
-                            in ("succeeded", "failed")
-                            else " "
-                        ),
-                    )
-                    for file_change_request in file_change_requests
-                ]
-                checkboxes_contents = "\n".join(
-                    [
-                        checkbox_template.format(
-                            check=check,
-                            filename=filename,
-                            instructions=blockquote(instructions),
-                        )
-                        for filename, instructions, check in checkboxes_progress
-                    ]
-                )
                 collapsible_template.format(
                     summary="Checklist",
                     body=checkboxes_contents,
                     opened="open",
                 )
-                condensed_checkboxes_contents = "\n".join(
-                    [
-                        checkbox_template.format(
-                            check=check,
-                            filename=filename,
-                            instructions="",
-                        ).strip()
-                        for filename, instructions, check in checkboxes_progress
-                        if not instructions.lower().startswith("run")
-                    ]
-                )
-                condensed_checkboxes_collapsible = collapsible_template.format(
-                    summary="Checklist",
-                    body=condensed_checkboxes_contents,
-                    opened="open",
-                )
-
+                # Refresh token
                 try:
                     current_issue = repo.get_issue(number=issue_number)
                 except BadCredentialsException:
                     user_token, g, repo = refresh_token()
                     cloned_repo.token = user_token
 
-                current_issue.edit(
-                    body=summary + "\n\n" + condensed_checkboxes_collapsible
-                )
-
                 logger.info(files_progress)
-                edit_sweep_comment(checkboxes_contents, 2)
-
-                checkboxes_contents = "\n".join(
-                    [
-                        checkbox_template.format(
-                            check=check,
-                            filename=filename,
-                            instructions=blockquote(instructions),
-                        )
-                        for filename, instructions, check in checkboxes_progress
-                    ]
-                )
-                condensed_checkboxes_contents = "\n".join(
-                    [
-                        checkbox_template.format(
-                            check=check,
-                            filename=filename,
-                            instructions="",
-                        ).strip()
-                        for filename, instructions, check in checkboxes_progress
-                        if not instructions.lower().startswith("run")
-                    ]
-                )
-                condensed_checkboxes_collapsible = collapsible_template.format(
-                    summary="Checklist",
-                    body=condensed_checkboxes_contents,
-                    opened="open",
-                )
                 edit_sweep_comment(checkboxes_contents, 2)
                 pr_changes = MockPR(
                     file_count=len(modify_files_dict),
