@@ -1,3 +1,4 @@
+import copy
 import multiprocessing
 import os
 from time import time
@@ -88,17 +89,20 @@ def group_vote_review_pr(pr_changes: list[PRChange], formatted_pr_changes_by_fil
         all_flattened_embeddings = np.array(all_embeddings)
         # note DBSCAN expects a shape with less than or equal to 2 dimensions
         try:
-            db = DBSCAN(eps=0.5, min_samples=3).fit(all_flattened_embeddings)
+            if all_flattened_embeddings.size:
+                db = DBSCAN(eps=0.5, min_samples=3).fit(all_flattened_embeddings)
+                files_to_labels[file_name] = db.labels_
+            else:
+                files_to_labels[file_name] = []
         except ValueError as e:
             logger.error(f"Error with dbscan {e}")
-        files_to_labels[file_name] = db.labels_
-    
+        
     LABEL_THRESHOLD = 4
     # get the labels that have a count greater than the threshold
     # format: {file_name: {label: [index, ...]}}
     files_to_labels_indexes = {}
     for file_name, labels in files_to_labels.items():
-        index_dict = {}
+        index_dict: dict[str, list[int]] = {}
         for i, v in enumerate(labels):
             key = str(v)
             if key not in index_dict:
@@ -109,18 +113,23 @@ def group_vote_review_pr(pr_changes: list[PRChange], formatted_pr_changes_by_fil
     # create the final code_reviews_by_file
     for file_name, labels_dict in files_to_labels_indexes.items():
         # pick first one as diff summary doesnt really matter
-        final_code_review: CodeReview = code_reviews_by_file[0][file_name]
+        final_code_review: CodeReview = copy.deepcopy(code_reviews_by_file[0][file_name])
         final_code_review.issues = []
+        final_code_review.potential_issues = []
+        final_issues = []
+        potential_issues = []
         for label, indexes in labels_dict.items():
-            final_issues = []
             # -1 is considered as noise
             if len(indexes) >= LABEL_THRESHOLD and label != "-1":
                 # add to final issues, first issue - TODO use similarity score of all issues against each other
                 final_issues.append(files_to_issues[file_name][indexes[0]])
-            final_code_review.issues = final_issues
-            
-        majority_code_review_by_file[file_name] = final_code_review
-
+            # get potential issues which are one below the label_threshold
+            if len(indexes) == LABEL_THRESHOLD - 1 and label != "-1":
+                # add to final issues, first issue - TODO use similarity score of all issues against each other
+                potential_issues.append(files_to_issues[file_name][indexes[0]])
+        final_code_review.issues = final_issues
+        final_code_review.potential_issues = potential_issues
+        majority_code_review_by_file[file_name] = copy.deepcopy(final_code_review)
     return majority_code_review_by_file
 
 def review_pr(username: str, pr: PullRequest, repository: Repository, installation_id: int, tracking_id: str | None = None):
@@ -158,10 +167,10 @@ def review_pr(username: str, pr: PullRequest, repository: Repository, installati
                 return {"success": False, "reason": "PR is closed"}
             # handle creating comments on the pr to tell the user we are going to begin reviewing the pr
             _comment_id = create_update_review_pr_comment(pr)
-            pr_changes = get_pr_changes(repository, pr)
+            pr_changes, dropped_files = get_pr_changes(repository, pr)
             formatted_pr_changes_by_file = format_pr_changes_by_file(pr_changes)
             code_review_by_file = group_vote_review_pr(pr_changes, formatted_pr_changes_by_file, multiprocess=True, chat_logger=chat_logger)
-            _comment_id = create_update_review_pr_comment(pr, code_review_by_file=code_review_by_file)
+            _comment_id = create_update_review_pr_comment(pr, code_review_by_file=code_review_by_file, dropped_files=dropped_files)
         except Exception as e:
             posthog.capture(
                 username,
