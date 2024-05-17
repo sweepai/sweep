@@ -4,7 +4,7 @@ To ask questions about the codebase:
 <function_call>
 <search_codebase>
 <query>
-How do we the user-provided password hash against the stored hash from the database in the user-authentication service?
+Where is the logic where we compare the user-provided password hash against the stored hash from the database in the user-authentication service?
 </query>
 </search_codebase>
 </function_call>
@@ -13,10 +13,10 @@ Notice that the `query` parameter is a single, extremely detailed, specific natu
 
 Here are other examples of good questions to ask:
 
-How are GraphQL mutations constructed for updating a user's profile information, and what specific fields are being updated?
-How do the current React components render the product carousel on the homepage, and what library is being used for the carousel functionality?
-How do we currently implement the endpoint handler for processing incoming webhook events from Stripe in the backend API, and how are the events being validated and parsed?
-What is the structure of the Post model in the blog module?
+Where are the GraphQL mutations constructed for updating a user's profile information, and what specific fields are being updated?
+Where are the React components that render the product carousel on the homepage, and what library is being used for the carousel functionality?
+Where do we currently implement the endpoint handler for processing incoming webhook events from Stripe in the backend API, and how are the events being validated and parsed?
+Where is the structure of the Post model in the blog module?
 
 The above are just illustrative examples. Make sure to provide detailed, specific questions to search for relevant snippets in the codebase and only make one function call."""
 
