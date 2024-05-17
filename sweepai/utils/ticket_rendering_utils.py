@@ -627,13 +627,14 @@ def render_code_review_issues(pr: PullRequest, code_review: CodeReview, issue_ty
         code_issues = code_review.potential_issues
     code_issues_string = ""
     for issue in code_issues:
-        if issue.start_line == issue.end_line:
-            issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}"
-            issue_diff_url = f"{files_to_diffs[code_review.file_name]}R{issue.start_line}"
-        else:
-            issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}-L{issue.end_line}"
-            issue_diff_url = f"{files_to_diffs[code_review.file_name]}R{issue.start_line}-R{issue.end_line}"
-        code_issues_string += f"<li>{issue.issue_description}</li>\n\n{issue_blob_url}\n[View Diff]({issue_diff_url})"
+        if code_review.file_name in files_to_blobs:
+            if issue.start_line == issue.end_line:
+                issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}"
+                issue_diff_url = f"{files_to_diffs[code_review.file_name]}R{issue.start_line}"
+            else:
+                issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}-L{issue.end_line}"
+                issue_diff_url = f"{files_to_diffs[code_review.file_name]}R{issue.start_line}-R{issue.end_line}"
+            code_issues_string += f"<li>{issue.issue_description}</li>\n\n{issue_blob_url}\n[View Diff]({issue_diff_url})"
     return code_issues_string
 
 def escape_html(text: str) -> str:

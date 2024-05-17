@@ -155,16 +155,16 @@ def review_pr(username: str, pr: PullRequest, repository: Repository, installati
 
         try:
             # check if the pr has been merged or not
-            # if pr.state == "closed":
-            #     fire_and_forget_wrapper(posthog.capture)(
-            #         username,
-            #         "issue_closed",
-            #         properties={
-            #             **posthog_metadata,
-            #             "duration": round(time() - review_pr_start_time),
-            #         },
-            #     )
-            #     return {"success": False, "reason": "PR is closed"}
+            if pr.state == "closed":
+                fire_and_forget_wrapper(posthog.capture)(
+                    username,
+                    "issue_closed",
+                    properties={
+                        **posthog_metadata,
+                        "duration": round(time() - review_pr_start_time),
+                    },
+                )
+                return {"success": False, "reason": "PR is closed"}
             # handle creating comments on the pr to tell the user we are going to begin reviewing the pr
             _comment_id = create_update_review_pr_comment(pr)
             pr_changes, dropped_files = get_pr_changes(repository, pr)
