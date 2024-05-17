@@ -574,7 +574,7 @@ SLOW_MODEL = "claude-3-opus-20240229" # try haiku
 
 def validate_and_parse_function_call(
     function_calls_string: str, chat_gpt: ChatGPT
-) -> list[AnthropicFunctionCall]:
+) -> AnthropicFunctionCall:
     function_calls = parse_function_calls(
         function_calls_string.strip("\n") + "\n</function_call>"
     )
