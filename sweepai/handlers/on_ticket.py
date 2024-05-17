@@ -491,7 +491,6 @@ def on_ticket(
             )
 
             # START - Sweep YAML logic
-
             # Check repository for sweep.yml file.
             sweep_yml_exists = False
             sweep_yml_failed = False
@@ -551,7 +550,7 @@ def on_ticket(
                         "\n".join(
                             [
                                 f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline) - 1)}\n"
-                                for snippet in snippets
+                                for snippet in snippets + repo_context_manager.read_only_snippets
                             ]
                         ),
                     )

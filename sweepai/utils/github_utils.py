@@ -745,14 +745,14 @@ def sanitize_string_for_github(message: str):
 
 
 try:
-    g = Github(os.environ.get("GITHUB_PAT"))
-    CURRENT_USERNAME = g.get_user().login
-except Exception:
     try:
         slug = get_app()["slug"]
         CURRENT_USERNAME = f"{slug}[bot]"
     except Exception:
         CURRENT_USERNAME = GITHUB_BOT_USERNAME
+except Exception:
+    g = Github(os.environ.get("GITHUB_PAT"))
+    CURRENT_USERNAME = g.get_user().login
 
 if __name__ == "__main__":
     try:
