@@ -45,17 +45,19 @@ You will complete the following steps.
 
 a. Identify extremely specific potential root causes of the issue by pinpointing the exact potential lines of code causing the issue. Then, select which of the root causes the user is most likely to be interested in resolving based on the current state of the codebase. (1 paragraph)
 
-b. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. For each suggested change from the user, CRITICALLY think step-by-step about whether the excerpt is relevant and the best way to make the change based on the issue description. Then, write a detailed set of code changes spanning at least one change, with possibly more depending on the preceding excerpt. List all imports required. Be complete and precise. You must cover ALL changes that are required per excerpt.
+b. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the user request. For each suggested change from the user, describe a detailed set of code changes spanning at least one change, with possibly more depending on the preceding excerpt. List all imports required. Be complete and precise. You must cover ALL changes that are required per excerpt.
 
 c. Detail ALL changes that do not correspond to an excerpt from the user's issue. These changes should be necessary to resolve the issue but are not explicitly mentioned in the user's request. This code change should describe exactly what to do, referencing specific code entities in the relevant files. (optional)
 
 ### 2. Plan:
 
-List all files that need to be changed in the codebase.
+List all files that need to be changed in the codebase. For each section of code to modify:
 
-For each section of code to modify, first, write a detailed description of the changes you are going to make, making reference to entities. Then, determine where you want to start making this change. Typically, you would want to start from the last function or class header from the file, but you may also start from the last header like an if block or for loop.
+a. Write a detailed description of the changes you are going to make, making reference to entities.
 
-Then, copy the original code verbatim from the code file starting from this header into <original_code> tags, and write the new updated code in <new_code> tags. The referenced original code span should be a contiguous block long enough to cover the change.
+b. Then, think step-by-step about where to start the original code block from. Typically, you would want to start from the last function or class header from the file, but you may also start from the last header like an if block or for loop.
+
+c. Then, copy the original code from the header from b. into <original_code> tags, and write the new updated code in <new_code> tags. The referenced original code span should be a contiguous block long enough to cover the change.
 
 If multiple changes are needed in the same section of code, use a single <modify> block and apply all changes at once within that block. There should not be any overlapping changes in the same <modify> block.
 
@@ -67,22 +69,26 @@ You will complete the above instructions by following this XML format:
 
 ### 1. Issue Analysis:
 <issue_analysis>
-a. Root cause analysis
+a. [Root cause analysis]
 
 b. All changes required to resolve the issue. Follow this format:
-    1. List of proposed changes for each relevant suggested change from the user.
+    1. Extremely detailed proposed changes for each relevant suggested change from the user, with references to entities from the codebase. Pinpoint exactly which sections of code this refers to. If multiple changes are needed, list out each occurrence.
     [additional changes as needed]
 
-c. Additional changes (optional)
+c. [Additional changes (optional)]
 </issue_analysis>
 
 ### 2. Plan:
 <plan>  
 <modify file="file_path"> 
-Instructions for modifying one section of the file, with a detailed description of the changes you are going to make.
+a. [The detailed description of the changes you are going to make.]
+
+b. [Exactly where to start the original code block from.]
+
+c.
 
 <original_code>
-The original code that needs to be modified, copied verbatim from the original file. Placeholder comments like "# existing code" are NEVER permitted, you must copy the code out in FULL.
+The original code that needs to be modified, copied verbatim from the original file, starting from the header specified in section b. Placeholder comments like "# existing code" are NEVER permitted, you must copy the code out in FULL.
 </original_code>
 
 <new_code>
