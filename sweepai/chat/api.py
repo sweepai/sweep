@@ -241,8 +241,7 @@ def chat_codebase_stream(
         for _ in range(5):
             stream = chat_gpt.chat_anthropic(
                 content=user_message,
-                # model="claude-3-opus-20240229",
-                model="claude-3-sonnet-20240229",
+                model="claude-3-opus-20240229",
                 stop_sequences=["</function_call>", "</function_calls>"],
                 stream=True
             )
