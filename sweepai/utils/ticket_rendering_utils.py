@@ -20,6 +20,7 @@ import hashlib
 
 
 from sweepai.agents.pr_description_bot import PRDescriptionBot
+from sweepai.chat.api import posthog_trace
 from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
     SweepConfig,
@@ -615,7 +616,8 @@ def parse_issues_from_code_review(issue_string: str):
     return potential_issues
 
 # converts the list of issues inside a code_review into markdown text to display in a github comment
-def render_code_review_issues(pr: PullRequest, code_review: CodeReview, issue_type: str = ""):
+@posthog_trace
+def render_code_review_issues(username: str, pr: PullRequest, code_review: CodeReview, issue_type: str = "", metadata: dict = {}):
     files_to_blobs = {file.filename: file.blob_url for file in list(pr.get_files())}
     # generate the diff urls
     files_to_diffs = {}
@@ -674,7 +676,8 @@ def format_code_sections(text: str) -> str:
     return '<code>'.join(parts)
 
 # turns code_review_by_file into markdown string
-def render_pr_review_by_file(pr: PullRequest, code_review_by_file: dict[str, CodeReview], dropped_files: list[str] = []) -> str:
+@posthog_trace
+def render_pr_review_by_file(username: str, pr: PullRequest, code_review_by_file: dict[str, CodeReview], dropped_files: list[str] = [], metadata: dict = {}) -> str:
     body = f"{SWEEP_PR_REVIEW_HEADER}\n"
     reviewed_files = ""
     for file_name, code_review in code_review_by_file.items():
@@ -684,10 +687,10 @@ def render_pr_review_by_file(pr: PullRequest, code_review_by_file: dict[str, Cod
 <summary>{file_name}</summary>
 <p>{format_code_sections(code_review.diff_summary)}</p>"""
         if sweep_issues:
-            sweep_issues_string = render_code_review_issues(pr, code_review)
+            sweep_issues_string = render_code_review_issues(username, pr, code_review)
             reviewed_files += f"<p><strong>Sweep Found These Issues</strong></p><ul>{format_code_sections(sweep_issues_string)}</ul>"
         if potential_issues:
-            potential_issues_string = render_code_review_issues(pr, code_review, issue_type="potential")
+            potential_issues_string = render_code_review_issues(username, pr, code_review, issue_type="potential")
             reviewed_files += f"<details><summary><strong>Potential Issues</strong></summary><p>Sweep isn't 100% sure if the following are issues or not but they may be worth taking a look at.</p><ul>{format_code_sections(potential_issues_string)}</ul></details>"
         reviewed_files += "</details><hr>"
     if len(dropped_files) == 1:
@@ -699,7 +702,8 @@ def render_pr_review_by_file(pr: PullRequest, code_review_by_file: dict[str, Cod
 
 # handles the creation or update of the Sweep comment letting the user know that Sweep is reviewing a pr
 # returns the comment_id
-def create_update_review_pr_comment(pr: PullRequest, code_review_by_file: dict[str, CodeReview] | None = None, dropped_files: list[str] = []) -> int:
+@posthog_trace
+def create_update_review_pr_comment(username: str, pr: PullRequest, code_review_by_file: dict[str, CodeReview] | None = None, dropped_files: list[str] = [], metadata: dict = {}) -> int:
     comment_id = -1
     sweep_comment = None
     # comments that appear in the github ui in the conversation tab are considered issue comments
@@ -718,7 +722,7 @@ def create_update_review_pr_comment(pr: PullRequest, code_review_by_file: dict[s
     
     # update body of sweep_comment
     if code_review_by_file:
-        rendered_pr_review = render_pr_review_by_file(pr, code_review_by_file, dropped_files=dropped_files)
+        rendered_pr_review = render_pr_review_by_file(username, pr, code_review_by_file, dropped_files=dropped_files)
         sweep_comment.edit(rendered_pr_review)
     comment_id = sweep_comment.id
     return comment_id

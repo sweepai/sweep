@@ -1,4 +1,6 @@
+import copy
 from functools import wraps
+import traceback
 from typing import Any, Callable
 import jsonpatch
 from copy import deepcopy
@@ -22,6 +24,33 @@ from sweepai.utils.ticket_utils import prep_snippets
 
 app = FastAPI()
 
+# custom deepcopy to avoid unpickable objects, instead replacing them with a string
+def custom_deepcopy(dictionary: dict):
+    new_dictionary = {}
+    for arg, value in dictionary.items():
+        try:
+            new_value = copy.deepcopy(value)
+        except Exception:
+            new_dictionary[arg] = "Object can not be deepcopied!"
+        else:
+            new_dictionary[arg] = new_value
+    return new_dictionary
+
+# function to iterate through a dictionary and ensure all values are json serializable
+# truncates strings at 500 for sake of readability
+def make_serializable(dictionary: dict):
+    new_dictionary = {}
+    # find any unserializable objects then turn them to strings
+    for arg, value in dictionary.items():
+        try:
+            new_dictionary[arg] = json.dumps(value)[:500] + "..."
+        except TypeError:
+            try:
+                new_dictionary[arg] = str(value)[:500] + "..."
+            except Exception:
+                new_dictionary[arg] = "Unserializable"
+    return new_dictionary
+
 def posthog_trace(
     function: Callable[..., Any],
 ):
@@ -34,16 +63,42 @@ def posthog_trace(
     ):
         tracking_id = get_hash()[:10]
         metadata = {**metadata, "tracking_id": tracking_id, "username": username}
+        # attach args and kwargs to metadata
+        if args:
+            args_names = function.__code__.co_varnames[: function.__code__.co_argcount]
+            args_dict = dict(zip(args_names[1:], args)) # skip first arg which must be username
+            try:
+                posthog_args = copy.deepcopy(args_dict)
+            except TypeError:
+                posthog_args = custom_deepcopy(args_dict)
+                posthog_args = make_serializable(posthog_args)
+            else:
+                posthog_args = make_serializable(posthog_args)
+            finally:
+                metadata = {**metadata, **posthog_args}
+        if kwargs:
+            try:
+                posthog_kwargs = copy.deepcopy(kwargs)
+            except TypeError: # something went wrong during the deepcopy, this means we have to be super careful not to mutate any function params
+                posthog_kwargs = custom_deepcopy(kwargs)
+                posthog_kwargs = make_serializable(posthog_kwargs)
+            else:
+                # if no issues occured during the deepcopy we do not need to worry about mutating the function params
+                # find any unserializable objects then turn them to strings
+                posthog_kwargs = make_serializable(posthog_kwargs)
+            finally:
+                metadata = {**metadata, **posthog_kwargs}
         posthog.capture(username, f"{function.__name__} start", properties=metadata)
 
         try:
             result = function(
+                username,
                 *args,
                 metadata=metadata,
                 **kwargs
             )
         except Exception as e:
-            posthog.capture(username, f"{function.__name__} error", properties=metadata)
+            posthog.capture(username, f"{function.__name__} error", properties={**metadata, "error": str(e), "trace": traceback.format_exc()})
             raise e
         else:
             posthog.capture(username, f"{function.__name__} success", properties=metadata)
@@ -444,3 +499,4 @@ if __name__ == "__main__":
         "snippets": [snippet.model_dump() for snippet in snippets]
     })
     print(response.text)
+

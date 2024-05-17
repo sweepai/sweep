@@ -9,6 +9,7 @@ from loguru import logger
 import numpy as np
 from sklearn.cluster import DBSCAN
 
+from sweepai.chat.api import posthog_trace
 from sweepai.core.review_utils import PRReviewBot, format_pr_changes_by_file, get_pr_changes
 from sweepai.core.vector_db import cosine_similarity, embed_text_array
 from sweepai.dataclasses.codereview import CodeReview, PRChange
@@ -20,7 +21,8 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 
 # get the best issue to return based on group vote
-def get_group_voted_best_issue_index(file_name: str, label: str, files_to_labels_indexes: dict[str, dict[str, list[int]]], files_to_embeddings: dict[str, any], index_length: int):
+@posthog_trace
+def get_group_voted_best_issue_index(username: str, file_name: str, label: str, files_to_labels_indexes: dict[str, dict[str, list[int]]], files_to_embeddings: dict[str, any], index_length: int, metadata: dict = {}):
     similarity_scores = [0 for _ in range(index_length)]
     for index_i in range(index_length):
         for index_j in range(index_length):
@@ -39,7 +41,8 @@ def get_code_reviews_for_file(pr_changes: list[PRChange], formatted_pr_changes_b
     return code_review_by_file
 
 # run 5 seperate instances of review_pr and then group the resulting issues and only take the issues that appear the majority of the time (> 3)
-def group_vote_review_pr(pr_changes: list[PRChange], formatted_pr_changes_by_file: dict[str, str], multiprocess: bool = True, chat_logger: ChatLogger | None = None):
+@posthog_trace
+def group_vote_review_pr(username: str, pr_changes: list[PRChange], formatted_pr_changes_by_file: dict[str, str], multiprocess: bool = True, chat_logger: ChatLogger | None = None, metadata: dict = {}):
     majority_code_review_by_file = {}
     code_reviews_by_file = []
     GROUP_SIZE = 5
@@ -139,19 +142,20 @@ def group_vote_review_pr(pr_changes: list[PRChange], formatted_pr_changes_by_fil
             index_length = len(indexes)
             # -1 is considered as noise
             if index_length >= LABEL_THRESHOLD and label != "-1":
-                max_index = get_group_voted_best_issue_index(file_name, label, files_to_labels_indexes, files_to_embeddings, index_length)
+                max_index = get_group_voted_best_issue_index(username, file_name, label, files_to_labels_indexes, files_to_embeddings, index_length)
                 # add to final issues, first issue - TODO use similarity score of all issues against each other
                 final_issues.append(files_to_issues[file_name][max_index])
             # get potential issues which are one below the label_threshold
             if index_length == LABEL_THRESHOLD - 1 and label != "-1":
-                max_index = get_group_voted_best_issue_index(file_name, label, files_to_labels_indexes, files_to_embeddings, index_length)
+                max_index = get_group_voted_best_issue_index(username, file_name, label, files_to_labels_indexes, files_to_embeddings, index_length)
                 potential_issues.append(files_to_issues[file_name][max_index])
         final_code_review.issues = final_issues
         final_code_review.potential_issues = potential_issues
         majority_code_review_by_file[file_name] = copy.deepcopy(final_code_review)
     return majority_code_review_by_file
 
-def review_pr(username: str, pr: PullRequest, repository: Repository, installation_id: int, tracking_id: str | None = None):
+@posthog_trace
+def review_pr(username: str, pr: PullRequest, repository: Repository, installation_id: int, tracking_id: str | None = None, metadata: dict = {}):
     if not os.environ.get("CLI"):
         assert validate_license(), "License key is invalid or expired. Please contact us at team@sweep.dev to upgrade to an enterprise license."
     with logger.contextualize(
@@ -159,7 +163,7 @@ def review_pr(username: str, pr: PullRequest, repository: Repository, installati
     ):
         review_pr_start_time = time()
         chat_logger: ChatLogger = ChatLogger({"username": username,"title": f"Review PR: {pr.number}"})
-        posthog_metadata = {
+        metadata = {
             "pr_url": pr.html_url,
             "repo_full_name": repository.full_name,
             "repo_description": repository.description,
@@ -168,34 +172,31 @@ def review_pr(username: str, pr: PullRequest, repository: Repository, installati
             "function": "review_pr",
             "tracking_id": tracking_id,
         }
-        fire_and_forget_wrapper(posthog.capture)(
-            username, "review_pr_started", properties=posthog_metadata
-        )
 
         try:
             # check if the pr has been merged or not
             if pr.state == "closed":
                 fire_and_forget_wrapper(posthog.capture)(
                     username,
-                    "issue_closed",
+                    "pr_review pr_closed",
                     properties={
-                        **posthog_metadata,
+                        **metadata,
                         "duration": round(time() - review_pr_start_time),
                     },
                 )
                 return {"success": False, "reason": "PR is closed"}
             # handle creating comments on the pr to tell the user we are going to begin reviewing the pr
-            _comment_id = create_update_review_pr_comment(pr)
+            _comment_id = create_update_review_pr_comment(username, pr)
             pr_changes, dropped_files = get_pr_changes(repository, pr)
             formatted_pr_changes_by_file = format_pr_changes_by_file(pr_changes)
-            code_review_by_file = group_vote_review_pr(pr_changes, formatted_pr_changes_by_file, multiprocess=True, chat_logger=chat_logger)
-            _comment_id = create_update_review_pr_comment(pr, code_review_by_file=code_review_by_file, dropped_files=dropped_files)
+            code_review_by_file = group_vote_review_pr(username, pr_changes, formatted_pr_changes_by_file, multiprocess=True, chat_logger=chat_logger)
+            _comment_id = create_update_review_pr_comment(username, pr, code_review_by_file=code_review_by_file, dropped_files=dropped_files)
         except Exception as e:
             posthog.capture(
                 username,
                 "review_pr failed",
                 properties={
-                    **posthog_metadata,
+                    **metadata,
                     "error": str(e),
                     "trace": traceback.format_exc(),
                     "duration": round(time() - review_pr_start_time),
@@ -205,7 +206,7 @@ def review_pr(username: str, pr: PullRequest, repository: Repository, installati
         posthog.capture(
             username,
             "review_pr success",
-            properties={**posthog_metadata, "duration": round(time() - review_pr_start_time)},
+            properties={**metadata, "duration": round(time() - review_pr_start_time)},
         )
         logger.info("review_pr success in " + str(round(time() - review_pr_start_time)))
         return {"success": True}
