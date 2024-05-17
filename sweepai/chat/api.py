@@ -39,16 +39,19 @@ def custom_deepcopy(dictionary: dict):
 # function to iterate through a dictionary and ensure all values are json serializable
 # truncates strings at 500 for sake of readability
 def make_serializable(dictionary: dict):
+    MAX_STRING_LENGTH = 500
     new_dictionary = {}
     # find any unserializable objects then turn them to strings
     for arg, value in dictionary.items():
         try:
-            new_dictionary[arg] = json.dumps(value)[:500] + "..."
+            new_dictionary[arg] = json.dumps(value)
         except TypeError:
             try:
-                new_dictionary[arg] = str(value)[:500] + "..."
+                new_dictionary[arg] = str(value)[:500]
             except Exception:
                 new_dictionary[arg] = "Unserializable"
+        if len(new_dictionary[arg]) > MAX_STRING_LENGTH:
+            new_dictionary[arg] = new_dictionary[arg][:MAX_STRING_LENGTH] + "..."
     return new_dictionary
 
 def posthog_trace(
