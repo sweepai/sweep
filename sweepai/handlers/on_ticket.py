@@ -60,6 +60,7 @@ from sweepai.utils.github_utils import (
     ClonedRepo,
     commit_multi_file_changes,
     convert_pr_draft_field,
+    create_branch,
     get_github_client,
     sanitize_string_for_github,
     validate_and_sanitize_multi_file_changes,
@@ -475,7 +476,7 @@ def on_ticket(
                 "Here are the code search results. I'm now analyzing these search results to write the PR."
                 + "\n\n"
                 + create_collapsible(
-                    "Relevant code snippets (click to expand). Mentioned files will always appear here.",
+                    "Relevant files (click to expand). Mentioned files will always appear here.",
                     "\n".join(
                         [
                             f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline) - 1)}\n"
@@ -499,7 +500,7 @@ def on_ticket(
                 repo_description = "No description provided."
 
             internal_message_summary += replies_text
-            sweep_bot = construct_sweep_bot(
+            issue_request = construct_sweep_bot(
                 repo=repo,
                 repo_name=repo_name,
                 issue_url=issue_url,
@@ -511,7 +512,7 @@ def on_ticket(
                 snippets=snippets,
                 tree=tree,
                 comments=comments,
-            )
+            ).human_message.get_issue_request()
 
             try:
                 newline = "\n"
@@ -588,22 +589,20 @@ def on_ticket(
                     content="",
                 )
                 logger.info("Making PR...")
-                pull_request.branch_name = sweep_bot.create_branch(
+                pull_request.branch_name = create_branch(
                     pull_request.branch_name, base_branch=overrided_branch_name
                 )
                 modify_files_dict, changed_file, file_change_requests = handle_file_change_requests(
                     file_change_requests=file_change_requests,
-                    request=sweep_bot.human_message.get_issue_request(),
-                    branch_name=pull_request.branch_name,
-                    sweep_bot=sweep_bot,
+                    request=issue_request,
+                    cloned_repo=cloned_repo,
                     username=username,
                     installation_id=installation_id,
-                    chat_logger=chat_logger,
                 )
                 commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]
                 new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
                 previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
-                new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, file_change_requests)
+                new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, file_change_requests)
                 if files_removed and username:
                     posthog.capture(
                         username,
@@ -665,10 +664,10 @@ def on_ticket(
                 title=pull_request.title,
                 body="", # overrided later
                 pr_head=pull_request.branch_name,
-                base=sweep_bot.repo.get_branch(
-                    SweepConfig.get_branch(sweep_bot.repo)
+                base=cloned_repo.repo.get_branch(
+                    SweepConfig.get_branch(cloned_repo.repo)
                 ).commit,
-                head=sweep_bot.repo.get_branch(pull_request.branch_name).commit,
+                head=cloned_repo.repo.get_branch(pull_request.branch_name).commit,
             )
             pr_changes = rewrite_pr_description(issue_number, repo, overrided_branch_name, pull_request, pr_changes)
 
@@ -780,7 +779,7 @@ def on_ticket(
                             changes_made=diffs,
                         )
                         repo_context_manager: RepoContextManager = prep_snippets(cloned_repo=cloned_repo, query=(title + internal_message_summary + replies_text).strip("\n"), ticket_progress=None) # need to do this, can use the old query for speed
-                        sweep_bot: SweepBot = construct_sweep_bot(
+                        issue_request = construct_sweep_bot(
                             repo=repo,
                             repo_name=repo_name,
                             issue_url=issue_url,
@@ -792,7 +791,7 @@ def on_ticket(
                             snippets=snippets,
                             tree=tree,
                             comments=comments,
-                        )
+                        ).human_message.get_issue_request()
                         file_change_requests, plan = get_files_to_change_for_gha(
                             relevant_snippets=repo_context_manager.current_top_snippets,
                             read_only_snippets=repo_context_manager.read_only_snippets,
@@ -805,19 +804,21 @@ def on_ticket(
                         previous_modify_files_dict: dict[str, dict[str, str | list[str]]] | None = None
                         modify_files_dict, _, file_change_requests = handle_file_change_requests(
                             file_change_requests=file_change_requests,
-                            request=sweep_bot.human_message.get_issue_request(),
-                            branch_name=pull_request.branch_name,
-                            sweep_bot=sweep_bot,
+                            request=issue_request,
+                            cloned_repo=cloned_repo,
                             username=username,
                             installation_id=installation_id,
-                            chat_logger=chat_logger,
                             previous_modify_files_dict=previous_modify_files_dict,
                         )
                         commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]
                         try:
                             new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
                             previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
-                            new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, file_change_requests)
+                            new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(
+                                cloned_repo.repo,
+                                new_file_contents_to_commit,
+                                file_change_requests
+                            )
                             if files_removed and username:
                                 posthog.capture(
                                     username,
@@ -827,7 +828,7 @@ def on_ticket(
                                         "new_keys": ",".join(new_file_contents_to_commit.keys()) 
                                     },
                                 )
-                            commit = commit_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, commit_message, pull_request.branch_name)
+                            commit = commit_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, commit_message, pull_request.branch_name)
                         except Exception as e:
                             logger.info(f"Error in updating file{e}")
                             raise e

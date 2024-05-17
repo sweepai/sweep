@@ -1252,57 +1252,6 @@ class GithubBot(BaseModel):
         except Exception:
             return False
 
-    def clean_branch_name(self, branch: str) -> str:
-        branch = re.sub(r"[^a-zA-Z0-9_\-/]", "_", branch)
-        branch = re.sub(r"_+", "_", branch)
-        branch = branch.strip("_")
-
-        return branch
-
-    def create_branch(self, branch: str, base_branch: str = None, retry=True) -> str:
-        # Generate PR if nothing is supplied maybe
-        branch = self.clean_branch_name(branch)
-        base_branch = self.repo.get_branch(
-            base_branch if base_branch else SweepConfig.get_branch(self.repo)
-        )
-        try:
-            try:
-                test = self.repo.get_branch("sweep")
-                assert test is not None
-                # If it does exist, fix
-                branch = branch.replace(
-                    "/", "_"
-                )  # Replace sweep/ with sweep_ (temp fix)
-            except Exception:
-                pass
-
-            self.repo.create_git_ref(f"refs/heads/{branch}", base_branch.commit.sha)
-            return branch
-        except GithubException as e:
-            logger.error(f"Error: {e}, trying with other branch names...")
-            logger.warning(
-                f"{branch}\n{base_branch}, {base_branch.name}\n{base_branch.commit.sha}"
-            )
-            if retry:
-                for i in range(1, 10):
-                    try:
-                        logger.warning(f"Retrying {branch}_{i}...")
-                        _hash = get_hash()[:5]
-                        self.repo.create_git_ref(
-                            f"refs/heads/{branch}_{_hash}", base_branch.commit.sha
-                        )
-                        return f"{branch}_{_hash}"
-                    except GithubException:
-                        pass
-            else:
-                new_branch = self.repo.get_branch(branch)
-                if new_branch:
-                    return new_branch.name
-            logger.error(
-                f"Error: {e}, could not create branch name {branch} on {self.repo.full_name}"
-            )
-            raise e
-
     def populate_snippets(self, snippets: list[Snippet]):
         for snippet in snippets:
             try:

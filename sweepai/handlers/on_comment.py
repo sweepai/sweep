@@ -367,11 +367,9 @@ def on_comment(
             modify_files_dict, changes_made, file_change_requests = handle_file_change_requests(
                 file_change_requests=file_change_requests,
                 request=file_comment,
-                branch_name=branch_name,
-                sweep_bot=sweep_bot,
+                cloned_repo=cloned_repo,
                 username=username,
                 installation_id=installation_id,
-                chat_logger=chat_logger,
             )
             logger.info("\n".join(generate_diff(file_data["original_contents"], file_data["contents"]) for file_data in modify_files_dict.values()))
             commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]

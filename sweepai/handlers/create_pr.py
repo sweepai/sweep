@@ -26,7 +26,7 @@ from sweepai.core.entities import (
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import ClonedRepo, get_github_client
+from sweepai.utils.github_utils import ClonedRepo, create_branch, get_github_client
 
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
@@ -40,21 +40,18 @@ INSTRUCTIONS_FOR_REVIEW = """\
 # this should be the only modification function
 def handle_file_change_requests(
     file_change_requests: list[FileChangeRequest],
-    branch_name: str,
     request: str,
-    sweep_bot: SweepBot,
+    cloned_repo: ClonedRepo,
     username: str,
     installation_id: int,
-    chat_logger: ChatLogger = None,
     previous_modify_files_dict: dict = {},
 ):
-    sweep_bot.chat_logger = chat_logger
-    organization, repo_name = sweep_bot.repo.full_name.split("/")
+    organization, repo_name = cloned_repo.repo.full_name.split("/")
     metadata = {
-        "repo_full_name": sweep_bot.repo.full_name,
+        "repo_full_name": cloned_repo.repo.full_name,
         "organization": organization,
         "repo_name": repo_name,
-        "repo_description": sweep_bot.repo.description,
+        "repo_description": cloned_repo.repo.description,
         "username": username,
         "installation_id": installation_id,
         "function": "create_pr",
@@ -75,7 +72,7 @@ def handle_file_change_requests(
         modify_files_dict = modify(
             fcrs=file_change_requests,
             request=request,
-            cloned_repo=sweep_bot.cloned_repo,
+            cloned_repo=cloned_repo.cloned_repo,
             relevant_filepaths=relevant_filepaths,
             previous_modify_files_dict=previous_modify_files_dict,
         )
@@ -193,7 +190,7 @@ def create_config_pr(
     title = "Configure Sweep"
     branch_name = GITHUB_CONFIG_BRANCH
     if sweep_bot is not None:
-        branch_name = sweep_bot.create_branch(branch_name, retry=False)
+        branch_name = create_branch(branch_name, retry=False)
         try:
             sweep_bot.repo.create_file(
                 "sweep.yaml",
