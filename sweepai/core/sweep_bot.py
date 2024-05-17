@@ -1204,8 +1204,6 @@ class CodeGenBot(ChatGPT):
                     pr_text_response += '"""'
 
                 self.messages = self.messages[:-2]
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 e_str = str(e)
                 logger.warning(f"Exception {e_str}. Failed to parse! Retrying...")
@@ -1251,8 +1249,6 @@ class GithubBot(BaseModel):
         try:
             self.get_contents(path, branch)
             return True
-        except SystemExit:
-            raise SystemExit
         except Exception:
             return False
 
@@ -1317,8 +1313,7 @@ class GithubBot(BaseModel):
                 )
                 snippet.start = max(1, snippet.start)
                 snippet.end = min(len(snippet.content.split("\n")), snippet.end)
-            except SystemExit:
-                raise SystemExit
+
             except Exception:
                 logger.error(snippet)
 

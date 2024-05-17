@@ -595,7 +595,7 @@ def on_ticket(
                             "new_keys": ",".join(new_file_contents_to_commit.keys()) 
                         },
                     )
-                commit = commit_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, commit_message, pull_request.branch_name)
+                commit = commit_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, commit_message, pull_request.branch_name)
                 edit_sweep_comment(
                     f"Your changes have been successfully made in the branch [`{pull_request.branch_name}`](https://github.com/{repo_full_name}/tree/{pull_request.branch_name}).",
                     3,

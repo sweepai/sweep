@@ -68,8 +68,6 @@ class ExtractLeftoverComments(ChatGPT):
             )
             leftover_comments = LeftoverComments.from_string(response)
             return leftover_comments.leftover_comments
-        except SystemExit:
-            raise SystemExit
         except Exception as e:
             logger.error(f"An error occurred: {e}")
             return []
