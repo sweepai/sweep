@@ -227,6 +227,7 @@ def on_ticket(
                 None,
                 "Step 1: 🔎 Searching",
                 "Step 2: ⌨️ Coding",
+                "Step 2: 🔄️ Validating",
             ]
 
             issue_comment = None
@@ -473,7 +474,8 @@ def on_ticket(
                     ),
                     -1,
                 )
-                raise Exception("Failed to fetch files") from e
+                raise e
+
             _user_token, g = get_github_client(installation_id)
             user_token, g, repo = refresh_token()
             cloned_repo.token = user_token
@@ -485,8 +487,6 @@ def on_ticket(
 
             internal_message_summary += replies_text
 
-            get_documentation_dict(repo)
-            docs_results = ""
             sweep_bot = construct_sweep_bot(
                 repo=repo,
                 repo_name=repo_name,
@@ -500,6 +500,9 @@ def on_ticket(
                 tree=tree,
                 comments=comments,
             )
+
+            # START - Sweep YAML logic
+
             # Check repository for sweep.yml file.
             sweep_yml_exists = False
             sweep_yml_failed = False
@@ -547,9 +550,9 @@ def on_ticket(
                     )
             else:
                 logger.info("sweep.yaml file already exists.")
+            # END - Sweep YAML logic
 
             try:
-                # ANALYZE SNIPPETS
                 newline = "\n"
                 edit_sweep_comment(
                     "I found the following snippets in your repository. I will now analyze"
@@ -609,31 +612,6 @@ def on_ticket(
                 )
 
                 # Render plan start
-                files_progress: list[tuple[str, str, str, str]] = [
-                    (
-                        file_change_request.entity_display,
-                        file_change_request.instructions_display,
-                        "⏳ In Progress",
-                        "",
-                    )
-                    for file_change_request in file_change_requests
-                ]
-
-                checkboxes_progress: list[tuple[str, str, str]] = [
-                    (
-                        file_change_request.entity_display,
-                        file_change_request.instructions_display,
-                        " ",
-                    )
-                    for file_change_request in file_change_requests
-                    if not file_change_request.change_type == "check"
-                ]
-                checkboxes_contents = "\n".join(
-                    [
-                        f"#### `{filename}`\n{blockquote(instructions)}\n"
-                        for filename, instructions, check in checkboxes_progress
-                    ]
-                )
                 planning_markdown = ""
                 for fcr in file_change_requests:
                     parsed_fcr = parse_fcr(fcr)
@@ -649,8 +627,21 @@ def on_ticket(
 
                 edit_sweep_comment(planning_markdown, 2)
                 # Render plan end
+            except Exception as e:
+                logger.exception(e)
+                # title and summary are defined elsewhere
+                edit_sweep_comment(
+                    (
+                        "I'm sorry, but it looks like an error has occurred due to"
+                        + f" a planning failure. The error message is {str(e)}. Feel free to add more details to the issue description"
+                        + " so Sweep can better address it. Alternatively, reach out to Kevin or William for help at"
+                        + " https://community.sweep.dev/."
+                    ),
+                    -1,
+                )
+                raise e
 
-                delete_branch = False
+            try:
                 pull_request: PullRequest = PullRequest(
                     title="Sweep: " + title,
                     branch_name="sweep/" + to_branch_name(title),
@@ -685,365 +676,260 @@ def on_ticket(
                         )
                     commit = commit_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, commit_message, pull_request.branch_name)
                 except Exception as e:
-                    logger.info(f"Error in updating file{e}")
+                    logger.info(f"Error in updating file: {e}")
                     raise e
-                # set all fcrs without a corresponding change to be failed
-                for file_change_request in file_change_requests:
-                    if file_change_request.status != "succeeded":
-                        file_change_request.status = "failed"
-                    # also update all commit hashes associated with the fcr
-                    file_change_request.commit_hash_url = commit.html_url if commit else None
-                if not file_change_requests:
-                    raise NoFilesException()
-                changed_files = []
-
-                # append all files that have been changed
-                if modify_files_dict:
-                    for file_name, _ in modify_files_dict.items():
-                        changed_files.append(file_name)
-                commit_hash: str = (
-                    commit
-                    if isinstance(commit, str)
-                    else (
-                        commit.sha
-                        if commit is not None
-                        else repo.get_branch(
-                            pull_request.branch_name
-                        ).commit.sha
-                    )
-                )
-                commit_url = (
-                    f"https://github.com/{repo_full_name}/commit/{commit_hash}"
-                )
-                commit_url_display = (
-                    f"<a href='{commit_url}'><code>{commit_hash[:7]}</code></a>"
-                )
-                create_error_logs(
-                    commit_url_display,
-                    None,
-                    status=(
-                        "✓"
-                    ),
-                )
-                collapsible_template.format(
-                    summary="Checklist",
-                    body=checkboxes_contents,
-                    opened="open",
-                )
-                # Refresh token
-                try:
-                    current_issue = repo.get_issue(number=issue_number)
-                except BadCredentialsException:
-                    user_token, g, repo = refresh_token()
-                    cloned_repo.token = user_token
-
-                logger.info(files_progress)
-                edit_sweep_comment(checkboxes_contents, 2)
-                pr_changes = MockPR(
-                    file_count=len(modify_files_dict),
-                    title=pull_request.title,
-                    body="", # overrided later
-                    pr_head=pull_request.branch_name,
-                    base=sweep_bot.repo.get_branch(
-                        SweepConfig.get_branch(sweep_bot.repo)
-                    ).commit,
-                    head=sweep_bot.repo.get_branch(pull_request.branch_name).commit,
-                )
-                pr_changes = rewrite_pr_description(issue_number, repo, overrided_branch_name, pull_request, pr_changes)
-
-                change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
-                review_message = (
-                    "Here are my self-reviews of my changes at" + change_location
-                )
-
-                fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
-
-                revert_buttons = []
-                for changed_file in set(changed_files):
-                    revert_buttons.append(
-                        Button(label=f"{RESET_FILE} {changed_file}")
-                    )
-                revert_buttons_list = ButtonList(
-                    buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
-                )
-
-                # delete failing sweep yaml if applicable
-                if sweep_yml_failed:
-                    try:
-                        repo.delete_file(
-                            "sweep.yaml",
-                            "Delete failing sweep.yaml",
-                            branch=pr_changes.pr_head,
-                            sha=repo.get_contents("sweep.yaml").sha,
-                        )
-                    except Exception:
-                        pass
-
-                # create draft pr, then convert to regular pr later
-                pr: GithubPullRequest = repo.create_pull(
-                    title=pr_changes.title,
-                    body=pr_changes.body,
-                    head=pr_changes.pr_head,
-                    base=overrided_branch_name or SweepConfig.get_branch(repo),
-                    # removed draft PR
-                    draft=False,
-                )
-
-                try:
-                    pr.add_to_assignees(username)
-                except Exception as e:
-                    logger.error(
-                        f"Failed to add assignee {username}: {e}, probably a bot."
-                    )
-
-                if revert_buttons:
-                    pr.create_issue_comment(
-                        revert_buttons_list.serialize() + BOT_SUFFIX
-                    )
-
-                # add comments before labelling
-                pr.add_to_labels(GITHUB_LABEL_NAME)
-                current_issue.create_reaction("rocket")
-                heres_pr_message = f'<h1 align="center">🚀 Here\'s the PR! <a href="{pr.html_url}">#{pr.number}</a></h1>'
-                progress_message = ''
-                edit_sweep_comment(
-                    review_message + "\n\nSuccess! 🚀",
-                    4,
-                    pr_message=(
-                        f"{center(heres_pr_message)}\n{center(progress_message)}\n{center(payment_message_start)}"
-                    ),
-                    done=True,
-                )
-
-                send_email_to_user(title, issue_number, username, repo_full_name, tracking_id, repo_name, g, file_change_requests, pr_changes, pr)
-
-                # poll for github to check when gha are done
-                total_poll_attempts = 0
-                total_edit_attempts = 0
-                SLEEP_DURATION_SECONDS = 15
-                GITHUB_ACTIONS_ENABLED = get_gha_enabled(repo=repo) and DEPLOYMENT_GHA_ENABLED
-                GHA_MAX_EDIT_ATTEMPTS = 5 # max number of times to edit PR
-                current_commit = pr.head.sha
-                while True and GITHUB_ACTIONS_ENABLED:
-                    logger.info(
-                        f"Polling to see if Github Actions have finished... {total_poll_attempts}"
-                    )
-                    # we wait at most 60 minutes
-                    if total_poll_attempts * SLEEP_DURATION_SECONDS // 60 >= 60:
-                        break
-                    else:
-                        # wait one minute between check attempts
-                        total_poll_attempts += 1
-                        from time import sleep
-
-                        sleep(SLEEP_DURATION_SECONDS)
-                    # refresh the pr
-                    pr = repo.get_pull(pr.number)
-                    current_commit = repo.get_pull(pr.number).head.sha # IMPORTANT: resync PR otherwise you'll fetch old GHA runs
-                    runs: list[WorkflowRun] = list(repo.get_workflow_runs(branch=pr.head.ref, head_sha=current_commit))
-                    # if all runs have succeeded or have no result, break
-                    if all([run.conclusion in ["success", None] for run in runs]):
-                        break
-                    # if any of them have failed we retry
-                    if any([run.conclusion == "failure" for run in runs]):
-                        failed_runs = [
-                            run for run in runs if run.conclusion == "failure"
-                        ]
-
-                        failed_gha_logs: list[str] = get_failing_gha_logs(
-                            failed_runs,
-                            installation_id,
-                        )
-                        if failed_gha_logs:
-                            # make edits to the PR
-                            # TODO: look into rollbacks so we don't continue adding onto errors
-                            cloned_repo = ClonedRepo( # reinitialize cloned_repo to avoid conflicts
-                                repo_full_name,
-                                installation_id=installation_id,
-                                token=user_token,
-                                repo=repo,
-                                branch=pr.head.ref,
-                            )
-                            diffs = get_branch_diff_text(repo=repo, branch=pr.head.ref, base_branch=pr.base.ref)
-                            problem_statement = f"{title}\n{internal_message_summary}\n{replies_text}"
-                            all_information_prompt = GHA_PROMPT.format(
-                                problem_statement=problem_statement,
-                                github_actions_logs=failed_gha_logs,
-                                changes_made=diffs,
-                            )
-                            repo_context_manager: RepoContextManager = prep_snippets(cloned_repo=cloned_repo, query=(title + internal_message_summary + replies_text).strip("\n"), ticket_progress=None) # need to do this, can use the old query for speed
-                            sweep_bot: SweepBot = construct_sweep_bot(
-                                repo=repo,
-                                repo_name=repo_name,
-                                issue_url=issue_url,
-                                repo_description=repo_description,
-                                title="Fix the following errors to complete the user request.",
-                                message_summary=all_information_prompt,
-                                cloned_repo=cloned_repo,
-                                chat_logger=chat_logger,
-                                snippets=snippets,
-                                tree=tree,
-                                comments=comments,
-                            )
-                            file_change_requests, plan = get_files_to_change_for_gha(
-                                relevant_snippets=repo_context_manager.current_top_snippets,
-                                read_only_snippets=repo_context_manager.read_only_snippets,
-                                problem_statement=all_information_prompt,
-                                updated_files=modify_files_dict,
-                                cloned_repo=cloned_repo,
-                                chat_logger=chat_logger,
-                            )
-                            validate_file_change_requests(file_change_requests, cloned_repo)
-                            previous_modify_files_dict: dict[str, dict[str, str | list[str]]] | None = None
-                            modify_files_dict, _, file_change_requests = handle_file_change_requests(
-                                file_change_requests=file_change_requests,
-                                request=sweep_bot.human_message.get_issue_request(),
-                                branch_name=pull_request.branch_name,
-                                sweep_bot=sweep_bot,
-                                username=username,
-                                installation_id=installation_id,
-                                chat_logger=chat_logger,
-                                previous_modify_files_dict=previous_modify_files_dict,
-                            )
-                            commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]
-                            try:
-                                new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
-                                previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
-                                new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, file_change_requests)
-                                if files_removed and username:
-                                    posthog.capture(
-                                        username,
-                                        "polluted_commits_error",
-                                        properties={
-                                            "old_keys": ",".join(previous_file_contents_to_commit.keys()),
-                                            "new_keys": ",".join(new_file_contents_to_commit.keys()) 
-                                        },
-                                    )
-                                commit = commit_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, commit_message, pull_request.branch_name)
-                            except Exception as e:
-                                logger.info(f"Error in updating file{e}")
-                                raise e
-                            total_edit_attempts += 1
-                            if total_edit_attempts >= GHA_MAX_EDIT_ATTEMPTS:
-                                logger.info(f"Tried to edit PR {GHA_MAX_EDIT_ATTEMPTS} times, giving up.")
-                                break
-                    # if none of the runs have completed we wait and poll github
-                    logger.info(
-                        f"No Github Actions have failed yet and not all have succeeded yet, waiting for {SLEEP_DURATION_SECONDS} seconds before polling again..."
-                    )
-                # break from main for loop
-                convert_pr_draft_field(pr, is_draft=False, installation_id=installation_id)
-            except MaxTokensExceeded as e:
-                logger.info("Max tokens exceeded")
-                if chat_logger and chat_logger.is_paying_user():
-                    edit_sweep_comment(
-                        (
-                            f"Sorry, I could not edit `{e.filename}` as this file is too long."
-                            " We are currently working on improved file streaming to address"
-                            " this issue.\n"
-                        ),
-                        -1,
-                    )
-                else:
-                    edit_sweep_comment(
-                        (
-                            f"Sorry, I could not edit `{e.filename}` as this file is too"
-                            " long.\n\nIf this file is incorrect, please describe the desired"
-                            " file in the prompt. However, if you would like to edit longer"
-                            " files, consider upgrading to [Sweep Pro](https://sweep.dev/) for"
-                            " longer context lengths.\n"
-                        ),
-                        -1,
-                    )
-                delete_branch = True
-                raise e
-            except NoFilesException as e:
-                logger.info("Sweep could not find files to modify")
-                edit_sweep_comment(
-                    (
-                        "Sorry, Sweep could not find any appropriate files to edit to address"
-                        " this issue. If this is a mistake, please provide more context and Sweep"
-                        f" will retry!\n\n@{username}, please edit the issue description to"
-                        " include more details. You can also ask for help on our community" 
-                        " forum: https://community.sweep.dev/"
-                    ),
-                    -1,
-                )
-                delete_branch = True
-                raise e
-            except openai.BadRequestError as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
-                edit_sweep_comment(
-                    (
-                        "I'm sorry, but it looks our model has ran out of context length. We're"
-                        " trying to make this happen less, but one way to mitigate this is to"
-                        " code smaller files. If this error persists report it at"
-                        " https://community.sweep.dev/."
-                    ),
-                    -1,
-                )
-                posthog.capture(
-                    username,
-                    "failed",
-                    properties={
-                        "error": str(e),
-                        "trace": traceback.format_exc(),
-                        "reason": "Invalid request error / context length",
-                        **metadata,
-                        "duration": round(time() - on_ticket_start_time),
-                    },
-                )
-                delete_branch = True
-                raise e
             except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
-                # title and summary are defined elsewhere
-                if len(title + summary) < 60:
-                    edit_sweep_comment(
-                        (
-                            "I'm sorry, but it looks like an error occurred due to" 
-                            f" a planning failure. The error message is {str(e)}. Feel free to add more details to the issue description"
-                            " so Sweep can better address it. Alternatively, post on our community forum"
-                            " for assistance: https://community.sweep.dev/"
-                        ),
-                        -1,
-                    )  
-                else:
-                    edit_sweep_comment(
-                        (
-                            "I'm sorry, but it looks like an error has occurred due to"
-                            + f" a planning failure. The error message is {str(e)}. Feel free to add more details to the issue description"
-                            + " so Sweep can better address it. Alternatively, reach out to Kevin or William for help at"
-                            + " https://community.sweep.dev/."
-                        ),
-                        -1,
-                    )
+                logger.exception(e)
+                edit_sweep_comment(
+                    (
+                        "I'm sorry, but it looks like an error has occurred due to"
+                        + f" a code editing failure. The error message is {str(e)}. Feel free to add more details to the issue description"
+                        + " so Sweep can better address it. Alternatively, reach out to Kevin or William for help at"
+                        + " https://community.sweep.dev/."
+                    ),
+                    -1,
+                )
                 raise e
             else:
                 try:
                     fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
                     fire_and_forget_wrapper(add_emoji)("rocket")
-                except SystemExit:
-                    raise SystemExit
                 except Exception as e:
                     logger.error(e)
 
-            if delete_branch:
+            # set all fcrs without a corresponding change to be failed
+            for file_change_request in file_change_requests:
+                if file_change_request.status != "succeeded":
+                    file_change_request.status = "failed"
+                # also update all commit hashes associated with the fcr
+                file_change_request.commit_hash_url = commit.html_url if commit else None
+            if not file_change_requests:
+                raise NoFilesException()
+            changed_files = []
+
+            # append all files that have been changed
+            if modify_files_dict:
+                for file_name, _ in modify_files_dict.items():
+                    changed_files.append(file_name)
+            commit_hash: str = (
+                commit
+                if isinstance(commit, str)
+                else (
+                    commit.sha
+                    if commit is not None
+                    else repo.get_branch(
+                        pull_request.branch_name
+                    ).commit.sha
+                )
+            )
+            commit_url = (
+                f"https://github.com/{repo_full_name}/commit/{commit_hash}"
+            )
+            commit_url_display = (
+                f"<a href='{commit_url}'><code>{commit_hash[:7]}</code></a>"
+            )
+            # Refresh token
+            try:
+                current_issue = repo.get_issue(number=issue_number)
+            except BadCredentialsException:
+                user_token, g, repo = refresh_token()
+                cloned_repo.token = user_token
+
+            pr_changes = MockPR(
+                file_count=len(modify_files_dict),
+                title=pull_request.title,
+                body="", # overrided later
+                pr_head=pull_request.branch_name,
+                base=sweep_bot.repo.get_branch(
+                    SweepConfig.get_branch(sweep_bot.repo)
+                ).commit,
+                head=sweep_bot.repo.get_branch(pull_request.branch_name).commit,
+            )
+            pr_changes = rewrite_pr_description(issue_number, repo, overrided_branch_name, pull_request, pr_changes)
+
+            change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
+            review_message = (
+                "Here are my self-reviews of my changes at" + change_location
+            )
+
+            fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
+
+            revert_buttons = []
+            for changed_file in set(changed_files):
+                revert_buttons.append(
+                    Button(label=f"{RESET_FILE} {changed_file}")
+                )
+            revert_buttons_list = ButtonList(
+                buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
+            )
+
+            # delete failing sweep yaml if applicable
+            if sweep_yml_failed:
                 try:
-                    if pull_request.branch_name.startswith("sweep"):
-                        repo.get_git_ref(
-                            f"heads/{pull_request.branch_name}"
-                        ).delete()
-                    else:
-                        raise Exception(
-                            f"Branch name {pull_request.branch_name} does not start with sweep/"
+                    repo.delete_file(
+                        "sweep.yaml",
+                        "Delete failing sweep.yaml",
+                        branch=pr_changes.pr_head,
+                        sha=repo.get_contents("sweep.yaml").sha,
+                    )
+                except Exception:
+                    pass
+
+            # create draft pr, then convert to regular pr later
+            pr: GithubPullRequest = repo.create_pull(
+                title=pr_changes.title,
+                body=pr_changes.body,
+                head=pr_changes.pr_head,
+                base=overrided_branch_name or SweepConfig.get_branch(repo),
+                # removed draft PR
+                draft=False,
+            )
+
+            try:
+                pr.add_to_assignees(username)
+            except Exception as e:
+                logger.error(
+                    f"Failed to add assignee {username}: {e}, probably a bot."
+                )
+
+            if revert_buttons:
+                pr.create_issue_comment(
+                    revert_buttons_list.serialize() + BOT_SUFFIX
+                )
+
+            # add comments before labelling
+            pr.add_to_labels(GITHUB_LABEL_NAME)
+            current_issue.create_reaction("rocket")
+            heres_pr_message = f'<h1 align="center">🚀 Here\'s the PR! <a href="{pr.html_url}">#{pr.number}</a></h1>'
+            progress_message = ''
+            edit_sweep_comment(
+                review_message + "\n\nSuccess! 🚀",
+                4,
+                pr_message=(
+                    f"{center(heres_pr_message)}\n{center(progress_message)}\n{center(payment_message_start)}"
+                ),
+                done=True,
+            )
+
+            send_email_to_user(title, issue_number, username, repo_full_name, tracking_id, repo_name, g, file_change_requests, pr_changes, pr)
+
+            # poll for github to check when gha are done
+            total_poll_attempts = 0
+            total_edit_attempts = 0
+            SLEEP_DURATION_SECONDS = 15
+            GITHUB_ACTIONS_ENABLED = get_gha_enabled(repo=repo) and DEPLOYMENT_GHA_ENABLED
+            GHA_MAX_EDIT_ATTEMPTS = 5 # max number of times to edit PR
+            current_commit = pr.head.sha
+            while True and GITHUB_ACTIONS_ENABLED:
+                logger.info(
+                    f"Polling to see if Github Actions have finished... {total_poll_attempts}"
+                )
+                # we wait at most 60 minutes
+                if total_poll_attempts * SLEEP_DURATION_SECONDS // 60 >= 60:
+                    break
+                else:
+                    # wait one minute between check attempts
+                    total_poll_attempts += 1
+                    from time import sleep
+
+                    sleep(SLEEP_DURATION_SECONDS)
+                # refresh the pr
+                pr = repo.get_pull(pr.number)
+                current_commit = repo.get_pull(pr.number).head.sha # IMPORTANT: resync PR otherwise you'll fetch old GHA runs
+                runs: list[WorkflowRun] = list(repo.get_workflow_runs(branch=pr.head.ref, head_sha=current_commit))
+                # if all runs have succeeded or have no result, break
+                if all([run.conclusion in ["success", None] for run in runs]):
+                    break
+                # if any of them have failed we retry
+                if any([run.conclusion == "failure" for run in runs]):
+                    failed_runs = [
+                        run for run in runs if run.conclusion == "failure"
+                    ]
+
+                    failed_gha_logs: list[str] = get_failing_gha_logs(
+                        failed_runs,
+                        installation_id,
+                    )
+                    if failed_gha_logs:
+                        # make edits to the PR
+                        # TODO: look into rollbacks so we don't continue adding onto errors
+                        cloned_repo = ClonedRepo( # reinitialize cloned_repo to avoid conflicts
+                            repo_full_name,
+                            installation_id=installation_id,
+                            token=user_token,
+                            repo=repo,
+                            branch=pr.head.ref,
                         )
-                except Exception as e:
-                    logger.error(e)
-                    logger.error(traceback.format_exc())
-                    logger.info("Deleted branch", pull_request.branch_name)
+                        diffs = get_branch_diff_text(repo=repo, branch=pr.head.ref, base_branch=pr.base.ref)
+                        problem_statement = f"{title}\n{internal_message_summary}\n{replies_text}"
+                        all_information_prompt = GHA_PROMPT.format(
+                            problem_statement=problem_statement,
+                            github_actions_logs=failed_gha_logs,
+                            changes_made=diffs,
+                        )
+                        repo_context_manager: RepoContextManager = prep_snippets(cloned_repo=cloned_repo, query=(title + internal_message_summary + replies_text).strip("\n"), ticket_progress=None) # need to do this, can use the old query for speed
+                        sweep_bot: SweepBot = construct_sweep_bot(
+                            repo=repo,
+                            repo_name=repo_name,
+                            issue_url=issue_url,
+                            repo_description=repo_description,
+                            title="Fix the following errors to complete the user request.",
+                            message_summary=all_information_prompt,
+                            cloned_repo=cloned_repo,
+                            chat_logger=chat_logger,
+                            snippets=snippets,
+                            tree=tree,
+                            comments=comments,
+                        )
+                        file_change_requests, plan = get_files_to_change_for_gha(
+                            relevant_snippets=repo_context_manager.current_top_snippets,
+                            read_only_snippets=repo_context_manager.read_only_snippets,
+                            problem_statement=all_information_prompt,
+                            updated_files=modify_files_dict,
+                            cloned_repo=cloned_repo,
+                            chat_logger=chat_logger,
+                        )
+                        validate_file_change_requests(file_change_requests, cloned_repo)
+                        previous_modify_files_dict: dict[str, dict[str, str | list[str]]] | None = None
+                        modify_files_dict, _, file_change_requests = handle_file_change_requests(
+                            file_change_requests=file_change_requests,
+                            request=sweep_bot.human_message.get_issue_request(),
+                            branch_name=pull_request.branch_name,
+                            sweep_bot=sweep_bot,
+                            username=username,
+                            installation_id=installation_id,
+                            chat_logger=chat_logger,
+                            previous_modify_files_dict=previous_modify_files_dict,
+                        )
+                        commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]
+                        try:
+                            new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
+                            previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
+                            new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, file_change_requests)
+                            if files_removed and username:
+                                posthog.capture(
+                                    username,
+                                    "polluted_commits_error",
+                                    properties={
+                                        "old_keys": ",".join(previous_file_contents_to_commit.keys()),
+                                        "new_keys": ",".join(new_file_contents_to_commit.keys()) 
+                                    },
+                                )
+                            commit = commit_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, commit_message, pull_request.branch_name)
+                        except Exception as e:
+                            logger.info(f"Error in updating file{e}")
+                            raise e
+                        total_edit_attempts += 1
+                        if total_edit_attempts >= GHA_MAX_EDIT_ATTEMPTS:
+                            logger.info(f"Tried to edit PR {GHA_MAX_EDIT_ATTEMPTS} times, giving up.")
+                            break
+                # if none of the runs have completed we wait and poll github
+                logger.info(
+                    f"No Github Actions have failed yet and not all have succeeded yet, waiting for {SLEEP_DURATION_SECONDS} seconds before polling again..."
+                )
+            # break from main for loop
+            convert_pr_draft_field(pr, is_draft=False, installation_id=installation_id)
+
         except Exception as e:
             posthog.capture(
                 username,
