@@ -680,7 +680,7 @@ def render_pr_review_by_file(pr: PullRequest, code_review_by_file: dict[str, Cod
 <p>{format_code_sections(code_review.diff_summary)}</p>"""
         if potential_issues:
             potential_issues_string = render_code_review_issues(pr, code_review)
-            reviewed_files += f"<p><strong>Potential Issues</strong></p><ul>{format_code_sections(potential_issues_string)}</ul></details><hr>"
+            reviewed_files += f"<p><strong>Sweep Found These Issues</strong></p><ul>{format_code_sections(potential_issues_string)}</ul></details><hr>"
         else:
             reviewed_files += "<p>No issues found with the reviewed changes</p></details><hr>"
     return body + reviewed_files

@@ -102,7 +102,7 @@ def batch_by_token_count_for_voyage(
 
 # lru_cache(maxsize=20)
 # @redis_cache()
-def embed_text_array(texts: tuple[str]) -> list[np.ndarray]:
+def embed_text_array(texts: list[str]) -> list[np.ndarray]:
     embeddings = []
     texts = [text if text else " " for text in texts]
     batches = [texts[i : i + BATCH_SIZE] for i in range(0, len(texts), BATCH_SIZE)]

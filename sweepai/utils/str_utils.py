@@ -161,5 +161,5 @@ def objects_to_xml(objects: list[object], object_name: str, outer_field_name: st
     if outer_field_name:
         objects_string = f"<{outer_field_name}>\n{objects_string}</{outer_field_name}>"
     else:
-        objects_string = f"<{object_name}>\n{objects_string}</{object_name}>"
+        objects_string = f"<{object_name}s>\n{objects_string}</{object_name}s>"
     return objects_string
