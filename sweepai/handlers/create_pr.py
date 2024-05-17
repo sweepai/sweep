@@ -72,7 +72,7 @@ def handle_file_change_requests(
         modify_files_dict = modify(
             fcrs=file_change_requests,
             request=request,
-            cloned_repo=cloned_repo.cloned_repo,
+            cloned_repo=cloned_repo,
             relevant_filepaths=relevant_filepaths,
             previous_modify_files_dict=previous_modify_files_dict,
         )
