@@ -19,7 +19,6 @@ from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name
 from sweepai.config.server import DEFAULT_GPT4_MODEL
 from sweepai.core.annotate_code_openai import get_annotated_source_code
 from sweepai.core.chat import ChatGPT
-from sweepai.core.context_pruning import run_ripgrep_command
 from sweepai.core.entities import (
     FileChangeRequest,
     Message,
@@ -528,35 +527,6 @@ def get_files_to_change(
             issue_excerpts = issue_excerpt_match.group(1)
             issue_excerpts = issue_excerpts.strip("\n")
 
-        # entities_message = ""
-        # entities = get_list_of_entities(joint_message + "\n\n" + context_files_to_change_prompt)
-        # relevant_files = [snippet.file_path for snippet in relevant_snippets + read_only_snippets]
-        # lines_cutoff = 20
-        # for entity in entities:
-        #     rg_output = run_ripgrep_command(entity, cloned_repo.repo_dir)
-        #     file_output_dict = cleaned_rg_output(cloned_repo.repo_dir, SweepConfig(), rg_output)
-        #     file_output_dict = {file_path: output for file_path, output in file_output_dict.items() if file_path in relevant_files}
-        #     if file_output_dict:
-        #         entities_message += f"Here are the files that contain the keyword `{entity}`:\n\n"
-        #         for file_path, output in file_output_dict.items():
-        #             lines = output.splitlines()
-        #             if len(lines) > lines_cutoff:
-        #                 lines = lines[:lines_cutoff] + ["..."]
-        #             output = "\n".join(lines)
-        #             entities_message += f"File: {file_path}\n{output}\n\n"
-        #     print("file_output_dict", file_output_dict)
-        # print(entities_message)
-
-        # if entities_message:
-        #     entities_message = f"<keywords>\n{entities_message}\n</keywords>"
-        #     messages.append(
-        #         Message(
-        #             role="user",
-        #             content=entities_message,
-        #         )
-        #     )
-        #     joint_message += "\n" + entities_message
-
         # breakpoint()
         files_to_change_response: str = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + files_to_change_prompt.format(issue_excerpts=issue_excerpts),
@@ -568,13 +538,15 @@ def get_files_to_change(
         )
         expected_plan_count = 1
         calls = 0
-        # breakpoint()
         # pylint: disable=E1101
         while files_to_change_response.count("</plan>") < expected_plan_count and calls < 3:
+            last_block = max(files_to_change_response.find("<original_code>"), files_to_change_response.find("<new_code>"))
+            files_to_change_response = files_to_change_response[:last_block].rstrip()
+            chat_gpt.messages[-1].content = files_to_change_response
             # ask for a second response
             try:
                 next_response: str = chat_gpt.chat_anthropic(
-                    content="Continue generating, making sure to finish the plan coherently. You may be in the middle of an XML block or section of code.",
+                    content="",
                     model=MODEL,
                     temperature=0.1,
                     images=images,
@@ -661,7 +633,7 @@ def context_get_files_to_change(
     seed: int = 0,
     images: list[tuple[str, str, str]] | None = None
 ):
-    use_openai = False
+    use_openai = True
     messages: list[Message] = []
     messages.append(
         Message(role="system", content=issue_excerpt_system_prompt, key="system")
@@ -752,35 +724,6 @@ def context_get_files_to_change(
         print(message.content + "\n\n")
     joint_message = "\n\n".join(message.content for message in messages[1:])
     print("messages", joint_message)
-
-    entities_message = ""
-    entities = get_list_of_entities(joint_message + "\n\n" + context_files_to_change_prompt)
-    relevant_files = [snippet.file_path for snippet in relevant_snippets + read_only_snippets]
-    lines_cutoff = 20
-    for entity in entities:
-        rg_output = run_ripgrep_command(entity, cloned_repo.repo_dir)
-        file_output_dict = cleaned_rg_output(cloned_repo.repo_dir, SweepConfig(), rg_output)
-        file_output_dict = {file_path: output for file_path, output in file_output_dict.items() if file_path in relevant_files}
-        if file_output_dict:
-            entities_message += f"Here are the files that contain the keyword `{entity}`:\n\n"
-            for file_path, output in file_output_dict.items():
-                lines = output.splitlines()
-                if len(lines) > lines_cutoff:
-                    lines = lines[:lines_cutoff] + ["..."]
-                output = "\n".join(lines)
-                entities_message += f"File: {file_path}\n{output}\n\n"
-        print("file_output_dict", file_output_dict)
-    print(entities_message)
-
-    if entities_message:
-        entities_message = f"<keywords>\n{entities_message}\n</keywords>"
-        messages.append(
-            Message(
-                role="user",
-                content=entities_message,
-            )
-        )
-        joint_message += "\n\n" + entities_message
 
     chat_gpt = ChatGPT(
         messages=[
