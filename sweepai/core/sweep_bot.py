@@ -1,36 +1,26 @@
 import base64
 import os
 import re
-from typing import Dict
 
-from github.ContentFile import ContentFile
 from github.GithubException import GithubException
 from github.Repository import Repository
 from loguru import logger
 from networkx import Graph
-from pydantic import BaseModel
 from tqdm import tqdm
 from rapidfuzz import fuzz
 
 from sweepai.agents.modify_utils import contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, parse_fcr, indent
-from sweepai.config.client import SweepConfig, get_branch_name_config
-from sweepai.config.server import DEFAULT_GPT4_MODEL
 from sweepai.core.annotate_code_openai import get_annotated_source_code
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import (
     FileChangeRequest,
     Message,
-    NoFilesException,
-    ProposedIssue,
-    PullRequest,
     RegexMatchError,
     Snippet,
 )
 from sweepai.core.prompts import (
     context_files_to_change_prompt,
     context_files_to_change_system_prompt,
-    pull_request_prompt,
-    subissues_prompt,
     gha_files_to_change_system_prompt,
     gha_files_to_change_prompt,
     test_files_to_change_system_prompt,
@@ -48,9 +38,6 @@ from sweepai.core.planning_prompts import (
 from sweepai.utils.chat_logger import ChatLogger
 # from sweepai.utils.previous_diff_utils import get_relevant_commits
 from sweepai.utils.diff import generate_diff
-from sweepai.utils.progress import (
-    TicketProgress,
-)
 from sweepai.utils.github_utils import ClonedRepo
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
@@ -1160,110 +1147,3 @@ def get_files_to_change_for_gha(
         print("RegexMatchError", e)
 
     return [], ""
-
-class CodeGenBot(ChatGPT):
-    def generate_subissues(self, retries: int = 3):
-        subissues: list[ProposedIssue] = []
-        for count in range(retries):
-            try:
-                logger.info(f"Generating for the {count}th time...")
-                files_to_change_response = self.chat(
-                    subissues_prompt, message_key="subissues"
-                )  # Dedup files to change here
-                subissues = []
-                for re_match in re.finditer(
-                    ProposedIssue._regex, files_to_change_response, re.DOTALL
-                ):
-                    subissues.append(ProposedIssue.from_string(re_match.group(0)))
-                if subissues:
-                    return subissues
-            except RegexMatchError:
-                logger.warning("Failed to parse! Retrying...")
-                self.delete_messages_from_chat("files_to_change")
-                continue
-        raise NoFilesException()
-
-    def generate_pull_request(self, retries=2) -> PullRequest:
-        for count in range(retries):
-            try:
-                pr_text_response = self.chat(
-                    pull_request_prompt,
-                    message_key="pull_request",
-                    model=DEFAULT_GPT4_MODEL,
-                )
-
-                # Add triple quotes if not present
-                if not pr_text_response.strip().endswith('"""'):
-                    pr_text_response += '"""'
-
-                self.messages = self.messages[:-2]
-            except Exception as e:
-                e_str = str(e)
-                logger.warning(f"Exception {e_str}. Failed to parse! Retrying...")
-                self.messages = self.messages[:-1]
-                continue
-            pull_request = PullRequest.from_string(pr_text_response)
-
-            final_branch = pull_request.branch_name[:240]
-            final_branch = final_branch.split("/", 1)[-1]
-
-            use_underscores = get_branch_name_config(self.repo)
-            if use_underscores:
-                final_branch = final_branch.replace("/", "_")
-
-            pull_request.branch_name = (
-                "sweep/" if not use_underscores else "sweep_"
-            ) + final_branch
-            return pull_request
-        raise Exception("Could not generate PR text")
-
-
-class GithubBot(BaseModel):
-    class Config:
-        arbitrary_types_allowed = True  # for repo: Repository
-
-    repo: Repository
-
-    def get_contents(self, path: str, branch: str = ""):
-        if not branch:
-            branch = SweepConfig.get_branch(self.repo)
-        try:
-            return self.repo.get_contents(path, ref=branch)
-        except Exception as e:
-            logger.warning(path)
-            raise e
-
-    def get_file(self, file_path: str, branch: str = "") -> ContentFile:
-        content = self.get_contents(file_path, branch)
-        assert not isinstance(content, list)
-        return content
-
-    def check_path_exists(self, path: str, branch: str = ""):
-        try:
-            self.get_contents(path, branch)
-            return True
-        except Exception:
-            return False
-
-    def populate_snippets(self, snippets: list[Snippet]):
-        for snippet in snippets:
-            try:
-                snippet.content = safe_decode(
-                    self.repo,
-                    snippet.file_path,
-                    ref=SweepConfig.get_branch(self.repo)
-                )
-                snippet.start = max(1, snippet.start)
-                snippet.end = min(len(snippet.content.split("\n")), snippet.end)
-
-            except Exception:
-                logger.error(snippet)
-
-
-ASSET_BRANCH_NAME = "sweep/assets"
-
-
-class SweepBot(CodeGenBot, GithubBot):
-    comment_pr_diff_str: str | None = None
-    comment_pr_files_modified: Dict[str, str] | None = None
-    ticket_progress: TicketProgress | None = None
