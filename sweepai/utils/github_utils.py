@@ -354,6 +354,7 @@ class ClonedRepo:
         self.commit_hash = self.repo.get_commits()[0].sha
         self.git_repo = self.clone()
         self.branch = self.branch or SweepConfig.get_branch(self.repo)
+        self.git_repo.git.checkout(self.branch)
 
     def __del__(self):
         try:

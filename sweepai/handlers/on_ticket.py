@@ -12,10 +12,8 @@ from github import BadCredentialsException
 from github.WorkflowRun import WorkflowRun
 from github.PullRequest import PullRequest as GithubPullRequest
 from loguru import logger
-from tabulate import tabulate
 
 
-from sweepai.agents.modify_utils import parse_fcr
 from sweepai.core.context_pruning import RepoContextManager
 from sweepai.core.sweep_bot import GHA_PROMPT
 from sweepai.agents.image_description_bot import ImageDescriptionBot
@@ -42,11 +40,10 @@ from sweepai.core.sweep_bot import get_files_to_change, get_files_to_change_for_
 from sweepai.handlers.create_pr import (
     handle_file_change_requests,
 )
-from sweepai.utils.diff import generate_diff
 from sweepai.utils.image_utils import get_image_contents_from_urls, get_image_urls_from_issue
 from sweepai.utils.issue_validator import validate_issue
 from sweepai.utils.prompt_constructor import get_issue_request
-from sweepai.utils.ticket_rendering_utils import add_emoji, process_summary, remove_emoji, get_payment_messages, get_comment_header, send_email_to_user, get_failing_gha_logs, rewrite_pr_description, raise_on_no_file_change_requests, get_branch_diff_text, handle_empty_repository, delete_old_prs
+from sweepai.utils.ticket_rendering_utils import add_emoji, process_summary, remove_emoji, get_payment_messages, get_comment_header, render_fcrs, send_email_to_user, get_failing_gha_logs, rewrite_pr_description, raise_on_no_file_change_requests, get_branch_diff_text, handle_empty_repository, delete_old_prs
 from sweepai.utils.validate_license import validate_license
 from sweepai.utils.buttons import Button, ButtonList
 from sweepai.utils.chat_logger import ChatLogger
@@ -506,26 +503,8 @@ def on_ticket(
                 validate_file_change_requests(file_change_requests, cloned_repo)
                 raise_on_no_file_change_requests(title, summary, edit_sweep_comment, file_change_requests)
 
-                # Render plan start
-                planning_markdown = ""
-                for fcr in file_change_requests:
-                    parsed_fcr = parse_fcr(fcr)
-                    if parsed_fcr and parsed_fcr["new_code"]:
-                        planning_markdown += f"#### `{fcr.filename}`\n"
-                        planning_markdown += f"{blockquote(parsed_fcr['justification'])}\n\n"
-                        if parsed_fcr["original_code"] and parsed_fcr["original_code"][0].strip():
-                            planning_markdown += f"""```diff\n{generate_diff(
-                                parsed_fcr["original_code"][0],
-                                parsed_fcr["new_code"][0],
-                            )}\n```\n"""
-                        else:
-                            _file_base_name, ext = os.path.splitext(fcr.filename)
-                            planning_markdown += f"```{ext}\n{parsed_fcr['new_code'][0]}\n```\n"
-                    else:
-                        planning_markdown += f"#### `{fcr.filename}`\n{blockquote(fcr.instructions)}\n"
-
+                planning_markdown = render_fcrs(file_change_requests)
                 edit_sweep_comment(planning_markdown, 2)
-                # Render plan end
             except Exception as e:
                 logger.exception(e)
                 # title and summary are defined elsewhere

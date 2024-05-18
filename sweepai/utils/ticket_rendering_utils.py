@@ -5,6 +5,7 @@ It is only called by the webhook handler in sweepai/api.py.
 
 import difflib
 import io
+import os
 import re
 import zipfile
 
@@ -18,12 +19,14 @@ from tqdm import tqdm
 import hashlib
 
 
+from sweepai.agents.modify_utils import parse_fcr
 from sweepai.agents.pr_description_bot import PRDescriptionBot
 from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
     SweepConfig,
 )
 from sweepai.core.entities import (
+    FileChangeRequest,
     SandboxResponse,
 )
 from sweepai.core.entities import create_error_logs as entities_create_error_logs
@@ -34,6 +37,7 @@ from sweepai.handlers.create_pr import (
 from sweepai.handlers.on_check_suite import clean_gh_logs
 from sweepai.utils.buttons import create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import (
     CURRENT_USERNAME,
     get_github_client,
@@ -672,3 +676,23 @@ def create_update_review_pr_comment(pr: PullRequest, code_review_by_file: dict[s
     comment_id = sweep_comment.id
     return comment_id
 
+
+def render_fcrs(file_change_requests: list[FileChangeRequest]):
+    # Render plan start
+    planning_markdown = ""
+    for fcr in file_change_requests:
+        parsed_fcr = parse_fcr(fcr)
+        if parsed_fcr and parsed_fcr["new_code"]:
+            planning_markdown += f"#### `{fcr.filename}`\n"
+            planning_markdown += f"{blockquote(parsed_fcr['justification'])}\n\n"
+            if parsed_fcr["original_code"] and parsed_fcr["original_code"][0].strip():
+                planning_markdown += f"""```diff\n{generate_diff(
+                    parsed_fcr["original_code"][0],
+                    parsed_fcr["new_code"][0],
+                )}\n```\n"""
+            else:
+                _file_base_name, ext = os.path.splitext(fcr.filename)
+                planning_markdown += f"```{ext}\n{parsed_fcr['new_code'][0]}\n```\n"
+        else:
+            planning_markdown += f"#### `{fcr.filename}`\n{blockquote(fcr.instructions)}\n"
+    return planning_markdown

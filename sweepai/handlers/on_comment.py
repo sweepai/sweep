@@ -9,26 +9,22 @@ import traceback
 from typing import Any
 
 from loguru import logger
-from tabulate import tabulate
 
-from sweepai.config.client import get_documentation_dict
 from sweepai.config.server import (
-    DEFAULT_GPT4_MODEL,
     ENV,
     GITHUB_BOT_USERNAME,
     MONGODB_URI,
 )
 from sweepai.core.entities import MockPR, NoFilesException, Snippet
-from sweepai.core.sweep_bot import SweepBot, get_files_to_change, validate_file_change_requests
+from sweepai.core.sweep_bot import get_files_to_change, validate_file_change_requests
 from sweepai.handlers.create_pr import handle_file_change_requests
 from sweepai.core.review_utils import get_pr_changes, get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, get_github_client, sanitize_string_for_github, validate_and_sanitize_multi_file_changes
-from sweepai.utils.progress import TicketProgress
-from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
 from sweepai.utils.str_utils import BOT_SUFFIX, FASTER_MODEL_MESSAGE
+from sweepai.utils.ticket_rendering_utils import render_fcrs
 from sweepai.utils.ticket_utils import fire_and_forget_wrapper, prep_snippets
 
 num_of_snippets_to_query = 30
@@ -36,7 +32,7 @@ total_number_of_snippet_tokens = 15_000
 num_full_files = 2
 num_extended_snippets = 2
 
-ERROR_FORMAT = "❌ {title}\n\nPlease join our [Discourse](https://community.sweep.dev/) to report this issue."
+ERROR_FORMAT = "❌ {title}\n\nPlease report this on our [community forum](https://community.sweep.dev/)."
 
 
 def on_comment(
@@ -257,25 +253,23 @@ def on_comment(
                 pr_file_path = pr_path.strip()
                 formatted_pr_chunk = (
                     "\n".join(pr_lines[start : pr_line_position - 1])
-                    + f"\n{pr_lines[pr_line_position - 1]} <- COMMENT: {comment.strip()}\n"
+                    + f"\n{pr_lines[pr_line_position - 1]} <--- GITHUB COMMENT: {comment.strip()} --->\n"
                     + "\n".join(pr_lines[pr_line_position:end])
                 )
                 if comment_id:
                     bot_comment = pr.create_review_comment_reply(
-                        comment_id, "Working on it..." + BOT_SUFFIX
+                        comment_id, "Searching for relevant snippets..." + BOT_SUFFIX
                     )
             else:
                 formatted_pr_chunk = None  # pr_file
-                bot_comment = pr.create_issue_comment("Working on it..." + BOT_SUFFIX)
+                bot_comment = pr.create_issue_comment("Searching for relevant snippets..." + BOT_SUFFIX)
 
             search_query = comment.strip("\n")
             formatted_query = comment.strip("\n")
             repo_context_manager = prep_snippets(
-                cloned_repo, search_query, TicketProgress(tracking_id="none")
+                cloned_repo, search_query
             )
             snippets = repo_context_manager.current_top_snippets
-            tree = str(repo_context_manager.dir_obj)
-            cloned_repo = repo_context_manager.cloned_repo
 
             pr_diffs, _dropped_files = get_pr_changes(repo, pr)
             snippets_modified = [Snippet.from_file(
@@ -283,30 +277,6 @@ def on_comment(
             ) for pr_diff in pr_diffs]
             snippets = snippets_modified + snippets
             snippets = snippets[:num_of_snippets_to_query]
-
-            logger.info("Getting response from ChatGPT...")
-            human_message = HumanMessageCommentPrompt(
-                comment=comment,
-                repo_name=repo_name,
-                repo_description=repo_description if repo_description else "",
-                diffs=diffs,
-                title=pr_title,
-                tree=tree,
-                summary=pr_body,
-                snippets=snippets,
-                pr_file_path=pr_file_path,  # may be None
-                pr_chunk=formatted_pr_chunk,  # may be None
-                original_line=original_line if pr_chunk else None,
-                relevant_docs=""
-            )
-            logger.info(f"Human prompt{human_message.construct_prompt()}")
-            sweep_bot = SweepBot.from_system_message_content(
-                human_message=human_message,
-                repo=repo,
-                chat_logger=chat_logger,
-                model=DEFAULT_GPT4_MODEL,
-                cloned_repo=cloned_repo,
-            )
         except Exception as e:
             stack_trace = traceback.format_exc()
             logger.exception(e)
@@ -316,7 +286,7 @@ def on_comment(
                 "failed",
                 properties={
                     "error": str(e),
-                    "traceback": f"An error occured! The stack trace is below:\n\n{stack_trace}",
+                    "traceback": f"An error occured during the search! The stack trace is below:\n\n{stack_trace}",
                     "duration": elapsed_time,
                     "tracking_id": tracking_id,
                     **metadata,
@@ -327,6 +297,7 @@ def on_comment(
 
         try:
             logger.info("Fetching files to modify/create...")
+            edit_comment("Found relevant files to edit, currently making changes...")
             if file_comment:
                 formatted_query = f"The user left this comment in `{pr_path}`:\n<comment>\n{comment}\n</comment>\nThis was where they left their comment:\n<review_code_chunk>\n{formatted_pr_chunk}\n</review_code_chunk>.\n\nResolve their comment."
             file_change_requests, plan = get_files_to_change(
@@ -341,31 +312,15 @@ def on_comment(
 
             sweep_response = "I couldn't find any relevant files to change."
             if file_change_requests:
-                table_message = tabulate(
-                    [
-                        [
-                            f"`{file_change_request.filename}`",
-                            file_change_request.instructions_display.replace(
-                                "\n", "<br/>"
-                            ).replace("```", "\\```"),
-                        ]
-                        for file_change_request in file_change_requests
-                    ],
-                    headers=["File Path", "Proposed Changes"],
-                    tablefmt="pipe",
-                )
-                sweep_response = (
-                    f"I am making the following changes:\n\n{table_message}"
-                )
+                planning_markdown = render_fcrs(file_change_requests)
+                sweep_response = f"I'm going to make the following changes:\n\n{planning_markdown}\n\nI'm currently validating these changes using parsers and linters to check for syntax errors and undefined variables..."
+
             quoted_comment = "> " + comment.replace("\n", "\n> ")
             response_for_user = (
                 f"{quoted_comment}\n\nHi @{username},\n\n{sweep_response}"
             )
-            if pr_number:
-                edit_comment(response_for_user)
-
-            sweep_bot.comment_pr_diff_str = pr_diff_string
-            sweep_bot.comment_pr_files_modified = pr_files_modified
+            edit_comment(response_for_user)
+            
             modify_files_dict, changes_made, file_change_requests = handle_file_change_requests(
                 file_change_requests=file_change_requests,
                 request=file_comment,
@@ -378,7 +333,7 @@ def on_comment(
             try:
                 new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
                 previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
-                new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, file_change_requests)
+                new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, file_change_requests)
                 if files_removed and username:
                     posthog.capture(
                         username,
@@ -388,7 +343,7 @@ def on_comment(
                             "new_keys": ",".join(new_file_contents_to_commit.keys()) 
                         },
                     )
-                commit_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, commit_message, branch_name)
+                commit_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, commit_message, branch_name)
             except Exception as e:
                 logger.info(f"Error in updating file{e}")
                 raise e
