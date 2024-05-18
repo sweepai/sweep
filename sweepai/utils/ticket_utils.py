@@ -76,12 +76,20 @@ type_to_percentile_floor = { # lower gets more snippets
     "source": 0.15, # very low floor for source code
 }
 
-score_floor = { # the lower, the more snippets. we set this higher for less used types
+type_to_score_floor = { # the lower, the more snippets. we set this higher for less used types
     "tools": 0.05,
     "dependencies": 0.025, # usually not matched, this won't hit often
     "docs": 0.30, # matched often, so we can set a high threshold
     "tests": 0.15, # matched often, so we can set a high threshold
     "source": 0.05, # very low floor for source code
+}
+
+type_to_result_count = {
+    "tools": 5,
+    "dependencies": 5,
+    "docs": 5,
+    "tests": 15,
+    "source": 30,
 }
 
 def separate_snippets_by_type(snippets: list[Snippet]) -> SeparatedSnippets:
@@ -283,7 +291,7 @@ def multi_prep_snippets(
         for type_name, snippets_subset in separated_snippets:
             if type_name == "junk":
                 continue
-            directory_summaries =  {} # recursively_summarize_directory(snippets, cloned_repo)
+            directory_summaries = {} # recursively_summarize_directory(snippets, cloned_repo)
             new_content_to_lexical_scores = get_pointwise_reranked_snippet_scores(
                 queries[0], snippets_subset, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK, directory_summaries
             )
@@ -300,11 +308,12 @@ def multi_prep_snippets(
             # cutoff snippets at percentile
             logger.info("Kept these snippets")
             top_score = snippets_subset[0].score
-            for snippet in snippets_subset:
+            max_results = type_to_result_count[type_name]
+            for idx, snippet in enumerate(snippets_subset):
                 percentile = snippet.score / top_score
-                if percentile < type_to_percentile_floor[type_name] or snippet.score < score_floor[type_name]:
+                if percentile < type_to_percentile_floor[type_name] or snippet.score < type_to_score_floor[type_name] or idx >= max_results:
                     break
-                logger.info(f"{snippet.denotation} {snippet.score} {percentile}")
+                logger.info(f"{idx}: {snippet.denotation} {snippet.score} {percentile}")
                 ranked_snippets.append(snippet)
         ranked_snippets = ranked_snippets[:k]
     else:
