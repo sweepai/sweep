@@ -89,7 +89,6 @@ def on_comment(
         if issue_number_match or assignee:
             issue_number = issue_number_match.group("issue_number")
             if not assignee:
-                # issue_number = issue_number_match.group("issue_number")
                 original_issue = repo.get_issue(int(issue_number))
                 author = original_issue.user.login
             else:

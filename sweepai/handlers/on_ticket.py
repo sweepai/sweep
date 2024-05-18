@@ -214,7 +214,7 @@ def on_ticket(
                 None,
                 "Step 1: 🔎 Searching",
                 "Step 2: ⌨️ Coding",
-                "Step 2: 🔄️ Validating",
+                "Step 3: 🔄️ Validating",
             ]
 
             issue_comment = None
