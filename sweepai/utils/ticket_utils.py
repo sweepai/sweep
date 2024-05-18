@@ -7,6 +7,7 @@ from loguru import logger
 from tqdm import tqdm
 import networkx as nx
 
+from sweepai.agents.analyze_snippets import AnalyzeSnippetAgent
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import COHERE_API_KEY
 from sweepai.core.context_pruning import RepoContextManager, add_relevant_files_to_top_snippets, build_import_trees, integrate_graph_retrieval
@@ -18,7 +19,6 @@ from sweepai.core.lexical_search import (
 )
 from sweepai.core.sweep_bot import context_get_files_to_change
 from sweepai.dataclasses.separatedsnippets import SeparatedSnippets
-from sweepai.logn.cache import file_cache
 from sweepai.utils.cohere_utils import cohere_rerank_call
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
@@ -184,7 +184,7 @@ def multi_get_top_k_snippets(
     ]
     return ranked_snippets_list, snippets, content_to_lexical_score_list
 
-@file_cache()
+# @file_cache()
 def get_top_k_snippets(
     cloned_repo: ClonedRepo,
     query: str,
@@ -317,7 +317,8 @@ def multi_prep_snippets(
                     break
                 logger.info(f"{idx}: {snippet.denotation} {snippet.score} {percentile}")
                 filtered_subset_snippets.append(snippet)
-            # filtered_subset_snippets = AnalyzeSnippetAgent().analyze_snippets(filtered_subset_snippets, type_name, queries[0])
+            if type_name != "source": # do more filtering
+                filtered_subset_snippets = AnalyzeSnippetAgent().analyze_snippets(filtered_subset_snippets, type_name, queries[0])
             ranked_snippets.extend(filtered_subset_snippets)
         ranked_snippets = ranked_snippets[:k]
     else:

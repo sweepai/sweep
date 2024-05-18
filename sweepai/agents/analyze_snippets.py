@@ -19,7 +19,7 @@ The GitHub issue to solve is:
 </issue>
 We are going to check a subset of the code snippets from the repository to identify the most relevant files. We are currently checking: {type_name}. {explanation}
 
-Please provide ALL of the relevant snippets from the repository. Be comprehensive. This may be empty if there are no relevant snippets from this type."""
+Identify and select ALL of the snippets that are absolutely relevant from the provided snippets. This may be empty if there are no relevant snippets from this type."""
 
 analyze_user_prompt = """The GitHub issue to solve is: 
 <issue>
@@ -29,7 +29,7 @@ analyze_user_prompt = """The GitHub issue to solve is:
 Here are the {type_name} snippets from the repository. {explanation}
 {snippet_text}
 
-Identify and select ALL of the snippets that may be relevant from the provided snippets. Be comprehensive.
+Identify and select ALL of the snippets that are absolutely relevant from the provided snippets.
 
 Respond in the following format. Replace the placeholders with the relevant information.
 <thinking>
@@ -41,10 +41,10 @@ Respond in the following format. Replace the placeholders with the relevant info
 
 <relevant_snippets>
 <relevant_snippet>
-[file_path_1]
+snippet_path_1
 </relevant_snippet>
 <relevant_snippet>
-[file_path_2]
+snippet_path_2
 </relevant_snippet>
 ...
 </relevant_snippets>
@@ -72,7 +72,7 @@ class AnalyzeSnippetAgent(ChatGPT):
     @majority_vote_decorator(num_samples=3, voting_func=snippet_majority_vote) # unsure about 3 vs 1
     def analyze_snippets(self, snippets: list[Snippet], type_name: str, issue: str, seed: int=0):
         # should a subset of the relevant snippets from a slice of the repo
-        snippet_text = format(self.format_code_snippets(snippets))
+        snippet_text = self.format_code_snippets(snippets)
         system_prompt = analyze_system_prompt.format(issue=issue, type_name=type_name, explanation=type_to_explanation[type_name])
         self.messages = [Message(role="system", content=system_prompt)]
         user_prompt = analyze_user_prompt.format(issue=issue, type_name=type_name, explanation=type_to_explanation[type_name], snippet_text=snippet_text)
