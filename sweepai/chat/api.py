@@ -151,6 +151,7 @@ def check_repo_exists_endpoint(repo_name: str, access_token: str = Depends(get_t
 
 @posthog_trace
 def check_repo_exists(
+    username: str,
     repo_name: str,
     access_token: str,
     metadata: dict = {},
@@ -188,6 +189,7 @@ def search_codebase_endpoint(
 
 @posthog_trace
 def wrapped_search_codebase(
+    username: str,
     repo_name: str,
     query: str,
     access_token: str,
@@ -245,6 +247,7 @@ def chat_codebase(
 
 @posthog_trace
 def chat_codebase_stream(
+    username: str,
     repo_name: str,
     messages: list[Message],
     snippets: list[Snippet],
