@@ -1,5 +1,8 @@
+import re
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
+from sweepai.utils.majority_vote import majority_vote_decorator
+from collections import Counter
 
 type_to_explanation = {
     "source": "This is the source code. The files contain the actual implementation of the software.",
@@ -16,7 +19,7 @@ The GitHub issue to solve is:
 </issue>
 We are going to check a subset of the code snippets from the repository to identify the most relevant files. We are currently checking: {type_name}. {explanation}
 
-Please provide the relevant snippets from the repository. This may be empty if there are no relevant snippets from this type."""
+Please provide ALL of the relevant snippets from the repository. Be comprehensive. This may be empty if there are no relevant snippets from this type."""
 
 analyze_user_prompt = """The GitHub issue to solve is: 
 <issue>
@@ -26,29 +29,48 @@ analyze_user_prompt = """The GitHub issue to solve is:
 Here are the {type_name} snippets from the repository. {explanation}
 {snippet_text}
 
-Identify and select all snippets that may be relevant from the provided snippets.
+Identify and select ALL of the snippets that may be relevant from the provided snippets. Be comprehensive.
 
 Respond in the following format. Replace the placeholders with the relevant information.
 <thinking>
-[analysis of snippet_1]
-[analysis of snippet_2]
+[analysis of snippet_1's relevance]
+[analysis of snippet_2's relevance]
 ...
+[analysis of snippet_n's relevance]
 </thinking>
 
 <relevant_snippets>
 <relevant_snippet>
-[file_name]
+[file_path_1]
 </relevant_snippet>
 <relevant_snippet>
-[file_name]
+[file_path_2]
 </relevant_snippet>
 ...
 </relevant_snippets>
 
 Please provide the relevant snippets from the repository. This may be empty if there are no relevant snippets from this type."""
 
+def snippet_majority_vote(outcomes: list[list[Snippet]]):
+    # Flatten the list of lists into a single list of snippets
+    all_snippets = [snippet for outcome in outcomes for snippet in outcome]
+
+    # Count the occurrences of each snippet
+    snippet_counts = Counter(all_snippets)
+
+    # Get the total number of outcomes
+    num_outcomes = len(outcomes)
+
+    # Filter the snippets that were selected by the majority of the outcomes
+    majority_snippets = [
+        snippet for snippet, count in snippet_counts.items()
+        if count > num_outcomes // 2
+    ]
+    return majority_snippets
+
 class AnalyzeSnippetAgent(ChatGPT):
-    def analyze_snippets(self, snippets: list[Snippet], type_name: str, issue: str):
+    @majority_vote_decorator(num_samples=3, voting_func=snippet_majority_vote) # unsure about 3 vs 1
+    def analyze_snippets(self, snippets: list[Snippet], type_name: str, issue: str, seed: int=0):
         # should a subset of the relevant snippets from a slice of the repo
         snippet_text = format(self.format_code_snippets(snippets))
         system_prompt = analyze_system_prompt.format(issue=issue, type_name=type_name, explanation=type_to_explanation[type_name])
@@ -56,11 +78,15 @@ class AnalyzeSnippetAgent(ChatGPT):
         user_prompt = analyze_user_prompt.format(issue=issue, type_name=type_name, explanation=type_to_explanation[type_name], snippet_text=snippet_text)
         analyze_response = self.chat_anthropic(
             content=user_prompt,
-            temperature=0.2,
-            use_openai=True
+            temperature=0.3, # we have majority voting
+            use_openai=True,
+            seed=seed,
         )
-        pass
-        return snippets
+        relevant_snippet_pattern = r"<relevant_snippet>\n(.*?)\n</relevant_snippet>"
+        relevant_snippets = re.findall(relevant_snippet_pattern, analyze_response, re.DOTALL)
+        relevant_snippets = set(snippet.strip() for snippet in relevant_snippets)
+        remaining_snippets = [snippet for snippet in snippets if snippet.file_path in relevant_snippets]
+        return remaining_snippets
 
     def format_code_snippets(self, code_snippets: list[Snippet]):
         result_str = ""
@@ -68,7 +94,7 @@ class AnalyzeSnippetAgent(ChatGPT):
             snippet_str = \
 f'''
 <snippet index="{idx + 1}">
-<snippet_path>{snippet.denotation}</snippet_path>
+<snippet_path>{snippet.file_path}</snippet_path>
 <source>
 {snippet.get_snippet(False, False)}
 </source>

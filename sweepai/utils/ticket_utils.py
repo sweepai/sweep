@@ -7,6 +7,7 @@ from loguru import logger
 from tqdm import tqdm
 import networkx as nx
 
+from sweepai.agents.analyze_snippets import AnalyzeSnippetAgent
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import COHERE_API_KEY
 from sweepai.core.context_pruning import RepoContextManager, add_relevant_files_to_top_snippets, build_import_trees, integrate_graph_retrieval
@@ -309,12 +310,15 @@ def multi_prep_snippets(
             logger.info("Kept these snippets")
             top_score = snippets_subset[0].score
             max_results = type_to_result_count[type_name]
+            filtered_subset_snippets = []
             for idx, snippet in enumerate(snippets_subset):
                 percentile = snippet.score / top_score
                 if percentile < type_to_percentile_floor[type_name] or snippet.score < type_to_score_floor[type_name] or idx >= max_results:
                     break
                 logger.info(f"{idx}: {snippet.denotation} {snippet.score} {percentile}")
-                ranked_snippets.append(snippet)
+                filtered_subset_snippets.append(snippet)
+            filtered_subset_snippets = AnalyzeSnippetAgent().analyze_snippets(filtered_subset_snippets, type_name, queries[0])
+            ranked_snippets.extend(filtered_subset_snippets)
         ranked_snippets = ranked_snippets[:k]
     else:
         ranked_snippets = sorted(
@@ -371,6 +375,9 @@ def get_relevant_context(
     repo_context_manager.dir_obj.add_relevant_files(
         repo_context_manager.relevant_file_paths
     )
+    # Idea: make two passes, one with tests and one without
+    # if editing source code only provide source code
+    # if editing test provide both source and test code
     relevant_files, read_only_files = context_get_files_to_change(
         relevant_snippets=repo_context_manager.current_top_snippets,
         read_only_snippets=repo_context_manager.read_only_snippets,

@@ -369,6 +369,7 @@ class Snippet(BaseModel):
     end: int
     file_path: str
     score: float = 0.0 # TODO: migrate all usages to use this
+    type_name: Literal["source", "tests", "dependencies", "tools", "docs"] = "source"
 
     def __eq__(self, other):
         if isinstance(other, Snippet):
