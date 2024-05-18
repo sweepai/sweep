@@ -34,9 +34,10 @@ class SeparatedSnippets:
             raise AttributeError(f"List type '{attribute_name}' does not exist in SeparatedSnippets")
 
     def __iter__(self) -> Iterator[Tuple[str, list[Snippet]]]:
+        yield "source", self.source
+        yield "tests", self.tests
         yield "tools", self.tools
-        yield "junk", self.junk
         yield "dependencies", self.dependencies
         yield "docs", self.docs
-        yield "tests", self.tests
-        yield "source", self.source
+        # yield "junk", self.junk
+        # we won't yield junk

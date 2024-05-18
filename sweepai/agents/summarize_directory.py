@@ -1,5 +1,7 @@
 import os
 
+from loguru import logger
+
 from sweepai.core.entities import SNIPPET_FORMAT
 from sweepai.config.client import SweepConfig
 from sweepai.core.chat import call_llm
@@ -109,7 +111,7 @@ def recursively_summarize_directory(
     for subdir in sorted(descendant_counts, key=lambda x: descendant_counts[x]):
         if descendant_counts[subdir] <= 5:
             continue
-        print("Summarizing", subdir)
+        logger.info(f"Summarizing {subdir}")
         snippets_in_subdir = [snippet for snippet in snippets if snippet.file_path.removeprefix(cloned_repo.repo_dir).removeprefix("/").startswith(subdir)][:NUM_SNIPPET_EXAMPLES]
         if not snippets_in_subdir:
             continue

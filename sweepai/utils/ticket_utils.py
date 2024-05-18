@@ -68,12 +68,20 @@ code_snippet_separation_features = {
 # otherwise it's tagged as source
 # we can make a config category later for css, config.ts, config.js. so far config files aren't many.
 
-type_to_percentile_cutoff = { # lower gets more snippets
+type_to_percentile_floor = { # lower gets more snippets
     "tools": 0.3,
     "dependencies": 0.3,
     "docs": 0.3,
     "tests": 0.3,
-    "source": 0.15,
+    "source": 0.15, # very low floor for source code
+}
+
+score_floor = { # the lower, the more snippets. we set this higher for less used types
+    "tools": 0.05,
+    "dependencies": 0.025, # usually not matched, this won't hit often
+    "docs": 0.30, # matched often, so we can set a high threshold
+    "tests": 0.15, # matched often, so we can set a high threshold
+    "source": 0.05, # very low floor for source code
 }
 
 def separate_snippets_by_type(snippets: list[Snippet]) -> SeparatedSnippets:
@@ -187,6 +195,7 @@ def get_pointwise_reranked_snippet_scores(
     snippet_scores: dict[str, float],
     NUM_SNIPPETS_TO_KEEP=5,
     NUM_SNIPPETS_TO_RERANK=100,
+    directory_summaries: dict = {},
 ):
     """
     Ranks 1-5 snippets are frozen. They're just passed into Cohere since it helps with reranking. We multiply the scores by 1_000 to make them more significant.
@@ -205,13 +214,13 @@ def get_pointwise_reranked_snippet_scores(
     snippet_representations = []
     for snippet in sorted_snippets[:NUM_SNIPPETS_TO_RERANK]:
         representation = f"{snippet.file_path}\n```\n{snippet.get_snippet(add_lines=False, add_ellipsis=False)}\n```"
-        # subdirs = []
-        # for subdir in directory_summaries:
-        #     if snippet.file_path.startswith(subdir):
-        #         subdirs.append(subdir)
-        # subdirs = sorted(subdirs)
-        # for subdir in subdirs[-1:]:
-        #     representation = representation + f"\n\nHere is a summary of the subdirectory {subdir}:\n\n" + directory_summaries[subdir]
+        subdirs = []
+        for subdir in directory_summaries:
+            if snippet.file_path.startswith(subdir):
+                subdirs.append(subdir)
+        subdirs = sorted(subdirs)
+        for subdir in subdirs[-1:]:
+            representation = representation + f"\n\nHere is a summary of the subdirectory {subdir}:\n\n" + directory_summaries[subdir]
         snippet_representations.append(representation)
 
     response = cohere_rerank_call(
@@ -274,8 +283,9 @@ def multi_prep_snippets(
         for type_name, snippets_subset in separated_snippets:
             if type_name == "junk":
                 continue
+            directory_summaries =  {} # recursively_summarize_directory(snippets, cloned_repo)
             new_content_to_lexical_scores = get_pointwise_reranked_snippet_scores(
-                queries[0], snippets_subset, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK
+                queries[0], snippets_subset, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK, directory_summaries
             )
             # set all keys of new_content_to_lexical_scores to content_to_lexical_score
             for key in new_content_to_lexical_scores:
@@ -288,13 +298,15 @@ def multi_prep_snippets(
             separated_snippets.override_list(attribute_name=type_name, new_list=snippets_subset)
             logger.info(f"Reranked {type_name}")
             # cutoff snippets at percentile
+            logger.info("Kept these snippets")
             top_score = snippets_subset[0].score
             for snippet in snippets_subset:
                 percentile = snippet.score / top_score
-                if percentile < type_to_percentile_cutoff[type_name]:
+                if percentile < type_to_percentile_floor[type_name] or snippet.score < score_floor[type_name]:
                     break
+                logger.info(f"{snippet.denotation} {snippet.score} {percentile}")
                 ranked_snippets.append(snippet)
-        breakpoint()
+        ranked_snippets = ranked_snippets[:k]
     else:
         ranked_snippets = sorted(
             snippets,
