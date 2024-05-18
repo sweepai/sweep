@@ -23,16 +23,31 @@ def pull_request_url(
 ):
     
     print("Fetching issue metadata...")
-    (
-        _,
-        _,
-        _,
-        org_name,
-        repo_name,
-        _,
-        pr_number,
-        files_and_comment_id,
-    ) = comment_url.split("/")
+    is_review_comment = False
+    if "issuecomment" in comment_url:
+        (
+            _,
+            _,
+            _,
+            org_name,
+            repo_name,
+            _,
+            pr_number_and_comment_id,
+        ) = comment_url.split("/")
+        pr_number, comment_id = pr_number_and_comment_id.split("#issuecomment-")
+    else:
+        is_review_comment = True
+        (
+            _,
+            _,
+            _,
+            org_name,
+            repo_name,
+            _,
+            pr_number,
+            files_and_comment_id,
+        ) = comment_url.split("/")
+        comment_id = files_and_comment_id.split("#")[1][1:] # Remove "r" from the comment ID
 
     installation_id = get_installation_id(org_name)
     print("Fetching access token...")
@@ -42,24 +57,41 @@ def pull_request_url(
     repo = g.get_repo(f"{org_name}/{repo_name}")
     pr_number = int(pr_number)
     pr = repo.get_pull(pr_number)
-    comment_id = files_and_comment_id.split("#")[1][1:] # Remove "r" from the comment ID
     comment_object = None
-    for review_comment in pr.get_review_comments():
-        if review_comment.html_url.endswith(f"{comment_id}"):
-            comment_object = review_comment
-            break
-    on_comment(
-        repo_full_name=f"{org_name}/{repo_name}",
-        repo_description=repo.description,
-        comment=comment_object.body,
-        pr_path=comment_object.path,
-        pr_line_position=comment_object.position,
-        username=comment_object.user.login,
-        installation_id=installation_id,
-        pr_number=pr_number,
-        comment_id=int(comment_id),
-        chat_logger=None
-    )
+    if is_review_comment:
+        for review_comment in pr.get_review_comments():
+            if review_comment.html_url.endswith(f"{comment_id}"):
+                comment_object = review_comment
+                break
+        on_comment(
+            repo_full_name=f"{org_name}/{repo_name}",
+            repo_description=repo.description,
+            comment=comment_object.body,
+            pr_path=comment_object.path,
+            pr_line_position=comment_object.position,
+            username=comment_object.user.login,
+            installation_id=installation_id,
+            pr_number=pr_number,
+            comment_id=int(comment_id),
+            chat_logger=None
+        )
+    else:
+        for comment in pr.get_issue_comments():
+            if comment.html_url.endswith(f"{comment_id}"):
+                comment_object = comment
+                break
+        on_comment(
+            repo_full_name=f"{org_name}/{repo_name}",
+            repo_description=repo.description,
+            comment=comment_object.body,
+            pr_path=None,
+            pr_line_position=None,
+            username=comment_object.user.login,
+            installation_id=installation_id,
+            pr_number=pr_number,
+            comment_id=int(comment_id),
+            chat_logger=None
+        )
 
 
 if __name__ == "__main__":

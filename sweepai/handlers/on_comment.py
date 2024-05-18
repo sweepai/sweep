@@ -33,7 +33,7 @@ num_full_files = 2
 num_extended_snippets = 2
 
 ERROR_FORMAT = "❌ {title}\n\nPlease report this on our [community forum](https://community.sweep.dev/)."
-SWEEPING_GIF = f"{center(sweeping_gif)}<br/>### Sweep is working on resolving your comment...<br/>"
+SWEEPING_GIF = f"{center(sweeping_gif)}\n\n<div align='center'><h3>Sweep is working on resolving your comment...<h3/></div>\n\n"
 
 
 def on_comment(
@@ -300,7 +300,7 @@ def on_comment(
             logger.info("Fetching files to modify/create...")
             edit_comment(SWEEPING_GIF + "I just completed searching for relevant files, now I'm making changes...")
             if file_comment:
-                formatted_query = f"The user left this comment in `{pr_path}`:\n<comment>\n{comment}\n</comment>\nThis was where they left their comment:\n<review_code_chunk>\n{formatted_pr_chunk}\n</review_code_chunk>.\n\nResolve their comment."
+                formatted_query = f"The user left this GitHub PR Review comment in `{pr_path}`:\n<comment>\n{comment}\n</comment>\nThis was where they left their comment on the PR:\n<review_code_chunk>\n{formatted_pr_chunk}\n</review_code_chunk>.\n\nResolve their comment."
             file_change_requests, plan = get_files_to_change(
                 relevant_snippets=repo_context_manager.current_top_snippets,
                 read_only_snippets=repo_context_manager.read_only_snippets,
@@ -378,9 +378,14 @@ def on_comment(
 
         patch_diff = ""
         for file_path, file_data in modify_files_dict.items():
-            if file_path not in files_removed:
+            if file_path in new_file_contents_to_commit:
                 patch_diff += f"--- {file_path}\n+++ {file_path}\n{generate_diff(file_data['original_contents'], file_data['contents'])}\n\n"
-        edit_comment(f"## 🚀 Resolved via [{commit.sha[:7]}](https://github.com/{repo_full_name}/commit/{commit.sha})\n\nHere were the changes I made:\n```diff\n{patch_diff}\n```")
+        
+        if patch_diff:
+            edit_comment(f"### 🚀 Resolved via [{commit.sha[:7]}](https://github.com/{repo_full_name}/commit/{commit.sha})\n\nHere were the changes I made:\n```diff\n{patch_diff}\n```")
+        else:
+            edit_comment(f"### 🚀 Resolved via [{commit.sha[:7]}](https://github.com/{repo_full_name}/commit/{commit.sha})")
+
 
         elapsed_time = time.time() - start_time
         # make async
