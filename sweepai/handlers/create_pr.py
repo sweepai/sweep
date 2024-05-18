@@ -178,7 +178,6 @@ def safe_delete_sweep_branch(
         # Failed to delete branch as it was edited by someone else
         return False
 
-
 def create_config_pr(
     sweep_bot: SweepBot | None, repo: Repository = None, cloned_repo: ClonedRepo = None
 ):
@@ -305,7 +304,6 @@ def create_config_pr(
     pr.add_to_labels(GITHUB_LABEL_NAME)
     return pr
 
-
 def add_config_to_top_repos(installation_id, username, repositories, max_repos=3):
     user_token, g = get_github_client(installation_id)
 
@@ -350,7 +348,6 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
         except Exception as e:
             logger.print(e)
     logger.print("Finished creating configs for top repos")
-
 
 def create_gha_pr(g, repo):
     # Create a new branch

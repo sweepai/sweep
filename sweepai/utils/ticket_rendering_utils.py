@@ -168,7 +168,6 @@ def create_error_logs(
         else ""
     )
 
-
 # takes in a list of workflow runs and returns a list of messages containing the logs of the failing runs
 def get_failing_gha_logs(runs, installation_id) -> str:
     token = get_token(installation_id)
@@ -235,7 +234,6 @@ def get_failing_gha_logs(runs, installation_id) -> str:
                 "Failed to get logs for failing github actions, likely a credentials issue"
             )
     return all_logs
-
 
 def delete_old_prs(repo: Repository, issue_number: int):
     logger.info("Deleting old PRs...")
