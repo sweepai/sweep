@@ -13,6 +13,7 @@ from sweepai.config.server import DEBUG, REDIS_URL
 from sweepai.core.entities import Snippet
 from sweepai.core.repo_parsing_utils import directory_to_chunks
 from sweepai.core.vector_db import multi_get_query_texts_similarity
+from sweepai.dataclasses.files import Document
 from sweepai.logn.cache import file_cache
 from sweepai.utils.progress import TicketProgress
 from sweepai.config.client import SweepConfig
@@ -162,12 +163,6 @@ class CodeTokenizer:
         return tokens
 
 
-@dataclass
-class Document:
-    title: str
-    content: str
-
-
 def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
     docs = []
     for snippet in snippets:
@@ -215,32 +210,6 @@ def prepare_index_from_snippets(
     except FileNotFoundError as e:
         logger.exception(e)
 
-    return index
-
-
-@dataclass
-class Documentation:
-    url: str
-    content: str
-
-
-def prepare_index_from_docs(docs: list[tuple[str, str]]) -> CustomIndex | None:
-    """Prepare an index from a list of documents.
-
-    This function takes a list of documents as input and returns an index.
-    """
-    all_docs = [Documentation(url, content) for url, content in docs]
-    if len(all_docs) == 0:
-        return None
-    # Create the index based on the schema
-    index = CustomIndex()
-    try:
-        for doc in tqdm(all_docs, total=len(all_docs)):
-            index.add_document(
-                title=f"{doc.url}", token_freq=compute_document_tokens(doc.content)
-            )
-    except FileNotFoundError as e:
-        logger.exception(e)
     return index
 
 

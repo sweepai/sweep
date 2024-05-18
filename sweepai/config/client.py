@@ -322,20 +322,6 @@ def get_description(repo: Repository) -> dict:
 
 
 @lru_cache(maxsize=None)
-def get_sandbox_config(repo: Repository):
-    try:
-        contents = repo.get_contents("sweep.yaml")
-        description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
-            "sandbox", {}
-        )
-        return description
-    except SystemExit:
-        raise SystemExit
-    except Exception:
-        return {}
-
-
-@lru_cache(maxsize=None)
 def get_branch_name_config(repo: Repository):
     try:
         contents = repo.get_contents("sweep.yaml")
@@ -377,21 +363,6 @@ def get_blocked_dirs(repo: Repository):
         raise SystemExit
     except Exception:
         return []
-
-
-@lru_cache(maxsize=None)
-def get_rules(repo: Repository):
-    try:
-        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode(
-            "utf-8"
-        )
-        sweep_yaml = yaml.safe_load(sweep_yaml_content)
-        rules = sweep_yaml.get("rules", [])
-        return rules
-    except SystemExit:
-        raise SystemExit
-    except Exception:
-        return []    
 
 # optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get("GITHUB_APP_CLIENT_ID", "Iv1.91fd31586a926a9f")
