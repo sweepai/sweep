@@ -1,6 +1,6 @@
 from sweepai.core.chat import call_llm
 from sweepai.logn.cache import file_cache
-from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
+from sweepai.utils.github_utils import MockClonedRepo
 
 instructions = "Explain in great detail what types of content this directory contains (code, documentation, configs, assets, tests etc.). Explain the purpose of the directory. Be concise and optimize for informational density. One paragraph."
 

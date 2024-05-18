@@ -19,6 +19,7 @@ from sweepai.core.lexical_search import (
 )
 from sweepai.core.sweep_bot import context_get_files_to_change
 from sweepai.dataclasses.separatedsnippets import SeparatedSnippets
+from sweepai.logn.cache import file_cache
 from sweepai.utils.cohere_utils import cohere_rerank_call
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
@@ -184,7 +185,7 @@ def multi_get_top_k_snippets(
     ]
     return ranked_snippets_list, snippets, content_to_lexical_score_list
 
-# @file_cache()
+@file_cache()
 def get_top_k_snippets(
     cloned_repo: ClonedRepo,
     query: str,

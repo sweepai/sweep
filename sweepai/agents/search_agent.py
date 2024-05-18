@@ -1,7 +1,7 @@
 from sweepai.agents.modify import validate_and_parse_function_call
 from sweepai.agents.question_answerer import CORRECTED_SUBMIT_SOURCES_FORMAT, QuestionAnswererException, rag
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Snippet, SNIPPET_FORMAT
+from sweepai.core.entities import Snippet
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
 from sweepai.utils.str_utils import extract_xml_tag
