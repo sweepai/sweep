@@ -20,13 +20,11 @@ You ran out of the free tier GPT-4 tickets! Here are your options:
 
 sep = "\n---\n"
 bot_suffix_starring = ""
-bot_suffix = (
-    f"\n{sep}\n\n💡 To recreate the pull request edit the issue"
-    " title or description."
-)
-discord_suffix = (
-    "\n<sup>Something wrong? [Let us know](https://community.sweep.dev/).</sup>"
-)
+bot_suffix = f"""
+{sep}
+> [!TIP]
+> To recreate the pull request edit the issue title or description."""
+discord_suffix = ""
 
 stars_suffix = ""
 
