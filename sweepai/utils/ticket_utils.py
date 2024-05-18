@@ -316,6 +316,7 @@ def multi_prep_snippets(
                 if percentile < type_to_percentile_floor[type_name] or snippet.score < type_to_score_floor[type_name] or idx >= max_results:
                     break
                 logger.info(f"{idx}: {snippet.denotation} {snippet.score} {percentile}")
+                snippet.type_name = type_name
                 filtered_subset_snippets.append(snippet)
             if type_name != "source": # do more filtering
                 filtered_subset_snippets = AnalyzeSnippetAgent().analyze_snippets(filtered_subset_snippets, type_name, queries[0])
