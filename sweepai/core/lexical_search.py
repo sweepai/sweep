@@ -2,7 +2,6 @@ import multiprocessing
 import os
 import re
 from collections import Counter, defaultdict
-from dataclasses import dataclass
 from math import log
 
 from loguru import logger
