@@ -23,7 +23,7 @@ bot_suffix_starring = ""
 bot_suffix = f"""
 {sep}
 > [!TIP]
-> To recreate the pull request edit the issue title or description."""
+> To recreate the pull request, edit the issue title or description."""
 discord_suffix = ""
 
 stars_suffix = ""
