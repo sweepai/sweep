@@ -24,7 +24,7 @@ from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, get_github_client, sanitize_string_for_github, validate_and_sanitize_multi_file_changes
 from sweepai.utils.str_utils import BOT_SUFFIX, FASTER_MODEL_MESSAGE
-from sweepai.utils.ticket_rendering_utils import render_fcrs
+from sweepai.utils.ticket_rendering_utils import render_fcrs, sweeping_gif
 from sweepai.utils.ticket_utils import fire_and_forget_wrapper, prep_snippets
 
 num_of_snippets_to_query = 30
@@ -267,7 +267,7 @@ def on_comment(
             search_query = comment.strip("\n")
             formatted_query = comment.strip("\n")
             repo_context_manager = prep_snippets(
-                cloned_repo, search_query
+                cloned_repo, search_query, multi_query=False
             )
             snippets = repo_context_manager.current_top_snippets
 
@@ -297,7 +297,7 @@ def on_comment(
 
         try:
             logger.info("Fetching files to modify/create...")
-            edit_comment("Found relevant files to edit, currently making changes...")
+            edit_comment(sweeping_gif + "I just completed searching for relevant files, now I'm making changes...")
             if file_comment:
                 formatted_query = f"The user left this comment in `{pr_path}`:\n<comment>\n{comment}\n</comment>\nThis was where they left their comment:\n<review_code_chunk>\n{formatted_pr_chunk}\n</review_code_chunk>.\n\nResolve their comment."
             file_change_requests, plan = get_files_to_change(
@@ -319,7 +319,7 @@ def on_comment(
             response_for_user = (
                 f"{quoted_comment}\n\nHi @{username},\n\n{sweep_response}"
             )
-            edit_comment(response_for_user)
+            edit_comment(sweeping_gif + response_for_user)
             
             modify_files_dict, changes_made, file_change_requests = handle_file_change_requests(
                 file_change_requests=file_change_requests,
@@ -330,53 +330,20 @@ def on_comment(
             )
             logger.info("\n".join(generate_diff(file_data["original_contents"], file_data["contents"]) for file_data in modify_files_dict.values()))
             commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]
-            try:
-                new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
-                previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
-                new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, file_change_requests)
-                if files_removed and username:
-                    posthog.capture(
-                        username,
-                        "polluted_commits_error",
-                        properties={
-                            "old_keys": ",".join(previous_file_contents_to_commit.keys()),
-                            "new_keys": ",".join(new_file_contents_to_commit.keys()) 
-                        },
-                    )
-                commit_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, commit_message, branch_name)
-            except Exception as e:
-                logger.info(f"Error in updating file{e}")
-                raise e
-            try:
-                if comment_id:
-                    if changes_made:
-                        response_for_user = "Done."
-                    else:
-                        response_for_user = 'I wasn\'t able to make changes. This could be due to an unclear request or a bug in my code.\n As a reminder, comments on a file only modify that file. Comments on a PR (at the bottom of the "conversation" tab) can modify the entire PR. Please try again or contact us on [Discourse](https://community.sweep.dev/)'
-            except Exception as e:
-                logger.error(f"Failed to reply to comment: {e}")
-
-            if not isinstance(pr, MockPR):
-                if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith(
-                    "[DRAFT] "
-                ):
-                    # Update the PR title to remove the "[DRAFT]" prefix
-                    pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
+            new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
+            previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
+            new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, file_change_requests)
+            if files_removed and username:
+                posthog.capture(
+                    username,
+                    "polluted_commits_error",
+                    properties={
+                        "old_keys": ",".join(previous_file_contents_to_commit.keys()),
+                        "new_keys": ",".join(new_file_contents_to_commit.keys()) 
+                    },
+                )
+            commit = commit_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, commit_message, branch_name)
             logger.info("Done!")
-        except NoFilesException:
-            elapsed_time = time.time() - start_time
-            posthog.capture(
-                username,
-                "failed",
-                properties={
-                    "error": "No files to change",
-                    "reason": "No files to change",
-                    "duration": elapsed_time,
-                    **metadata,
-                },
-            )
-            edit_comment(ERROR_FORMAT.format(title="Could not find files to change"))
-            return {"success": True, "message": "No files to change."}
         except Exception as e:
             stack_trace = traceback.format_exc()
             logger.error(stack_trace)
@@ -409,10 +376,7 @@ def on_comment(
                 pass
 
         if response_for_user is not None:
-            try:
-                edit_comment(f"## 🚀 Wrote Changes\n\n{response_for_user}")
-            except Exception:
-                pass
+            edit_comment(f"## 🚀 Resolved comment via [{commit.sha[:7]}](https://github.com/{repo_full_name}/commit/{commit.sha}) \n\n{response_for_user}")
 
         elapsed_time = time.time() - start_time
         # make async
