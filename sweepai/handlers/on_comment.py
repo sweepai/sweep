@@ -9,34 +9,31 @@ import traceback
 from typing import Any
 
 from loguru import logger
-from tabulate import tabulate
 
-from sweepai.config.client import get_documentation_dict
 from sweepai.config.server import (
-    DEFAULT_GPT4_MODEL,
     ENV,
     GITHUB_BOT_USERNAME,
     MONGODB_URI,
 )
-from sweepai.core.entities import MockPR, NoFilesException
-from sweepai.core.sweep_bot import SweepBot, get_files_to_change, validate_file_change_requests
+from sweepai.core.entities import MockPR, NoFilesException, Snippet
+from sweepai.core.sweep_bot import get_files_to_change, validate_file_change_requests
 from sweepai.handlers.create_pr import handle_file_change_requests
-from sweepai.core.review_utils import get_pr_diffs
+from sweepai.core.review_utils import get_pr_changes
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, get_github_client, sanitize_string_for_github, validate_and_sanitize_multi_file_changes
-from sweepai.utils.progress import TicketProgress
-from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
-from sweepai.utils.str_utils import BOT_SUFFIX, FASTER_MODEL_MESSAGE
-from sweepai.utils.ticket_utils import fire_and_forget_wrapper, prep_snippets
+from sweepai.utils.str_utils import BOT_SUFFIX, FASTER_MODEL_MESSAGE, blockquote
+from sweepai.utils.ticket_rendering_utils import render_fcrs, sweeping_gif
+from sweepai.utils.ticket_utils import center, fire_and_forget_wrapper, prep_snippets
 
 num_of_snippets_to_query = 30
 total_number_of_snippet_tokens = 15_000
 num_full_files = 2
 num_extended_snippets = 2
 
-ERROR_FORMAT = "❌ {title}\n\nPlease join our [Discourse](https://community.sweep.dev/) to report this issue."
+ERROR_FORMAT = "❌ {title}\n\nPlease report this on our [community forum](https://community.sweep.dev/)."
+SWEEPING_GIF = f"{center(sweeping_gif)}\n\n<div align='center'><h3>Sweep is working on resolving your comment...<h3/></div>\n\n"
 
 
 def on_comment(
@@ -59,6 +56,7 @@ def on_comment(
     with logger.contextualize(
         tracking_id=tracking_id,
     ):
+        # Initialization logic start
         logger.info(
             f"Calling on_comment() with the following arguments: {comment},"
             f" {repo_full_name}, {repo_description}, {pr_path}"
@@ -78,17 +76,19 @@ def on_comment(
             else pr.body
         )
         pr_file_path = None
-        diffs = get_pr_diffs(repo, pr)
         pr_chunk = None
         formatted_pr_chunk = None
+        if pr.state == "closed":
+            return {"success": True, "message": "PR is closed. No event fired."}
+        # Initialization logic end
 
+        # Payment logic start
         assignee = pr.assignee.login if pr.assignee else None
         issue_number_match = re.search(r"Fixes #(?P<issue_number>\d+).", pr_body or "")
         original_issue = None
         if issue_number_match or assignee:
             issue_number = issue_number_match.group("issue_number")
             if not assignee:
-                # issue_number = issue_number_match.group("issue_number")
                 original_issue = repo.get_issue(int(issue_number))
                 author = original_issue.user.login
             else:
@@ -132,7 +132,9 @@ def on_comment(
         
         if use_faster_model:
             raise Exception(FASTER_MODEL_MESSAGE)
+        # Payment logic end
 
+        # Telemetry logic start
         assignee = pr.assignee.login if pr.assignee else None
 
         metadata = {
@@ -169,6 +171,8 @@ def on_comment(
             },
         )
         logger.info(f"Getting repo {repo_full_name}")
+        # Telemetry logic end
+
         file_comment = bool(pr_path) and bool(pr_line_position)
 
         item_to_react_to = None
@@ -179,12 +183,9 @@ def on_comment(
         def edit_comment(new_comment: str) -> None:
             new_comment = sanitize_string_for_github(new_comment)
             if bot_comment is not None:
-                bot_comment.edit(new_comment + BOT_SUFFIX)
+                bot_comment.edit(new_comment + "\n" + BOT_SUFFIX)
 
         try:
-            # Check if the PR is closed
-            if pr.state == "closed":
-                return {"success": True, "message": "PR is closed. No event fired."}
             if comment_id:
                 try:
                     item_to_react_to = pr.get_issue_comment(comment_id)
@@ -246,75 +247,44 @@ def on_comment(
                 pr_lines = pr_file.splitlines()
                 start = max(0, pr_line_position - 11)
                 end = min(len(pr_lines), pr_line_position + 10)
-                original_line = pr_lines[pr_line_position - 1]
                 pr_chunk = "\n".join(pr_lines[start:end])
                 pr_file_path = pr_path.strip()
                 formatted_pr_chunk = (
                     "\n".join(pr_lines[start : pr_line_position - 1])
-                    + f"\n{pr_lines[pr_line_position - 1]} <- COMMENT: {comment.strip()}\n"
+                    + f"\n{pr_lines[pr_line_position - 1]} <--- GITHUB COMMENT: {comment.strip()} --->\n"
                     + "\n".join(pr_lines[pr_line_position:end])
                 )
                 if comment_id:
-                    try:
-                        bot_comment = pr.create_review_comment_reply(
-                            comment_id, "Working on it..." + BOT_SUFFIX
-                        )
-                    except Exception as e:
-                        print(e)
+                    bot_comment = pr.create_review_comment_reply(
+                        comment_id, SWEEPING_GIF + "Searching for relevant snippets..." + BOT_SUFFIX
+                    )
             else:
                 formatted_pr_chunk = None  # pr_file
-                bot_comment = pr.create_issue_comment("Working on it..." + BOT_SUFFIX)
-            try:
-                search_query = (comment).strip("\n")
-                formatted_query = (f"{comment}").strip("\n")
-                repo_context_manager = prep_snippets(
-                    cloned_repo, search_query, TicketProgress(tracking_id="none")
-                )
-                snippets = repo_context_manager.current_top_snippets
-                tree = str(repo_context_manager.dir_obj)
-                cloned_repo = repo_context_manager.cloned_repo
-            except Exception as e:
-                logger.error(traceback.format_exc())
-                raise e
-            get_documentation_dict(repo)
-            docs_results = ""
-            logger.info("Getting response from ChatGPT...")
-            human_message = HumanMessageCommentPrompt(
-                comment=comment,
-                repo_name=repo_name,
-                repo_description=repo_description if repo_description else "",
-                diffs=diffs,
-                title=pr_title,
-                tree=tree,
-                summary=pr_body,
-                snippets=snippets,
-                pr_file_path=pr_file_path,  # may be None
-                pr_chunk=formatted_pr_chunk,  # may be None
-                original_line=original_line if pr_chunk else None,
-                relevant_docs=docs_results,
-            )
-            logger.info(f"Human prompt{human_message.construct_prompt()}")
+                bot_comment = pr.create_issue_comment(SWEEPING_GIF + "Searching for relevant snippets..." + BOT_SUFFIX)
 
-            if use_faster_model:
-                raise Exception("GPT-3.5 is not supported for comments")
-            sweep_bot = SweepBot.from_system_message_content(
-                # human_message=human_message, model="claude-v1.3-100k", repo=repo
-                human_message=human_message,
-                repo=repo,
-                chat_logger=chat_logger,
-                model=DEFAULT_GPT4_MODEL,
-                cloned_repo=cloned_repo,
+            search_query = comment.strip("\n")
+            formatted_query = comment.strip("\n")
+            repo_context_manager = prep_snippets(
+                cloned_repo, search_query, use_multi_query=False
             )
+            snippets = repo_context_manager.current_top_snippets
+
+            pr_diffs, _dropped_files = get_pr_changes(repo, pr)
+            snippets_modified = [Snippet.from_file(
+                pr_diff.file_name, cloned_repo.get_file_contents(pr_diff.file_name)
+            ) for pr_diff in pr_diffs]
+            snippets = snippets_modified + snippets
+            snippets = snippets[:num_of_snippets_to_query]
         except Exception as e:
             stack_trace = traceback.format_exc()
-            logger.error(stack_trace)
+            logger.exception(e)
             elapsed_time = time.time() - start_time
             posthog.capture(
                 username,
                 "failed",
                 properties={
                     "error": str(e),
-                    "reason": f"An error occured! The stack trace is below:\n\n{stack_trace}",
+                    "traceback": f"An error occured during the search! The stack trace is below:\n\n{stack_trace}",
                     "duration": elapsed_time,
                     "tracking_id": tracking_id,
                     **metadata,
@@ -325,8 +295,9 @@ def on_comment(
 
         try:
             logger.info("Fetching files to modify/create...")
+            edit_comment(SWEEPING_GIF + "I just completed searching for relevant files, now I'm making changes...")
             if file_comment:
-                formatted_query = f"The user left this comment: <comment>\n{comment}\n</comment>\nThis was where they left their comment:\n<review_code_chunk>\n{formatted_pr_chunk}\n</review_code_chunk>.\n\nResolve their comment."
+                formatted_query = f"The user left this GitHub PR Review comment in `{pr_path}`:\n<comment>\n{comment}\n</comment>\nThis was where they left their comment on the PR:\n<review_code_chunk>\n{formatted_pr_chunk}\n</review_code_chunk>.\n\nResolve their comment."
             file_change_requests, plan = get_files_to_change(
                 relevant_snippets=repo_context_manager.current_top_snippets,
                 read_only_snippets=repo_context_manager.read_only_snippets,
@@ -336,95 +307,41 @@ def on_comment(
                 cloned_repo=cloned_repo,
             )
             validate_file_change_requests(file_change_requests, repo_context_manager.cloned_repo)
-            file_change_requests = sweep_bot.validate_file_change_requests(
-                file_change_requests, branch=branch_name
-            )
 
-            sweep_response = "I couldn't find any relevant files to change."
-            if file_change_requests:
-                table_message = tabulate(
-                    [
-                        [
-                            f"`{file_change_request.filename}`",
-                            file_change_request.instructions_display.replace(
-                                "\n", "<br/>"
-                            ).replace("```", "\\```"),
-                        ]
-                        for file_change_request in file_change_requests
-                    ],
-                    headers=["File Path", "Proposed Changes"],
-                    tablefmt="pipe",
-                )
-                sweep_response = (
-                    f"I am making the following changes:\n\n{table_message}"
-                )
-            quoted_comment = "> " + comment.replace("\n", "\n> ")
+            assert file_change_requests, NoFilesException("I couldn't find any relevant files to change.")
+
+            planning_markdown = render_fcrs(file_change_requests)
+            sweep_response = f"I'm going to make the following changes:\n\n{planning_markdown}\n\nI'm currently validating these changes using parsers and linters to check for syntax errors and undefined variables..."
+
+            quoted_comment = blockquote(comment) + "\n\n"
             response_for_user = (
                 f"{quoted_comment}\n\nHi @{username},\n\n{sweep_response}"
             )
-            if pr_number:
-                edit_comment(response_for_user)
-
-            sweep_bot.comment_pr_diff_str = pr_diff_string
-            sweep_bot.comment_pr_files_modified = pr_files_modified
+            edit_comment(SWEEPING_GIF + response_for_user)
+            
             modify_files_dict, changes_made, file_change_requests = handle_file_change_requests(
                 file_change_requests=file_change_requests,
                 request=file_comment,
-                branch_name=branch_name,
-                sweep_bot=sweep_bot,
+                cloned_repo=cloned_repo,
                 username=username,
                 installation_id=installation_id,
-                chat_logger=chat_logger,
             )
             logger.info("\n".join(generate_diff(file_data["original_contents"], file_data["contents"]) for file_data in modify_files_dict.values()))
             commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]
-            try:
-                new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
-                previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
-                new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, file_change_requests)
-                if files_removed and username:
-                    posthog.capture(
-                        username,
-                        "polluted_commits_error",
-                        properties={
-                            "old_keys": ",".join(previous_file_contents_to_commit.keys()),
-                            "new_keys": ",".join(new_file_contents_to_commit.keys()) 
-                        },
-                    )
-                commit_multi_file_changes(sweep_bot.repo, new_file_contents_to_commit, commit_message, branch_name)
-            except Exception as e:
-                logger.info(f"Error in updating file{e}")
-                raise e
-            try:
-                if comment_id:
-                    if changes_made:
-                        response_for_user = "Done."
-                    else:
-                        response_for_user = 'I wasn\'t able to make changes. This could be due to an unclear request or a bug in my code.\n As a reminder, comments on a file only modify that file. Comments on a PR (at the bottom of the "conversation" tab) can modify the entire PR. Please try again or contact us on [Discourse](https://community.sweep.dev/)'
-            except Exception as e:
-                logger.error(f"Failed to reply to comment: {e}")
-
-            if not isinstance(pr, MockPR):
-                if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith(
-                    "[DRAFT] "
-                ):
-                    # Update the PR title to remove the "[DRAFT]" prefix
-                    pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
+            new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
+            previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
+            new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, file_change_requests)
+            if files_removed and username:
+                posthog.capture(
+                    username,
+                    "polluted_commits_error",
+                    properties={
+                        "old_keys": ",".join(previous_file_contents_to_commit.keys()),
+                        "new_keys": ",".join(new_file_contents_to_commit.keys()) 
+                    },
+                )
+            commit = commit_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, commit_message, branch_name)
             logger.info("Done!")
-        except NoFilesException:
-            elapsed_time = time.time() - start_time
-            posthog.capture(
-                username,
-                "failed",
-                properties={
-                    "error": "No files to change",
-                    "reason": "No files to change",
-                    "duration": elapsed_time,
-                    **metadata,
-                },
-            )
-            edit_comment(ERROR_FORMAT.format(title="Could not find files to change"))
-            return {"success": True, "message": "No files to change."}
         except Exception as e:
             stack_trace = traceback.format_exc()
             logger.error(stack_trace)
@@ -456,11 +373,16 @@ def on_comment(
             except Exception:
                 pass
 
-        if response_for_user is not None:
-            try:
-                edit_comment(f"## 🚀 Wrote Changes\n\n{response_for_user}")
-            except Exception:
-                pass
+        patch_diff = ""
+        for file_path, file_data in modify_files_dict.items():
+            if file_path in new_file_contents_to_commit:
+                patch_diff += f"--- {file_path}\n+++ {file_path}\n{generate_diff(file_data['original_contents'], file_data['contents'])}\n\n"
+        
+        if patch_diff:
+            edit_comment(f"### 🚀 Resolved via [{commit.sha[:7]}](https://github.com/{repo_full_name}/commit/{commit.sha})\n\nHere were the changes I made:\n```diff\n{patch_diff}\n```")
+        else:
+            edit_comment(f"### 🚀 Resolved via [{commit.sha[:7]}](https://github.com/{repo_full_name}/commit/{commit.sha})")
+
 
         elapsed_time = time.time() - start_time
         # make async

@@ -1,11 +1,10 @@
 import base64
 import os
 import re
-import traceback
 from typing import Dict
 
 from github.ContentFile import ContentFile
-from github.GithubException import GithubException, UnknownObjectException
+from github.GithubException import GithubException
 from github.Repository import Repository
 from loguru import logger
 from networkx import Graph
@@ -14,7 +13,7 @@ from tqdm import tqdm
 from rapidfuzz import fuzz
 
 from sweepai.agents.modify_utils import contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, parse_fcr, indent
-from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
+from sweepai.config.client import SweepConfig, get_branch_name_config
 from sweepai.config.server import DEFAULT_GPT4_MODEL
 from sweepai.core.annotate_code_openai import get_annotated_source_code
 from sweepai.core.chat import ChatGPT
@@ -52,7 +51,6 @@ from sweepai.utils.diff import generate_diff
 from sweepai.utils.progress import (
     TicketProgress,
 )
-from sweepai.utils.str_utils import get_hash
 from sweepai.utils.github_utils import ClonedRepo
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
@@ -227,7 +225,7 @@ def get_error_message(
                         file_name = file_change_request.filename
 
                         file_dir = os.path.dirname(file_name)
-                        full_file_dir = os.path.join(cloned_repo.repo_dir, file_name)
+                        full_file_dir = os.path.join(cloned_repo.repo_dir, file_dir)
                         full_file_name = os.path.join(cloned_repo.repo_dir, file_name)
 
                         current_error_message = ""
@@ -400,7 +398,6 @@ def get_files_to_change(
     seed: int = 0,
     images: list[tuple[str, str, str]] | None = None
 ) -> tuple[list[FileChangeRequest], str]:
-    # use_openai = True
     use_openai = False
     files_to_change_prompt = openai_files_to_change_prompt if use_openai else anthropic_files_to_change_prompt
     file_change_requests: list[FileChangeRequest] = []
@@ -452,10 +449,6 @@ def get_files_to_change(
                 content=annotated_source_code,
             )
         )
-        # cohere_rerank_response = cohere_rerank_call(
-        #     query=problem_statement,
-        #     documents=code_summaries,
-        # )
     joined_relevant_snippets = "\n".join(
         formatted_relevant_snippets
     )
@@ -508,20 +501,23 @@ def get_files_to_change(
         )
         ISSUE_EXCERPT_MODEL = "claude-3-haiku-20240307"
         MODEL = "claude-3-opus-20240229"
-        issue_excerpt_response = issue_excerpt_chat_gpt.chat_anthropic(
-            content=joint_message + "\n\n" + issue_excerpt_prompt,
-            model=ISSUE_EXCERPT_MODEL,
-            temperature=0.1,
-            images=images,
-            use_openai=use_openai,
-            seed=seed
-        )
-        issue_excerpt_pattern = re.compile(r"<issue_excerpts>(.*?)</issue_excerpts>", re.DOTALL)
-        issue_excerpt_match = issue_excerpt_pattern.search(issue_excerpt_response)
-        if not issue_excerpt_match:
-            raise Exception("Failed to match issue excerpts")
-        issue_excerpts = issue_excerpt_match.group(1)
-        issue_excerpts = issue_excerpts.strip("\n")
+        issue_excerpts = ""
+        if not use_openai:
+            issue_excerpt_response = issue_excerpt_chat_gpt.chat_anthropic(
+                content=joint_message + "\n\n" + issue_excerpt_prompt,
+                model=ISSUE_EXCERPT_MODEL,
+                temperature=0.1,
+                images=images,
+                use_openai=use_openai,
+                seed=seed
+            )
+            issue_excerpt_pattern = re.compile(r"<issue_excerpts>(.*?)</issue_excerpts>", re.DOTALL)
+            issue_excerpt_match = issue_excerpt_pattern.search(issue_excerpt_response)
+            if not issue_excerpt_match:
+                raise Exception("Failed to match issue excerpts")
+            issue_excerpts = issue_excerpt_match.group(1)
+            issue_excerpts = issue_excerpts.strip("\n")
+
         # breakpoint()
         files_to_change_response: str = chat_gpt.chat_anthropic(
             content=joint_message + "\n\n" + files_to_change_prompt.format(issue_excerpts=issue_excerpts),
@@ -529,17 +525,19 @@ def get_files_to_change(
             temperature=0.1,
             images=images,
             use_openai=use_openai,
-            seed=seed
+            seed=seed + 1
         )
         expected_plan_count = 1
         calls = 0
-        # breakpoint()
         # pylint: disable=E1101
         while files_to_change_response.count("</plan>") < expected_plan_count and calls < 3:
+            last_block = max(files_to_change_response.find("<original_code>"), files_to_change_response.find("<new_code>"))
+            files_to_change_response = files_to_change_response[:last_block].rstrip()
+            chat_gpt.messages[-1].content = files_to_change_response
             # ask for a second response
             try:
                 next_response: str = chat_gpt.chat_anthropic(
-                    content="Continue generating, making sure to finish the plan coherently. You may be in the middle of an XML block or section of code.",
+                    content="",
                     model=MODEL,
                     temperature=0.1,
                     images=images,
@@ -574,7 +572,6 @@ def get_files_to_change(
             file_change_requests.append(file_change_request)
         
         error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
-        # breakpoint()
 
         for _ in range(3):
             if not error_message:
@@ -694,6 +691,7 @@ def context_get_files_to_change(
                 if ".venv" in import_path or "build" in import_path:
                     continue
                 graph_string += f"- {import_path}\n"
+            graph_string = graph_string.strip('\n')
         messages.append(
             Message(
                 role="user",
@@ -710,48 +708,46 @@ def context_get_files_to_change(
         messages.append(
             Message(role="user", content=pr_diffs, key="pr_diffs")
         )
-    try:
-        print("messages")
-        for message in messages:
-            print(message.content + "\n\n")
-        joint_message = "\n\n".join(message.content for message in messages[1:])
-        print("messages", joint_message)
-        chat_gpt = ChatGPT(
-            messages=[
-                Message(
-                    role="system",
-                    content=context_files_to_change_system_prompt,
-                ),
-            ],
-        )
-        MODEL = "claude-3-opus-20240229"
-        files_to_change_response = chat_gpt.chat_anthropic(
-            content=joint_message + "\n\n" + (context_files_to_change_prompt),
-            model=MODEL,
-            temperature=0.1,
-            images=images,
-            use_openai=use_openai,
-        )
-        relevant_files = []
-        read_only_files = []
-        # parse out <relevant_files> block
-        relevant_files_pattern = re.compile(r"<relevant_files>(.*?)</relevant_files>", re.DOTALL)
-        relevant_files_matches = relevant_files_pattern.findall(files_to_change_response)
-        if relevant_files_matches:
-            relevant_files_str = '\n'.join(relevant_files_matches)
-            relevant_files = parse_filenames(relevant_files_str)
-        # parse out <read_only_files> block
-        read_only_files_pattern = re.compile(r"<read_only_files>(.*?)</read_only_files>", re.DOTALL)
-        read_only_files_matches = read_only_files_pattern.findall(files_to_change_response)
-        if read_only_files_matches:
-            read_only_files_str = '\n'.join(read_only_files_matches)
-            read_only_files = parse_filenames(read_only_files_str)
-        relevant_files = list(dict.fromkeys(relevant_files))
-        read_only_files = list(dict.fromkeys(read_only_files))
-        return relevant_files, read_only_files
-    except Exception as e:
-        logger.info(f"Failed to get context due to {e}")
-    return [], []
+
+    print("messages")
+    for message in messages:
+        print(message.content + "\n\n")
+    joint_message = "\n\n".join(message.content for message in messages[1:])
+    print("messages", joint_message)
+
+    chat_gpt = ChatGPT(
+        messages=[
+            Message(
+                role="system",
+                content=context_files_to_change_system_prompt,
+            ),
+        ],
+    )
+    MODEL = "claude-3-opus-20240229"
+    files_to_change_response = chat_gpt.chat_anthropic(
+        content=joint_message + "\n\n" + context_files_to_change_prompt,
+        model=MODEL,
+        temperature=0.1,
+        images=images,
+        use_openai=use_openai,
+    )
+    relevant_files = []
+    read_only_files = []
+    # parse out <relevant_files> block
+    relevant_files_pattern = re.compile(r"<relevant_files>(.*?)</relevant_files>", re.DOTALL)
+    relevant_files_matches = relevant_files_pattern.findall(files_to_change_response)
+    if relevant_files_matches:
+        relevant_files_str = '\n'.join(relevant_files_matches)
+        relevant_files = parse_filenames(relevant_files_str)
+    # parse out <read_only_files> block
+    read_only_files_pattern = re.compile(r"<read_only_files>(.*?)</read_only_files>", re.DOTALL)
+    read_only_files_matches = read_only_files_pattern.findall(files_to_change_response)
+    if read_only_files_matches:
+        read_only_files_str = '\n'.join(read_only_files_matches)
+        read_only_files = parse_filenames(read_only_files_str)
+    relevant_files = list(dict.fromkeys(relevant_files))
+    read_only_files = list(dict.fromkeys(read_only_files))
+    return relevant_files, read_only_files
 
 def get_files_to_change_for_test(
     relevant_snippets: list[Snippet],
@@ -1201,8 +1197,6 @@ class CodeGenBot(ChatGPT):
                     pr_text_response += '"""'
 
                 self.messages = self.messages[:-2]
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 e_str = str(e)
                 logger.warning(f"Exception {e_str}. Failed to parse! Retrying...")
@@ -1248,61 +1242,8 @@ class GithubBot(BaseModel):
         try:
             self.get_contents(path, branch)
             return True
-        except SystemExit:
-            raise SystemExit
         except Exception:
             return False
-
-    def clean_branch_name(self, branch: str) -> str:
-        branch = re.sub(r"[^a-zA-Z0-9_\-/]", "_", branch)
-        branch = re.sub(r"_+", "_", branch)
-        branch = branch.strip("_")
-
-        return branch
-
-    def create_branch(self, branch: str, base_branch: str = None, retry=True) -> str:
-        # Generate PR if nothing is supplied maybe
-        branch = self.clean_branch_name(branch)
-        base_branch = self.repo.get_branch(
-            base_branch if base_branch else SweepConfig.get_branch(self.repo)
-        )
-        try:
-            try:
-                test = self.repo.get_branch("sweep")
-                assert test is not None
-                # If it does exist, fix
-                branch = branch.replace(
-                    "/", "_"
-                )  # Replace sweep/ with sweep_ (temp fix)
-            except Exception:
-                pass
-
-            self.repo.create_git_ref(f"refs/heads/{branch}", base_branch.commit.sha)
-            return branch
-        except GithubException as e:
-            logger.error(f"Error: {e}, trying with other branch names...")
-            logger.warning(
-                f"{branch}\n{base_branch}, {base_branch.name}\n{base_branch.commit.sha}"
-            )
-            if retry:
-                for i in range(1, 10):
-                    try:
-                        logger.warning(f"Retrying {branch}_{i}...")
-                        _hash = get_hash()[:5]
-                        self.repo.create_git_ref(
-                            f"refs/heads/{branch}_{_hash}", base_branch.commit.sha
-                        )
-                        return f"{branch}_{_hash}"
-                    except GithubException:
-                        pass
-            else:
-                new_branch = self.repo.get_branch(branch)
-                if new_branch:
-                    return new_branch.name
-            logger.error(
-                f"Error: {e}, could not create branch name {branch} on {self.repo.full_name}"
-            )
-            raise e
 
     def populate_snippets(self, snippets: list[Snippet]):
         for snippet in snippets:
@@ -1314,84 +1255,9 @@ class GithubBot(BaseModel):
                 )
                 snippet.start = max(1, snippet.start)
                 snippet.end = min(len(snippet.content.split("\n")), snippet.end)
-            except SystemExit:
-                raise SystemExit
+
             except Exception:
                 logger.error(snippet)
-
-    def validate_file_change_requests(
-        self, file_change_requests: list[FileChangeRequest], branch: str = ""
-    ):
-        blocked_dirs = get_blocked_dirs(self.repo)
-        created_files = []
-        for file_change_request in file_change_requests:
-            try:
-                contents = None
-                try:
-                    contents = self.repo.get_contents(
-                        file_change_request.filename,
-                        branch or SweepConfig.get_branch(self.repo),
-                    )
-                except UnknownObjectException:
-                    for prefix in [
-                        self.repo.full_name,
-                        self.repo.owner.login,
-                        self.repo.name,
-                    ]:
-                        try:
-                            new_filename = file_change_request.filename.replace(
-                                prefix + "/", "", 1
-                            )
-                            contents = self.repo.get_contents(
-                                new_filename,
-                                branch or SweepConfig.get_branch(self.repo),
-                            )
-                            file_change_request.filename = new_filename
-                            break
-                        except UnknownObjectException:
-                            pass
-                    else:
-                        contents = None
-                except SystemExit:
-                    raise SystemExit
-                except Exception as e:
-                    logger.error(f"FileChange Validation Error: {e}")
-
-                if (
-                    contents or file_change_request.filename in created_files
-                ) and file_change_request.change_type == "create":
-                    file_change_request.change_type = "modify"
-                elif (
-                    not (contents or file_change_request.filename in created_files)
-                    and file_change_request.change_type == "modify"
-                ):
-                    file_change_request.change_type = "create"
-                
-                if contents is not None:
-                    try:
-                        file_change_request.old_content = safe_decode(self.repo, file_change_request.filename, ref=SweepConfig.get_branch(self.repo))
-                    except Exception as e:
-                        logger.info(f"Error: {e}")
-                        file_change_request.old_content = ""
-
-                created_files.append(file_change_request.filename)
-
-                block_status = is_blocked(file_change_request.filename, blocked_dirs)
-                if block_status["success"]:
-                    # red X emoji
-                    file_change_request.instructions = (
-                        f'❌ Unable to modify files in `{block_status["path"]}`\nEdit'
-                        " `sweep.yaml` to configure."
-                    )
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.info(traceback.format_exc())
-                raise e
-        file_change_requests = [
-            file_change_request for file_change_request in file_change_requests
-        ]
-        return file_change_requests
 
 
 ASSET_BRANCH_NAME = "sweep/assets"
@@ -1401,14 +1267,3 @@ class SweepBot(CodeGenBot, GithubBot):
     comment_pr_diff_str: str | None = None
     comment_pr_files_modified: Dict[str, str] | None = None
     ticket_progress: TicketProgress | None = None
-
-
-    def validate_file_change_requests(
-        self,
-        file_change_requests: list[FileChangeRequest],
-        branch: str = "",
-    ):
-        file_change_requests = super().validate_file_change_requests(
-            file_change_requests, branch
-        )
-        return file_change_requests

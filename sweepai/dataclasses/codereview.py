@@ -12,6 +12,7 @@ class CodeReview:
     file_name: str
     diff_summary: str
     issues: list[CodeReviewIssue]
+    potential_issues: list[CodeReviewIssue]
 
 @dataclass
 class Patch:

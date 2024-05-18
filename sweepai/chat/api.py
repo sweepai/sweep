@@ -1,4 +1,6 @@
+import copy
 from functools import wraps
+import traceback
 from typing import Any, Callable
 import jsonpatch
 from copy import deepcopy
@@ -15,12 +17,42 @@ from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snip
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
-from sweepai.utils.github_utils import MockClonedRepo, get_installation_id, get_token
+from sweepai.utils.github_utils import MockClonedRepo
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.str_utils import get_hash
 from sweepai.utils.ticket_utils import prep_snippets
 
 app = FastAPI()
+
+# custom deepcopy to avoid unpickable objects, instead replacing them with a string
+def custom_deepcopy(dictionary: dict):
+    new_dictionary = {}
+    for arg, value in dictionary.items():
+        try:
+            new_value = copy.deepcopy(value)
+        except Exception:
+            new_dictionary[arg] = "Object can not be deepcopied!"
+        else:
+            new_dictionary[arg] = new_value
+    return new_dictionary
+
+# function to iterate through a dictionary and ensure all values are json serializable
+# truncates strings at 500 for sake of readability
+def make_serializable(dictionary: dict):
+    MAX_STRING_LENGTH = 500
+    new_dictionary = {}
+    # find any unserializable objects then turn them to strings
+    for arg, value in dictionary.items():
+        try:
+            new_dictionary[arg] = json.dumps(value)
+        except TypeError:
+            try:
+                new_dictionary[arg] = str(value)[:500]
+            except Exception:
+                new_dictionary[arg] = "Unserializable"
+        if len(new_dictionary[arg]) > MAX_STRING_LENGTH:
+            new_dictionary[arg] = new_dictionary[arg][:MAX_STRING_LENGTH] + "..."
+    return new_dictionary
 
 def posthog_trace(
     function: Callable[..., Any],
@@ -34,16 +66,42 @@ def posthog_trace(
     ):
         tracking_id = get_hash()[:10]
         metadata = {**metadata, "tracking_id": tracking_id, "username": username}
+        # attach args and kwargs to metadata
+        if args:
+            args_names = function.__code__.co_varnames[: function.__code__.co_argcount]
+            args_dict = dict(zip(args_names[1:], args)) # skip first arg which must be username
+            try:
+                posthog_args = copy.deepcopy(args_dict)
+            except TypeError:
+                posthog_args = custom_deepcopy(args_dict)
+                posthog_args = make_serializable(posthog_args)
+            else:
+                posthog_args = make_serializable(posthog_args)
+            finally:
+                metadata = {**metadata, **posthog_args}
+        if kwargs:
+            try:
+                posthog_kwargs = copy.deepcopy(kwargs)
+            except TypeError: # something went wrong during the deepcopy, this means we have to be super careful not to mutate any function params
+                posthog_kwargs = custom_deepcopy(kwargs)
+                posthog_kwargs = make_serializable(posthog_kwargs)
+            else:
+                # if no issues occured during the deepcopy we do not need to worry about mutating the function params
+                # find any unserializable objects then turn them to strings
+                posthog_kwargs = make_serializable(posthog_kwargs)
+            finally:
+                metadata = {**metadata, **posthog_kwargs}
         posthog.capture(username, f"{function.__name__} start", properties=metadata)
 
         try:
             result = function(
+                username,
                 *args,
                 metadata=metadata,
                 **kwargs
             )
         except Exception as e:
-            posthog.capture(username, f"{function.__name__} error", properties=metadata)
+            posthog.capture(username, f"{function.__name__} error", properties={**metadata, "error": str(e), "trace": traceback.format_exc()})
             raise e
         else:
             posthog.capture(username, f"{function.__name__} success", properties=metadata)
@@ -85,6 +143,7 @@ def check_repo_exists_endpoint(repo_name: str, access_token: str = Depends(get_t
     return check_repo_exists(
         username,
         repo_name,
+        access_token,
         metadata={
             "repo_name": repo_name,
         }
@@ -93,6 +152,7 @@ def check_repo_exists_endpoint(repo_name: str, access_token: str = Depends(get_t
 @posthog_trace
 def check_repo_exists(
     repo_name: str,
+    access_token: str,
     metadata: dict = {},
 ):
     org_name, repo = repo_name.split("/")
@@ -100,9 +160,7 @@ def check_repo_exists(
         return {"success": True}
     try:
         print(f"Cloning {repo_name} to /tmp/{repo}")
-        installation_id = int(get_installation_id(org_name))
-        token = get_token(installation_id)
-        git.Repo.clone_from(f"https://x-access-token:{token}@github.com/{repo_name}", f"/tmp/{repo}")
+        git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"/tmp/{repo}")
         print(f"Cloned {repo_name} to /tmp/{repo}")
         return {"success": True}
     except Exception as e:
@@ -121,6 +179,7 @@ def search_codebase_endpoint(
         username,
         repo_name,
         query,
+        access_token,
         metadata={
             "repo_name": repo_name,
             "query": query,
@@ -131,23 +190,24 @@ def search_codebase_endpoint(
 def wrapped_search_codebase(
     repo_name: str,
     query: str,
+    access_token: str,
     metadata: dict = {},
 ):
     return search_codebase(
         repo_name,
-        query
+        query,
+        access_token
     )
 
 def search_codebase(
     repo_name: str,
     query: str,
+    access_token: str,
 ):
     org_name, repo = repo_name.split("/")
     if not os.path.exists(f"/tmp/{repo}"):
         print(f"Cloning {repo_name} to /tmp/{repo}")
-        installation_id = int(get_installation_id(org_name))
-        token = get_token(installation_id)
-        git.Repo.clone_from(f"https://x-access-token:{token}@github.com/{repo_name}", f"/tmp/{repo}")
+        git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"/tmp/{repo}")
         print(f"Cloned {repo_name} to /tmp/{repo}")
     cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name)
     repo_context_manager = prep_snippets(cloned_repo, query, use_multi_query=False, NUM_SNIPPETS_TO_KEEP=0)
@@ -173,6 +233,7 @@ def chat_codebase(
         repo_name,
         messages,
         snippets,
+        access_token,
         metadata={
             "repo_name": repo_name,
             "message": messages[-1].content,
@@ -187,6 +248,7 @@ def chat_codebase_stream(
     repo_name: str,
     messages: list[Message],
     snippets: list[Snippet],
+    access_token: str,
     metadata: dict = {},
     use_patch: bool = False,
 ):
@@ -216,7 +278,7 @@ def chat_codebase_stream(
         *messages[:-1]
     ]
 
-    def stream_state(initial_user_message: str, snippets: list[Snippet], messages: list[Message]):
+    def stream_state(initial_user_message: str, snippets: list[Snippet], messages: list[Message], access_token: str):
         user_message = initial_user_message
         fetched_snippets = snippets
         new_messages = [
@@ -304,6 +366,9 @@ def chat_codebase_stream(
                     role="assistant",
                 )
             )
+
+            result_string = result_string.replace("<function_calls>", "<function_call>")
+            result_string += "</function_call>"
             
             function_call = validate_and_parse_function_call(result_string, chat_gpt)
             
@@ -321,7 +386,7 @@ def chat_codebase_stream(
                     )
                 ]
                 
-                function_output, new_snippets = handle_function_call(function_call, repo_name, fetched_snippets)
+                function_output, new_snippets = handle_function_call(function_call, repo_name, fetched_snippets, access_token)
                 
                 yield [
                     *new_messages,
@@ -382,18 +447,20 @@ def chat_codebase_stream(
             messages[-1].content + "\n\n" + format_message,
             snippets,
             messages,
+            access_token,
             use_patch=use_patch
         )
     )
 
-def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, snippets: list[Snippet]):
+def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, snippets: list[Snippet], access_token: str):
     NUM_SNIPPETS = 5
     if function_call.function_name == "search_codebase":
         if "query" not in function_call.function_parameters:
             return "ERROR\n\nQuery parameter is required."
         new_snippets = search_codebase(
             repo_name=repo_name,
-            query=function_call.function_parameters["query"]
+            query=function_call.function_parameters["query"],
+            access_token=access_token
         )
         fetched_snippet_denotations = [snippet.denotation for snippet in snippets]
         new_snippets_to_add = [snippet for snippet in new_snippets if snippet.denotation not in fetched_snippet_denotations]
@@ -435,3 +502,4 @@ if __name__ == "__main__":
         "snippets": [snippet.model_dump() for snippet in snippets]
     })
     print(response.text)
+

@@ -56,6 +56,7 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> list[PRChange]:
     file_diffs = comparison.files
 
     pr_diffs = []
+    dropped_files = []
     for file in tqdm(file_diffs, desc="Annotating diffs"):
         file_name = file.filename
         diff = file.patch
@@ -64,6 +65,7 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> list[PRChange]:
 
         # drop excluded files: for example package-lock.json files
         if sweep_config.is_file_excluded(file_name):
+            dropped_files.append(file_name)
             continue
 
         if file.status == "added":
@@ -95,7 +97,7 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> list[PRChange]:
         pr_diffs.append(
             pr_change
         )
-    return pr_diffs
+    return pr_diffs, dropped_files
 
 def split_diff_into_patches(diff: str) -> list[Patch]:
     patches = []
@@ -192,7 +194,7 @@ Here are the changes in the pull request diffs:
         - How does this line of code interact with or impact the rest of the codebase?
         - Is this line of code functionally correct? Could it introduce any bugs or errors?
         - Is this line of code necessary? Or could it be an accidental change or commented out code?
-    1c. Describe the key changes that were made in the diffs. (1 paragraph)
+    1c. Describe all changes that were made in the diffs. Respond in the following format. (1 paragraph)
 <thoughts>
 <thinking>
 {{Analysis of diff/patch 1}}
@@ -207,7 +209,7 @@ Here are the changes in the pull request diffs:
 2. Identify all issues.
     2a. Determine whether there are any functional issues, bugs, edge cases, or error conditions that the code changes introduce or fail to properly handle. Consider the line-by-line analysis from step 1b. (1 paragraph)
     2b. Determine whether there are any security vulnerabilities or potential security issues introduced by the code changes. (1 paragraph) 
-    2c. Identify any other potential issues that the code changes may introduce that were not captured by 2a or 2b. This could include accidental changes such as commented out code, or other suspicious modifications. (1 paragraph)
+    2c. Identify any other potential issues that the code changes may introduce that were not captured by 2a or 2b. This could include accidental changes such as commented out code. (1 paragraph)
     2d. Only include issues that you are very confident will cause serious issues that prevent the pull request from being merged. For example, focus only on functional code changes and ignore changes to strings and comments that are purely descriptive.
     2e. Format the found issues and root causes using the following XML tags. Each issue description should be a single sentence. Include the corresponding start and end line numbers, these line numbers should only include lines of code that have been changed. DO NOT reference the patch or patch number in the description. Format these fields in an <issue> tag in the following manner:
 <issues>
@@ -319,7 +321,7 @@ class PRReviewBot(ChatGPT):
             if issues_matches:
                 issues = "\n".join([match.strip() for match in issues_matches])
             potential_issues = parse_issues_from_code_review(issues)
-            code_reviews_by_file[file_name] = CodeReview(file_name=file_name, diff_summary=diff_summary, issues=potential_issues)
+            code_reviews_by_file[file_name] = CodeReview(file_name=file_name, diff_summary=diff_summary, issues=potential_issues, potential_issues=[])
             if chat_logger:
                 chat_logger.add_chat(
                     {

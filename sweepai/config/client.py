@@ -110,7 +110,11 @@ class SweepConfig(BaseModel):
         "LICENSE",
         "poetry.lock",
         'package-lock.json',
-        'package.json'
+        'package.json',
+        'pyproject.toml',
+        'requirements.txt',
+        'yarn.lock',
+        '.lockb',
     ]
     # cutoff for when we output truncated versions of strings, this is an arbitrary number and can be changed
     truncation_cutoff: int = 20000
@@ -142,8 +146,6 @@ class SweepConfig(BaseModel):
             try:
                 repo.get_branch(branch_name)
                 return branch_name
-            except SystemExit:
-                raise SystemExit
             except github.GithubException:
                 # try a more robust branch test
                 branch_name_parts = branch_name.split(" ")[0].split("/")
@@ -173,21 +175,16 @@ class SweepConfig(BaseModel):
         default_branch = repo.default_branch
         try:
             sweep_yaml_dict = {}
-            try:
-                contents = repo.get_contents("sweep.yaml")
-                sweep_yaml_dict = yaml.safe_load(
-                    contents.decoded_content.decode("utf-8")
-                )
-            except SystemExit:
-                raise SystemExit
+            contents = repo.get_contents("sweep.yaml")
+            sweep_yaml_dict = yaml.safe_load(
+                contents.decoded_content.decode("utf-8")
+            )
             if "branch" not in sweep_yaml_dict:
                 return default_branch
             branch_name = sweep_yaml_dict["branch"]
             try:
                 repo.get_branch(branch_name)
                 return branch_name
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 logger.exception(
                     f"Error when getting branch: {e}, traceback: {traceback.format_exc()}, creating branch"
@@ -197,8 +194,6 @@ class SweepConfig(BaseModel):
                     repo.get_branch(default_branch).commit.sha,
                 )
                 return branch_name
-        except SystemExit:
-            raise SystemExit
         except Exception:
             return default_branch
 
@@ -208,8 +203,6 @@ class SweepConfig(BaseModel):
             contents = repo.get_contents("sweep.yaml")
             config = yaml.safe_load(contents.decoded_content.decode("utf-8"))
             return SweepConfig(**config)
-        except SystemExit:
-            raise SystemExit
         except Exception as e:
             logger.warning(f"Error when getting config: {e}, returning empty dict")
             if "This repository is empty." in str(e):
@@ -222,8 +215,6 @@ class SweepConfig(BaseModel):
             contents = repo.get_contents("sweep.yaml")
             config = yaml.safe_load(contents.decoded_content.decode("utf-8"))
             return config.get("draft", False)
-        except SystemExit:
-            raise SystemExit
         except Exception as e:
             logger.warning(f"Error when getting draft: {e}, returning False")
             return False
@@ -293,8 +284,6 @@ def get_gha_enabled(repo: Repository) -> bool:
             "gha_enabled", False
         )
         return gha_enabled
-    except SystemExit:
-        raise SystemExit
     except Exception:
         logger.info(
             "Error when getting gha enabled, falling back to False"
@@ -311,8 +300,6 @@ def get_description(repo: Repository) -> dict:
         rules = sweep_yaml.get("rules", [])
         rules = "\n * ".join(rules[:3])
         return {"description": description, "rules": rules}
-    except SystemExit:
-        raise SystemExit
     except Exception:
         return {"description": "", "rules": ""}
 
@@ -325,8 +312,6 @@ def get_sandbox_config(repo: Repository):
             "sandbox", {}
         )
         return description
-    except SystemExit:
-        raise SystemExit
     except Exception:
         return {}
 
@@ -339,8 +324,6 @@ def get_branch_name_config(repo: Repository):
             "branch_use_underscores", False
         )
         return description
-    except SystemExit:
-        raise SystemExit
     except Exception:
         return False
 
@@ -354,8 +337,6 @@ def get_documentation_dict(repo: Repository):
         sweep_yaml = yaml.safe_load(sweep_yaml_content)
         docs = sweep_yaml.get("docs", {})
         return docs
-    except SystemExit:
-        raise SystemExit
     except Exception:
         return {}
 
@@ -369,8 +350,6 @@ def get_blocked_dirs(repo: Repository):
         sweep_yaml = yaml.safe_load(sweep_yaml_content)
         dirs = sweep_yaml.get("blocked_dirs", [])
         return dirs
-    except SystemExit:
-        raise SystemExit
     except Exception:
         return []
 
@@ -384,8 +363,6 @@ def get_rules(repo: Repository):
         sweep_yaml = yaml.safe_load(sweep_yaml_content)
         rules = sweep_yaml.get("rules", [])
         return rules
-    except SystemExit:
-        raise SystemExit
     except Exception:
         return []    
 

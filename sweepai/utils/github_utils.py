@@ -23,6 +23,7 @@ from loguru import logger
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, GITHUB_BOT_USERNAME
 from sweepai.core.entities import FileChangeRequest
+from sweepai.utils.str_utils import get_hash
 from sweepai.utils.tree_utils import DirectoryTree, remove_all_not_included
 
 MAX_FILE_COUNT = 50
@@ -198,6 +199,56 @@ def commit_multi_file_changes(repo: Repository, file_changes: dict[str, str], co
     repo.get_git_ref(ref).edit(sha=commit.sha)
     return commit
 
+def clean_branch_name(branch: str) -> str:
+    branch = re.sub(r"[^a-zA-Z0-9_\-/]", "_", branch)
+    branch = re.sub(r"_+", "_", branch)
+    branch = branch.strip("_")
+
+    return branch
+
+def create_branch(repo: Repository, branch: str, base_branch: str = None, retry=True) -> str:
+    # Generate PR if nothing is supplied maybe
+    branch = clean_branch_name(branch)
+    base_branch = repo.get_branch(
+        base_branch if base_branch else SweepConfig.get_branch(repo)
+    )
+    try:
+        try:
+            test = repo.get_branch("sweep")
+            assert test is not None
+            # If it does exist, fix
+            branch = branch.replace(
+                "/", "_"
+            )  # Replace sweep/ with sweep_ (temp fix)
+        except Exception:
+            pass
+
+        repo.create_git_ref(f"refs/heads/{branch}", base_branch.commit.sha)
+        return branch
+    except GithubException as e:
+        logger.error(f"Error: {e}, trying with other branch names...")
+        logger.warning(
+            f"{branch}\n{base_branch}, {base_branch.name}\n{base_branch.commit.sha}"
+        )
+        if retry:
+            for i in range(1, 10):
+                try:
+                    logger.warning(f"Retrying {branch}_{i}...")
+                    _hash = get_hash()[:5]
+                    repo.create_git_ref(
+                        f"refs/heads/{branch}_{_hash}", base_branch.commit.sha
+                    )
+                    return f"{branch}_{_hash}"
+                except GithubException:
+                    pass
+        else:
+            new_branch = repo.get_branch(branch)
+            if new_branch:
+                return new_branch.name
+        logger.error(
+            f"Error: {e}, could not create branch name {branch} on {repo.full_name}"
+        )
+        raise e
 
 REPO_CACHE_BASE_DIR = "/tmp/cache/repos"
 
@@ -303,6 +354,7 @@ class ClonedRepo:
         self.commit_hash = self.repo.get_commits()[0].sha
         self.git_repo = self.clone()
         self.branch = self.branch or SweepConfig.get_branch(self.repo)
+        self.git_repo.git.checkout(self.branch)
 
     def __del__(self):
         try:
@@ -745,14 +797,14 @@ def sanitize_string_for_github(message: str):
 
 
 try:
-    g = Github(os.environ.get("GITHUB_PAT"))
-    CURRENT_USERNAME = g.get_user().login
-except Exception:
     try:
         slug = get_app()["slug"]
         CURRENT_USERNAME = f"{slug}[bot]"
     except Exception:
         CURRENT_USERNAME = GITHUB_BOT_USERNAME
+except Exception:
+    g = Github(os.environ.get("GITHUB_PAT"))
+    CURRENT_USERNAME = g.get_user().login
 
 if __name__ == "__main__":
     try:

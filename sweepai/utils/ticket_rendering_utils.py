@@ -5,8 +5,8 @@ It is only called by the webhook handler in sweepai/api.py.
 
 import difflib
 import io
+import os
 import re
-from typing import Any
 import zipfile
 
 import markdown
@@ -19,19 +19,18 @@ from tqdm import tqdm
 import hashlib
 
 
+from sweepai.agents.modify_utils import parse_fcr
 from sweepai.agents.pr_description_bot import PRDescriptionBot
+from sweepai.chat.api import posthog_trace
 from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
     SweepConfig,
 )
-from sweepai.config.server import (
-    MONGODB_URI,
-)
 from sweepai.core.entities import (
+    FileChangeRequest,
     SandboxResponse,
 )
 from sweepai.core.entities import create_error_logs as entities_create_error_logs
-from sweepai.core.sweep_bot import SweepBot
 from sweepai.dataclasses.codereview import CodeReview, CodeReviewIssue
 from sweepai.handlers.create_pr import (
     safe_delete_sweep_branch,
@@ -39,16 +38,14 @@ from sweepai.handlers.create_pr import (
 from sweepai.handlers.on_check_suite import clean_gh_logs
 from sweepai.utils.buttons import create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import (
     CURRENT_USERNAME,
-    ClonedRepo,
     get_github_client,
     get_token,
 )
-from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.str_utils import (
     BOT_SUFFIX,
-    UPDATES_MESSAGE,
     blockquote,
     bot_suffix,
     clean_logs,
@@ -87,7 +84,6 @@ email_template = """Hey {name},
 🚀 I just finished creating a pull request for your issue ({repo_full_name}#{issue_number}) at <a href="{pr_url}">{repo_full_name}#{pr_number}</a>!
 
 <br/><br/>
-You can view how I created this pull request <a href="{progress_url}">here</a>.
 
 <h2>Summary</h2>
 <blockquote>
@@ -251,47 +247,13 @@ def delete_old_prs(repo: Repository, issue_number: int):
             safe_delete_sweep_branch(pr, repo)
             break
 
-def construct_sweep_bot(
-        repo: Repository,
-        repo_name: str,
-        issue_url: str,
-        repo_description: str,
-        title: str,
-        message_summary: str,
-        cloned_repo: ClonedRepo,
-        chat_logger: ChatLogger,
-        snippets: Any = None,
-        tree: Any = None,
-        comments: Any = None,
-    ) -> SweepBot:
-    human_message = HumanMessagePrompt(
-        repo_name=repo_name,
-        issue_url=issue_url,
-        repo_description=repo_description.strip(),
-        title=title,
-        summary=message_summary,
-        snippets=snippets,
-        tree=tree,
-    )
-    sweep_bot = SweepBot.from_system_message_content(
-        human_message=human_message,
-        repo=repo,
-        is_reply=bool(comments),
-        chat_logger=chat_logger,
-        cloned_repo=cloned_repo,
-    )
-    return sweep_bot
-
-
 def get_comment_header(
     index: int,
     g: Github,
     repo_full_name: str,
-    user_settings: UserSettings,
     progress_headers: list[None | str],
     tracking_id: str | None,
     payment_message_start: str,
-    user_settings_message: str,
     errored: bool = False,
     pr_message: str = "",
     done: bool = False,
@@ -341,9 +303,7 @@ def get_comment_header(
         return (
             pr_message
             + config_pr_message
-            + f"\n\n---\n{user_settings.get_message(completed=True)}"
-            + f"\n\n---\n{actions_message}"
-            + sandbox_execution_message
+            + f"\n\n{actions_message}"
         )
 
     total = len(progress_headers)
@@ -355,8 +315,7 @@ def get_comment_header(
         pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Errored&width=600' alt='{index}%' />"
         return (
             f"{center(sweeping_gif)}<br/>{center(pbar)}\n\n"
-            + f"\n\n---\n{actions_message}"
-            + sandbox_execution_message
+            + f"\n\n{actions_message}"
         )
     pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
     return (
@@ -365,10 +324,8 @@ def get_comment_header(
         + ("\n" + stars_suffix if index != -1 else "")
         + "\n"
         + center(payment_message_start)
-        + f"\n\n---\n{user_settings_message}"
         + config_pr_message
-        + f"\n\n---\n{actions_message}"
-        + sandbox_execution_message
+        + f"\n\n{actions_message}"
     )
 
 def process_summary(summary, issue_number, repo_full_name, installation_id):
@@ -447,7 +404,7 @@ def rewrite_pr_description(issue_number, repo, overrided_branch_name, pull_reque
     if new_description:
         pr_changes.body = (
             f"{new_description}\n\nFixes"
-            f" #{issue_number}.\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}{BOT_SUFFIX}"
+            f" #{issue_number}.\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}{BOT_SUFFIX}"
         )
     return pr_changes
 
@@ -460,40 +417,40 @@ def send_email_to_user(title, issue_number, username, repo_full_name, tracking_i
     for fcr in file_change_requests:
         if fcr.change_type in ("create", "modify"):
             diff = list(
-                            difflib.unified_diff(
-                                (fcr.old_content or "").splitlines() or [],
-                                (fcr.new_content or "").splitlines() or [],
-                                lineterm="",
-                            )
-                        )
-            added = sum(
-                            1
-                            for line in diff
-                            if line.startswith("+") and not line.startswith("+++")
-                        )
-            removed = sum(
-                            1
-                            for line in diff
-                            if line.startswith("-") and not line.startswith("---")
-                        )
-            files_changed.append(
-                            f"<code>{fcr.filename}</code> (+{added}/-{removed})"
-                        )
-    user_settings.send_email(
-                    subject=f"Sweep Pull Request Complete for {repo_name}#{issue_number} {title}",
-                    html=email_template.format(
-                        name=name,
-                        pr_url=pr.html_url,
-                        issue_number=issue_number,
-                        repo_full_name=repo_full_name,
-                        pr_number=pr.number,
-                        summary=markdown.markdown(pr_changes.body),
-                        files_changed="\n".join(
-                            [f"<li>{item}</li>" for item in files_changed]
-                        ),
-                        sweeping_gif=sweeping_gif,
-                    ),
+                difflib.unified_diff(
+                    (fcr.old_content or "").splitlines() or [],
+                    (fcr.new_content or "").splitlines() or [],
+                    lineterm="",
                 )
+            )
+            added = sum(
+                1
+                for line in diff
+                if line.startswith("+") and not line.startswith("+++")
+            )
+            removed = sum(
+                1
+                for line in diff
+                if line.startswith("-") and not line.startswith("---")
+            )
+            files_changed.append(
+                f"<code>{fcr.filename}</code> (+{added}/-{removed})"
+            )
+    user_settings.send_email(
+        subject=f"Sweep Pull Request Complete for {repo_name}#{issue_number} {title}",
+        html=email_template.format(
+            name=name,
+            pr_url=pr.html_url,
+            issue_number=issue_number,
+            repo_full_name=repo_full_name,
+            pr_number=pr.number,
+            summary=markdown.markdown(pr_changes.body),
+            files_changed="\n".join(
+                [f"<li>{item}</li>" for item in files_changed]
+            ),
+            sweeping_gif=sweeping_gif,
+        ),
+    )
 
 def handle_empty_repository(comment_id, current_issue, progress_headers, issue_comment):
     first_comment = (
@@ -544,8 +501,6 @@ def get_payment_messages(chat_logger: ChatLogger):
         is_consumer_tier = False
         use_faster_model = False
 
-    tracking_id = chat_logger.data["tracking_id"] if MONGODB_URI is not None else None
-
     # Find the first comment made by the bot
     tickets_allocated = 5
     if is_consumer_tier:
@@ -567,7 +522,6 @@ def get_payment_messages(chat_logger: ChatLogger):
         else 999
     )
 
-    model_name = "GPT-4"
     single_payment_link = "https://buy.stripe.com/00g3fh7qF85q0AE14d"
     pro_payment_link = "https://buy.stripe.com/00g5npeT71H2gzCfZ8"
     daily_message = (
@@ -577,17 +531,17 @@ def get_payment_messages(chat_logger: ChatLogger):
     )
     user_type = "💎 <b>Sweep Pro</b>" if is_paying_user else "⚡ <b>Sweep Basic Tier</b>"
     gpt_tickets_left_message = (
-        f"{ticket_count} GPT-4 tickets left for the month"
+        f"{ticket_count} Sweep issues left for the month"
         if not is_paying_user
-        else "unlimited GPT-4 tickets"
+        else "unlimited Sweep issues"
     )
-    purchase_message = f"<br/><br/> For more GPT-4 tickets, visit <a href={single_payment_link}>our payment portal</a>. For a one week free trial, try <a href={pro_payment_link}>Sweep Pro</a> (unlimited GPT-4 tickets)."
+    purchase_message = f"<br/><br/> For more Sweep issues, visit <a href={single_payment_link}>our payment portal</a>. For a one week free trial, try <a href={pro_payment_link}>Sweep Pro</a> (unlimited GPT-4 tickets)."
     payment_message = (
-        f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
+        f"{user_type}: You have {gpt_tickets_left_message}{daily_message}"
         + (purchase_message if not is_paying_user else "")
     )
     payment_message_start = (
-        f"{user_type}: I'm using {model_name}. You have {gpt_tickets_left_message}{daily_message}. (tracking ID: <code>{tracking_id}</code>)"
+        f"{user_type}: You have {gpt_tickets_left_message}{daily_message}"
         + (purchase_message if not is_paying_user else "")
     )
 
@@ -615,23 +569,28 @@ def parse_issues_from_code_review(issue_string: str):
     return potential_issues
 
 # converts the list of issues inside a code_review into markdown text to display in a github comment
-def render_code_review_issues(pr: PullRequest, code_review: CodeReview):
+@posthog_trace
+def render_code_review_issues(username: str, pr: PullRequest, code_review: CodeReview, issue_type: str = "", metadata: dict = {}):
     files_to_blobs = {file.filename: file.blob_url for file in list(pr.get_files())}
     # generate the diff urls
     files_to_diffs = {}
     for file_name, _ in files_to_blobs.items():
         sha_256 = hashlib.sha256(file_name.encode('utf-8')).hexdigest()
         files_to_diffs[file_name] = f"{pr.html_url}/files#diff-{sha_256}"
-    potential_issues = ""
-    for issue in code_review.issues:
-        if issue.start_line == issue.end_line:
-            issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}"
-            issue_diff_url = f"{files_to_diffs[code_review.file_name]}R{issue.start_line}"
-        else:
-            issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}-L{issue.end_line}"
-            issue_diff_url = f"{files_to_diffs[code_review.file_name]}R{issue.start_line}-R{issue.end_line}"
-        potential_issues += f"<li>{issue.issue_description}</li>\n\n{issue_blob_url}\n[View Diff]({issue_diff_url})"
-    return potential_issues
+    code_issues = code_review.issues
+    if issue_type == "potential":
+        code_issues = code_review.potential_issues
+    code_issues_string = ""
+    for issue in code_issues:
+        if code_review.file_name in files_to_blobs:
+            if issue.start_line == issue.end_line:
+                issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}"
+                issue_diff_url = f"{files_to_diffs[code_review.file_name]}R{issue.start_line}"
+            else:
+                issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}-L{issue.end_line}"
+                issue_diff_url = f"{files_to_diffs[code_review.file_name]}R{issue.start_line}-R{issue.end_line}"
+            code_issues_string += f"<li>{issue.issue_description}</li>\n\n{issue_blob_url}\n[View Diff]({issue_diff_url})"
+    return code_issues_string
 
 def escape_html(text: str) -> str:
     return text.replace('<', '&lt;').replace('>', '&gt;')
@@ -670,24 +629,34 @@ def format_code_sections(text: str) -> str:
     return '<code>'.join(parts)
 
 # turns code_review_by_file into markdown string
-def render_pr_review_by_file(pr: PullRequest, code_review_by_file: dict[str, CodeReview]) -> str:
+@posthog_trace
+def render_pr_review_by_file(username: str, pr: PullRequest, code_review_by_file: dict[str, CodeReview], dropped_files: list[str] = [], metadata: dict = {}) -> str:
     body = f"{SWEEP_PR_REVIEW_HEADER}\n"
     reviewed_files = ""
     for file_name, code_review in code_review_by_file.items():
-        potential_issues = code_review.issues
+        sweep_issues = code_review.issues
+        potential_issues = code_review.potential_issues
         reviewed_files += f"""<details open>
 <summary>{file_name}</summary>
 <p>{format_code_sections(code_review.diff_summary)}</p>"""
+        if sweep_issues:
+            sweep_issues_string = render_code_review_issues(username, pr, code_review)
+            reviewed_files += f"<p><strong>Sweep Found These Issues</strong></p><ul>{format_code_sections(sweep_issues_string)}</ul>"
         if potential_issues:
-            potential_issues_string = render_code_review_issues(pr, code_review)
-            reviewed_files += f"<p><strong>Potential Issues</strong></p><ul>{format_code_sections(potential_issues_string)}</ul></details><hr>"
-        else:
-            reviewed_files += "<p>No issues found with the reviewed changes</p></details><hr>"
+            potential_issues_string = render_code_review_issues(username, pr, code_review, issue_type="potential")
+            reviewed_files += f"<details><summary><strong>Potential Issues</strong></summary><p>Sweep isn't 100% sure if the following are issues or not but they may be worth taking a look at.</p><ul>{format_code_sections(potential_issues_string)}</ul></details>"
+        reviewed_files += "</details><hr>"
+    if len(dropped_files) == 1:
+        reviewed_files += f"<p>{dropped_files[0]} was not reviewed because our filter identified it as typically a non-human-readable or less important file (e.g., dist files, package.json, images). If this is an error, please let us know.</p>"
+    elif len(dropped_files) > 1:
+        dropped_files_string = "".join([f"<li>{file}</li>" for file in dropped_files])
+        reviewed_files += f"<p>The following files were not reviewed because our filter identified them as typically non-human-readable or less important files (e.g., dist files, package.json, images). If this is an error, please let us know.</p><ul>{dropped_files_string}</ul>"
     return body + reviewed_files
 
 # handles the creation or update of the Sweep comment letting the user know that Sweep is reviewing a pr
 # returns the comment_id
-def create_update_review_pr_comment(pr: PullRequest, code_review_by_file: dict[str, CodeReview] | None = None) -> int:
+@posthog_trace
+def create_update_review_pr_comment(username: str, pr: PullRequest, code_review_by_file: dict[str, CodeReview] | None = None, dropped_files: list[str] = [], metadata: dict = {}) -> int:
     comment_id = -1
     sweep_comment = None
     # comments that appear in the github ui in the conversation tab are considered issue comments
@@ -706,8 +675,28 @@ def create_update_review_pr_comment(pr: PullRequest, code_review_by_file: dict[s
     
     # update body of sweep_comment
     if code_review_by_file:
-        rendered_pr_review = render_pr_review_by_file(pr, code_review_by_file)
+        rendered_pr_review = render_pr_review_by_file(username, pr, code_review_by_file, dropped_files=dropped_files)
         sweep_comment.edit(rendered_pr_review)
     comment_id = sweep_comment.id
     return comment_id
 
+
+def render_fcrs(file_change_requests: list[FileChangeRequest]):
+    # Render plan start
+    planning_markdown = ""
+    for fcr in file_change_requests:
+        parsed_fcr = parse_fcr(fcr)
+        if parsed_fcr and parsed_fcr["new_code"]:
+            planning_markdown += f"#### `{fcr.filename}`\n"
+            planning_markdown += f"{blockquote(parsed_fcr['justification'])}\n\n"
+            if parsed_fcr["original_code"] and parsed_fcr["original_code"][0].strip():
+                planning_markdown += f"""```diff\n{generate_diff(
+                    parsed_fcr["original_code"][0],
+                    parsed_fcr["new_code"][0],
+                )}\n```\n"""
+            else:
+                _file_base_name, ext = os.path.splitext(fcr.filename)
+                planning_markdown += f"```{ext}\n{parsed_fcr['new_code'][0]}\n```\n"
+        else:
+            planning_markdown += f"#### `{fcr.filename}`\n{blockquote(fcr.instructions)}\n"
+    return planning_markdown
