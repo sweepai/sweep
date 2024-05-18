@@ -23,9 +23,9 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, get_github_client, sanitize_string_for_github, validate_and_sanitize_multi_file_changes
-from sweepai.utils.str_utils import BOT_SUFFIX, FASTER_MODEL_MESSAGE
+from sweepai.utils.str_utils import BOT_SUFFIX, FASTER_MODEL_MESSAGE, blockquote
 from sweepai.utils.ticket_rendering_utils import render_fcrs, sweeping_gif
-from sweepai.utils.ticket_utils import fire_and_forget_wrapper, prep_snippets
+from sweepai.utils.ticket_utils import center, fire_and_forget_wrapper, prep_snippets
 
 num_of_snippets_to_query = 30
 total_number_of_snippet_tokens = 15_000
@@ -33,6 +33,7 @@ num_full_files = 2
 num_extended_snippets = 2
 
 ERROR_FORMAT = "❌ {title}\n\nPlease report this on our [community forum](https://community.sweep.dev/)."
+SWEEPING_GIF = f"{center(sweeping_gif)}<br/>### Sweep is working on resolving your comment...<br/>"
 
 
 def on_comment(
@@ -184,7 +185,7 @@ def on_comment(
         def edit_comment(new_comment: str) -> None:
             new_comment = sanitize_string_for_github(new_comment)
             if bot_comment is not None:
-                bot_comment.edit(new_comment + BOT_SUFFIX)
+                bot_comment.edit(new_comment + "\n" + BOT_SUFFIX)
 
         try:
             if comment_id:
@@ -258,16 +259,16 @@ def on_comment(
                 )
                 if comment_id:
                     bot_comment = pr.create_review_comment_reply(
-                        comment_id, "Searching for relevant snippets..." + BOT_SUFFIX
+                        comment_id, SWEEPING_GIF + "Searching for relevant snippets..." + BOT_SUFFIX
                     )
             else:
                 formatted_pr_chunk = None  # pr_file
-                bot_comment = pr.create_issue_comment("Searching for relevant snippets..." + BOT_SUFFIX)
+                bot_comment = pr.create_issue_comment(SWEEPING_GIF + "Searching for relevant snippets..." + BOT_SUFFIX)
 
             search_query = comment.strip("\n")
             formatted_query = comment.strip("\n")
             repo_context_manager = prep_snippets(
-                cloned_repo, search_query, multi_query=False
+                cloned_repo, search_query, use_multi_query=False
             )
             snippets = repo_context_manager.current_top_snippets
 
@@ -297,7 +298,7 @@ def on_comment(
 
         try:
             logger.info("Fetching files to modify/create...")
-            edit_comment(sweeping_gif + "I just completed searching for relevant files, now I'm making changes...")
+            edit_comment(SWEEPING_GIF + "I just completed searching for relevant files, now I'm making changes...")
             if file_comment:
                 formatted_query = f"The user left this comment in `{pr_path}`:\n<comment>\n{comment}\n</comment>\nThis was where they left their comment:\n<review_code_chunk>\n{formatted_pr_chunk}\n</review_code_chunk>.\n\nResolve their comment."
             file_change_requests, plan = get_files_to_change(
@@ -310,16 +311,16 @@ def on_comment(
             )
             validate_file_change_requests(file_change_requests, repo_context_manager.cloned_repo)
 
-            sweep_response = "I couldn't find any relevant files to change."
-            if file_change_requests:
-                planning_markdown = render_fcrs(file_change_requests)
-                sweep_response = f"I'm going to make the following changes:\n\n{planning_markdown}\n\nI'm currently validating these changes using parsers and linters to check for syntax errors and undefined variables..."
+            assert file_change_requests, NoFilesException("I couldn't find any relevant files to change.")
 
-            quoted_comment = "> " + comment.replace("\n", "\n> ")
+            planning_markdown = render_fcrs(file_change_requests)
+            sweep_response = f"I'm going to make the following changes:\n\n{planning_markdown}\n\nI'm currently validating these changes using parsers and linters to check for syntax errors and undefined variables..."
+
+            quoted_comment = blockquote(comment) + "\n\n"
             response_for_user = (
                 f"{quoted_comment}\n\nHi @{username},\n\n{sweep_response}"
             )
-            edit_comment(sweeping_gif + response_for_user)
+            edit_comment(SWEEPING_GIF + response_for_user)
             
             modify_files_dict, changes_made, file_change_requests = handle_file_change_requests(
                 file_change_requests=file_change_requests,
@@ -375,8 +376,11 @@ def on_comment(
             except Exception:
                 pass
 
-        if response_for_user is not None:
-            edit_comment(f"## 🚀 Resolved comment via [{commit.sha[:7]}](https://github.com/{repo_full_name}/commit/{commit.sha}) \n\n{response_for_user}")
+        patch_diff = ""
+        for file_path, file_data in modify_files_dict.items():
+            if file_path not in files_removed:
+                patch_diff += f"--- {file_path}\n+++ {file_path}\n{generate_diff(file_data['original_contents'], file_data['contents'])}\n\n"
+        edit_comment(f"## 🚀 Resolved via [{commit.sha[:7]}](https://github.com/{repo_full_name}/commit/{commit.sha})\n\nHere were the changes I made:\n```diff\n{patch_diff}\n```")
 
         elapsed_time = time.time() - start_time
         # make async

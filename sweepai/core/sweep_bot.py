@@ -572,7 +572,6 @@ def get_files_to_change(
             file_change_requests.append(file_change_request)
         
         error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
-        breakpoint()
 
         for _ in range(3):
             if not error_message:
