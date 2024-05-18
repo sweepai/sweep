@@ -11,7 +11,7 @@ from github.Repository import Repository
 from loguru import logger
 
 from sweepai.agents.modify import modify
-from sweepai.config.client import DEFAULT_RULES_STRING, SweepConfig
+from sweepai.config.client import DEFAULT_RULES_STRING
 from sweepai.config.server import (
     ENV,
     GITHUB_BOT_USERNAME,
@@ -23,9 +23,8 @@ from sweepai.core.entities import (
     FileChangeRequest,
     MaxTokensExceeded,
 )
-from sweepai.core.sweep_bot import SweepBot
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import ClonedRepo, create_branch, get_github_client
+from sweepai.utils.github_utils import ClonedRepo, get_github_client
 
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
@@ -177,7 +176,7 @@ def safe_delete_sweep_branch(
 
 
 def create_config_pr(
-    sweep_bot: SweepBot | None, repo: Repository = None, cloned_repo: ClonedRepo = None
+    repo: Repository = None, cloned_repo: ClonedRepo = None
 ):
     if repo is not None:
         # Check if file exists in repo
@@ -189,72 +188,48 @@ def create_config_pr(
 
     title = "Configure Sweep"
     branch_name = GITHUB_CONFIG_BRANCH
-    if sweep_bot is not None:
-        branch_name = create_branch(repo, branch_name, retry=False)
-        try:
-            sweep_bot.repo.create_file(
-                "sweep.yaml",
-                "Create sweep.yaml",
-                GITHUB_DEFAULT_CONFIG.format(
-                    branch=sweep_bot.repo.default_branch,
-                    additional_rules=DEFAULT_RULES_STRING,
-                ),
-                branch=branch_name,
-            )
-            sweep_bot.repo.create_file(
-                ".github/ISSUE_TEMPLATE/sweep-template.yml",
-                "Create sweep template",
-                SWEEP_TEMPLATE,
-                branch=branch_name,
-            )
-        except Exception as e:
-            logger.error(e)
-    else:
-        # Create branch based on default branch
-        repo.create_git_ref(
-            ref=f"refs/heads/{branch_name}",
-            sha=repo.get_branch(repo.default_branch).commit.sha,
+    # Create branch based on default branch
+    repo.create_git_ref(
+        ref=f"refs/heads/{branch_name}",
+        sha=repo.get_branch(repo.default_branch).commit.sha,
+    )
+
+    try:
+        # commit_history = []
+        # if cloned_repo is not None:
+        #     commit_history = cloned_repo.get_commit_history(
+        #         limit=1000, time_limited=False
+        #     )
+        # commit_string = "\n".join(commit_history)
+
+        # sweep_yaml_bot = SweepYamlBot()
+        # generated_rules = sweep_yaml_bot.get_sweep_yaml_rules(
+        #     commit_history=commit_string
+        # )
+
+        repo.create_file(
+            "sweep.yaml",
+            "Create sweep.yaml",
+            GITHUB_DEFAULT_CONFIG.format(
+                branch=repo.default_branch, additional_rules=DEFAULT_RULES_STRING
+            ),
+            branch=branch_name,
         )
-
-        try:
-            # commit_history = []
-            # if cloned_repo is not None:
-            #     commit_history = cloned_repo.get_commit_history(
-            #         limit=1000, time_limited=False
-            #     )
-            # commit_string = "\n".join(commit_history)
-
-            # sweep_yaml_bot = SweepYamlBot()
-            # generated_rules = sweep_yaml_bot.get_sweep_yaml_rules(
-            #     commit_history=commit_string
-            # )
-
-            repo.create_file(
-                "sweep.yaml",
-                "Create sweep.yaml",
-                GITHUB_DEFAULT_CONFIG.format(
-                    branch=repo.default_branch, additional_rules=DEFAULT_RULES_STRING
-                ),
-                branch=branch_name,
-            )
-            repo.create_file(
-                ".github/ISSUE_TEMPLATE/sweep-template.yml",
-                "Create sweep template",
-                SWEEP_TEMPLATE,
-                branch=branch_name,
-            )
-        except Exception as e:
-            logger.error(e)
-    repo = sweep_bot.repo if sweep_bot is not None else repo
+        repo.create_file(
+            ".github/ISSUE_TEMPLATE/sweep-template.yml",
+            "Create sweep template",
+            SWEEP_TEMPLATE,
+            branch=branch_name,
+        )
+    except Exception as e:
+        logger.error(e)
     # Check if the pull request from this branch to main already exists.
     # If it does, then we don't need to create a new one.
     if repo is not None:
         pull_requests = repo.get_pulls(
             state="open",
             sort="created",
-            base=SweepConfig.get_branch(repo)
-            if sweep_bot is not None
-            else repo.default_branch,
+            base=repo.default_branch,
             head=branch_name,
         )
         for pr in pull_requests:
@@ -277,9 +252,7 @@ def create_config_pr(
             "    ", ""
         ),
         head=branch_name,
-        base=SweepConfig.get_branch(repo)
-        if sweep_bot is not None
-        else repo.default_branch,
+        base=repo.default_branch,
     )
     pr.add_to_labels(GITHUB_LABEL_NAME)
     return pr
@@ -316,7 +289,6 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
         try:
             logger.print("Creating config for", repo.full_name)
             create_config_pr(
-                None,
                 repo=repo,
                 cloned_repo=ClonedRepo(
                     repo_full_name=repo.full_name,
