@@ -259,7 +259,6 @@ def on_ticket(
             issue_comment.edit = lambda msg: old_edit(msg + BOT_SUFFIX)
             past_messages = {}
             current_index = 0
-            table = None
             initial_sandbox_response = -1
             initial_sandbox_response_file = None
 

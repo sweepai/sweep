@@ -18,7 +18,7 @@ from sweepai.config.server import (
 from sweepai.core.entities import MockPR, NoFilesException, Snippet
 from sweepai.core.sweep_bot import get_files_to_change, validate_file_change_requests
 from sweepai.handlers.create_pr import handle_file_change_requests
-from sweepai.core.review_utils import get_pr_changes, get_pr_diffs
+from sweepai.core.review_utils import get_pr_changes
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
@@ -76,7 +76,6 @@ def on_comment(
             else pr.body
         )
         pr_file_path = None
-        diffs = get_pr_diffs(repo, pr)
         pr_chunk = None
         formatted_pr_chunk = None
         if pr.state == "closed":
@@ -249,7 +248,6 @@ def on_comment(
                 pr_lines = pr_file.splitlines()
                 start = max(0, pr_line_position - 11)
                 end = min(len(pr_lines), pr_line_position + 10)
-                original_line = pr_lines[pr_line_position - 1]
                 pr_chunk = "\n".join(pr_lines[start:end])
                 pr_file_path = pr_path.strip()
                 formatted_pr_chunk = (
