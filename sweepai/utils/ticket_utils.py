@@ -7,7 +7,6 @@ from loguru import logger
 from tqdm import tqdm
 import networkx as nx
 
-from sweepai.agents.analyze_snippets import AnalyzeSnippetAgent
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import COHERE_API_KEY
 from sweepai.core.context_pruning import RepoContextManager, add_relevant_files_to_top_snippets, build_import_trees, integrate_graph_retrieval
@@ -318,7 +317,7 @@ def multi_prep_snippets(
                     break
                 logger.info(f"{idx}: {snippet.denotation} {snippet.score} {percentile}")
                 filtered_subset_snippets.append(snippet)
-            filtered_subset_snippets = AnalyzeSnippetAgent().analyze_snippets(filtered_subset_snippets, type_name, queries[0])
+            # filtered_subset_snippets = AnalyzeSnippetAgent().analyze_snippets(filtered_subset_snippets, type_name, queries[0])
             ranked_snippets.extend(filtered_subset_snippets)
         ranked_snippets = ranked_snippets[:k]
     else:
