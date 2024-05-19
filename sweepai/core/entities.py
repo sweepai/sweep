@@ -383,6 +383,21 @@ class Snippet(BaseModel):
     def denotation(self):
         return f"{self.file_path}:{self.start}-{self.end}"
 
+    @classmethod
+    def from_file(
+        cls,
+        file_path: str,
+        file_contents: str,
+        **kwargs
+    ):
+        return cls(
+            content=file_contents,
+            start=1,
+            end=file_contents.count("\n") + 1,
+            file_path=file_path,
+            **kwargs,
+        )
+
 
 class NoFilesException(Exception):
     def __init__(self, message="Sweep could not find any files to modify"):

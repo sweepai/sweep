@@ -150,8 +150,6 @@ def terminate_thread(thread):
             # Call with exception set to 0 is needed to cleanup properly.
             ctypes.pythonapi.PyThreadState_SetAsyncExc(thread.ident, 0)
             raise SystemError("PyThreadState_SetAsyncExc failed")
-    except SystemExit:
-        raise SystemExit
     except Exception as e:
         logger.exception(f"Failed to terminate thread: {e}")
 

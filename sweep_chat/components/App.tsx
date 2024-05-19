@@ -450,12 +450,18 @@ function App() {
                             "Authorization": `Bearer ${session?.accessToken}`
                           }
                         });
-                        currentSnippets = (await snippetsResponse.json() as Snippet[]).slice(0, 5);
+                        const responseObj = await snippetsResponse.json()
+                        if (responseObj.success == false) {
+                          console.error(responseObj)
+                          throw new Error(responseObj.error)
+                        }
+                        currentSnippets = (responseObj as Snippet[]).slice(0, 5);
                         setSnippets(currentSnippets);
                       } catch (e: any) {
+                        console.log(e)
                         toast({
                           title: "Failed to search codebase",
-                          description: e.message,
+                          description: `The following error has occurred: ${e.message}. Sometimes, logging out and logging back in can resolve this issue.`,
                           variant: "destructive"
                         });
                         setIsLoading(false);

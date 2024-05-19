@@ -57,8 +57,6 @@ class ChatLogger(BaseModel):
                     "expiration", expireAfterSeconds=2419200
                 )
                 self.expiration = datetime.utcnow() + timedelta(days=1)
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 logger.warning("Chat history could not connect to MongoDB")
                 logger.warning(e)

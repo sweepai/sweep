@@ -238,8 +238,6 @@ def search_index(query, index: CustomIndex):
             min_score = min(res.values()) if min(res.values()) < max_score else 0
         res = {k: (v - min_score) / (max_score - min_score) for k, v in res.items()}
         return res
-    except SystemExit:
-        raise SystemExit
     except Exception as e:
         logger.exception(e)
         return {}

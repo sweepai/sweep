@@ -11,7 +11,7 @@ from github.Repository import Repository
 from loguru import logger
 
 from sweepai.agents.modify import modify
-from sweepai.config.client import DEFAULT_RULES_STRING, SweepConfig
+from sweepai.config.client import DEFAULT_RULES_STRING
 from sweepai.config.server import (
     ENV,
     GITHUB_BOT_USERNAME,
@@ -23,8 +23,6 @@ from sweepai.core.entities import (
     FileChangeRequest,
     MaxTokensExceeded,
 )
-from sweepai.core.sweep_bot import SweepBot
-from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 
@@ -32,29 +30,27 @@ num_of_snippets_to_query = 10
 max_num_of_snippets = 5
 
 INSTRUCTIONS_FOR_REVIEW = """\
-### 💡 To get Sweep to edit this pull request, you can:
-* Comment below, and Sweep can edit the entire PR
-* Comment on a file, Sweep will only modify the commented file
-* Edit the original issue to get Sweep to recreate the PR from scratch"""
+> [!TIP]
+> To get Sweep to edit this pull request, you can:
+> * Comment below, and Sweep can edit the entire PR
+> * Comment on a file, Sweep will only modify the commented file
+> * Edit the original issue to get Sweep to recreate the PR from scratch"""
 
 # this should be the only modification function
 def handle_file_change_requests(
     file_change_requests: list[FileChangeRequest],
-    branch_name: str,
     request: str,
-    sweep_bot: SweepBot,
+    cloned_repo: ClonedRepo,
     username: str,
     installation_id: int,
-    chat_logger: ChatLogger = None,
     previous_modify_files_dict: dict = {},
 ):
-    sweep_bot.chat_logger = chat_logger
-    organization, repo_name = sweep_bot.repo.full_name.split("/")
+    organization, repo_name = cloned_repo.repo.full_name.split("/")
     metadata = {
-        "repo_full_name": sweep_bot.repo.full_name,
+        "repo_full_name": cloned_repo.repo.full_name,
         "organization": organization,
         "repo_name": repo_name,
-        "repo_description": sweep_bot.repo.description,
+        "repo_description": cloned_repo.repo.description,
         "username": username,
         "installation_id": installation_id,
         "function": "create_pr",
@@ -75,7 +71,7 @@ def handle_file_change_requests(
         modify_files_dict = modify(
             fcrs=file_change_requests,
             request=request,
-            cloned_repo=sweep_bot.cloned_repo,
+            cloned_repo=cloned_repo,
             relevant_filepaths=relevant_filepaths,
             previous_modify_files_dict=previous_modify_files_dict,
         )
@@ -179,102 +175,60 @@ def safe_delete_sweep_branch(
         return False
 
 def create_config_pr(
-    sweep_bot: SweepBot | None, repo: Repository = None, cloned_repo: ClonedRepo = None
+    repo: Repository = None, cloned_repo: ClonedRepo = None
 ):
     if repo is not None:
         # Check if file exists in repo
         try:
             repo.get_contents("sweep.yaml")
             return
-        except SystemExit:
-            raise SystemExit
         except Exception:
             pass
 
     title = "Configure Sweep"
     branch_name = GITHUB_CONFIG_BRANCH
-    if sweep_bot is not None:
-        branch_name = sweep_bot.create_branch(branch_name, retry=False)
-        try:
-            # commit_history = []
-            # if cloned_repo is not None:
-            #     commit_history = cloned_repo.get_commit_history(
-            #         limit=1000, time_limited=False
-            #     )
-            # commit_string = "\n".join(commit_history)
+    # Create branch based on default branch
+    repo.create_git_ref(
+        ref=f"refs/heads/{branch_name}",
+        sha=repo.get_branch(repo.default_branch).commit.sha,
+    )
 
-            # sweep_yaml_bot = SweepYamlBot()
-            # generated_rules = sweep_yaml_bot.get_sweep_yaml_rules(
-            #     commit_history=commit_string
-            # )
+    try:
+        # commit_history = []
+        # if cloned_repo is not None:
+        #     commit_history = cloned_repo.get_commit_history(
+        #         limit=1000, time_limited=False
+        #     )
+        # commit_string = "\n".join(commit_history)
 
-            sweep_bot.repo.create_file(
-                "sweep.yaml",
-                "Create sweep.yaml",
-                GITHUB_DEFAULT_CONFIG.format(
-                    branch=sweep_bot.repo.default_branch,
-                    additional_rules=DEFAULT_RULES_STRING,
-                ),
-                branch=branch_name,
-            )
-            sweep_bot.repo.create_file(
-                ".github/ISSUE_TEMPLATE/sweep-template.yml",
-                "Create sweep template",
-                SWEEP_TEMPLATE,
-                branch=branch_name,
-            )
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.error(e)
-    else:
-        # Create branch based on default branch
-        repo.create_git_ref(
-            ref=f"refs/heads/{branch_name}",
-            sha=repo.get_branch(repo.default_branch).commit.sha,
+        # sweep_yaml_bot = SweepYamlBot()
+        # generated_rules = sweep_yaml_bot.get_sweep_yaml_rules(
+        #     commit_history=commit_string
+        # )
+
+        repo.create_file(
+            "sweep.yaml",
+            "Create sweep.yaml",
+            GITHUB_DEFAULT_CONFIG.format(
+                branch=repo.default_branch, additional_rules=DEFAULT_RULES_STRING
+            ),
+            branch=branch_name,
         )
-
-        try:
-            # commit_history = []
-            # if cloned_repo is not None:
-            #     commit_history = cloned_repo.get_commit_history(
-            #         limit=1000, time_limited=False
-            #     )
-            # commit_string = "\n".join(commit_history)
-
-            # sweep_yaml_bot = SweepYamlBot()
-            # generated_rules = sweep_yaml_bot.get_sweep_yaml_rules(
-            #     commit_history=commit_string
-            # )
-
-            repo.create_file(
-                "sweep.yaml",
-                "Create sweep.yaml",
-                GITHUB_DEFAULT_CONFIG.format(
-                    branch=repo.default_branch, additional_rules=DEFAULT_RULES_STRING
-                ),
-                branch=branch_name,
-            )
-            repo.create_file(
-                ".github/ISSUE_TEMPLATE/sweep-template.yml",
-                "Create sweep template",
-                SWEEP_TEMPLATE,
-                branch=branch_name,
-            )
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.error(e)
-    repo = sweep_bot.repo if sweep_bot is not None else repo
+        repo.create_file(
+            ".github/ISSUE_TEMPLATE/sweep-template.yml",
+            "Create sweep template",
+            SWEEP_TEMPLATE,
+            branch=branch_name,
+        )
+    except Exception as e:
+        logger.error(e)
     # Check if the pull request from this branch to main already exists.
     # If it does, then we don't need to create a new one.
     if repo is not None:
         pull_requests = repo.get_pulls(
             state="open",
             sort="created",
-            base=SweepConfig.get_branch(repo)
-            if sweep_bot is not None
-            else repo.default_branch,
+            base=repo.default_branch,
             head=branch_name,
         )
         for pr in pull_requests:
@@ -297,9 +251,7 @@ def create_config_pr(
             "    ", ""
         ),
         head=branch_name,
-        base=SweepConfig.get_branch(repo)
-        if sweep_bot is not None
-        else repo.default_branch,
+        base=repo.default_branch,
     )
     pr.add_to_labels(GITHUB_LABEL_NAME)
     return pr
@@ -335,7 +287,6 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
         try:
             logger.print("Creating config for", repo.full_name)
             create_config_pr(
-                None,
                 repo=repo,
                 cloned_repo=ClonedRepo(
                     repo_full_name=repo.full_name,
@@ -343,8 +294,6 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
                     token=user_token,
                 ),
             )
-        except SystemExit:
-            raise SystemExit
         except Exception as e:
             logger.print(e)
     logger.print("Finished creating configs for top repos")

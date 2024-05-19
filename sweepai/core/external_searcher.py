@@ -39,8 +39,6 @@ class ExternalSearcher(ChatGPT):
                 external_searcher = ExternalSearcher()
                 summary = external_searcher.extract_summary_from_link(link, content)
                 result += f"{link}:\n\n{summary}\n\n"
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 logger.error(f"External search error: {e}")
         return result

@@ -1,37 +1,26 @@
 import base64
 import os
 import re
-import traceback
-from typing import Dict
 
-from github.ContentFile import ContentFile
-from github.GithubException import GithubException, UnknownObjectException
+from github.GithubException import GithubException
 from github.Repository import Repository
 from loguru import logger
 from networkx import Graph
-from pydantic import BaseModel
 from tqdm import tqdm
 from rapidfuzz import fuzz
 
 from sweepai.agents.modify_utils import contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, parse_fcr, indent
-from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
-from sweepai.config.server import DEFAULT_GPT4_MODEL
 from sweepai.core.annotate_code_openai import get_annotated_source_code
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import (
     FileChangeRequest,
     Message,
-    NoFilesException,
-    ProposedIssue,
-    PullRequest,
     RegexMatchError,
     Snippet,
 )
 from sweepai.core.prompts import (
     context_files_to_change_prompt,
     context_files_to_change_system_prompt,
-    pull_request_prompt,
-    subissues_prompt,
     gha_files_to_change_system_prompt,
     gha_files_to_change_prompt,
     test_files_to_change_system_prompt,
@@ -49,10 +38,6 @@ from sweepai.core.planning_prompts import (
 from sweepai.utils.chat_logger import ChatLogger
 # from sweepai.utils.previous_diff_utils import get_relevant_commits
 from sweepai.utils.diff import generate_diff
-from sweepai.utils.progress import (
-    TicketProgress,
-)
-from sweepai.utils.str_utils import get_hash
 from sweepai.utils.github_utils import ClonedRepo
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
@@ -227,7 +212,7 @@ def get_error_message(
                         file_name = file_change_request.filename
 
                         file_dir = os.path.dirname(file_name)
-                        full_file_dir = os.path.join(cloned_repo.repo_dir, file_name)
+                        full_file_dir = os.path.join(cloned_repo.repo_dir, file_dir)
                         full_file_name = os.path.join(cloned_repo.repo_dir, file_name)
 
                         current_error_message = ""
@@ -400,8 +385,7 @@ def get_files_to_change(
     seed: int = 0,
     images: list[tuple[str, str, str]] | None = None
 ) -> tuple[list[FileChangeRequest], str]:
-    use_openai = True
-    # use_openai = False
+    use_openai = False
     files_to_change_prompt = openai_files_to_change_prompt if use_openai else anthropic_files_to_change_prompt
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
@@ -452,10 +436,6 @@ def get_files_to_change(
                 content=annotated_source_code,
             )
         )
-        # cohere_rerank_response = cohere_rerank_call(
-        #     query=problem_statement,
-        #     documents=code_summaries,
-        # )
     joined_relevant_snippets = "\n".join(
         formatted_relevant_snippets
     )
@@ -579,7 +559,6 @@ def get_files_to_change(
             file_change_requests.append(file_change_request)
         
         error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
-        # breakpoint()
 
         for _ in range(3):
             if not error_message:
@@ -1168,251 +1147,3 @@ def get_files_to_change_for_gha(
         print("RegexMatchError", e)
 
     return [], ""
-
-class CodeGenBot(ChatGPT):
-    def generate_subissues(self, retries: int = 3):
-        subissues: list[ProposedIssue] = []
-        for count in range(retries):
-            try:
-                logger.info(f"Generating for the {count}th time...")
-                files_to_change_response = self.chat(
-                    subissues_prompt, message_key="subissues"
-                )  # Dedup files to change here
-                subissues = []
-                for re_match in re.finditer(
-                    ProposedIssue._regex, files_to_change_response, re.DOTALL
-                ):
-                    subissues.append(ProposedIssue.from_string(re_match.group(0)))
-                if subissues:
-                    return subissues
-            except RegexMatchError:
-                logger.warning("Failed to parse! Retrying...")
-                self.delete_messages_from_chat("files_to_change")
-                continue
-        raise NoFilesException()
-
-    def generate_pull_request(self, retries=2) -> PullRequest:
-        for count in range(retries):
-            try:
-                pr_text_response = self.chat(
-                    pull_request_prompt,
-                    message_key="pull_request",
-                    model=DEFAULT_GPT4_MODEL,
-                )
-
-                # Add triple quotes if not present
-                if not pr_text_response.strip().endswith('"""'):
-                    pr_text_response += '"""'
-
-                self.messages = self.messages[:-2]
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                e_str = str(e)
-                logger.warning(f"Exception {e_str}. Failed to parse! Retrying...")
-                self.messages = self.messages[:-1]
-                continue
-            pull_request = PullRequest.from_string(pr_text_response)
-
-            final_branch = pull_request.branch_name[:240]
-            final_branch = final_branch.split("/", 1)[-1]
-
-            use_underscores = get_branch_name_config(self.repo)
-            if use_underscores:
-                final_branch = final_branch.replace("/", "_")
-
-            pull_request.branch_name = (
-                "sweep/" if not use_underscores else "sweep_"
-            ) + final_branch
-            return pull_request
-        raise Exception("Could not generate PR text")
-
-
-class GithubBot(BaseModel):
-    class Config:
-        arbitrary_types_allowed = True  # for repo: Repository
-
-    repo: Repository
-
-    def get_contents(self, path: str, branch: str = ""):
-        if not branch:
-            branch = SweepConfig.get_branch(self.repo)
-        try:
-            return self.repo.get_contents(path, ref=branch)
-        except Exception as e:
-            logger.warning(path)
-            raise e
-
-    def get_file(self, file_path: str, branch: str = "") -> ContentFile:
-        content = self.get_contents(file_path, branch)
-        assert not isinstance(content, list)
-        return content
-
-    def check_path_exists(self, path: str, branch: str = ""):
-        try:
-            self.get_contents(path, branch)
-            return True
-        except SystemExit:
-            raise SystemExit
-        except Exception:
-            return False
-
-    def clean_branch_name(self, branch: str) -> str:
-        branch = re.sub(r"[^a-zA-Z0-9_\-/]", "_", branch)
-        branch = re.sub(r"_+", "_", branch)
-        branch = branch.strip("_")
-
-        return branch
-
-    def create_branch(self, branch: str, base_branch: str = None, retry=True) -> str:
-        # Generate PR if nothing is supplied maybe
-        branch = self.clean_branch_name(branch)
-        base_branch = self.repo.get_branch(
-            base_branch if base_branch else SweepConfig.get_branch(self.repo)
-        )
-        try:
-            try:
-                test = self.repo.get_branch("sweep")
-                assert test is not None
-                # If it does exist, fix
-                branch = branch.replace(
-                    "/", "_"
-                )  # Replace sweep/ with sweep_ (temp fix)
-            except Exception:
-                pass
-
-            self.repo.create_git_ref(f"refs/heads/{branch}", base_branch.commit.sha)
-            return branch
-        except GithubException as e:
-            logger.error(f"Error: {e}, trying with other branch names...")
-            logger.warning(
-                f"{branch}\n{base_branch}, {base_branch.name}\n{base_branch.commit.sha}"
-            )
-            if retry:
-                for i in range(1, 10):
-                    try:
-                        logger.warning(f"Retrying {branch}_{i}...")
-                        _hash = get_hash()[:5]
-                        self.repo.create_git_ref(
-                            f"refs/heads/{branch}_{_hash}", base_branch.commit.sha
-                        )
-                        return f"{branch}_{_hash}"
-                    except GithubException:
-                        pass
-            else:
-                new_branch = self.repo.get_branch(branch)
-                if new_branch:
-                    return new_branch.name
-            logger.error(
-                f"Error: {e}, could not create branch name {branch} on {self.repo.full_name}"
-            )
-            raise e
-
-    def populate_snippets(self, snippets: list[Snippet]):
-        for snippet in snippets:
-            try:
-                snippet.content = safe_decode(
-                    self.repo,
-                    snippet.file_path,
-                    ref=SweepConfig.get_branch(self.repo)
-                )
-                snippet.start = max(1, snippet.start)
-                snippet.end = min(len(snippet.content.split("\n")), snippet.end)
-            except SystemExit:
-                raise SystemExit
-            except Exception:
-                logger.error(snippet)
-
-    def validate_file_change_requests(
-        self, file_change_requests: list[FileChangeRequest], branch: str = ""
-    ):
-        blocked_dirs = get_blocked_dirs(self.repo)
-        created_files = []
-        for file_change_request in file_change_requests:
-            try:
-                contents = None
-                try:
-                    contents = self.repo.get_contents(
-                        file_change_request.filename,
-                        branch or SweepConfig.get_branch(self.repo),
-                    )
-                except UnknownObjectException:
-                    for prefix in [
-                        self.repo.full_name,
-                        self.repo.owner.login,
-                        self.repo.name,
-                    ]:
-                        try:
-                            new_filename = file_change_request.filename.replace(
-                                prefix + "/", "", 1
-                            )
-                            contents = self.repo.get_contents(
-                                new_filename,
-                                branch or SweepConfig.get_branch(self.repo),
-                            )
-                            file_change_request.filename = new_filename
-                            break
-                        except UnknownObjectException:
-                            pass
-                    else:
-                        contents = None
-                except SystemExit:
-                    raise SystemExit
-                except Exception as e:
-                    logger.error(f"FileChange Validation Error: {e}")
-
-                if (
-                    contents or file_change_request.filename in created_files
-                ) and file_change_request.change_type == "create":
-                    file_change_request.change_type = "modify"
-                elif (
-                    not (contents or file_change_request.filename in created_files)
-                    and file_change_request.change_type == "modify"
-                ):
-                    file_change_request.change_type = "create"
-                
-                if contents is not None:
-                    try:
-                        file_change_request.old_content = safe_decode(self.repo, file_change_request.filename, ref=SweepConfig.get_branch(self.repo))
-                    except Exception as e:
-                        logger.info(f"Error: {e}")
-                        file_change_request.old_content = ""
-
-                created_files.append(file_change_request.filename)
-
-                block_status = is_blocked(file_change_request.filename, blocked_dirs)
-                if block_status["success"]:
-                    # red X emoji
-                    file_change_request.instructions = (
-                        f'❌ Unable to modify files in `{block_status["path"]}`\nEdit'
-                        " `sweep.yaml` to configure."
-                    )
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.info(traceback.format_exc())
-                raise e
-        file_change_requests = [
-            file_change_request for file_change_request in file_change_requests
-        ]
-        return file_change_requests
-
-
-ASSET_BRANCH_NAME = "sweep/assets"
-
-
-class SweepBot(CodeGenBot, GithubBot):
-    comment_pr_diff_str: str | None = None
-    comment_pr_files_modified: Dict[str, str] | None = None
-    ticket_progress: TicketProgress | None = None
-
-
-    def validate_file_change_requests(
-        self,
-        file_change_requests: list[FileChangeRequest],
-        branch: str = "",
-    ):
-        file_change_requests = super().validate_file_change_requests(
-            file_change_requests, branch
-        )
-        return file_change_requests
