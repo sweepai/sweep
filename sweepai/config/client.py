@@ -353,7 +353,6 @@ def get_blocked_dirs(repo: Repository):
     except Exception:
         return []
 
-
 @lru_cache(maxsize=None)
 def get_rules(repo: Repository):
     try:
