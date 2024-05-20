@@ -19,6 +19,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBearer
 from fastapi.templating import Jinja2Templates
 from github.Commit import Commit
+from github import GithubException
 
 from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
@@ -490,11 +491,17 @@ def handle_event(request_dict, event):
                     label_names = [label.name for label in labels]
 
                     if GITHUB_LABEL_NAME not in label_names:
-                        repo.create_label(
-                            name=GITHUB_LABEL_NAME,
-                            color=GITHUB_LABEL_COLOR,
-                            description=GITHUB_LABEL_DESCRIPTION,
-                        )
+                        try:
+                            repo.create_label(
+                                name=GITHUB_LABEL_NAME,
+                                color=GITHUB_LABEL_COLOR,
+                                description=GITHUB_LABEL_DESCRIPTION,
+                            )
+                        except GithubException as e:
+                            if e.status == 422 and any(error.get("code") == "already_exists" for error in e.data.get("errors", [])):
+                                logger.warning(f"Label '{GITHUB_LABEL_NAME}' already exists in the repository")
+                            else:
+                                raise e
                     current_issue = repo.get_issue(number=request.issue.number)
                     current_issue.add_to_labels(GITHUB_LABEL_NAME)
             case "issue_comment", "edited":
