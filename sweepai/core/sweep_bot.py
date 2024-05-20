@@ -340,11 +340,15 @@ def organize_snippets(snippets: list[Snippet], fuse_distance: int=600) -> list[S
     fused_snippets = []
     added_file_paths = set()
     for i, snippet in enumerate(snippets):
+        if not isinstance(snippet, Snippet):
+            continue
         if snippet.file_path in added_file_paths:
             continue
         added_file_paths.add(snippet.file_path)
         current_snippets = [snippet]
         for current_snippet in snippets[i + 1:]:
+            if not isinstance(current_snippet, Snippet):
+                continue
             if snippet.file_path == current_snippet.file_path:
                 current_snippets.append(current_snippet)
         current_snippets = sort_and_fuse_snippets(current_snippets, fuse_distance=fuse_distance)
