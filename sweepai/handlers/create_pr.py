@@ -295,7 +295,7 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
     # For each repo, create a branch based on main branch, then create PR to main branch
     for repo in sorted_repos:
         try:
-            logger.print("Creating config for", repo.full_name)
+            print("Creating config for", repo.full_name)
             create_config_pr(
                 repo=repo,
                 cloned_repo=ClonedRepo(
@@ -305,8 +305,8 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
                 ),
             )
         except Exception as e:
-            logger.print(e)
-    logger.print("Finished creating configs for top repos")
+            print(e)
+    print("Finished creating configs for top repos")
 
 def create_gha_pr(g, repo):
     # Create a new branch
