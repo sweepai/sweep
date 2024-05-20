@@ -5,10 +5,9 @@ It is also responsible for handling Sweep config PR creation. test
 
 import copy
 import datetime
-from datetime import timezone
 
-import github  
-import openai
+import github
+import openai  
 from github.Repository import Repository
 from loguru import logger
 
