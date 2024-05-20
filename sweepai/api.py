@@ -798,14 +798,11 @@ def handle_event(request_dict, event):
                     ],
                 }
 
-                try:
-                    add_config_to_top_repos(
-                        repos_added_request.installation.id,
-                        repos_added_request.installation.account.login,
-                        repos_added_request.repositories_added,
-                    )
-                except Exception as e:
-                    logger.exception(f"Failed to add config to top repos: {e}")
+                add_config_to_top_repos(
+                    repos_added_request.installation.id,
+                    repos_added_request.installation.account.login,
+                    repos_added_request.repositories_added,
+                )
 
                 posthog.capture(
                     "installation_repositories",
