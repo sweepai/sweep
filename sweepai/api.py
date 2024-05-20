@@ -76,6 +76,7 @@ from sweepai.web.events import (
     PRRequest,
     ReposAddedRequest,
 )
+from pydantic import ValidationError
 from sweepai.web.health import health_check
 import sentry_sdk
 
@@ -835,8 +836,12 @@ def handle_event(request_dict, event):
                 except Exception as e:
                     logger.exception(f"Failed to add config to top repos: {e}")
             case "pull_request", "edited":
-                request = PREdited(**request_dict)
-
+                try:
+                    request = PREdited(**request_dict)
+                except ValidationError as e:
+                    logger.warning(f"Failed to parse PREdited object: {e}")
+                    break
+                
                 if (
                     request.pull_request.user.login == GITHUB_BOT_USERNAME
                     and not request.sender.login.endswith("[bot]")
