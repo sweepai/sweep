@@ -78,9 +78,6 @@ We used to work in large, messy repositories, and we noticed how complex the cod
 
 Unlike existing AI solutions, Sweep can solve entire tickets and can be parallelized + asynchronous: developers can spin up 10 tickets and Sweep will address them all at once.
 
-## Highlights
-[Examine pull requests created by Sweep!](https://docs.sweep.dev/about/examples)
-
 ## Pricing
 Every user receives unlimited GPT-3.5 tickets and 5 GPT-4 tickets per month. For professionals who want to try unlimited GPT-4 tickets and priority support, you can get a one week free trial of [Sweep Pro](https://buy.stripe.com/00g5npeT71H2gzCfZ8).
 
