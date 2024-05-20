@@ -77,7 +77,6 @@ from sweepai.web.events import (
     ReposAddedRequest,
 )
 from sweepai.web.health import health_check
-from fastapi import FastAPI
 import sentry_sdk
 
 if SENTRY_URL:

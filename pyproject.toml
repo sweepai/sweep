@@ -81,6 +81,7 @@ dependencies = [
   "slack-sdk==3.27.1",
   "jsonpatch==1.33",
   "scikit-learn==1.4.2",
+  "sentry-sdk==2.2.0",
 ]
 
 [tool.isort]
