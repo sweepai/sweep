@@ -310,11 +310,16 @@ def multi_prep_snippets(
             logger.info(f"Reranked {type_name}")
             # cutoff snippets at percentile
             logger.info("Kept these snippets")
+            if not snippets_subset:
+                continue
             top_score = snippets_subset[0].score
             max_results = type_to_result_count[type_name]
             filtered_subset_snippets = []
             for idx, snippet in enumerate(snippets_subset):
-                percentile = snippet.score / top_score
+                if top_score == 0:
+                    percentile = 0
+                else:
+                    percentile = snippet.score / top_score
                 if percentile < type_to_percentile_floor[type_name] or snippet.score < type_to_score_floor[type_name] or idx >= max_results:
                     break
                 logger.info(f"{idx}: {snippet.denotation} {snippet.score} {percentile}")
