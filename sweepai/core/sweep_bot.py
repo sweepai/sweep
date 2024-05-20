@@ -2,10 +2,13 @@ import base64
 import os
 import re
 
+import chardet
 from github.GithubException import GithubException
 from github.Repository import Repository
 from loguru import logger
 from networkx import Graph
+
+from sweepai.utils.file_utils import read_file_with_fallback_encodings
 from tqdm import tqdm
 from rapidfuzz import fuzz
 
@@ -41,7 +44,7 @@ from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
-SNIPPET_TOKEN_BUDGET = 150_000 * 3.5  # 140k tokens
+SNIPPET_TOKEN_BUDGET = int(150_000 * 3.5)  # 140k tokens
 MAX_SNIPPETS = 15
 RELEVANCE_THRESHOLD = 0.125
 
@@ -120,9 +123,10 @@ def safe_decode(
         contents = repo.get_contents(path, *args, **kwargs)
         if contents.encoding == "none":
             blob = repo.get_git_blob(contents.sha)
-            # this might be more correct but chatgpt said the latter is better
-            # return base64.b64decode(bytearray(blob.content, "utf-8")).decode("utf-8")
-            return base64.b64decode(blob.content).decode("utf-8")
+            try:
+                return base64.b64decode(blob.content).decode(chardet.detect(base64.b64decode(blob.content))['encoding'])
+            except UnicodeDecodeError:
+                return read_file_with_fallback_encodings(base64.b64decode(blob.content))
         return contents.decoded_content.decode("utf-8")
     except GithubException as e:
         raise e
@@ -360,7 +364,7 @@ def get_max_snippets(
         return []
     START_INDEX = min(len(snippets), MAX_SNIPPETS)
     for i in range(START_INDEX, 0, -1):
-        expanded_snippets = [snippet.expand(expand * 2) for snippet in snippets[:i]]
+        expanded_snippets = [snippet.expand(expand * 2) if snippet.type_name == "source" else snippet for snippet in snippets[:i]]
         proposed_snippets = organize_snippets(expanded_snippets[:i])
         cost = sum([len(snippet.get_snippet(False, False)) for snippet in proposed_snippets])
         if cost <= budget:
@@ -639,7 +643,7 @@ def context_get_files_to_change(
         relevant_snippet_template.format(
             i=i,
             file_path=snippet.file_path,
-            content=snippet.expand(300).get_snippet(add_lines=False),
+            content=snippet.expand(300).get_snippet(add_lines=False) if snippet.type_name == "source" else snippet.get_snippet(add_lines=False),
         ) for i, snippet in enumerate(relevant_snippets)
     )
     relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
@@ -1009,7 +1013,7 @@ def get_files_to_change_for_gha(
         relevant_snippet_template.format(
             i=i,
             file_path=snippet.file_path,
-            content=snippet.expand(300).get_snippet(add_lines=False),
+            content=snippet.expand(300).get_snippet(add_lines=False) if snippet.type_name == "source" else snippet.get_snippet(add_lines=False),
         ) for i, snippet in enumerate(relevant_snippets)
     )
     relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"

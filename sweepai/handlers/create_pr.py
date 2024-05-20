@@ -6,7 +6,8 @@ It is also responsible for handling Sweep config PR creation. test
 import copy
 import datetime
 
-import openai
+import github
+import openai  
 from github.Repository import Repository
 from loguru import logger
 
@@ -262,13 +263,22 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
     repo_activity = {}
     for repo_entity in repositories:
         repo = g.get_repo(repo_entity.full_name)
-        # instead of using total count, use the date of the latest commit
-        commits = repo.get_commits(
-            author=username,
-            since=datetime.datetime.now() - datetime.timedelta(days=30),
-        )
+        
+        try:
+            # instead of using total count, use the date of the latest commit
+            commits = repo.get_commits(
+                author=username,
+                since=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30),
+            )
+        except github.GithubException as e:
+            if e.status == 409 and "Git Repository is empty." in e.data["message"]:
+                logger.warning(f"Skipping empty repository {repo.full_name}")
+                continue
+            else:
+                raise
+        
         # get latest commit date
-        commit_date = datetime.datetime.now() - datetime.timedelta(days=30)
+        commit_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)
         for commit in commits:
             if commit.commit.author.date > commit_date:
                 commit_date = commit.commit.author.date
@@ -285,7 +295,7 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
     # For each repo, create a branch based on main branch, then create PR to main branch
     for repo in sorted_repos:
         try:
-            logger.print("Creating config for", repo.full_name)
+            logger.error("Creating config for " + repo.full_name)
             create_config_pr(
                 repo=repo,
                 cloned_repo=ClonedRepo(
@@ -295,8 +305,8 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
                 ),
             )
         except Exception as e:
-            logger.print(e)
-    logger.print("Finished creating configs for top repos")
+            logger.exception(e)
+    logger.info("Finished creating configs for top repos") 
 
 def create_gha_pr(g, repo):
     # Create a new branch

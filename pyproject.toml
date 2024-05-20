@@ -19,7 +19,7 @@ Homepage = "https://sweep.dev"
 
 [project]
 name = "sweepai"
-version = "2.1.2"
+version = "2.1.4"
 description = "Sweep fixes GitHub issues"
 authors = [
     {name = "Kevin Lu", email = "kevin@sweep.dev"},
@@ -33,6 +33,7 @@ classifiers = [
 ]
 dependencies = [
   "anthropic==0.21.3",
+  "chardet==5.2.0",
   "beautifulsoup4==4.12.3",
   "cohere==5.2.5",
   "typer==0.10.0",
@@ -54,7 +55,6 @@ dependencies = [
   "tree-sitter-languages==1.10.2",
   "rapidfuzz==3.6.2",
   "importmagic==0.1.7",
-  "hatchet-sdk==0.18.0",
   "pyflakes==3.2.0",
   "beautifulsoup4==4.12.3",
   "networkx==3.2.1",
@@ -81,6 +81,7 @@ dependencies = [
   "slack-sdk==3.27.1",
   "jsonpatch==1.33",
   "scikit-learn==1.4.2",
+  "sentry-sdk==2.2.0",
 ]
 
 [tool.isort]
