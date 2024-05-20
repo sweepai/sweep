@@ -4,7 +4,7 @@ import ctypes
 import os
 import threading
 import time
-from typing import Any, Optional
+from typing import Optional
 
 from fastapi import (
     Body,
@@ -14,11 +14,9 @@ from fastapi import (
     HTTPException,
     Path,
     Request,
-    Security,
-    status,
 )
 from fastapi.responses import HTMLResponse
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import HTTPBearer
 from fastapi.templating import Jinja2Templates
 from github.Commit import Commit
 
@@ -52,7 +50,6 @@ from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.handlers.on_check_suite import (  # type: ignore
     clean_gh_logs,
     download_logs,
-    on_check_suite,
 )
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_jira_ticket import handle_jira_ticket
@@ -102,20 +99,6 @@ version = time.strftime("%y.%m.%d.%H")
 
 logger.bind(application="webhook")
 
-
-def auth_metrics(credentials: HTTPAuthorizationCredentials = Security(security)):
-    if credentials.scheme != "Bearer":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid authentication scheme.",
-        )
-    if credentials.credentials != "example_token":  # grafana requires authentication
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token."
-        )
-    return True
-
-
 def run_on_ticket(*args, **kwargs):
     tracking_id = get_hash()
     with logger.contextualize(
@@ -149,16 +132,6 @@ def run_on_button_click(*args, **kwargs):
     thread = threading.Thread(target=handle_button_click, args=args, kwargs=kwargs)
     thread.start()
     global_threads.append(thread)
-
-
-def run_on_check_suite(*args, **kwargs):
-    request = kwargs["request"]
-    pr_change_request = on_check_suite(request)
-    if pr_change_request:
-        call_on_comment(**pr_change_request.params, comment_type="github_action")
-        logger.info("Done with on_check_suite")
-    else:
-        logger.info("Skipping on_check_suite as no pr_change_request was returned")
 
 
 def terminate_thread(thread):
@@ -201,15 +174,6 @@ def call_on_ticket(*args, **kwargs):
     on_ticket_events[key] = thread
     thread.start()
     global_threads.append(thread)
-
-
-def call_on_check_suite(*args, **kwargs):
-    kwargs["request"].repository.full_name
-    kwargs["request"].check_run.pull_requests[0].number
-    thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
-    thread.start()
-    global_threads.append(thread)
-
 
 def call_on_comment(
     *args, **kwargs
@@ -274,44 +238,6 @@ def home(request: Request):
 def progress(tracking_id: str = Path(...)):
     ticket_progress = TicketProgress.load(tracking_id)
     return ticket_progress.dict()
-
-
-def init_hatchet() -> Any | None:
-    try:
-        from hatchet_sdk import Context, Hatchet
-
-        hatchet = Hatchet(debug=True)
-
-        worker = hatchet.worker("github-worker")
-
-        @hatchet.workflow(on_events=["github:webhook"])
-        class OnGithubEvent:
-            """Workflow for handling GitHub events."""
-
-            @hatchet.step()
-            def run(self, context: Context):
-                event_payload = context.workflow_input()
-
-                request_dict = event_payload.get("request")
-                event = event_payload.get("event")
-
-                handle_event(request_dict, event)
-
-        workflow = OnGithubEvent()
-        worker.register_workflow(workflow)
-
-        # start worker in the background
-        thread = threading.Thread(target=worker.start)
-        thread.start()
-        global_threads.append(thread)
-
-        return hatchet
-    except Exception as e:
-        print(f"Failed to initialize Hatchet: {e}, continuing with local mode")
-        return None
-
-
-# hatchet = init_hatchet()
 
 
 def handle_github_webhook(event_payload):

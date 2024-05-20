@@ -3,16 +3,12 @@ This module is responsible for handling the check suite event, called from sweep
 """
 import io
 import re
-import time
 import zipfile
 
 import requests
 
-from sweepai.config.client import get_gha_enabled
-from sweepai.core.entities import PRChangeRequest
 from sweepai.logn.cache import file_cache
-from sweepai.utils.github_utils import get_github_client, get_token
-from sweepai.web.events import CheckRunCompleted
+from sweepai.utils.github_utils import get_token
 
 log_message = """GitHub actions yielded the following error.
 
@@ -133,42 +129,3 @@ def clean_gh_logs(logs_str: str):
         cleaned_logs_str=cleaned_logs_str,
     )
     return cleaned_response
-
-
-def on_check_suite(request: CheckRunCompleted):
-    pr_number = request.check_run.pull_requests[0].number
-    repo_name = request.repository.full_name
-    _, g = get_github_client(request.installation.id)
-    repo = g.get_repo(repo_name)
-    if not get_gha_enabled(repo):
-        return None
-    pr = repo.get_pull(pr_number)
-    # check if the PR was created in the last 15 minutes
-    if (time.time() - pr.created_at.timestamp()) > 900:
-        return None
-    issue_comments = pr.get_issue_comments()
-    for comment in issue_comments:
-        if "The command" in comment.body:
-            return None
-    logs = download_logs(
-        request.repository.full_name, request.check_run.run_id, request.installation.id
-    )
-    if not logs:
-        return None
-    logs, user_message = clean_gh_logs(logs)
-    comment = pr.as_issue().create_comment(user_message)
-    pr_change_request = PRChangeRequest(
-        params={
-            "type": "github_action",
-            "repo_full_name": request.repository.full_name,
-            "repo_description": request.repository.description,
-            "comment": logs,
-            "pr_path": None,
-            "pr_line_position": None,
-            "username": request.sender.login,
-            "installation_id": request.installation.id,
-            "pr_number": request.check_run.pull_requests[0].number,
-            "comment_id": comment.id,
-        },
-    )
-    return pr_change_request
