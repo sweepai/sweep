@@ -840,7 +840,7 @@ def handle_event(request_dict, event):
                     request = PREdited(**request_dict)
                 except ValidationError as e:
                     logger.warning(f"Failed to parse PREdited object: {e}")
-                    break
+                    return
                 
                 if (
                     request.pull_request.user.login == GITHUB_BOT_USERNAME
