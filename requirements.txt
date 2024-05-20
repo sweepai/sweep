@@ -473,7 +473,7 @@ referencing==0.34.0
     #   jupyter-events
 regex==2023.12.25
     # via tiktoken
-requests==2.31.0
+requests==2.32.0
     # via
     #   cachecontrol
     #   cohere
