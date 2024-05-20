@@ -78,6 +78,7 @@ from sweepai.web.events import (
 )
 from sweepai.web.health import health_check
 import sentry_sdk
+from sentry_sdk import set_user
 
 if SENTRY_URL:
     sentry_sdk.init(
@@ -366,6 +367,10 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
 
 def handle_event(request_dict, event):
     action = request_dict.get("action")
+    
+    username = request_dict.get("sender", {}).get("login")
+    if username:
+        set_user({"username": username})
 
     if repo_full_name := request_dict.get("repository", {}).get("full_name"):
         if repo_full_name in DISABLED_REPOS:

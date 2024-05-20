@@ -10,6 +10,7 @@ from typing import Any
 
 from loguru import logger
 
+from sentry_sdk import set_user
 from sweepai.config.server import (
     ENV,
     GITHUB_BOT_USERNAME,
@@ -53,6 +54,7 @@ def on_comment(
     type: str = "comment",
     tracking_id: str = None,
 ):
+    set_user({"username": username})
     with logger.contextualize(
         tracking_id=tracking_id,
     ):
