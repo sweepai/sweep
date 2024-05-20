@@ -382,3 +382,15 @@ class PRReviewBot(ChatGPT):
                         "output": "END OF MESSAGES",
                     })
         return code_reviews_by_file
+    
+# adds line numbers to a string
+def add_line_numbers_to_text(content: str):
+    content_lines = content.split("\n")
+    new_content = [f"{i} {line}" for i, line in enumerate(content_lines)]
+    return "\n".join(new_content)
+
+if __name__ == "__main__":
+    test_text = """hello
+    this is some test text to
+    be numbered"""
+    print(add_line_numbers_to_text(test_text))
