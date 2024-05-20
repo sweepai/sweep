@@ -2,7 +2,8 @@ import base64
 import os
 import re
 
-from github.GithubException import GithubException
+import chardet
+from github.GithubException import GithubException  
 from github.Repository import Repository
 from loguru import logger
 from networkx import Graph
@@ -120,9 +121,10 @@ def safe_decode(
         contents = repo.get_contents(path, *args, **kwargs)
         if contents.encoding == "none":
             blob = repo.get_git_blob(contents.sha)
-            # this might be more correct but chatgpt said the latter is better
-            # return base64.b64decode(bytearray(blob.content, "utf-8")).decode("utf-8")
-            return base64.b64decode(blob.content).decode("utf-8")
+            try:
+                return base64.b64decode(blob.content).decode(chardet.detect(base64.b64decode(blob.content))['encoding'])
+            except UnicodeDecodeError:
+                return base64.b64decode(blob.content)
         return contents.decoded_content.decode("utf-8")
     except GithubException as e:
         raise e
