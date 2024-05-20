@@ -7,7 +7,7 @@ import copy
 import datetime
 
 import github
-import openai
+import openai  
 from github.Repository import Repository
 from loguru import logger
 
@@ -268,7 +268,7 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
             # instead of using total count, use the date of the latest commit
             commits = repo.get_commits(
                 author=username,
-                since=datetime.datetime.now() - datetime.timedelta(days=30),
+                since=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30),
             )
         except github.GithubException as e:
             if e.status == 409 and "Git Repository is empty." in e.data["message"]:
@@ -278,7 +278,7 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
                 raise
         
         # get latest commit date
-        commit_date = datetime.datetime.now() - datetime.timedelta(days=30)
+        commit_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)
         for commit in commits:
             if commit.commit.author.date > commit_date:
                 commit_date = commit.commit.author.date
