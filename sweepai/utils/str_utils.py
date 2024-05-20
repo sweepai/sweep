@@ -120,7 +120,6 @@ def add_line_numbers(text: str, start: int = 0):
 # start and end are inclusive
 def remove_lines_from_text(text: str, start: int = 0, end: int = -1):
     lines = text.splitlines(keepends=True)
-    breakpoint()
     if end == -1:
         end = len(lines) - 1
     elif end >= len(lines):
