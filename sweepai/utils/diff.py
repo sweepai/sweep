@@ -1,8 +1,8 @@
-from dataclasses import dataclass
 import difflib
 import re
 
 from loguru import logger
+from sweepai.dataclasses.comments import CommentDiffSpan
 from sweepai.utils.search_and_replace import Match, find_best_match
 
 
@@ -243,36 +243,12 @@ def get_matches(modify_file_response):
     )
     return matches
 
-
-def join_contents_k(first, second, k):
-    """
-    Join contents together removing k duplicate lines
-    """
-    first_lines = first.split("\n")
-    second_lines = second.split("\n")
-    for i in range(k, 0, -1):
-        if len(first_lines) < k or len(second_lines) < k:
-            continue
-        if first_lines[-i:] == second_lines[:i]:
-            return "\n".join(first_lines) + "\n" + "\n".join(second_lines[i:])
-    return "\n".join(first_lines) + "\n" + "\n".join(second_lines)
-
-
 def is_markdown(filename):
     return (
         filename.endswith(".md")
         or filename.endswith(".rst")
         or filename.endswith(".txt")
     )
-
-@dataclass
-class CommentDiffSpan:
-    old_start_line: int
-    old_end_line: int
-    new_start_line: int
-    new_end_line: int
-    new_code: str
-    file_name: str
 
 def get_diff_spans(old_content: str, new_content: str, file_name: str) -> list[CommentDiffSpan]:
     # Split the contents into lines

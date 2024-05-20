@@ -206,3 +206,5 @@ LICENSE_KEY = os.environ.get("LICENSE_KEY", None)
 ALTERNATE_AWS = os.environ.get("ALTERNATE_AWS", "none").lower() == "true"
 
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", None)
+
+SENTRY_URL = os.environ.get("SENTRY_URL", None)

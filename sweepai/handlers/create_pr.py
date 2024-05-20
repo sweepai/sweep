@@ -6,6 +6,7 @@ It is also responsible for handling Sweep config PR creation. test
 import copy
 import datetime
 
+import github
 import openai
 from github.Repository import Repository
 from loguru import logger
@@ -174,7 +175,6 @@ def safe_delete_sweep_branch(
         # Failed to delete branch as it was edited by someone else
         return False
 
-
 def create_config_pr(
     repo: Repository = None, cloned_repo: ClonedRepo = None
 ):
@@ -257,18 +257,26 @@ def create_config_pr(
     pr.add_to_labels(GITHUB_LABEL_NAME)
     return pr
 
-
 def add_config_to_top_repos(installation_id, username, repositories, max_repos=3):
     user_token, g = get_github_client(installation_id)
 
     repo_activity = {}
     for repo_entity in repositories:
         repo = g.get_repo(repo_entity.full_name)
-        # instead of using total count, use the date of the latest commit
-        commits = repo.get_commits(
-            author=username,
-            since=datetime.datetime.now() - datetime.timedelta(days=30),
-        )
+        
+        try:
+            # instead of using total count, use the date of the latest commit
+            commits = repo.get_commits(
+                author=username,
+                since=datetime.datetime.now() - datetime.timedelta(days=30),
+            )
+        except github.GithubException as e:
+            if e.status == 409 and "Git Repository is empty." in e.data["message"]:
+                logger.warning(f"Skipping empty repository {repo.full_name}")
+                continue
+            else:
+                raise
+        
         # get latest commit date
         commit_date = datetime.datetime.now() - datetime.timedelta(days=30)
         for commit in commits:
@@ -299,7 +307,6 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
         except Exception as e:
             logger.print(e)
     logger.print("Finished creating configs for top repos")
-
 
 def create_gha_pr(g, repo):
     # Create a new branch

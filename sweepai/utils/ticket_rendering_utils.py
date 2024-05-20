@@ -163,7 +163,6 @@ def create_error_logs(
         else ""
     )
 
-
 # takes in a list of workflow runs and returns a list of messages containing the logs of the failing runs
 def get_failing_gha_logs(runs, installation_id) -> str:
     token = get_token(installation_id)
@@ -230,7 +229,6 @@ def get_failing_gha_logs(runs, installation_id) -> str:
                 "Failed to get logs for failing github actions, likely a credentials issue"
             )
     return all_logs
-
 
 def delete_old_prs(repo: Repository, issue_number: int):
     logger.info("Deleting old PRs...")
@@ -550,7 +548,7 @@ def get_payment_messages(chat_logger: ChatLogger):
 def parse_issues_from_code_review(issue_string: str):
     issue_regex = r'<issue>(?P<issue>.*?)<\/issue>'
     issue_matches = list(re.finditer(issue_regex, issue_string, re.DOTALL))
-    potential_issues = []
+    potential_issues = set()
     for issue in issue_matches:
         issue_content = issue.group('issue')
         issue_params = ['issue_description', 'start_line', 'end_line']
@@ -565,8 +563,8 @@ def parse_issues_from_code_review(issue_string: str):
                 issue_failed = True
                 break
         if not issue_failed:
-            potential_issues.append(CodeReviewIssue(**issue_args))
-    return potential_issues
+            potential_issues.add(CodeReviewIssue(**issue_args))
+    return list(potential_issues)
 
 # converts the list of issues inside a code_review into markdown text to display in a github comment
 @posthog_trace

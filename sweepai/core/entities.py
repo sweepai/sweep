@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import os
 import re
-import string
-from dataclasses import dataclass
 from difflib import unified_diff
 from typing import Any, ClassVar, Literal, Type, TypeVar
 from urllib.parse import quote
@@ -79,20 +76,6 @@ class RegexMatchableBaseModel(BaseModel):
         )
 
 
-# todo (fix double colon regex): Update the split from "file_tree.py : desc" to "file_tree.py\tdesc"
-# tab supremacy
-def clean_filename(file_name: str):
-    valid_chars = "-_./$[]%s%s" % (string.ascii_letters, string.digits)
-    file_name = "".join(c for c in file_name if c in valid_chars)
-    file_name = file_name.replace(" ", "")
-    file_name = file_name.strip("`")
-    return os.path.normpath(file_name)
-
-
-def clean_instructions(instructions: str):
-    return instructions.strip()
-
-
 def create_error_logs(
     commit_url_display: str,
     sandbox_response: SandboxResponse,
@@ -119,18 +102,6 @@ def create_error_logs(
         if sandbox_response
         else ""
     )
-
-
-class ExtractionRequest(RegexMatchableBaseModel):
-    use_tools: bool
-    _regex = r"""<use_tools>\s+(?P<use_tools>.*?)</use_tools>"""
-
-    @classmethod
-    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        use_tools_pattern = r"""<use_tools>\s+(?P<use_tools>.*?)</use_tools>"""
-        use_tools_match = re.search(use_tools_pattern, string, re.DOTALL)
-        use_tools = use_tools_match.groupdict()["use_tools"].strip().lower() == "true"
-        return cls(use_tools=use_tools)
 
 
 class FileChangeRequest(RegexMatchableBaseModel):
@@ -284,59 +255,6 @@ class FileChangeRequest(RegexMatchableBaseModel):
         return ""
 
 
-class FileCreation(RegexMatchableBaseModel):
-    commit_message: str
-    code: str
-    _regex = r"""<new_file(.*?)>(?P<code>.*)</new_file>"""
-    # Regex updated to support ``` outside of <new_file> tags
-
-    @classmethod
-    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        re_match = re.search(cls._regex, string, re.DOTALL)
-
-        if re_match is None:
-            logger.info(f"Did not match {string} with pattern {cls._regex}")
-            raise ValueError("No <new_file> tags or ``` found in code block")
-
-        result = cls(
-            code=re_match.groupdict()["code"].strip(),
-            commit_message="Created file",
-        )
-
-        first_index = result.code.find("<new_file>")
-        if first_index >= 0:
-            last_index = result.code.rfind("</new_file>")
-            result.code = result.code[first_index + len("<new_file>") : last_index]
-        else:
-            first_index = result.code.find("```")
-            if first_index >= 0:
-                last_index = result.code.rfind("```")
-                file_extension = os.path.splitext(result.code)[1]
-                if file_extension not in [".md", ".rst", ".mdx", ".txt"]:
-                    result.code = result.code[first_index:last_index]
-
-        result.code = result.code.strip()
-        if result.code.endswith("</new_file>"):
-            result.code = result.code[: -len("</new_file>")]
-            result.code = result.code.strip()
-
-        # Todo: Remove this?
-        if len(result.code) == 1:
-            result.code = result.code.replace("```", "")
-            return result.code + "\n"
-
-        if result.code.startswith("```"):
-            first_newline = result.code.find("\n")
-            result.code = result.code[first_newline + 1 :]
-
-        result.code = result.code.strip()
-        if result.code.endswith("```"):
-            result.code = result.code[: -len("```")]
-            result.code = result.code.strip()
-        result.code += "\n"
-        return result
-
-
 class PullRequest(RegexMatchableBaseModel):
     title: str
     branch_name: str
@@ -351,6 +269,13 @@ class ProposedIssue(RegexMatchableBaseModel):
     _regex = r'<issue\s+title="(?P<title>.*?)">(?P<body>.*?)</issue>'
 
 
+SNIPPET_FORMAT = """<snippet>
+<file_name>{denotation}</file_name>
+<source>
+{contents}
+</source>
+</snippet>"""
+
 class Snippet(BaseModel):
     # pylint: disable=E1101
     """
@@ -362,6 +287,7 @@ class Snippet(BaseModel):
     end: int
     file_path: str
     score: float = 0.0 # TODO: migrate all usages to use this
+    type_name: Literal["source", "tests", "dependencies", "tools", "docs"] = "source"
 
     def __eq__(self, other):
         if isinstance(other, Snippet):
@@ -481,25 +407,6 @@ class Snippet(BaseModel):
         )
 
 
-class DiffSummarization(RegexMatchableBaseModel):
-    content: str
-    _regex = r"""<file_summaries>(\n)?(?P<content>.*)$"""
-
-    @classmethod
-    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        result = super().from_string(string, **kwargs)
-        result.content = result.content.replace("</file_summaries>", "", 1).strip()
-        return cls(
-            content=result.content,
-        )
-
-
-class PullRequestComment(RegexMatchableBaseModel):
-    changes_required: str
-    content: str
-    _regex = r"""<changes_required>(?P<changes_required>.*)<\/changes_required>(\s+)<review_comment>(?P<content>.*)<\/review_comment>"""
-
-
 class NoFilesException(Exception):
     def __init__(self, message="Sweep could not find any files to modify"):
         super().__init__(message)
@@ -529,13 +436,6 @@ class MockPR(BaseModel):
 
     def create_issue_comment(self, *args, **kwargs):
         pass
-
-
-@dataclass
-class SandboxExecution:
-    command: str
-    output: str
-    exit_code: int
 
 
 class SandboxResponse(BaseModel):

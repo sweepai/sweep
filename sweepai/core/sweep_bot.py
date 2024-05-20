@@ -360,7 +360,7 @@ def get_max_snippets(
         return []
     START_INDEX = min(len(snippets), MAX_SNIPPETS)
     for i in range(START_INDEX, 0, -1):
-        expanded_snippets = [snippet.expand(expand * 2) for snippet in snippets[:i]]
+        expanded_snippets = [snippet.expand(expand * 2) if snippet.type_name == "source" else snippet.get_snippet(add_lines=False) for snippet in snippets[:i]]
         proposed_snippets = organize_snippets(expanded_snippets[:i])
         cost = sum([len(snippet.get_snippet(False, False)) for snippet in proposed_snippets])
         if cost <= budget:
@@ -639,7 +639,7 @@ def context_get_files_to_change(
         relevant_snippet_template.format(
             i=i,
             file_path=snippet.file_path,
-            content=snippet.expand(300).get_snippet(add_lines=False),
+            content=snippet.expand(300).get_snippet(add_lines=False) if snippet.type_name == "source" else snippet.get_snippet(add_lines=False),
         ) for i, snippet in enumerate(relevant_snippets)
     )
     relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
@@ -1009,7 +1009,7 @@ def get_files_to_change_for_gha(
         relevant_snippet_template.format(
             i=i,
             file_path=snippet.file_path,
-            content=snippet.expand(300).get_snippet(add_lines=False),
+            content=snippet.expand(300).get_snippet(add_lines=False) if snippet.type_name == "source" else snippet.get_snippet(add_lines=False),
         ) for i, snippet in enumerate(relevant_snippets)
     )
     relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"

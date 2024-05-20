@@ -1,5 +1,6 @@
+from sweepai.dataclasses.comments import CommentDiffSpan
 from sweepai.utils.github_utils import get_github_client, get_installation_id
-from sweepai.utils.diff import CommentDiffSpan, get_diff_spans
+from sweepai.utils.diff import get_diff_spans
 
 
 old_content = '''
