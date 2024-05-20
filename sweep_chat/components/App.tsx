@@ -6,7 +6,8 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { FaCheck, FaGithub } from "react-icons/fa";
+import { FaCheck, FaGithub, FaStop } from "react-icons/fa";
+import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
@@ -252,8 +253,6 @@ const getLastLineEndingWithBracket = (content: string) => {
   return null;
 }
 
-const defaultMessage = `I'm Sweep and I'm here to help you answer questions about your codebase!`;
-
 function App() {
   const [repoName, setRepoName] = useLocalStorage<string>("repoName", "")
   const [repoNameValid, setRepoNameValid] = useLocalStorage<boolean>("repoNameValid", false)
@@ -264,6 +263,7 @@ function App() {
   const [messages, setMessages] = useLocalStorage<Message[]>("messages", [])
   const [currentMessage, setCurrentMessage] = useLocalStorage<string>("currentMessage", "")
   const [isLoading, setIsLoading] = useState<boolean>(false)
+  const isStream = useRef<boolean>(false)
   const [showSurvey, setShowSurvey] = useState<boolean>(false)
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -410,19 +410,31 @@ function App() {
       </div>
       {repoNameValid && (
         <div className={`flex w-full`}>
-          <Button
-            className="mr-2"
-            variant="secondary"
-            onClick={async () => {
-              setMessages([]);
-              setCurrentMessage("");
-              setIsLoading(false);
-              setSnippets([]);
-            }}
-            disabled={isLoading}
-          >
-            Restart
-          </Button>
+          {isStream.current ? (
+            <Button
+              className="mr-2"
+              variant="secondary"
+              onClick={async () => {
+                isStream.current = false;
+              }}
+            >
+              <FaStop />
+            </Button>
+          ) : (
+            <Button
+              className="mr-2"
+              variant="secondary"
+              onClick={async () => {
+                setMessages([]);
+                setCurrentMessage("");
+                setIsLoading(false);
+                setSnippets([]);
+              }}
+              disabled={isLoading}
+            >
+              <FaArrowsRotate />
+            </Button>
+          )}
           <Input
             data-ph-capture-attribute-current-message={currentMessage}
             onKeyUp={(e) => {
@@ -490,6 +502,8 @@ function App() {
                       })
                     });
 
+                    isStream.current = true;
+
                     // Stream
                     const reader = chatResponse.body?.getReader();
                     let done = false;
@@ -498,7 +512,7 @@ function App() {
                     var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" }]
                     setMessages(respondedMessages);
                     try {
-                      while (!done) {
+                      while (!done && isStream.current) {
                         const { value, done: done_ } = await reader!.read();
                         if (value) {
                           const decodedValue = new TextDecoder().decode(value);
@@ -529,6 +543,15 @@ function App() {
                         }
                         done = done_;
                       }
+                      if (!isStream.current) {
+                        reader!.cancel()
+                        posthog.capture("chat stopped", {
+                          repoName,
+                          snippets,
+                          messages,
+                          currentMessage,
+                        });
+                      }
                     } catch (e: any) {
                       toast({
                         title: "Chat stream failed",
@@ -545,6 +568,16 @@ function App() {
                         error: e.message
                       });
                       throw e;
+                    }
+
+                    var lastMessage = streamedMessages[streamedMessages.length - 1]
+                    if (lastMessage.role == "function" && lastMessage.function_call?.is_complete == false) {
+                      lastMessage.function_call.is_complete = true;
+                      setMessages([
+                        ...newMessages,
+                        ...streamedMessages.slice(0, streamedMessages.length - 1),
+                        lastMessage
+                      ])
                     }
 
                     const surveyID = process.env.NEXT_PUBLIC_SURVEY_ID
