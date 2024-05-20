@@ -54,6 +54,16 @@ def get_pr_diffs(repo: Repository, pr: PullRequest):
             )
     return pr_diffs
 
+def validate_diff(file_name: str, diff: str):
+    MAX_DIFF_LENGTH = 1000
+    if not diff:
+        return "diff is empty", False
+    if not file_name:
+        return "file name is empty", False
+    if len(diff.split("\n")) > MAX_DIFF_LENGTH:
+        return f"diff is over {MAX_DIFF_LENGTH}", False
+    return "", True
+
 @file_cache()
 def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], list[str]]:
     sweep_config: SweepConfig = SweepConfig()
@@ -68,7 +78,17 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
     for file in tqdm(file_diffs, desc="Annotating diffs"):
         file_name = file.filename
         diff = file.patch
-        # we can later migrate this to use a cloned repo and fetch off of two hashes
+        # Ensure diff is a string 
+        if not isinstance(diff, str):
+            diff = str(diff)
+        
+        # we can later migrate this to use a cloned repo and fetch off of two hashes  
+        reason, is_valid_diff = validate_diff(file_name, diff)
+        if not is_valid_diff:
+            logger.info(
+                f"Skipping invalid diff for file {file_name} because {reason}"
+            )
+            continue
         previous_filename = file.previous_filename or file.filename
 
         # drop excluded files: for example package-lock.json files

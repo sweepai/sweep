@@ -63,6 +63,8 @@ def posthog_trace(
             metadata = {**metadata, **posthog_args}
         if kwargs:
             posthog_kwargs = make_serializable(kwargs)
+            if "access_token" in posthog_kwargs:
+                del posthog_kwargs["access_token"]
             metadata = {**metadata, **posthog_kwargs}
         metadata = make_serializable(metadata)
         posthog.capture(username, f"{function.__name__} start", properties=metadata)

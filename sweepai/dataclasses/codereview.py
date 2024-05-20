@@ -7,6 +7,9 @@ class CodeReviewIssue:
     start_line: int
     end_line: int
 
+    def __hash__(self):
+        return hash((self.issue_description, self.start_line, self.end_line))
+
 @dataclass
 class CodeReview:
     file_name: str

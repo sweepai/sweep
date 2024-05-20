@@ -4,11 +4,11 @@ from pydantic import BaseModel
 
 
 class Changes(BaseModel):
-    body: Dict[str, str]
+    body: Dict[str, str] | None = None
 
     @property
     def body_from(self):
-        return self.body.get("from")
+        return self.body.get("from") if self.body else None
 
 
 class Account(BaseModel):

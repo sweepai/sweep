@@ -47,6 +47,7 @@ from sweepai.utils.ticket_rendering_utils import add_emoji, process_summary, rem
 from sweepai.utils.validate_license import validate_license
 from sweepai.utils.buttons import Button, ButtonList
 from sweepai.utils.chat_logger import ChatLogger
+from sentry_sdk import set_user
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
     CURRENT_USERNAME,
@@ -68,7 +69,6 @@ from sweepai.utils.str_utils import (
     create_collapsible,
     discord_suffix,
     get_hash,
-    sep,
     strip_sweep,
     to_branch_name,
 )
@@ -92,6 +92,7 @@ def on_ticket(
     edited: bool = False,
     tracking_id: str | None = None,
 ):
+    set_user({"username": username})
     if not os.environ.get("CLI"):
         assert validate_license(), "License key is invalid or expired. Please contact us at team@sweep.dev to upgrade to an enterprise license."
     with logger.contextualize(
@@ -239,10 +240,8 @@ def on_ticket(
                 " time using Sweep, I'm indexing your repository, which will take a few minutes."
             )
             first_comment = (
-                f"{get_comment_header(0, g, repo_full_name, progress_headers, tracking_id, payment_message_start)}\n{sep}I am currently looking into this ticket! I"
-                " will update the progress of the ticket in this comment. I am currently"
-                f" searching through your code, looking for relevant snippets.\n{sep}##"
-                f" {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
+                f"{get_comment_header(0, g, repo_full_name, progress_headers, tracking_id, payment_message_start)}\n## "
+                f"{progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
             )
             # Find Sweep's previous comment
             comments = []

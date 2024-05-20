@@ -19,6 +19,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBearer
 from fastapi.templating import Jinja2Templates
 from github.Commit import Commit
+from github import GithubException
 
 from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
@@ -37,6 +38,7 @@ from sweepai.config.server import (
     GITHUB_LABEL_DESCRIPTION,
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
+    SENTRY_URL,
 )
 from sweepai.chat.api import app as chat_app
 from sweepai.core.entities import PRChangeRequest
@@ -76,6 +78,15 @@ from sweepai.web.events import (
     ReposAddedRequest,
 )
 from sweepai.web.health import health_check
+import sentry_sdk
+from sentry_sdk import set_user
+
+if SENTRY_URL:
+    sentry_sdk.init(
+        dsn=SENTRY_URL,
+        traces_sample_rate=1.0,
+        profiles_sample_rate=1.0,
+    )
 
 app = FastAPI()
 
@@ -241,9 +252,6 @@ def progress(tracking_id: str = Path(...)):
 
 
 def handle_github_webhook(event_payload):
-    # if hatchet:
-    #     hatchet.client.event.push("github:webhook", event_payload)
-    # else:
     handle_event(event_payload.get("request"), event_payload.get("event"))
 
 
@@ -253,7 +261,6 @@ def handle_request(request_dict, event=None):
         action = request_dict.get("action")
 
         try:
-            # Send the event to Hatchet
             handle_github_webhook(
                 {
                     "request": request_dict,
@@ -261,7 +268,7 @@ def handle_request(request_dict, event=None):
                 }
             )
         except Exception as e:
-            logger.exception(f"Failed to send event to Hatchet: {e}")
+            logger.exception(str(e))
         logger.info(f"Done handling {event}, {action}")
         return {"success": True}
 
@@ -357,6 +364,10 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
 
 def handle_event(request_dict, event):
     action = request_dict.get("action")
+    
+    username = request_dict.get("sender", {}).get("login")
+    if username:
+        set_user({"username": username})
 
     if repo_full_name := request_dict.get("repository", {}).get("full_name"):
         if repo_full_name in DISABLED_REPOS:
@@ -480,11 +491,17 @@ def handle_event(request_dict, event):
                     label_names = [label.name for label in labels]
 
                     if GITHUB_LABEL_NAME not in label_names:
-                        repo.create_label(
-                            name=GITHUB_LABEL_NAME,
-                            color=GITHUB_LABEL_COLOR,
-                            description=GITHUB_LABEL_DESCRIPTION,
-                        )
+                        try:
+                            repo.create_label(
+                                name=GITHUB_LABEL_NAME,
+                                color=GITHUB_LABEL_COLOR,
+                                description=GITHUB_LABEL_DESCRIPTION,
+                            )
+                        except GithubException as e:
+                            if e.status == 422 and any(error.get("code") == "already_exists" for error in e.data.get("errors", [])):
+                                logger.warning(f"Label '{GITHUB_LABEL_NAME}' already exists in the repository")
+                            else:
+                                raise e
                     current_issue = repo.get_issue(number=request.issue.number)
                     current_issue.add_to_labels(GITHUB_LABEL_NAME)
             case "issue_comment", "edited":
@@ -603,9 +620,8 @@ def handle_event(request_dict, event):
                 request = IssueRequest(**request_dict)
                 if (
                     GITHUB_LABEL_NAME
-                    in [label.name.lower() for label in request.issue.labels]
+                    in [label.name.lower() for label in request.issue.labels]  
                     and request.sender.type == "User"
-                    and request.comment.user.login not in BLACKLISTED_USERS
                     and not request.sender.login.startswith("sweep")
                 ):
                     logger.info("New issue edited")

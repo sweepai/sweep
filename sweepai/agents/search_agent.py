@@ -7,13 +7,6 @@ from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
 from sweepai.utils.str_utils import extract_xml_tag
 from sweepai.utils.ticket_utils import prep_snippets
 
-SNIPPET_FORMAT = """<snippet>
-<file_name>{denotation}</file_name>
-<source>
-{contents}
-</source>
-</snippet>"""
-
 tools_available = """You have access to the following tools to assist in fulfilling the user request:
 <tool_description>
 <tool_name>ask_questions_about_codebase</tool_name>
