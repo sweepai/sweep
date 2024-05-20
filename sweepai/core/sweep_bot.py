@@ -123,11 +123,15 @@ def safe_decode(
         contents = repo.get_contents(path, *args, **kwargs)
         if contents.encoding == "none":
             blob = repo.get_git_blob(contents.sha)
-            try:
-                return base64.b64decode(blob.content).decode(chardet.detect(base64.b64decode(blob.content))['encoding'])
-            except UnicodeDecodeError:
+            detected_encoding = chardet.detect(base64.b64decode(blob.content))['encoding']
+            if detected_encoding is None:
                 return read_file_with_fallback_encodings(base64.b64decode(blob.content))
-        return contents.decoded_content.decode("utf-8")
+            else:
+                try:
+                    return base64.b64decode(blob.content).decode(detected_encoding)
+                except UnicodeDecodeError:
+                    return read_file_with_fallback_encodings(base64.b64decode(blob.content))
+        return contents.decoded_content.decode("utf-8")  
     except GithubException as e:
         raise e
     except Exception as e:
