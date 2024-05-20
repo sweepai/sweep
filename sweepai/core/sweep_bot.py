@@ -3,10 +3,12 @@ import os
 import re
 
 import chardet
-from github.GithubException import GithubException  
+from github.GithubException import GithubException
 from github.Repository import Repository
 from loguru import logger
 from networkx import Graph
+
+from sweepai.utils.file_utils import read_file_with_fallback_encodings
 from tqdm import tqdm
 from rapidfuzz import fuzz
 
@@ -124,7 +126,7 @@ def safe_decode(
             try:
                 return base64.b64decode(blob.content).decode(chardet.detect(base64.b64decode(blob.content))['encoding'])
             except UnicodeDecodeError:
-                return base64.b64decode(blob.content)
+                return read_file_with_fallback_encodings(base64.b64decode(blob.content))
         return contents.decoded_content.decode("utf-8")
     except GithubException as e:
         raise e
