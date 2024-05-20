@@ -70,7 +70,11 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> list[PRChange]:
     for file in tqdm(file_diffs, desc="Annotating diffs"):
         file_name = file.filename
         diff = file.patch
-        # we can later migrate this to use a cloned repo and fetch off of two hashes
+        # Ensure diff is a string 
+        if not isinstance(diff, str):
+            diff = str(diff)
+        
+        # we can later migrate this to use a cloned repo and fetch off of two hashes  
         reason, is_valid_diff = validate_diff(file_name, diff)
         if not is_valid_diff:
             logger.info(
