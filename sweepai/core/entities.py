@@ -269,6 +269,13 @@ class ProposedIssue(RegexMatchableBaseModel):
     _regex = r'<issue\s+title="(?P<title>.*?)">(?P<body>.*?)</issue>'
 
 
+SNIPPET_FORMAT = """<snippet>
+<file_name>{denotation}</file_name>
+<source>
+{contents}
+</source>
+</snippet>"""
+
 class Snippet(BaseModel):
     # pylint: disable=E1101
     """
@@ -280,6 +287,7 @@ class Snippet(BaseModel):
     end: int
     file_path: str
     score: float = 0.0 # TODO: migrate all usages to use this
+    type_name: Literal["source", "tests", "dependencies", "tools", "docs"] = "source"
 
     def __eq__(self, other):
         if isinstance(other, Snippet):
