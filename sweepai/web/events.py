@@ -4,11 +4,11 @@ from pydantic import BaseModel
 
 
 class Changes(BaseModel):
-    body: Dict[str, str]
+    base: Dict[str, Any]
 
     @property
-    def body_from(self):
-        return self.body.get("from")
+    def base_ref_from(self):
+        return self.base.get("ref", {}).get("from")
 
 
 class Account(BaseModel):
