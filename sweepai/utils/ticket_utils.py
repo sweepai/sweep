@@ -292,6 +292,8 @@ def multi_prep_snippets(
         for type_name, snippets_subset in separated_snippets:
             if type_name == "junk":
                 continue
+            if len(snippets_subset) == 0:
+                continue
             directory_summaries = {} # recursively_summarize_directory(snippets, cloned_repo)
             new_content_to_lexical_scores = get_pointwise_reranked_snippet_scores(
                 queries[0], snippets_subset, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK, directory_summaries
