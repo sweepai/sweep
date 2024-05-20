@@ -310,16 +310,19 @@ def multi_prep_snippets(
             logger.info(f"Reranked {type_name}")
             # cutoff snippets at percentile
             logger.info("Kept these snippets")
-            top_score = snippets_subset[0].score
-            max_results = type_to_result_count[type_name]
-            filtered_subset_snippets = []
-            for idx, snippet in enumerate(snippets_subset):
-                percentile = snippet.score / top_score
-                if percentile < type_to_percentile_floor[type_name] or snippet.score < type_to_score_floor[type_name] or idx >= max_results:
-                    break
-                logger.info(f"{idx}: {snippet.denotation} {snippet.score} {percentile}")
-                snippet.type_name = type_name
-                filtered_subset_snippets.append(snippet)
+            if snippets_subset:
+                top_score = snippets_subset[0].score
+                max_results = type_to_result_count[type_name]
+                filtered_subset_snippets = []
+                for idx, snippet in enumerate(snippets_subset):
+                    percentile = snippet.score / top_score
+                    if percentile < type_to_percentile_floor[type_name] or snippet.score < type_to_score_floor[type_name] or idx >= max_results:
+                        break
+                    logger.info(f"{idx}: {snippet.denotation} {snippet.score} {percentile}")
+                    snippet.type_name = type_name
+                    filtered_subset_snippets.append(snippet)
+            else:
+                filtered_subset_snippets = []
             if type_name != "source": # do more filtering
                 filtered_subset_snippets = AnalyzeSnippetAgent().analyze_snippets(filtered_subset_snippets, type_name, queries[0])
             ranked_snippets.extend(filtered_subset_snippets)
