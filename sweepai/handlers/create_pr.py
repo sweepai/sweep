@@ -295,7 +295,7 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
     # For each repo, create a branch based on main branch, then create PR to main branch
     for repo in sorted_repos:
         try:
-            logger.error("Creating config for", repo.full_name)
+            logger.error("Creating config for " + repo.full_name)
             create_config_pr(
                 repo=repo,
                 cloned_repo=ClonedRepo(
