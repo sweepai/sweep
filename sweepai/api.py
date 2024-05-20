@@ -251,9 +251,6 @@ def progress(tracking_id: str = Path(...)):
 
 
 def handle_github_webhook(event_payload):
-    # if hatchet:
-    #     hatchet.client.event.push("github:webhook", event_payload)
-    # else:
     handle_event(event_payload.get("request"), event_payload.get("event"))
 
 
@@ -263,7 +260,6 @@ def handle_request(request_dict, event=None):
         action = request_dict.get("action")
 
         try:
-            # Send the event to Hatchet
             handle_github_webhook(
                 {
                     "request": request_dict,
@@ -271,7 +267,7 @@ def handle_request(request_dict, event=None):
                 }
             )
         except Exception as e:
-            logger.exception(f"Failed to send event to Hatchet: {e}")
+            logger.exception(str(e))
         logger.info(f"Done handling {event}, {action}")
         return {"success": True}
 
