@@ -305,8 +305,8 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
                 ),
             )
         except Exception as e:
-            print(e)
-    logger.info("Finished creating configs for top repos")
+            logger.exception(e)
+    logger.info("Finished creating configs for top repos") 
 
 def create_gha_pr(g, repo):
     # Create a new branch
