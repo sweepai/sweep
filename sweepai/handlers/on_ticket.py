@@ -68,7 +68,6 @@ from sweepai.utils.str_utils import (
     create_collapsible,
     discord_suffix,
     get_hash,
-    sep,
     strip_sweep,
     to_branch_name,
 )
