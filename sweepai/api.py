@@ -37,6 +37,7 @@ from sweepai.config.server import (
     GITHUB_LABEL_DESCRIPTION,
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
+    SENTRY_URL,
 )
 from sweepai.chat.api import app as chat_app
 from sweepai.core.entities import PRChangeRequest
@@ -76,6 +77,15 @@ from sweepai.web.events import (
     ReposAddedRequest,
 )
 from sweepai.web.health import health_check
+from fastapi import FastAPI
+import sentry_sdk
+
+if SENTRY_URL:
+    sentry_sdk.init(
+        dsn=SENTRY_URL,
+        traces_sample_rate=1.0,
+        profiles_sample_rate=1.0,
+    )
 
 app = FastAPI()
 
