@@ -61,10 +61,10 @@ def snippet_majority_vote(outcomes: list[list[Snippet]]):
     # Get the total number of outcomes
     num_outcomes = len(outcomes)
 
-    # Filter the snippets that were selected by the majority of the outcomes
+    # Filter the snippets that were selected by all outcomes
     majority_snippets = [
         snippet for snippet, count in snippet_counts.items()
-        if count > num_outcomes // 2
+        if count == num_outcomes # strict
     ]
     return majority_snippets
 
