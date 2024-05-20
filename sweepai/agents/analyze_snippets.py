@@ -79,7 +79,7 @@ class AnalyzeSnippetAgent(ChatGPT):
         analyze_response = self.chat_anthropic(
             content=user_prompt,
             temperature=0.3, # we have majority voting
-            use_openai=True,
+            model="claude-3-haiku-20240307",
             seed=seed,
         )
         relevant_snippet_pattern = r"<relevant_snippet>\n(.*?)\n</relevant_snippet>"
