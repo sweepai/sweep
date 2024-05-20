@@ -612,9 +612,8 @@ def handle_event(request_dict, event):
                 request = IssueRequest(**request_dict)
                 if (
                     GITHUB_LABEL_NAME
-                    in [label.name.lower() for label in request.issue.labels]
+                    in [label.name.lower() for label in request.issue.labels]  
                     and request.sender.type == "User"
-                    and request.comment.user.login not in BLACKLISTED_USERS
                     and not request.sender.login.startswith("sweep")
                 ):
                     logger.info("New issue edited")
