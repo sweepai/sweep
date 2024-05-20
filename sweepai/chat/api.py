@@ -90,6 +90,8 @@ def posthog_trace(
                 # find any unserializable objects then turn them to strings
                 posthog_kwargs = make_serializable(posthog_kwargs)
             finally:
+                if "access_token" in posthog_kwargs:
+                    del posthog_kwargs["access_token"]
                 metadata = {**metadata, **posthog_kwargs}
         posthog.capture(username, f"{function.__name__} start", properties=metadata)
 
