@@ -200,7 +200,7 @@ def get_failing_gha_logs(runs, installation_id) -> str:
             return all_logs
         # make sure jobs in valid
         if jobs_response.json()['total_count'] == 0:
-            logger.error(f"no jobs for this run: {run}, continuing...")
+            logger.warning(f"no jobs for this run: {run}, continuing...")
             continue
 
         # logs url
