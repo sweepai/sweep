@@ -47,6 +47,7 @@ from sweepai.utils.ticket_rendering_utils import add_emoji, process_summary, rem
 from sweepai.utils.validate_license import validate_license
 from sweepai.utils.buttons import Button, ButtonList
 from sweepai.utils.chat_logger import ChatLogger
+from sentry_sdk import set_user
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
     CURRENT_USERNAME,
@@ -91,6 +92,7 @@ def on_ticket(
     edited: bool = False,
     tracking_id: str | None = None,
 ):
+    set_user({"username": username})
     if not os.environ.get("CLI"):
         assert validate_license(), "License key is invalid or expired. Please contact us at team@sweep.dev to upgrade to an enterprise license."
     with logger.contextualize(
