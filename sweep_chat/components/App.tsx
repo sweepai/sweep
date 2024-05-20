@@ -364,17 +364,28 @@ function App() {
               })
               return;
             }
-            setRepoNameDisabled(true);
-            const response = await fetch(`/backend/repo?repo_name=${repoName}`, {
-              headers: {
-                "Content-Type": "application/json",
-                // @ts-ignore
-                "Authorization": `Bearer ${session?.accessToken!}`
-              }
-            });
-            setRepoNameDisabled(false);
-            console.log(response)
-            const data = await response.json();
+            var data = null
+            try {
+              setRepoNameDisabled(true);
+              const response = await fetch(`/backend/repo?repo_name=${repoName}`, {
+                headers: {
+                  "Content-Type": "application/json",
+                  // @ts-ignore
+                  "Authorization": `Bearer ${session?.accessToken!}`
+                }
+              });
+              console.log(response)
+              data = await response.json();
+            } catch (e: any) {
+              setRepoNameValid(false)
+              toast({
+                title: "Failed to load repository",
+                description: e.message,
+                variant: "destructive"
+              })
+              setRepoNameDisabled(false);
+              return;
+            }
             if (!data.success) {
               setRepoNameValid(false)
               toast({
@@ -389,6 +400,7 @@ function App() {
                 variant: "default"
               })
             }
+            setRepoNameDisabled(false);
           }}
           placeholder="Repository name"
           disabled={repoNameDisabled}
