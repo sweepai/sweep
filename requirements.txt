@@ -67,6 +67,7 @@ cffi==1.16.0
     #   argon2-cffi-bindings
     #   cryptography
     #   pynacl
+chardet==5.2.0
 charset-normalizer==3.3.2
     # via requests
 cleo==2.1.0
