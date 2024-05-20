@@ -1,24 +1,32 @@
 """
 Take a PR and provide an AI generated review of the PR.
 """
+import copy
+import multiprocessing
 import re
 
+import numpy as np
+from sklearn.cluster import DBSCAN
 from tqdm import tqdm
+from sweepai.chat.api import posthog_trace
 from sweepai.config.client import SweepConfig
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 from sweepai.core.review_annotations import get_diff_annotations
 from sweepai.core.sweep_bot import safe_decode
-from sweepai.dataclasses.codereview import CodeReview, PRChange, Patch
+from sweepai.core.vector_db import cosine_similarity, embed_text_array
+from sweepai.dataclasses.codereview import CodeReview, CodeReviewIssue, FunctionDef, PRChange, Patch
 from sweepai.logn.cache import file_cache
-from sweepai.utils.event_logger import logger
+from sweepai.utils.event_logger import logger, posthog
 from sweepai.utils.chat_logger import ChatLogger
 from github.GithubException import GithubException
 from github.Repository import Repository
 from github.PullRequest import PullRequest
 
-from sweepai.utils.str_utils import add_line_numbers, objects_to_xml
+from sweepai.utils.github_utils import ClonedRepo, update_file
+from sweepai.utils.str_utils import add_line_numbers, extract_object_fields_from_string, extract_objects_from_string, object_to_xml, objects_to_xml, remove_lines_from_text
 from sweepai.utils.ticket_rendering_utils import parse_issues_from_code_review
+from sweepai.utils.ticket_utils import get_top_k_snippets
 
 def get_pr_diffs(repo: Repository, pr: PullRequest):
     base_sha = pr.base.sha
@@ -47,7 +55,7 @@ def get_pr_diffs(repo: Repository, pr: PullRequest):
     return pr_diffs
 
 @file_cache()
-def get_pr_changes(repo: Repository, pr: PullRequest) -> list[PRChange]:
+def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], list[str]]:
     sweep_config: SweepConfig = SweepConfig()
     base_sha = pr.base.sha
     head_sha = pr.head.sha
@@ -168,7 +176,7 @@ def format_pr_change(pr_change: PRChange, pr_idx: int=0):
         file_contents=add_line_numbers(pr_change.new_code, start=1)
     )
 
-def format_pr_changes_by_file(pr_changes: list[PRChange]):
+def format_pr_changes_by_file(pr_changes: list[PRChange]) -> dict[str, str]:
     formatted_pr_changes_by_file = {}
     for idx, pr_change in enumerate(pr_changes):
         formatted_pr_changes_by_file[pr_change.file_name] = format_pr_change(pr_change, idx)
@@ -178,6 +186,12 @@ system_prompt = """You are a careful and smart tech lead that wants to avoid pro
 
 system_prompt_review = """You are a busy tech manager who is responsible for reviewing prs and identifying any possible production issues. 
 You will be analyzing a list of potential issues that have been identified by a previous engineer and determing which issues are severe enough to bring up to the original engineer."""
+
+system_prompt_identify_new_functions = """You are an expert programmer with a keen eye for detail, assigned to analyze a series of code patches in a pull request. Your primary responsibility is to meticulously identify all newly defined functions within the code."""
+
+system_prompt_identify_repeats = """You are a proficient programmer tasked with identifying repeated or unnecessary functions in a codebase. Your job is to find and highlight any duplicated or redundant function definitions.
+You will be given a function definition that was just added to the codebase and your job will be to check whether or not this function was actually necessary or not given a series of code snippets.
+"""
 
 user_prompt = """\
 # Code Review
@@ -289,6 +303,59 @@ Below are the changes made in the pull request as context
 </severe_issues>
 """
 
+user_prompt_identify_new_functions = """
+Below are all the patches made to the file {file_name} in this pull request.
+# PR Patches
+
+{patches}
+
+Below is the file {file_name} with all the above patches applied along with the line numbers. Use this to identify the correct starting and ending line numbers.
+# Relevant code file with line numbers
+
+{numbered_code_file}
+
+# Instructions
+1. Analyze each of the patches above and identify ALL newly defined functions.
+2. Return the list of all newly defined functions in the following xml format:
+<newly_defined_functions>
+<function>
+<function_code>
+{{Function code copied verbatim for the patch}}
+<function_code>
+<start_line>
+{{Corresponding starting line number for function 1 (inclusive)}}
+</start_line>
+<end_line>
+{{Corresponding ending line number for function 1 (inclusive)}}
+</end_line>
+</function>
+...
+</newly_defined_functions>
+"""
+
+user_prompt_identify_repeats = """
+Below is the function definition that was just added to the code base.
+# New Function
+
+{function}
+
+Below are a series of code snippets retrieved from the codebase via vector search. Analyze these code snippets to see if there are any similar functions that render the new function obselete and redundant.
+# Relevant code snippets
+
+{formatted_code_snippets}
+
+# Instructions
+1. Analyze each of the code snippets above and determine whether or not the new function is really necessary or not.
+2. Return your answer in the following xml format:
+<redundant_new_function>
+<answer>
+{{'true' if the new function is redundant/repeated/obselete, 'false' if the new function is needed}}
+</answer>
+<justification>
+{{A very brief justification of why the new function is not needed, only include this tag if the above answer was 'true'. Max 1-2 sentences.}}
+</justification>
+</redundant_new_function>"""
+
 CLAUDE_MODEL = "claude-3-opus-20240229"
 
 class PRReviewBot(ChatGPT):
@@ -332,8 +399,14 @@ class PRReviewBot(ChatGPT):
         return code_reviews_by_file
 
     # review the generated issues more critically for each file to see if they are actually important or not
-    def review_code_issues_by_file(self, pr_changes: list[PRChange], formatted_pr_changes_by_file: dict[str, str], code_reviews_by_file: dict[str, CodeReview], chat_logger: ChatLogger = None):
-        files_to_patches = {}
+    def review_code_issues_by_file(
+        self, 
+        pr_changes: list[PRChange], 
+        formatted_pr_changes_by_file: dict[str, str], 
+        code_reviews_by_file: dict[str, CodeReview], 
+        chat_logger: ChatLogger = None
+    ):
+        files_to_patches: dict[str, str] = {}
         # format all patches for all files
         for pr_change in pr_changes:
             patches = format_patches_for_pr_change(pr_change)
@@ -382,3 +455,306 @@ class PRReviewBot(ChatGPT):
                         "output": "END OF MESSAGES",
                     })
         return code_reviews_by_file
+
+    # given a list of changes identify newly defined functions
+    def identify_functions_in_patches(
+        self,
+        pr_changes: list[PRChange],
+    ):
+        newly_created_functions: dict[str, list[FunctionDef]] = {}
+        files_to_patches: dict[str, str] = {}
+        files_to_pr_change: dict[str, PRChange] = {}
+        # format all patches for all files
+        for pr_change in pr_changes:
+            patches = format_patches_for_pr_change(pr_change)
+            files_to_patches[pr_change.file_name] = patches
+            files_to_pr_change[pr_change.file_name] = pr_change
+        # go file by file
+        for file_name, patches in files_to_patches.items():
+            self.messages = [
+                Message(
+                    role="system",
+                    content=system_prompt_identify_new_functions,
+                )
+            ]
+
+            formatted_user_prompt = user_prompt_identify_new_functions.format(
+                file_name=file_name, patches=patches, numbered_code_file=add_line_numbers(files_to_pr_change[file_name].new_code, start=1))
+            new_functions_response = self.chat_anthropic(
+                content=formatted_user_prompt,
+                temperature=0,
+                model=CLAUDE_MODEL,
+                use_openai=True
+            )
+            # extract function defs from string
+            function_def_params = ["function_code", "start_line", "end_line"]
+            newly_defined_functions_regex = r'<newly_defined_functions>(?P<content>.*?)<\/newly_defined_functions>'
+            newly_defined_functions_match = re.search(newly_defined_functions_regex, new_functions_response, re.DOTALL)
+            if newly_defined_functions_match:
+                extracted_functions, _ = extract_objects_from_string(newly_defined_functions_match.group("content"), "function", function_def_params)
+                for extracted_function in extracted_functions:
+                    if file_name not in newly_created_functions:
+                        newly_created_functions[file_name] = []
+                    newly_created_functions[file_name].append(FunctionDef(**{**extracted_function, "file_name": file_name}))
+            else:
+                newly_created_functions[file_name] = []
+        return newly_created_functions
+    
+    # identifies any repeated utility function definitons and raises them as codereviewissue
+    def identify_repeated_functions(
+        self, 
+        cloned_repo: ClonedRepo, 
+        newly_created_functions_dict: dict[str, list[FunctionDef]]
+    ) -> dict[str, list[CodeReviewIssue]]:
+        repeated_functions_code_issues: dict[str, list[CodeReviewIssue]] = {}
+        for file_name, newly_created_functions in newly_created_functions_dict.items():
+            repeated_functions_code_issues[file_name] = []
+            # do a similarity search over the chunked code base to see if the function name matches anything
+            for function in newly_created_functions:
+                # remove the function definition from the file to prevent biased results
+                # keep copy of edited files to revert later
+                modified_files_dict: dict[str, dict[str, str]] = {}
+                modified_files_dict[function.file_name] = {"original": cloned_repo.get_file_contents(function.file_name)}
+                modified_files_dict[function.file_name]["modified"] = remove_lines_from_text(
+                    modified_files_dict[function.file_name]["original"],start=int(function.start_line),end=int(function.end_line)
+                )
+                # now update the cloned repo file in both repo_dir and cached_dir
+                try:
+                    update_file(cloned_repo.repo_dir, function.file_name, modified_files_dict[function.file_name]["modified"])
+                    update_file(cloned_repo.cached_dir, function.file_name, modified_files_dict[function.file_name]["modified"])
+                except Exception as e:
+                    logger.error(f"Failure updating file {cloned_repo.repo_dir}{function.file_name}: {e}")
+                    posthog.capture(
+                        "identify_functions_in_patches", 
+                        "identify_functions_in_patches error updating", 
+                        properties={"error": str(e), "cloned_repo.repo_dir": cloned_repo.repo_dir, "file_name": function.file_name}
+                    )
+                    raise e
+                
+                # get the top twenty snippets and then pass those into sweep to ask if there are any repeated function definitions
+                ranked_snippets, _, _ = get_top_k_snippets(
+                    cloned_repo, function.function_code, None, k=10, include_docs=True, include_tests=False
+                )
+                formatted_code_snippets = "\n\n".join(
+                    [f"<code_snippet file_name='{snippet.file_path}' snippet_index='{idx}'>\n{snippet.get_snippet()}\n</code_snippet>" for idx, snippet in enumerate(ranked_snippets)]
+                )
+                formatted_user_prompt = user_prompt_identify_repeats.format(
+                    function=function.function_code, formatted_code_snippets=formatted_code_snippets
+                )
+                self.messages = [
+                    Message(
+                        role="system",
+                        content=system_prompt_identify_repeats,
+                    )
+                ]
+                repeated_functions_response = self.chat_anthropic(
+                    content=formatted_user_prompt,
+                    temperature=0,
+                    model=CLAUDE_MODEL,
+                    use_openai=True
+                )
+                repeated_function_params = ['answer', 'justification']
+                repeated_function, _, failed_param = extract_object_fields_from_string(repeated_functions_response, repeated_function_params)
+                # if extraction fails
+                if failed_param == "answer":
+                    logger.error(f"Failure in extract_object_fields_from_string: {repeated_functions_response}")
+                    posthog.capture(
+                        "extract_object_fields_from_string", "extract_object_fields_from_string failed", properties={"text": repeated_functions_response, "params": str(repeated_function_params)}
+                    )
+                else:
+                    # case insensitive match
+                    answer_true = r'true'
+                    if bool(re.search(answer_true, repeated_function['answer'], re.IGNORECASE)):
+                        justification = repeated_function.get("justification", "")
+                        new_code_issue = CodeReviewIssue(
+                            issue_description=f"Sweep has identified a redundant function with the following justifiction: {justification}",
+                            start_line=function.start_line,
+                            end_line=function.end_line
+                        )
+                        repeated_functions_code_issues[function.file_name].append(new_code_issue)
+
+                # now revert the cloned repo file - if this fails this can cause big issues
+                try:
+                    update_file(cloned_repo.repo_dir, function.file_name, modified_files_dict[function.file_name]["original"])
+                    update_file(cloned_repo.cached_dir, function.file_name, modified_files_dict[function.file_name]["original"])
+                except Exception as e:
+                    logger.error(f"Failure updating file {cloned_repo.repo_dir}{function.file_name}: {e}")
+                    posthog.capture(
+                        "identify_functions_in_patches", 
+                        "identify_functions_in_patches error reverting", 
+                        properties={"error": str(e), "cloned_repo.repo_dir": cloned_repo.repo_dir, "file_name": function.file_name}
+                    )
+                    raise e
+        return repeated_functions_code_issues
+        
+
+# get the best issue to return based on group vote
+@posthog_trace
+def get_group_voted_best_issue_index(
+    username: str, 
+    file_name: str, 
+    label: str, 
+    files_to_labels_indexes: dict[str, dict[str, list[int]]], 
+    files_to_embeddings: dict[str, any], 
+    index_length: int, 
+):
+    similarity_scores = [0 for _ in range(index_length)]
+    for index_i in range(index_length):
+        for index_j in range(index_length):
+            if index_i != index_j:
+                embedding_i = files_to_embeddings[file_name][index_i].reshape(1,512)
+                embedding_j = files_to_embeddings[file_name][index_j].reshape(1,512)
+                similarity_scores[index_i] += cosine_similarity(embedding_i, embedding_j)[0][0]
+    max_index = files_to_labels_indexes[file_name][label][np.argmax(similarity_scores)]
+    return max_index
+
+# function that gets the code review for every file in the pr
+def get_code_reviews_for_file(
+    pr_changes: list[PRChange], 
+    formatted_pr_changes_by_file: dict[str, str], 
+    chat_logger: ChatLogger | None = None
+):
+    review_bot = PRReviewBot()
+    code_review_by_file = review_bot.review_code_changes_by_file(formatted_pr_changes_by_file, chat_logger=chat_logger)
+    code_review_by_file = review_bot.review_code_issues_by_file(pr_changes, formatted_pr_changes_by_file, code_review_by_file, chat_logger=chat_logger)
+    return code_review_by_file
+
+# run 5 seperate instances of review_pr and then group the resulting issues and only take the issues that appear the majority of the time (> 3)
+@posthog_trace
+def group_vote_review_pr(
+    username: str, 
+    pr_changes: list[PRChange], 
+    formatted_pr_changes_by_file: dict[str, str], 
+    multiprocess: bool = True, 
+    chat_logger: ChatLogger | None = None, 
+) -> dict[str, CodeReview]:
+    majority_code_review_by_file = {}
+    code_reviews_by_file = []
+    GROUP_SIZE = 5
+    if multiprocess:
+        chat_logger = None
+        pool = multiprocessing.Pool(processes=5)
+        results = [
+            pool.apply_async(get_code_reviews_for_file, args=(pr_changes, formatted_pr_changes_by_file, chat_logger))
+            for _ in range(GROUP_SIZE)
+        ]
+        pool.close()
+        pool.join()
+        for result in results:
+            try:
+                code_review = result.get()
+                code_reviews_by_file.append(code_review)
+            except Exception as e:
+                logger.error(f"Error fetching result: {e}")
+    else:
+        for _ in range(GROUP_SIZE):
+            code_reviews_by_file.append(get_code_reviews_for_file(pr_changes, formatted_pr_changes_by_file))
+    
+    # embed each issue and then cluster them
+    # extract code issues for each file and prepare them for embedding
+    code_reviews_ready_for_embedding = [] 
+    for code_review_by_file in code_reviews_by_file:
+        prepped_code_review = {}
+        for file_name, code_review in code_review_by_file.items():
+            # using object_to_xml may not be the most optimal as it adds extra xml tags
+            prepped_code_review[file_name] = [object_to_xml(code_issue, 'issue') for code_issue in code_review.issues]
+        code_reviews_ready_for_embedding.append(prepped_code_review)
+    
+    # embed all extracted texts
+    code_reviews_embeddings = []
+    for prepped_code_review in code_reviews_ready_for_embedding:
+        embedded_code_review = {}
+        for file_name, code_issues in prepped_code_review.items():
+            embedded_code_review[file_name] = embed_text_array(code_issues)
+        code_reviews_embeddings.append(embedded_code_review)
+    # dbscan - density based spatial clustering of app with noise
+    # format: {file_name: [label1, label2, ...]}
+    files_to_labels = {}
+    # corresponding issues for each file
+    # format: {file_name: [issue1, issue2, ...]}
+    files_to_issues = {}
+    # corresponding embeddings for each file
+    # format: {file_name: [embedding1, embedding2, ...]}
+    files_to_embeddings = {}
+
+    # for each file combine all the embeddings together while determining the max amount of clusters
+    for file_name in formatted_pr_changes_by_file:
+        all_embeddings = []
+        all_issues = []
+        for i in range(GROUP_SIZE):
+            embeddings = code_reviews_embeddings[i][file_name]
+            code_review = code_reviews_by_file[i][file_name]
+            if embeddings:
+                embeddings = embeddings[0]
+                for embedding in embeddings:
+                    all_embeddings.append(embedding.flatten())
+                    all_issues.extend(code_review.issues)
+        files_to_issues[file_name] = all_issues
+        all_flattened_embeddings = np.array(all_embeddings)
+        files_to_embeddings[file_name] = all_flattened_embeddings
+        # note DBSCAN expects a shape with less than or equal to 2 dimensions
+        try:
+            if all_flattened_embeddings.size:
+                db = DBSCAN(eps=0.5, min_samples=3).fit(all_flattened_embeddings)
+                files_to_labels[file_name] = db.labels_
+            else:
+                files_to_labels[file_name] = []
+        except ValueError as e:
+            logger.error(f"Error with dbscan {e}")
+        
+    LABEL_THRESHOLD = 4
+    # get the labels that have a count greater than the threshold
+    # format: {file_name: {label: [index, ...]}}
+    files_to_labels_indexes = {}
+    for file_name, labels in files_to_labels.items():
+        index_dict: dict[str, list[int]] = {}
+        for i, v in enumerate(labels):
+            key = str(v)
+            if key not in index_dict:
+                index_dict[key] = []
+            index_dict[key].append(i)
+        files_to_labels_indexes[file_name] = index_dict
+
+    # create the final code_reviews_by_file
+    for file_name, labels_dict in files_to_labels_indexes.items():
+        # pick first one as diff summary doesnt really matter
+        final_code_review: CodeReview = copy.deepcopy(code_reviews_by_file[0][file_name])
+        final_code_review.issues = []
+        final_code_review.potential_issues = []
+        final_issues = []
+        potential_issues = []
+        for label, indexes in labels_dict.items():
+            index_length = len(indexes)
+            # -1 is considered as noise
+            if index_length >= LABEL_THRESHOLD and label != "-1":
+                max_index = get_group_voted_best_issue_index(username, file_name, label, files_to_labels_indexes, files_to_embeddings, index_length)
+                # add to final issues, first issue - TODO use similarity score of all issues against each other
+                final_issues.append(files_to_issues[file_name][max_index])
+            # get potential issues which are one below the label_threshold
+            if index_length == LABEL_THRESHOLD - 1 and label != "-1":
+                max_index = get_group_voted_best_issue_index(username, file_name, label, files_to_labels_indexes, files_to_embeddings, index_length)
+                potential_issues.append(files_to_issues[file_name][max_index])
+        final_code_review.issues = final_issues
+        final_code_review.potential_issues = potential_issues
+        majority_code_review_by_file[file_name] = copy.deepcopy(final_code_review)
+    return majority_code_review_by_file
+
+@posthog_trace
+def review_pr_detailed_checks(
+    username: str, 
+    cloned_repo: ClonedRepo,
+    pr_changes: list[PRChange], 
+    code_review_by_file: dict[str, CodeReview], 
+    chat_logger: ChatLogger | None = None, 
+) -> dict[str, CodeReview]:
+    review_bot = PRReviewBot()
+    # get a list of newly defined functions
+    newly_created_functions_dict: dict[str, list[FunctionDef]] = review_bot.identify_functions_in_patches(pr_changes)
+    new_code_issues: dict[str, list[CodeReviewIssue]] = review_bot.identify_repeated_functions(cloned_repo, newly_created_functions_dict)
+    # now append these code issues to the existing ones
+    for file_name, new_code_issues in new_code_issues.items():
+        if new_code_issues:
+            code_review_by_file[file_name].issues.extend(new_code_issues)
+    
+    return code_review_by_file
+    
