@@ -36,7 +36,7 @@ def get_image_urls_from_issue(num: int, repo_full_name: str, installation_id: in
                     break
             # unsupported type
             if not added:
-                logger.error(f"Did not add image url: {url}\nReason: image type unsupported!")
+                logger.warning(f"Did not add image url: {url}\nReason: image type unsupported!")
     except Exception as e:
         logger.error(f"Encountered error while attempting to fetch raw issue {num} for {repo_full_name}:\n{e}")
     return urls

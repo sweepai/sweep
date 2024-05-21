@@ -678,7 +678,10 @@ def create_update_review_pr_comment(username: str, pr: PullRequest, code_review_
 
     # comment has not yet been created
     if not sweep_comment:
-        sweep_comment = pr.create_issue_comment(f"{SWEEP_PR_REVIEW_HEADER}\nAuthors of pull request: {pr_authors}\nSweep is currently reviewing your pr...")
+        comment_content = f"{SWEEP_PR_REVIEW_HEADER}\nSweep is currently reviewing your pr..."
+        if pr_authors:
+            comment_content = f"{SWEEP_PR_REVIEW_HEADER}\nAuthors of pull request: {pr_authors}\n\nSweep is currently reviewing your pr..."
+        sweep_comment = pr.create_issue_comment(comment_content)
     
     # update body of sweep_comment
     if code_review_by_file:
