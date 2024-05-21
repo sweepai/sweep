@@ -109,16 +109,22 @@ def clean_logs(logs: str):
 
 
 def extract_lines(text: str, start: int, end: int):
+    if not text:
+        return ""
     lines = text.splitlines(keepends=True)
     return "\n".join(lines[max(0, start) : min(len(lines), end)])
 
 
 def add_line_numbers(text: str, start: int = 0):
+    if not text:
+        return "" 
     lines = text.splitlines(keepends=True)
     return "".join(f"{start + i} | {line}" for i, line in enumerate(lines))
 
 # start and end are inclusive
 def remove_lines_from_text(text: str, start: int = 0, end: int = -1):
+    if not text:
+        return ""
     lines = text.splitlines(keepends=True)
     if end == -1:
         end = len(lines) - 1
