@@ -9,7 +9,7 @@ import openai
 import requests
 from loguru import logger
 from redis import Redis
-from redis.exceptions import TimeoutError as RedisTimeoutError
+
 from tqdm import tqdm
 import voyageai
 import boto3
