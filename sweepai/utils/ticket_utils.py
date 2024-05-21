@@ -7,6 +7,7 @@ from loguru import logger
 from tqdm import tqdm
 import networkx as nx
 
+from sweepai.utils.timer import Timer
 from sweepai.agents.analyze_snippets import AnalyzeSnippetAgent
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import COHERE_API_KEY
@@ -136,22 +137,24 @@ def multi_get_top_k_snippets(
     sweep_config: SweepConfig = SweepConfig()
     blocked_dirs = get_blocked_dirs(cloned_repo.repo)
     sweep_config.exclude_dirs += blocked_dirs
-    _, snippets, lexical_index = prepare_lexical_search_index(
-        cloned_repo.cached_dir,
-        sweep_config,
-        ticket_progress,
-        ref_name=f"{str(cloned_repo.git_repo.head.commit.hexsha)}",
-    )
-    if ticket_progress:
-        ticket_progress.search_progress.indexing_progress = (
-            ticket_progress.search_progress.indexing_total
+    with Timer() as timer:
+        _, snippets, lexical_index = prepare_lexical_search_index(
+            cloned_repo.cached_dir,
+            sweep_config,
+            ticket_progress,
+            ref_name=f"{str(cloned_repo.git_repo.head.commit.hexsha)}",
         )
-        ticket_progress.save()
+    logger.info(f"Lexical search index took {timer.time_elapsed} seconds")
 
     for snippet in snippets:
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
-    content_to_lexical_score_list = [search_index(query, lexical_index) for query in queries]
-    files_to_scores_list = compute_vector_search_scores(queries, snippets)
+    with Timer() as timer:
+        content_to_lexical_score_list = [search_index(query, lexical_index) for query in queries]
+    logger.info(f"Lexical search took {timer.time_elapsed} seconds")
+
+    with Timer() as timer:
+        files_to_scores_list = compute_vector_search_scores(queries, snippets)
+    logger.info(f"Vector search took {timer.time_elapsed} seconds")
 
     for i, query in enumerate(queries):
         for snippet in tqdm(snippets):
@@ -501,16 +504,20 @@ def fire_and_forget_wrapper(call):
 
 if __name__ == "__main__":
     from sweepai.utils.github_utils import MockClonedRepo
+    from sweepai.utils.timer import Timer
     cloned_repo = MockClonedRepo(
         _repo_dir="/mnt/langchain",
         repo_full_name="langchain-ai/langchain",
     )
-    ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
-        cloned_repo,
-        "How does caching work in this repo?",
-        None,
-        15,
-        False,
-        False
-    )
+
+    with Timer() as timer:
+        ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
+            cloned_repo,
+            "How does caching work in this repo?",
+            None,
+            15,
+            False,
+            False
+        )
+    print("Time taken:", timer.time_elapsed)
     breakpoint()
