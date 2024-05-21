@@ -102,13 +102,13 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
             try:
                 old_code = safe_decode(repo=repo, path=previous_filename, ref=base_sha)
             except GithubException:
-                old_code = None
+                old_code = ""
         if file.status == "removed":
-            new_code = None
+            new_code = ""
         else:
             new_code = safe_decode(repo=repo, path=file.filename, ref=head_sha)
 
-        if old_code is None:
+        if old_code == "":
             logger.info(f"Skipping file {file.filename} due to bad encoding")
             continue
 
