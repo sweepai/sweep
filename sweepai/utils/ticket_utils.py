@@ -128,6 +128,7 @@ def multi_get_top_k_snippets(
     k: int = 15,
     include_docs: bool = False,
     include_tests: bool = False,
+    do_not_use_file_cache: bool = False, # added for review_pr
     *args,
     **kwargs,
 ):
@@ -143,6 +144,7 @@ def multi_get_top_k_snippets(
             sweep_config,
             ticket_progress,
             ref_name=f"{str(cloned_repo.git_repo.head.commit.hexsha)}",
+            do_not_use_file_cache=do_not_use_file_cache
         )
     logger.info(f"Lexical search index took {timer.time_elapsed} seconds")
 
@@ -188,11 +190,12 @@ def get_top_k_snippets(
     query: str,
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
+    do_not_use_file_cache: bool = False, # added for review_pr
     *args,
     **kwargs,
 ):
     ranked_snippets_list, snippets, content_to_lexical_score_list = multi_get_top_k_snippets(
-        cloned_repo, [query], ticket_progress, k, *args, **kwargs
+        cloned_repo, [query], ticket_progress, k, do_not_use_file_cache=do_not_use_file_cache, *args, **kwargs
     )
     return ranked_snippets_list[0], snippets, content_to_lexical_score_list[0]
 
