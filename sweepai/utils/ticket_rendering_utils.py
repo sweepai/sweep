@@ -628,8 +628,10 @@ def format_code_sections(text: str) -> str:
 
 # turns code_review_by_file into markdown string
 @posthog_trace
-def render_pr_review_by_file(username: str, pr: PullRequest, code_review_by_file: dict[str, CodeReview], dropped_files: list[str] = [], metadata: dict = {}) -> str:
+def render_pr_review_by_file(username: str, pr: PullRequest, code_review_by_file: dict[str, CodeReview], dropped_files: list[str] = [], pr_authors: str = "") -> str:
     body = f"{SWEEP_PR_REVIEW_HEADER}\n"
+    if pr_authors:
+        body += f"Authors of pull request: {pr_authors}\n"
     reviewed_files = ""
     for file_name, code_review in code_review_by_file.items():
         sweep_issues = code_review.issues
@@ -666,14 +668,21 @@ def create_update_review_pr_comment(username: str, pr: PullRequest, code_review_
             comment_id = comment.id
             sweep_comment = comment
             break
-    
+    commits = list(pr.get_commits())
+    pr_authors = set()
+    for commit in commits:
+        author = commit.author
+        if author:
+            pr_authors.add(f'@{author.login}')
+    pr_authors = ", ".join(pr_authors)
+
     # comment has not yet been created
     if not sweep_comment:
-        sweep_comment = pr.create_issue_comment(f"{SWEEP_PR_REVIEW_HEADER}\nSweep is currently reviewing your pr...")
+        sweep_comment = pr.create_issue_comment(f"{SWEEP_PR_REVIEW_HEADER}\nAuthors of pull request: {pr_authors}\nSweep is currently reviewing your pr...")
     
     # update body of sweep_comment
     if code_review_by_file:
-        rendered_pr_review = render_pr_review_by_file(username, pr, code_review_by_file, dropped_files=dropped_files)
+        rendered_pr_review = render_pr_review_by_file(username, pr, code_review_by_file, dropped_files=dropped_files, pr_authors=pr_authors)
         sweep_comment.edit(rendered_pr_review)
     comment_id = sweep_comment.id
     return comment_id
