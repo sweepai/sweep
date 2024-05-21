@@ -115,6 +115,7 @@ class SweepConfig(BaseModel):
         'requirements.txt',
         'yarn.lock',
         '.lockb',
+        '.gitignore'
     ]
     # cutoff for when we output truncated versions of strings, this is an arbitrary number and can be changed
     truncation_cutoff: int = 20000

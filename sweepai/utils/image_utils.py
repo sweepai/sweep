@@ -36,7 +36,7 @@ def get_image_urls_from_issue(num: int, repo_full_name: str, installation_id: in
                     break
             # unsupported type
             if not added:
-                logger.error(f"Did not add image url: {url}\nReason: image type unsupported!")
+                logger.warning(f"Did not add image url: {url}\nReason: image type unsupported!")
     except Exception as e:
         logger.error(f"Encountered error while attempting to fetch raw issue {num} for {repo_full_name}:\n{e}")
     return urls
@@ -176,7 +176,7 @@ def create_message_with_images(message: dict[str, str], images: dict[str, dict[s
     return new_message
 
 if __name__ == "__main__":
-    image_urls = {"https://github.com/trilogy-group/eng-maintenance/assets/3426344/340b04eb-528f-4167-a01e-5f108bbe7e75":"png"}
+    image_urls = {"url here":"png"}
     image_contents = get_image_contents_from_urls(image_urls)
     breakpoint()
 
