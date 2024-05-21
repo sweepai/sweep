@@ -34,7 +34,7 @@ vector_cache = Cache('/mnt/caches/vector_cache') # we instantiate a singleton, d
 
 def cosine_similarity(a, B):
     """
-    Updated to handle multi-queries.
+    Updated to handle multi-queries. Can be further optimized by using scipy.spatial.distance.cdist.
     """
     dot_product = np.dot(B, a.T)  # B is MxN, a.T is Nxq, resulting in Mxq
     norm_a = np.linalg.norm(a, axis=1)
