@@ -99,11 +99,11 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> list[PRChange]:
             new_code = None
         else:
             new_code = safe_decode(repo=repo, path=file.filename, ref=head_sha)
-        
-        if old_code is None or new_code is None:
+
+        if old_code is None:
             logger.info(f"Skipping file {file.filename} due to bad encoding")
             continue
-            
+
         status = file.status
         pr_change = PRChange(
                 file_name=file_name,
