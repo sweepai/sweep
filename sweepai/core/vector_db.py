@@ -205,10 +205,10 @@ def openai_with_expo_backoff(batch: tuple[str]):
     embeddings = [None] * len(batch)
     cache_keys = [hash_sha256(text) + CACHE_VERSION for text in batch]
 
-    @backoff.on_exception(backoff.expo, TimeoutError, max_tries=5)
+    @backoff.on_exception(backoff.expo, TimeoutError, max_tries=3)
     def get_cached_embeddings():
         try:
-            cache_values = redis_client.mget(cache_keys, timeout=5)
+            cache_values = redis_client.mget(cache_keys)
             for i, cache_value in enumerate(cache_values):
                 if cache_value:
                     embeddings[i] = np.array(json.loads(cache_value))
