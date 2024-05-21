@@ -965,7 +965,7 @@ def handle_function_call(
                         break
                 llm_state['initial_check_results'][file_name] = get_check_results(file_name, get_latest_contents(file_name, cloned_repo, modify_files_dict)) # TODO: consider not overriding this when we see the same file twice
                 original_code = strip_triple_quotes(tool_call["original_code"]).strip("\n")
-                new_code = strip_triple_quotes(tool_call["new_code"]).strip("\n")
+                new_code = rstrip_lines(strip_triple_quotes(tool_call["new_code"]).strip("\n"))
                 if tool_call.get("append", "false").strip() == "true":
                     new_code = original_code + "\n\n" + new_code
                 replace_all = tool_call.get("replace_all", "false").strip() == "true"
