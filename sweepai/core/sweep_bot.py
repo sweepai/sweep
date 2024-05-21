@@ -2,10 +2,13 @@ import base64
 import os
 import re
 
-from github.GithubException import GithubException
+import chardet
+
 from github.Repository import Repository
 from loguru import logger
 from networkx import Graph
+
+
 from tqdm import tqdm
 from rapidfuzz import fuzz
 
@@ -41,7 +44,7 @@ from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
-SNIPPET_TOKEN_BUDGET = 150_000 * 3.5  # 140k tokens
+SNIPPET_TOKEN_BUDGET = int(150_000 * 3.5)  # 140k tokens
 MAX_SNIPPETS = 15
 RELEVANCE_THRESHOLD = 0.125
 
@@ -120,14 +123,17 @@ def safe_decode(
         contents = repo.get_contents(path, *args, **kwargs)
         if contents.encoding == "none":
             blob = repo.get_git_blob(contents.sha)
-            # this might be more correct but chatgpt said the latter is better
-            # return base64.b64decode(bytearray(blob.content, "utf-8")).decode("utf-8")
-            return base64.b64decode(blob.content).decode("utf-8")
+            detected_encoding = chardet.detect(base64.b64decode(blob.content))['encoding']
+            if detected_encoding is None:
+                return None
+            else:
+                try:
+                    return base64.b64decode(blob.content).decode(detected_encoding)
+                except UnicodeDecodeError:
+                    return None
         return contents.decoded_content.decode("utf-8")
-    except GithubException as e:
-        raise e
-    except Exception as e:
-        raise e
+    except Exception:
+        return None
 
 def remove_line_numbers(s: str) -> str:
     # Check if more than 50% of lines have line numbers
@@ -360,7 +366,7 @@ def get_max_snippets(
         return []
     START_INDEX = min(len(snippets), MAX_SNIPPETS)
     for i in range(START_INDEX, 0, -1):
-        expanded_snippets = [snippet.expand(expand * 2) if snippet.type_name == "source" else snippet.get_snippet(add_lines=False) for snippet in snippets[:i]]
+        expanded_snippets = [snippet.expand(expand * 2) if snippet.type_name == "source" else snippet for snippet in snippets[:i]]
         proposed_snippets = organize_snippets(expanded_snippets[:i])
         cost = sum([len(snippet.get_snippet(False, False)) for snippet in proposed_snippets])
         if cost <= budget:
@@ -624,8 +630,6 @@ def context_get_files_to_change(
             interleaved_snippets.append(read_only_snippets[i])
 
     interleaved_snippets = partition_snippets_if_test(interleaved_snippets, include_tests=False)
-    # we can change this to be a length + score penalty
-    interleaved_snippets = [snippet for snippet in interleaved_snippets if snippet.score > RELEVANCE_THRESHOLD] # this will break if old caches exist
     max_snippets = get_max_snippets(interleaved_snippets)
     if True:
         max_snippets = max_snippets[::-1]

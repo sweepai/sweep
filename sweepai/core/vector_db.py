@@ -4,17 +4,21 @@ import os
 from typing import Generator
 
 import backoff
+from diskcache import Cache
 import numpy as np
 import openai
 import requests
 from loguru import logger
 from redis import Redis
+from scipy.spatial.distance import cdist
+
 from tqdm import tqdm
 import voyageai
 import boto3
 from botocore.exceptions import ClientError
 from voyageai import error as voyageai_error
 
+from sweepai.utils.timer import Timer
 from sweepai.config.server import BATCH_SIZE, REDIS_URL, VOYAGE_API_AWS_ENDPOINT_NAME, VOYAGE_API_KEY, VOYAGE_API_USE_AWS
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.openai_proxy import get_embeddings_client
@@ -23,21 +27,15 @@ from sweepai.utils.utils import Tiktoken
 # Now uses Voyage AI if available, with asymmetric embedding
 # CACHE_VERSION = "v2.0.04" + "-voyage" if VOYAGE_API_KEY else ""
 suffix = "-voyage-aws" if VOYAGE_API_USE_AWS else "-voyage" if VOYAGE_API_KEY else ""
-CACHE_VERSION = "v2.0.08" + suffix 
+CACHE_VERSION = "v2.1.1" + suffix 
 redis_client: Redis = Redis.from_url(REDIS_URL)  # TODO: add lazy loading
 tiktoken_client = Tiktoken()
+vector_cache = Cache('/mnt/caches/vector_cache') # we instantiate a singleton, diskcache will handle concurrency
 
 
 def cosine_similarity(a, B):
-    """
-    Updated to handle multi-queries.
-    """
-    dot_product = np.dot(B, a.T)  # B is MxN, a.T is Nxq, resulting in Mxq
-    norm_a = np.linalg.norm(a, axis=1)
-    norm_B = np.linalg.norm(B, axis=1)
-    dot_product /= norm_a
-    dot_product = dot_product.T / norm_B
-    return dot_product
+    # use scipy
+    return 1 - cdist(a, B, metric='cosine')
 
 
 def chunk(texts: list[str], batch_size: int) -> Generator[list[str], None, None]:
@@ -56,8 +54,12 @@ def multi_get_query_texts_similarity(queries: list[str], documents: list[str]) -
         return []
     embeddings = embed_text_array(documents)
     embeddings = np.concatenate(embeddings)
-    query_embedding = np.array(openai_call_embedding(queries, input_type="query"))
-    similarity = cosine_similarity(query_embedding, embeddings)
+    with Timer() as timer:
+        query_embedding = np.array(openai_call_embedding(queries, input_type="query"))
+    logger.info(f"Embedding query took {timer.time_elapsed:.2f} seconds")
+    with Timer() as timer:
+        similarity = cosine_similarity(query_embedding, embeddings)
+    logger.info(f"Similarity took {timer.time_elapsed:.2f} seconds")
     similarity = similarity.tolist()
     return similarity
 
@@ -107,19 +109,21 @@ def embed_text_array(texts: list[str]) -> list[np.ndarray]:
     texts = [text if text else " " for text in texts]
     batches = [texts[i : i + BATCH_SIZE] for i in range(0, len(texts), BATCH_SIZE)]
     workers = min(max(1, multiprocessing.cpu_count() // 4), 1)
-    if workers > 1:
-        with multiprocessing.Pool(
-            processes=workers
-        ) as pool:
-            embeddings = list(
-                tqdm(
-                    pool.imap(openai_with_expo_backoff, batches),
-                    total=len(batches),
-                    desc="openai embedding",
+    with Timer() as timer:
+        if workers > 1 and len(batches) > 1:
+            with multiprocessing.Pool(
+                processes=workers
+            ) as pool:
+                embeddings = list(
+                    tqdm(
+                        pool.imap(openai_with_expo_backoff, batches),
+                        total=len(batches),
+                        desc="openai embedding",
+                    )
                 )
-            )
-    else:
-        embeddings = [openai_with_expo_backoff(batch) for batch in tqdm(batches, desc="openai embedding")]
+        else:
+            embeddings = [openai_with_expo_backoff(batch) for batch in tqdm(batches, desc="openai embedding")]
+    logger.info(f"Embedding docs took {timer.time_elapsed:.2f} seconds")
     return embeddings
 
 
@@ -187,7 +191,7 @@ def openai_call_embedding(batch: list[str], input_type: str="document"):
     except openai.BadRequestError as e:
         # In the future we can better handle this by averaging the embeddings of the split batch
         if "This model's maximum context length" in str(e):
-            logger.error(f"Token count exceeded for batch: {max([tiktoken_client.count(text) for text in batch])} truncating down to 8192 tokens.")
+            logger.warning(f"Token count exceeded for batch: {max([tiktoken_client.count(text) for text in batch])} truncating down to 8192 tokens.")
             batch = [tiktoken_client.truncate_string(text) for text in batch]
             return openai_call_embedding(batch, input_type)
 
@@ -201,15 +205,18 @@ def openai_with_expo_backoff(batch: tuple[str]):
     if not redis_client:
         return openai_call_embedding(batch)
     # check cache first
-    embeddings = [None] * len(batch)
+    embeddings: list[np.ndarray | None] = [None] * len(batch)
     cache_keys = [hash_sha256(text) + CACHE_VERSION for text in batch]
+
     try:
-        for i, cache_value in enumerate(redis_client.mget(cache_keys)):
-            if cache_value:
-                embeddings[i] = np.array(json.loads(cache_value))
+        for i, cache_key in enumerate(cache_keys):
+            cache_value = vector_cache.get(cache_key)
+            if cache_value is not None:
+                embeddings[i] = cache_value
     except Exception as e:
-        logger.exception(e)
-    # not stored in cache call openai
+        logger.warning(f"Error reading embeddings from cache: {e}")
+
+    # not stored in cache, call openai
     batch = [
         text for i, text in enumerate(batch) if embeddings[i] is None
     ]  # remove all the cached values from the batch
@@ -218,7 +225,6 @@ def openai_with_expo_backoff(batch: tuple[str]):
         return embeddings  # all embeddings are in cache
     try:
         # make sure all token counts are within model params (max: 8192)
-
         new_embeddings = openai_call_embedding(batch)
     except requests.exceptions.Timeout as e:
         logger.exception(f"Timeout error occured while embedding: {e}")
@@ -240,17 +246,11 @@ def openai_with_expo_backoff(batch: tuple[str]):
         embeddings[index] = new_embeddings[i]
     # store in cache
     try:
-        redis_client.mset(
-            {
-                cache_key: json.dumps(embedding.tolist())
-                for cache_key, embedding in zip(cache_keys, embeddings)
-            }
-        )
+        for cache_key, embedding in zip(cache_keys, embeddings):
+            vector_cache.set(cache_key, embedding)
         embeddings = np.array(embeddings)
-    except Exception:
-        # logger.error(str(e))
-        # logger.error("Failed to store embeddings in cache, returning without storing")
-        pass
+    except Exception as e:
+        logger.warning(f"Error storing embeddings in cache: {e}")
     return embeddings
 
 

@@ -1,13 +1,16 @@
+from collections.abc import Iterable
 import multiprocessing
 import os
 import re
 from collections import Counter, defaultdict
 from math import log
 
+from diskcache import Cache
 from loguru import logger
 from redis import Redis
 from tqdm import tqdm
 
+from sweepai.utils.timer import Timer
 from sweepai.config.server import DEBUG, REDIS_URL
 from sweepai.core.entities import Snippet
 from sweepai.core.repo_parsing_utils import directory_to_chunks
@@ -17,6 +20,7 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils.progress import TicketProgress
 from sweepai.config.client import SweepConfig
 
+token_cache = Cache('/mnt/caches/token_cache') # we instantiate a singleton, diskcache will handle concurrency
 CACHE_VERSION = "v1.0.14"
 
 if DEBUG:
@@ -24,13 +28,6 @@ if DEBUG:
 else:
     redis_client = None
 
-
-def compute_document_tokens(
-    content: str,
-) -> Counter:  # method that offloads the computation to a separate process
-    tokenizer = CodeTokenizer()
-    tokens = tokenizer(content)
-    return Counter(tokens)
 
 
 class CustomIndex:
@@ -41,18 +38,19 @@ class CustomIndex:
         self.k1 = 1.2
         self.b = 0.75
         self.metadata = {}  # Store custom metadata here
-        self.tokenizer = CodeTokenizer()
+        self.tokenizer = tokenize_code
 
-    def add_document(
-        self, title: str, token_freq: Counter, metadata: dict = {}
-    ) -> None:
-        doc_id = len(self.doc_lengths)  # increment doc_id
-        self.metadata[doc_id] = title  # Store the title as metadata
-        doc_length = sum(token_freq.values())
-        self.doc_lengths[doc_id] = doc_length
-        self.total_doc_length += doc_length
-        for token, freq in token_freq.items():
-            self.inverted_index[token].append((doc_id, freq))
+    def add_documents(self, documents: Iterable):
+        self.doc_lengths = defaultdict(int)
+        self.total_doc_length = 0
+        self.inverted_index = defaultdict(list)
+        
+        for doc_id, (title, token_freq, doc_length) in enumerate(documents):
+            self.metadata[doc_id] = title
+            self.doc_lengths[doc_id] = doc_length
+            self.total_doc_length += doc_length
+            for token, freq in token_freq.items():
+                self.inverted_index[token].append((doc_id, freq))
 
     def bm25(self, doc_id: str, term: str, term_freq: int) -> float:
         num_docs = len(self.doc_lengths)
@@ -75,7 +73,7 @@ class CustomIndex:
         return idf * tf
 
     def search_index(self, query: str) -> list[tuple[str, float, dict]]:
-        query_tokens = self.tokenizer(query)
+        query_tokens = tokenize_code(query)
         scores = defaultdict(float)
 
         for token in query_tokens:
@@ -95,72 +93,39 @@ class CustomIndex:
 variable_pattern = re.compile(r"([A-Z][a-z]+|[a-z]+|[A-Z]+(?=[A-Z]|$))")
 
 
-def tokenize_call(code: str) -> list[str]:
-    def check_valid_token(token):
-        return token and len(token) > 1
-
-    matches = re.finditer(r"\b\w+\b", code)
-    pos = 0
-    valid_tokens = []
+def tokenize_code(code: str) -> list[str]:
+    matches = re.finditer(r"\b\w{2,}\b", code)
+    tokens = []
     for m in matches:
         text = m.group()
-        m.start()
 
         if "_" in text:  # snakecase
-            offset = 0
             for part in text.split("_"):
-                if check_valid_token(part):
-                    valid_tokens.append(part.lower())
-                    pos += 1
-                offset += len(part) + 1
+                if len(part) > 1:
+                    tokens.append(part.lower())
         elif parts := variable_pattern.findall(text):  # pascal and camelcase
-            # first one "MyVariable" second one "myVariable" third one "MYVariable"
-            offset = 0
             for part in parts:
-                if check_valid_token(part):
-                    valid_tokens.append(part.lower())
-                    pos += 1
-                offset += len(part)
-        else:  # everything else
-            if check_valid_token(text):
-                valid_tokens.append(text.lower())
-                pos += 1
-    return valid_tokens
+                if len(part) > 1:
+                    tokens.append(part.lower())
+        else:
+            tokens.append(text.lower())
 
+    bigrams = [f"{tokens[i]}_{tokens[i + 1]}" for i in range(len(tokens) - 1)]
+    trigrams = [f"{tokens[i]}_{tokens[i + 1]}_{tokens[i + 2]}" for i in range(len(tokens) - 2)]
+    tokens.extend(bigrams + trigrams)
+    
+    return tokens
 
-def construct_bigrams(tokens: list[str]) -> list[str]:
-    res = []
-    prev_token = None
-    for token in tokens:
-        if prev_token:
-            joined_token = prev_token + "_" + token
-            res.append(joined_token)
-        prev_token = token
-    return res
-
-
-def construct_trigrams(tokens: list[str]) -> list[str]:
-    res = []
-    prev_prev_token = None
-    prev_token = None
-    for token in tokens:
-        if prev_token and prev_prev_token:
-            joined_token = prev_prev_token + "_" + prev_token + "_" + token
-            res.append(joined_token)
-        prev_prev_token = prev_token
-        prev_token = token
-    return res
-
-
-class CodeTokenizer:
-    def __call__(self, value):
-        tokens = tokenize_call(value)
-        bigrams = construct_bigrams(tokens)
-        trigrams = construct_trigrams(tokens)
-        tokens.extend(bigrams)
-        tokens.extend(trigrams)
-        return tokens
-
+def compute_document_tokens(
+    content: str,
+) -> tuple[Counter, int]:  # method that offloads the computation to a separate process
+    results = token_cache.get(content)
+    if results is not None:
+        return results
+    tokens = tokenize_code(content)
+    result = (Counter(tokens), len(tokens))
+    token_cache[content] = result
+    return result
 
 def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
     docs = []
@@ -178,34 +143,28 @@ def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
 def prepare_index_from_snippets(
     snippets: list[Snippet],
     len_repo_cache_dir: int = 0,
-    ticket_progress: TicketProgress | None = None,
 ) -> CustomIndex | None:
     all_docs: list[Document] = snippets_to_docs(snippets, len_repo_cache_dir)
     if len(all_docs) == 0:
         return None
     index = CustomIndex()
-    if ticket_progress:
-        ticket_progress.search_progress.indexing_total = len(all_docs)
-        ticket_progress.save()
     all_tokens = []
+    all_lengths = []
     try:
-        # use 1/4 the max number of cores
-        with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4) as p:
-            for i, document_token_freq in tqdm(
-                enumerate(
-                    p.imap(compute_document_tokens, [doc.content for doc in all_docs])
-                ), total=len(all_docs)
-            ):
-                all_tokens.append(document_token_freq)
-                if ticket_progress and i % 200 == 0:
-                    ticket_progress.search_progress.indexing_progress = i
-                    ticket_progress.save()
-        for doc, document_token_freq in tqdm(
-            zip(all_docs, all_tokens), desc="Indexing", total=len(all_docs)
-        ):
-            index.add_document(
-                title=doc.title, token_freq=document_token_freq  # snippet.denotation
+        with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 2) as p:
+            results = p.map(
+                compute_document_tokens,
+                tqdm(
+                    [doc.content for doc in all_docs],
+                    total=len(all_docs),
+                    desc="Tokenizing documents"
+                )
             )
+            all_tokens, all_lengths = zip(*results)
+        all_titles = [doc.title for doc in all_docs]
+        index.add_documents(
+            tqdm(zip(all_titles, all_tokens, all_lengths), total=len(all_docs), desc="Indexing")
+        )
     except FileNotFoundError as e:
         logger.exception(e)
 
@@ -249,13 +208,15 @@ SNIPPET_FORMAT = """File path: {file_path}
 # @file_cache(ignore_params=["snippets"])
 def compute_vector_search_scores(queries: list[str], snippets: list[Snippet]):
     # get get dict of snippet to score
-    snippet_str_to_contents = {
-        snippet.denotation: SNIPPET_FORMAT.format(
-            file_path=snippet.file_path,
-            contents=snippet.get_snippet(add_ellipsis=False, add_lines=False),
-        )
-        for snippet in snippets
-    }
+    with Timer() as timer:
+        snippet_str_to_contents = {
+            snippet.denotation: SNIPPET_FORMAT.format(
+                file_path=snippet.file_path,
+                contents=snippet.get_snippet(add_ellipsis=False, add_lines=False),
+            )
+            for snippet in snippets
+        }
+    logger.info(f"Snippet to contents took {timer.time_elapsed:.2f} seconds")
     snippet_contents_array = list(snippet_str_to_contents.values())
     multi_query_snippet_similarities = multi_get_query_texts_similarity(
         queries, snippet_contents_array
@@ -279,7 +240,6 @@ def prepare_lexical_search_index(
     index = prepare_index_from_snippets(
         snippets,
         len_repo_cache_dir=len(repo_directory) + 1,
-        ticket_progress=ticket_progress,
     )
     return file_list, snippets, index
 
@@ -288,8 +248,11 @@ if __name__ == "__main__":
     repo_directory = os.getenv("REPO_DIRECTORY")
     sweep_config = SweepConfig()
     assert repo_directory
-    _, _ , index = prepare_lexical_search_index(repo_directory, sweep_config, None, None)
+    import time
+    start = time.time()
+    _, _ , index = prepare_lexical_search_index(repo_directory, sweep_config, None, ref_name=None)
     result = search_index("logger export", index)
+    print("Time taken:", time.time() - start)
     # print some of the keys
     print(list(result.keys())[:5])
     # print the first 2 result keys sorting by value

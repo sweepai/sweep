@@ -1,3 +1,4 @@
+from hashlib import md5
 import logging
 import multiprocessing
 
@@ -11,11 +12,22 @@ from sweepai.core.entities import Snippet
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
 from sweepai.utils.utils import Tiktoken, chunk_code
 from sweepai.utils.timer import Timer
+from diskcache import Cache
+
+chunk_cache = Cache('/mnt/caches/chunk_cache') # we instantiate a singleton, diskcache will handle concurrency
+file_name_cache = Cache('/mnt/caches/file_name_cache')
 
 tiktoken_client = Tiktoken()
 
-
 def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
+    cache_key = directory + file
+    if cache_key in file_name_cache:
+        return file_name_cache[cache_key]
+    result = _filter_file(directory, file, sweep_config)
+    file_name_cache[cache_key] = result
+    return result
+
+def _filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
     """
     Check if a file should be filtered based on its size and other criteria.
 
@@ -26,6 +38,7 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
     Returns:
         bool: True if the file should be included, False otherwise.
     """
+
     for ext in sweep_config.exclude_exts:
         if file.endswith(ext):
             return False
@@ -74,7 +87,6 @@ def filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
         return False
     return True
 
-
 def read_file(file_name: str) -> str:
     try:
         with open(file_name, "r") as f:
@@ -85,10 +97,17 @@ def read_file(file_name: str) -> str:
 
 FILE_THRESHOLD = 240
 
+def conditional_hash(contents: str):
+    if len(contents) > 255:
+        return md5(contents.encode()).hexdigest()
+    return contents
 
 def file_path_to_chunks(file_path: str) -> list[str]:
+    if file_path in chunk_cache:
+        return chunk_cache[file_path]
     file_contents = read_file(file_path)
     chunks = chunk_code(file_contents, path=file_path)
+    chunk_cache[file_path] = chunks
     return chunks
 
 
@@ -126,7 +145,7 @@ def directory_to_chunks(
         file_list = dfs()
         file_list = [
             file_name
-            for file_name in file_list
+            for file_name in tqdm(file_list)
             if filter_file(directory, file_name, sweep_config)
             and os.path.isfile(file_name)
             and not is_dir_too_big(file_name)
@@ -134,7 +153,7 @@ def directory_to_chunks(
     logger.info("Done reading files")
     all_chunks = []
     with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4) as pool:
-        for chunks in tqdm(pool.imap(file_path_to_chunks, file_list), total=len(file_list)):
+        for chunks in tqdm(pool.imap(file_path_to_chunks, file_list), total=len(file_list), desc="Chunking files"):
             all_chunks.extend(chunks)
     return all_chunks, file_list
 
