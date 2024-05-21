@@ -132,8 +132,6 @@ def safe_decode(
                 except UnicodeDecodeError:
                     return None
         return contents.decoded_content.decode("utf-8")
-    except GithubException:
-        return None
     except Exception:
         return None
 
