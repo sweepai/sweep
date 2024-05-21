@@ -1,9 +1,11 @@
+from collections.abc import Iterable
 import multiprocessing
 import os
 import re
 from collections import Counter, defaultdict
 from math import log
 
+from diskcache import Cache
 from loguru import logger
 from redis import Redis
 from tqdm import tqdm
@@ -17,6 +19,7 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils.progress import TicketProgress
 from sweepai.config.client import SweepConfig
 
+token_cache = Cache('/mnt/caches/token_cache') # we instantiate a singleton, diskcache will handle concurrency
 CACHE_VERSION = "v1.0.14"
 
 if DEBUG:
@@ -24,13 +27,6 @@ if DEBUG:
 else:
     redis_client = None
 
-
-def compute_document_tokens(
-    content: str,
-) -> Counter:  # method that offloads the computation to a separate process
-    tokenizer = CodeTokenizer()
-    tokens = tokenizer(content)
-    return Counter(tokens)
 
 
 class CustomIndex:
@@ -41,18 +37,26 @@ class CustomIndex:
         self.k1 = 1.2
         self.b = 0.75
         self.metadata = {}  # Store custom metadata here
-        self.tokenizer = CodeTokenizer()
+        self.tokenizer = tokenize_code
 
-    def add_document(
-        self, title: str, token_freq: Counter, metadata: dict = {}
-    ) -> None:
-        doc_id = len(self.doc_lengths)  # increment doc_id
-        self.metadata[doc_id] = title  # Store the title as metadata
-        doc_length = sum(token_freq.values())
-        self.doc_lengths[doc_id] = doc_length
-        self.total_doc_length += doc_length
-        for token, freq in token_freq.items():
-            self.inverted_index[token].append((doc_id, freq))
+    def add_documents(self, documents: Iterable):
+        doc_lengths = []
+        total_doc_length = 0
+        inverted_index = defaultdict(list)
+        
+        for doc_id, (title, token_freq) in tqdm(enumerate(documents), desc="Indexing"):
+            self.metadata[doc_id] = title
+            doc_length = sum(token_freq.values())
+            doc_lengths.append((doc_id, doc_length))
+            total_doc_length += doc_length
+            for token, freq in token_freq.items():
+                inverted_index[token].append((doc_id, freq))
+        
+        # Update class attributes in one go
+        self.doc_lengths.update(dict(doc_lengths))
+        self.total_doc_length += total_doc_length
+        for token, postings in inverted_index.items():
+            self.inverted_index[token].extend(postings)
 
     def bm25(self, doc_id: str, term: str, term_freq: int) -> float:
         num_docs = len(self.doc_lengths)
@@ -127,40 +131,35 @@ def tokenize_call(code: str) -> list[str]:
                 pos += 1
     return valid_tokens
 
-
-def construct_bigrams(tokens: list[str]) -> list[str]:
-    res = []
+def tokenize_code(code: str) -> list[str]:
+    tokens = tokenize_call(code)
+    
+    bigrams = []
+    trigrams = []
     prev_token = None
+    prev_prev_token = None
+
     for token in tokens:
         if prev_token:
-            joined_token = prev_token + "_" + token
-            res.append(joined_token)
+            bigrams.append(prev_token + "_" + token)
+            if prev_prev_token:
+                trigrams.append(prev_prev_token + "_" + prev_token + "_" + token)
         prev_token = token
-    return res
+    
+    tokens.extend(bigrams + trigrams)
+    
+    return tokens
 
-
-def construct_trigrams(tokens: list[str]) -> list[str]:
-    res = []
-    prev_prev_token = None
-    prev_token = None
-    for token in tokens:
-        if prev_token and prev_prev_token:
-            joined_token = prev_prev_token + "_" + prev_token + "_" + token
-            res.append(joined_token)
-        prev_prev_token = prev_token
-        prev_token = token
-    return res
-
-
-class CodeTokenizer:
-    def __call__(self, value):
-        tokens = tokenize_call(value)
-        bigrams = construct_bigrams(tokens)
-        trigrams = construct_trigrams(tokens)
-        tokens.extend(bigrams)
-        tokens.extend(trigrams)
+def compute_document_tokens(
+    content: str,
+) -> Counter:  # method that offloads the computation to a separate process
+    tokens = token_cache.get(content)
+    if tokens is not None:
         return tokens
-
+    tokens = tokenize_code(content)
+    result = Counter(tokens)
+    token_cache[content] = result
+    return result
 
 def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
     docs = []
@@ -178,34 +177,28 @@ def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
 def prepare_index_from_snippets(
     snippets: list[Snippet],
     len_repo_cache_dir: int = 0,
-    ticket_progress: TicketProgress | None = None,
 ) -> CustomIndex | None:
     all_docs: list[Document] = snippets_to_docs(snippets, len_repo_cache_dir)
     if len(all_docs) == 0:
         return None
     index = CustomIndex()
-    if ticket_progress:
-        ticket_progress.search_progress.indexing_total = len(all_docs)
-        ticket_progress.save()
     all_tokens = []
     try:
-        # use 1/4 the max number of cores
+        import time
+        start = time.time()
+        # imap: 1.26s. map: 0.79s, no-parallel: 0.9s
         with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4) as p:
-            for i, document_token_freq in tqdm(
-                enumerate(
-                    p.imap(compute_document_tokens, [doc.content for doc in all_docs])
-                ), total=len(all_docs)
-            ):
-                all_tokens.append(document_token_freq)
-                if ticket_progress and i % 200 == 0:
-                    ticket_progress.search_progress.indexing_progress = i
-                    ticket_progress.save()
-        for doc, document_token_freq in tqdm(
-            zip(all_docs, all_tokens), desc="Indexing", total=len(all_docs)
-        ):
-            index.add_document(
-                title=doc.title, token_freq=document_token_freq  # snippet.denotation
-            )
+            all_tokens = list(tqdm(
+                p.map(compute_document_tokens, [doc.content for doc in all_docs]),
+                total=len(all_docs),
+                desc="Tokenizing documents"
+            ))
+        # all_tokens = [compute_document_tokens(doc.content) for doc in all_docs]
+        print("Time taken to tokenize:", time.time() - start)
+        all_titles = [doc.title for doc in all_docs]
+        index.add_documents(
+            zip(all_titles, all_tokens)
+        )
     except FileNotFoundError as e:
         logger.exception(e)
 
@@ -279,7 +272,6 @@ def prepare_lexical_search_index(
     index = prepare_index_from_snippets(
         snippets,
         len_repo_cache_dir=len(repo_directory) + 1,
-        ticket_progress=ticket_progress,
     )
     return file_list, snippets, index
 
@@ -288,8 +280,11 @@ if __name__ == "__main__":
     repo_directory = os.getenv("REPO_DIRECTORY")
     sweep_config = SweepConfig()
     assert repo_directory
-    _, _ , index = prepare_lexical_search_index(repo_directory, sweep_config, None, None)
+    import time
+    start = time.time()
+    _, _ , index = prepare_lexical_search_index(repo_directory, sweep_config, None, ref_name=None)
     result = search_index("logger export", index)
+    print("Time taken:", time.time() - start)
     # print some of the keys
     print(list(result.keys())[:5])
     # print the first 2 result keys sorting by value

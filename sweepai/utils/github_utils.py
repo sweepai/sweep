@@ -306,7 +306,7 @@ class ClonedRepo:
                 parse_collection_name(self.branch),
             )
         else:
-            return os.path.join("/tmp/cache/repos", self.repo_full_name, hash_hex)
+            return os.path.join("/mnt/caches/repos", self.repo_full_name, hash_hex)
 
     @property
     def clone_url(self):
