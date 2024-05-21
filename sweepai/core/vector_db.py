@@ -9,6 +9,7 @@ import openai
 import requests
 from loguru import logger
 from redis import Redis
+from redis.exceptions import TimeoutError as RedisTimeoutError
 from tqdm import tqdm
 import voyageai
 import boto3
@@ -203,13 +204,23 @@ def openai_with_expo_backoff(batch: tuple[str]):
     # check cache first
     embeddings = [None] * len(batch)
     cache_keys = [hash_sha256(text) + CACHE_VERSION for text in batch]
-    try:
-        for i, cache_value in enumerate(redis_client.mget(cache_keys)):
-            if cache_value:
-                embeddings[i] = np.array(json.loads(cache_value))
-    except Exception as e:
-        logger.exception(e)
-    # not stored in cache call openai
+
+    @backoff.on_exception(backoff.expo, TimeoutError, max_tries=5)
+    def get_cached_embeddings():
+        try:
+            cache_values = redis_client.mget(cache_keys, timeout=5)
+            for i, cache_value in enumerate(cache_values):
+                if cache_value:
+                    embeddings[i] = np.array(json.loads(cache_value))
+        except TimeoutError:
+            logger.warning("Redis query timed out, retrying...")
+            raise
+        except Exception as e:
+            logger.exception(e)
+
+    get_cached_embeddings()
+
+    # not stored in cache, call openai
     batch = [
         text for i, text in enumerate(batch) if embeddings[i] is None
     ]  # remove all the cached values from the batch
