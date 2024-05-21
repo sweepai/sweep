@@ -250,7 +250,7 @@ Here are the changes in the pull request diffs:
     2b. Determine whether there are any security vulnerabilities or potential security issues introduced by the code changes. (1 paragraph) 
     2c. Identify any other potential issues that the code changes may introduce that were not captured by 2a or 2b. This could include accidental changes such as commented out code. (1 paragraph)
     2d. Only include issues that you are very confident will cause serious issues that prevent the pull request from being merged. For example, focus only on functional code changes and ignore changes to strings and comments that are purely descriptive.
-    2e. Format the found issues and root causes using the following XML tags. Each issue description should be a single sentence. Include the corresponding start and end line numbers, these line numbers should only include lines of code that have been changed. DO NOT reference the patch or patch number in the description. Format these fields in an <issue> tag in the following manner:
+    2e. Format the found issues and root causes using the following XML tags. Each issue description should be a single sentence. Include the corresponding start and end line numbers of the patch, these line numbers should be at most 50 apart. DO NOT reference the patch or patch number in the description. Format these fields in an <issue> tag in the following manner:
 <issues>
 <issue>
 <issue_description>
@@ -328,8 +328,7 @@ Below are the changes made in the pull request as context
 </severe_issues>
 """
 
-user_prompt_identify_new_functions = """
-Below are all the patches made to the file {file_name} in this pull request.
+user_prompt_identify_new_functions = """Below are all the patches made to the file {file_name} in this pull request. Use these patches to determine if there are any newly defined functions.
 # PR Patches
 
 {patches}
@@ -341,6 +340,8 @@ Below is the file {file_name} with all the above patches applied along with the 
 
 # Instructions
 1. Analyze each of the patches above and identify ALL newly defined functions.
+    1a. Note that if a function is renamed, or has some of its parameters changed, this should not be included as a newly defined function.
+    1b. All newly defined functions should mean that the function is ENTIRELY new and must have been coded from scratch.
 2. Return the list of all newly defined functions in the following xml format:
 <newly_defined_functions>
 <function>
@@ -370,15 +371,28 @@ Below are a series of code snippets retrieved from the codebase via vector searc
 {formatted_code_snippets}
 
 # Instructions
-1. Analyze each of the code snippets above and determine whether or not the new function is really necessary or not.
+1. Analyze each of the code snippets above and determine whether or not the new function is really necessary or not. Specifically, compare the new function with the existing methods in the code snippets by answering ALL the following questions:
+   1a. Purpose: What is the primary purpose of the new function? Is this purpose already served by existing methods? Is the purpose of this function to solely call other functions which allows for cleaner code? If the answer the the last question of 1a is yes, the new function should not be removed.
+   1b. Functionality: What specific tasks or operations does the new function perform? Are these tasks or operations already handled by existing methods?
+   1c. Initialization: What data structures or variables are initialized in the new function? Are similar initializations present in existing methods?
+   1d. Data Processing: How does the new function process data (e.g., formatting, extracting, or transforming data)? Are these data processing steps already implemented in existing methods?
+   1e. Unique Contributions: Does the new function provide any unique contributions or improvements that are not covered by existing methods? If it does then it should be considered as not redundant and should be kept.
+   1f. Impact of Removal: Would removing this function require a significant refactor of existing functions? Would the use cases of the existing functions change at all? If the answer is yes to any of these questions the new function should be kept.
+
 2. Return your answer in the following xml format:
 <redundant_new_function>
+<thinking>
+{{Any thoughts/analysis you have should go here. This is where you MUST answer each of the questions above.}}
+</thinking>
 <answer>
-{{'true' if the new function is redundant/repeated/obselete, 'false' if the new function is needed}}
+{{'true' if the new function is redundant/repeated/obsolete, 'false' if the new function is needed}}
 </answer>
 <justification>
-{{A very brief justification of why the new function is not needed, only include this tag if the above answer was 'true'. Max 1-2 sentences.}}
+{{A very brief justification of the decision made. When justifying why make sure to reference relevant functions. Max 1-2 sentences.}}
 </justification>
+<solution>
+{{Provide a brief description of how you would fix the issue of having this redundant function. Include code snippets as examples. Do not include this section if the answer was 'false'}}
+</solution>
 </redundant_new_function>"""
 
 CLAUDE_MODEL = "claude-3-opus-20240229"
@@ -485,6 +499,7 @@ class PRReviewBot(ChatGPT):
     def identify_functions_in_patches(
         self,
         pr_changes: list[PRChange],
+        chat_logger: ChatLogger | None = None
     ):
         newly_created_functions: dict[str, list[FunctionDef]] = {}
         files_to_patches: dict[str, str] = {}
@@ -496,6 +511,7 @@ class PRReviewBot(ChatGPT):
             files_to_pr_change[pr_change.file_name] = pr_change
         # go file by file
         for file_name, patches in files_to_patches.items():
+            pr_change = files_to_pr_change[file_name]
             self.messages = [
                 Message(
                     role="system",
@@ -511,16 +527,38 @@ class PRReviewBot(ChatGPT):
                 model=CLAUDE_MODEL,
                 use_openai=True
             )
+            if chat_logger:
+                chat_logger.add_chat(
+                    {
+                        "model": self.model,
+                        "messages": [{"role": message.role, "content": message.content} for message in self.messages],
+                        "output": "END OF MESSAGES",
+                    })
             # extract function defs from string
             function_def_params = ["function_code", "start_line", "end_line"]
             newly_defined_functions_regex = r'<newly_defined_functions>(?P<content>.*?)<\/newly_defined_functions>'
             newly_defined_functions_match = re.search(newly_defined_functions_regex, new_functions_response, re.DOTALL)
             if newly_defined_functions_match:
                 extracted_functions, _ = extract_objects_from_string(newly_defined_functions_match.group("content"), "function", function_def_params)
+                patches = pr_change.patches
                 for extracted_function in extracted_functions:
-                    if file_name not in newly_created_functions:
-                        newly_created_functions[file_name] = []
-                    newly_created_functions[file_name].append(FunctionDef(**{**extracted_function, "file_name": file_name}))
+                    # do some basic double checking, make sure the start and end lines make sense
+                    # the start and end lines should fall within the start and end of one patch, if they dont, then it is clearly wrong
+                    start = int(extracted_function.get('start_line', -1))
+                    end = int(extracted_function.get('end_line', -1))
+                    if start != -1 and end != -1:
+                        valid_function = False
+                        for patch in patches:
+                            if start >= patch.new_start and end <= (patch.new_start + patch.new_count):
+                                valid_function = True
+                                break
+                        if valid_function:
+                            if file_name not in newly_created_functions:
+                                newly_created_functions[file_name] = []
+                            newly_created_functions[file_name].append(FunctionDef(**{**extracted_function, "file_name": file_name}))
+                        else:
+                            logger.error(f"Extracted function {extracted_function} was dropped do to incorrect start and end lines!")
+                            print("error")
             else:
                 newly_created_functions[file_name] = []
         return newly_created_functions
@@ -529,42 +567,42 @@ class PRReviewBot(ChatGPT):
     def identify_repeated_functions(
         self, 
         cloned_repo: ClonedRepo, 
-        newly_created_functions_dict: dict[str, list[FunctionDef]]
+        newly_created_functions_dict: dict[str, list[FunctionDef]],
+        chat_logger: ChatLogger | None = None
     ) -> dict[str, list[CodeReviewIssue]]:
         repeated_functions_code_issues: dict[str, list[CodeReviewIssue]] = {}
         for file_name, newly_created_functions in newly_created_functions_dict.items():
+            # keep copy of edited files to revert later
+            modified_files_dict: dict[str, dict[str, str]] = {}
+            modified_files_dict[file_name] = {"original": cloned_repo.get_file_contents(file_name)}
             repeated_functions_code_issues[file_name] = []
             # do a similarity search over the chunked code base to see if the function name matches anything
             for function in newly_created_functions:
                 # remove the function definition from the file to prevent biased results
-                # keep copy of edited files to revert later
-                modified_files_dict: dict[str, dict[str, str]] = {}
-                modified_files_dict[function.file_name] = {"original": cloned_repo.get_file_contents(function.file_name)}
-                modified_files_dict[function.file_name]["modified"] = remove_lines_from_text(
-                    modified_files_dict[function.file_name]["original"],start=int(function.start_line),end=int(function.end_line)
+                modified_files_dict[file_name]["modified"] = remove_lines_from_text(
+                    modified_files_dict[file_name]["original"],start=int(function.start_line),end=int(function.end_line)
                 )
                 # now update the cloned repo file in both repo_dir and cached_dir
                 try:
-                    update_file(cloned_repo.repo_dir, function.file_name, modified_files_dict[function.file_name]["modified"])
-                    update_file(cloned_repo.cached_dir, function.file_name, modified_files_dict[function.file_name]["modified"])
+                    update_file(cloned_repo.repo_dir, file_name, modified_files_dict[file_name]["modified"])
+                    update_file(cloned_repo.cached_dir, file_name, modified_files_dict[file_name]["modified"])
                 except Exception as e:
                     logger.error(f"Failure updating file {cloned_repo.repo_dir}{function.file_name}: {e}")
                     posthog.capture(
-                        "identify_functions_in_patches", 
-                        "identify_functions_in_patches error updating", 
+                        "identify_repeated_functions", 
+                        "identify_repeated_functions error updating", 
                         properties={"error": str(e), "cloned_repo.repo_dir": cloned_repo.repo_dir, "file_name": function.file_name}
                     )
                     raise e
-                
-                # get the top twenty snippets and then pass those into sweep to ask if there are any repeated function definitions
+                # get the top five snippets and then pass those into sweep to ask if there are any repeated function definitions
                 ranked_snippets, _, _ = get_top_k_snippets(
-                    cloned_repo, function.function_code, None, k=10, include_docs=True, include_tests=False
+                    cloned_repo, function.function_code, None, k=5, include_docs=True, include_tests=False, do_not_use_file_cache=True
                 )
                 formatted_code_snippets = "\n\n".join(
                     [f"<code_snippet file_name='{snippet.file_path}' snippet_index='{idx}'>\n{snippet.get_snippet()}\n</code_snippet>" for idx, snippet in enumerate(ranked_snippets)]
                 )
                 formatted_user_prompt = user_prompt_identify_repeats.format(
-                    function=function.function_code, formatted_code_snippets=formatted_code_snippets
+                    function=f"<new_function>\n{function.function_code}\n</new_function>", formatted_code_snippets=formatted_code_snippets
                 )
                 self.messages = [
                     Message(
@@ -578,7 +616,14 @@ class PRReviewBot(ChatGPT):
                     model=CLAUDE_MODEL,
                     use_openai=True
                 )
-                repeated_function_params = ['answer', 'justification']
+                if chat_logger:
+                    chat_logger.add_chat(
+                        {
+                            "model": self.model,
+                            "messages": [{"role": message.role, "content": message.content} for message in self.messages],
+                            "output": "END OF MESSAGES",
+                        })
+                repeated_function_params = ['answer', 'justification', 'solution']
                 repeated_function, _, failed_param = extract_object_fields_from_string(repeated_functions_response, repeated_function_params)
                 # if extraction fails
                 if failed_param == "answer":
@@ -600,13 +645,13 @@ class PRReviewBot(ChatGPT):
 
                 # now revert the cloned repo file - if this fails this can cause big issues
                 try:
-                    update_file(cloned_repo.repo_dir, function.file_name, modified_files_dict[function.file_name]["original"])
-                    update_file(cloned_repo.cached_dir, function.file_name, modified_files_dict[function.file_name]["original"])
+                    update_file(cloned_repo.repo_dir, file_name, modified_files_dict[file_name]["original"])
+                    update_file(cloned_repo.cached_dir, file_name, modified_files_dict[file_name]["original"])
                 except Exception as e:
                     logger.error(f"Failure updating file {cloned_repo.repo_dir}{function.file_name}: {e}")
                     posthog.capture(
-                        "identify_functions_in_patches", 
-                        "identify_functions_in_patches error reverting", 
+                        "identify_repeated_functions", 
+                        "identify_repeated_functions error reverting", 
                         properties={"error": str(e), "cloned_repo.repo_dir": cloned_repo.repo_dir, "file_name": function.file_name}
                     )
                     raise e
@@ -774,8 +819,10 @@ def review_pr_detailed_checks(
 ) -> dict[str, CodeReview]:
     review_bot = PRReviewBot()
     # get a list of newly defined functions
-    newly_created_functions_dict: dict[str, list[FunctionDef]] = review_bot.identify_functions_in_patches(pr_changes)
-    new_code_issues: dict[str, list[CodeReviewIssue]] = review_bot.identify_repeated_functions(cloned_repo, newly_created_functions_dict)
+    newly_created_functions_dict: dict[str, list[FunctionDef]] = review_bot.identify_functions_in_patches(pr_changes, chat_logger=chat_logger)
+    new_code_issues: dict[str, list[CodeReviewIssue]] = review_bot.identify_repeated_functions(
+        cloned_repo, newly_created_functions_dict, chat_logger=chat_logger
+    )
     # now append these code issues to the existing ones
     for file_name, new_code_issues in new_code_issues.items():
         if new_code_issues:
