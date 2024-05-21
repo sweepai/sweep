@@ -108,16 +108,9 @@ def directory_to_chunks(
 ) -> tuple[list[Snippet], list[str]]:
     dir_file_count = {}
 
-    def is_dir_too_big(file_name):
-        dir_name = os.path.dirname(file_name)
-        if dir_name not in dir_file_count:
-            dir_file_count[dir_name] = len(os.listdir(dir_name))
-        return dir_file_count[dir_name] > FILE_THRESHOLD
-
     logger.info(f"Reading files from {directory}")
     vis = set()
-    # 81.5s
-    # 49.65
+    # 81.5s -> 42.68
     def dfs(file_path: str = directory):
         only_file_name = os.path.basename(file_path)
         if only_file_name in ("node_modules", ".venv", "build", "venv", "patch"):
