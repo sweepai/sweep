@@ -110,6 +110,8 @@ def extract_lines(text: str, start: int, end: int):
 
 
 def add_line_numbers(text: str, start: int = 0):
+    if text is None:
+        return ""
     lines = text.splitlines(keepends=True)
     return "".join(f"{start + i} | {line}" for i, line in enumerate(lines))
 
