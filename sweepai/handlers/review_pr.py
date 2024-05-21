@@ -61,7 +61,7 @@ def review_pr(
                 branch=pr.head.ref
             )
             # handle creating comments on the pr to tell the user we are going to begin reviewing the pr
-            _comment_id = create_update_review_pr_comment(username, pr)
+            # _comment_id = create_update_review_pr_comment(username, pr)
             pr_changes, dropped_files = get_pr_changes(repository, pr)
             formatted_pr_changes_by_file = format_pr_changes_by_file(pr_changes)
             # get initial code review by group vote
