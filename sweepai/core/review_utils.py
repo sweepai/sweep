@@ -720,6 +720,11 @@ def group_vote_review_pr(
                 code_reviews_by_file.append(code_review)
             except Exception as e:
                 logger.error(f"Error fetching result: {e}")
+                posthog.capture(
+                    username, 
+                    "get_code_reviews_for_file error multiprocess", 
+                    properties={"error": str(e)}
+                )
     else:
         for _ in range(GROUP_SIZE):
             code_reviews_by_file.append(get_code_reviews_for_file(pr_changes, formatted_pr_changes_by_file, chat_logger=chat_logger))
@@ -755,7 +760,7 @@ def group_vote_review_pr(
     for file_name in formatted_pr_changes_by_file:
         all_embeddings = []
         all_issues = []
-        for i in range(GROUP_SIZE):
+        for i in range(len(code_reviews_by_file)):
             embeddings = code_reviews_embeddings[i][file_name]
             code_review = code_reviews_by_file[i][file_name]
             if embeddings:
