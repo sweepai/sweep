@@ -63,6 +63,8 @@ def _filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
     except UnicodeDecodeError:
         logger.warning(f"UnicodeDecodeError: {file}, skipping")
         return False
+    if b'\x00' in data.encode():
+        return False
     line_count = data.count("\n") + 1
     # if average line length is greater than 200, then it is likely not human readable
     if len(data) / line_count > 200:
@@ -72,8 +74,6 @@ def _filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
     if token_count == 0:
         return False
     if len(data) / token_count < 2 and len(data) > 100:
-        print(data)
-        breakpoint()
         return False
     return True
 
