@@ -240,9 +240,13 @@ Here are the changes in the pull request diffs:
 </thinking>
 ...
 </thoughts>
-    1d. Provide a final summary for this file that should be a single sentence and formatted within a <diff_summary> tag.:
+    1d. Provide a final summary for this file that should be a single sentence and formatted within a <diff_summary> tag.
+Here is an example, make sure the summary sounds natural and keep it brief and easy to skim over:
+<example_diff_summary>
+Added a new categorization system for snippets in `multi_prep_snippets` and updated the snippet score calculation in `get_pointwise_reranked_snippet_scores`. 
+</example_diff_summary>
 <diff_summary>
-{{Final summary of changes}}
+{{Final summary of the major changes}}
 </diff_summary>
 
 2. Identify all issues.
@@ -637,7 +641,7 @@ class PRReviewBot(ChatGPT):
                     if bool(re.search(answer_true, repeated_function['answer'], re.IGNORECASE)):
                         justification = repeated_function.get("justification", "")
                         new_code_issue = CodeReviewIssue(
-                            issue_description=f"Sweep has identified a redundant function with the following justifiction: {justification}",
+                            issue_description=f"Sweep has identified a redundant function: {justification}",
                             start_line=function.start_line,
                             end_line=function.end_line
                         )
