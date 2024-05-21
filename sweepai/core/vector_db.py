@@ -10,6 +10,7 @@ import openai
 import requests
 from loguru import logger
 from redis import Redis
+from scipy.spatial.distance import cdist
 
 from tqdm import tqdm
 import voyageai
@@ -33,15 +34,8 @@ vector_cache = Cache('/mnt/caches/vector_cache') # we instantiate a singleton, d
 
 
 def cosine_similarity(a, B):
-    """
-    Updated to handle multi-queries. Can be further optimized by using scipy.spatial.distance.cdist.
-    """
-    dot_product = np.dot(B, a.T)  # B is MxN, a.T is Nxq, resulting in Mxq
-    norm_a = np.linalg.norm(a, axis=1)
-    norm_B = np.linalg.norm(B, axis=1)
-    dot_product /= norm_a
-    dot_product = dot_product.T / norm_B
-    return dot_product
+    # use scipy
+    return 1 - cdist(a, B, metric='cosine')
 
 
 def chunk(texts: list[str], batch_size: int) -> Generator[list[str], None, None]:
@@ -60,8 +54,12 @@ def multi_get_query_texts_similarity(queries: list[str], documents: list[str]) -
         return []
     embeddings = embed_text_array(documents)
     embeddings = np.concatenate(embeddings)
-    query_embedding = np.array(openai_call_embedding(queries, input_type="query"))
-    similarity = cosine_similarity(query_embedding, embeddings)
+    with Timer() as timer:
+        query_embedding = np.array(openai_call_embedding(queries, input_type="query"))
+    logger.info(f"Embedding query took {timer.time_elapsed:.2f} seconds")
+    with Timer() as timer:
+        similarity = cosine_similarity(query_embedding, embeddings)
+    logger.info(f"Similarity took {timer.time_elapsed:.2f} seconds")
     similarity = similarity.tolist()
     return similarity
 
@@ -112,8 +110,7 @@ def embed_text_array(texts: list[str]) -> list[np.ndarray]:
     batches = [texts[i : i + BATCH_SIZE] for i in range(0, len(texts), BATCH_SIZE)]
     workers = min(max(1, multiprocessing.cpu_count() // 4), 1)
     with Timer() as timer:
-        workers = 1
-        if workers > 1:
+        if workers > 1 and len(batches) > 1:
             with multiprocessing.Pool(
                 processes=workers
             ) as pool:
@@ -126,7 +123,7 @@ def embed_text_array(texts: list[str]) -> list[np.ndarray]:
                 )
         else:
             embeddings = [openai_with_expo_backoff(batch) for batch in tqdm(batches, desc="openai embedding")]
-    logger.info(f"Embedding took {timer.time_elapsed:.2f} seconds")
+    logger.info(f"Embedding docs took {timer.time_elapsed:.2f} seconds")
     return embeddings
 
 
