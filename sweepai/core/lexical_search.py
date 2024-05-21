@@ -99,26 +99,23 @@ class CustomIndex:
 variable_pattern = re.compile(r"([A-Z][a-z]+|[a-z]+|[A-Z]+(?=[A-Z]|$))")
 
 
-def tokenize_call(code: str) -> list[str]:
+def tokenize_code(code: str) -> list[str]:
     matches = re.finditer(r"\b\w{2,}\b", code)
-    valid_tokens = []
+    tokens = []
     for m in matches:
         text = m.group()
 
         if "_" in text:  # snakecase
             for part in text.split("_"):
                 if len(part) > 1:
-                    valid_tokens.append(part.lower())
+                    tokens.append(part.lower())
         elif parts := variable_pattern.findall(text):  # pascal and camelcase
             for part in parts:
                 if len(part) > 1:
-                    valid_tokens.append(part.lower())
+                    tokens.append(part.lower())
         else:
-            valid_tokens.append(text.lower())
-    return valid_tokens
+            tokens.append(text.lower())
 
-def tokenize_code(code: str) -> list[str]:
-    tokens = tokenize_call(code)
     bigrams = [f"{tokens[i]}_{tokens[i + 1]}" for i in range(len(tokens) - 1)]
     trigrams = [f"{tokens[i]}_{tokens[i + 1]}_{tokens[i + 2]}" for i in range(len(tokens) - 2)]
     tokens.extend(bigrams + trigrams)
@@ -128,9 +125,9 @@ def tokenize_code(code: str) -> list[str]:
 def compute_document_tokens(
     content: str,
 ) -> Counter:  # method that offloads the computation to a separate process
-    # tokens = token_cache.get(content)
-    # if tokens is not None:
-    #     return tokens
+    tokens = token_cache.get(content)
+    if tokens is not None:
+        return tokens
     tokens = tokenize_code(content)
     result = Counter(tokens)
     token_cache[content] = result
