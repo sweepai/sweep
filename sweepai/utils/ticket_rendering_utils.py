@@ -19,7 +19,7 @@ from tqdm import tqdm
 import hashlib
 
 
-from sweepai.agents.modify_utils import parse_fcr
+from sweepai.agents.modify_utils import parse_fcr, rstrip_lines
 from sweepai.agents.pr_description_bot import PRDescriptionBot
 from sweepai.chat.api import posthog_trace
 from sweepai.config.client import (
@@ -352,7 +352,7 @@ def process_summary(summary, issue_number, repo_full_name, installation_id):
     if assignee is None:
         assignee = current_issue.user.login
     branch_match = re.search(
-            r"([B|b]ranch:) *(?P<branch_name>.+?)(\s|$)", summary
+            r"(\s[B|b]ranch:) *(?P<branch_name>.+?)(\s|$)", summary
         )
     overrided_branch_name = None
     if branch_match and "branch_name" in branch_match.groupdict():
@@ -386,7 +386,7 @@ def raise_on_no_file_change_requests(title, summary, edit_sweep_comment, file_ch
                             ),
                             -1,
                         )
-        raise Exception("No files to modify.")
+        raise Exception("Sorry, we couldn't find any files to change. Can you please provide the full path to the file you want to change?")
 
 def rewrite_pr_description(issue_number, repo, overrided_branch_name, pull_request, pr_changes):
                 # change the body here
@@ -690,7 +690,7 @@ def render_fcrs(file_change_requests: list[FileChangeRequest]):
             if parsed_fcr["original_code"] and parsed_fcr["original_code"][0].strip():
                 planning_markdown += f"""```diff\n{generate_diff(
                     parsed_fcr["original_code"][0],
-                    parsed_fcr["new_code"][0],
+                    rstrip_lines(parsed_fcr["new_code"][0]),
                 )}\n```\n"""
             else:
                 _file_base_name, ext = os.path.splitext(fcr.filename)
