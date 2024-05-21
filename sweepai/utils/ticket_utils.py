@@ -50,11 +50,6 @@ code_snippet_separation_features = {
         "suffix": [".txt", ".rst", ".md", ".html", ".1", ".adoc", ".rdoc"],
         "substring": [],
     },
-    # "config" : {
-    #     "prefix": [""],
-    #     "suffix": ["config.js", "config.ts", "config.json"],
-    #     "substring": [],
-    # },
     "tests": {
         "prefix": ["tests/", "test/", "spec/"],
         "suffix": [
@@ -507,13 +502,15 @@ def fire_and_forget_wrapper(call):
 if __name__ == "__main__":
     from sweepai.utils.github_utils import MockClonedRepo
     cloned_repo = MockClonedRepo(
-        _repo_dir="/tmp/sweep",
-        repo_full_name="sweepai/sweep",
+        _repo_dir="/mnt/langchain",
+        repo_full_name="langchain-ai/langchain",
     )
-    rcm = prep_snippets(
+    ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
         cloned_repo,
         "How does caching work in this repo?",
-        use_multi_query=False,
-        skip_reranking=True
+        None,
+        15,
+        False,
+        False
     )
     breakpoint()
