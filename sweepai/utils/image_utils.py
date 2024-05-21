@@ -5,7 +5,7 @@ import re
 import base64
 
 from sweepai.config.client import SweepConfig
-from sweepai.utils.github_utils import get_token
+from sweepai.utils.github_utils import get_installation_id, get_token
 
 # we must get the raw issue which contains the body html and the actual links to the images
 def get_image_urls_from_issue(num: int, repo_full_name: str, installation_id: int):
@@ -29,6 +29,7 @@ def get_image_urls_from_issue(num: int, repo_full_name: str, installation_id: in
             url = match.group('url').strip()
             # only accept png, jpg, jpeg or webp
             added = False
+            # breakpoint()
             for ext in sweep_config.allowed_image_types:
                 if ext in url:
                     urls[url] = ext
@@ -36,7 +37,7 @@ def get_image_urls_from_issue(num: int, repo_full_name: str, installation_id: in
                     break
             # unsupported type
             if not added:
-                logger.warning(f"Did not add image url: {url}\nReason: image type unsupported!")
+                logger.error(f"Did not add image url: {url}\nReason: image type unsupported!")
     except Exception as e:
         logger.error(f"Encountered error while attempting to fetch raw issue {num} for {repo_full_name}:\n{e}")
     return urls
@@ -176,7 +177,11 @@ def create_message_with_images(message: dict[str, str], images: dict[str, dict[s
     return new_message
 
 if __name__ == "__main__":
-    image_urls = {"url here":"png"}
+    repo_full_name = "org/repo"
+    issue_number = 0
+    org_name, repo_name = repo_full_name.split("/")
+    installation_id = get_installation_id(org_name)
+    image_urls = get_image_urls_from_issue(issue_number, repo_full_name, installation_id)
     image_contents = get_image_contents_from_urls(image_urls)
     breakpoint()
 
