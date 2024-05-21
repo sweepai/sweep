@@ -104,10 +104,6 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> list[PRChange]:
             logger.info(f"Skipping file {file.filename} due to bad encoding")
             continue
 
-        if old_code is None:
-            logger.info(f"Skipping file {file.filename} due to bad encoding")
-            continue
-
         status = file.status
         pr_change = PRChange(
                 file_name=file_name,
