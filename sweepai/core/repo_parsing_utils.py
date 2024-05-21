@@ -103,17 +103,18 @@ def conditional_hash(contents: str):
     return contents
 
 def file_path_to_chunks(file_path: str) -> list[str]:
-    if file_path in chunk_cache:
-        return chunk_cache[file_path]
     file_contents = read_file(file_path)
+    content_hash = conditional_hash(file_path + file_contents)
+    if content_hash in chunk_cache:
+        return chunk_cache[content_hash]
     chunks = chunk_code(file_contents, path=file_path)
-    chunk_cache[file_path] = chunks
+    chunk_cache[content_hash] = chunks
     return chunks
 
 
 # @file_cache()
 def directory_to_chunks(
-    directory: str, sweep_config: SweepConfig
+    directory: str, sweep_config: SweepConfig, do_not_use_file_cache: bool = False,
 ) -> tuple[list[Snippet], list[str]]:
     dir_file_count = {}
 
