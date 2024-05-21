@@ -3,12 +3,12 @@ import os
 import re
 
 import chardet
-from github.GithubException import GithubException
+
 from github.Repository import Repository
 from loguru import logger
 from networkx import Graph
 
-from sweepai.utils.file_utils import read_file_with_fallback_encodings
+
 from tqdm import tqdm
 from rapidfuzz import fuzz
 
