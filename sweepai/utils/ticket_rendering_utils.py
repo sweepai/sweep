@@ -654,7 +654,7 @@ def render_pr_review_by_file(username: str, pr: PullRequest, code_review_by_file
 # handles the creation or update of the Sweep comment letting the user know that Sweep is reviewing a pr
 # returns the comment_id
 @posthog_trace
-def create_update_review_pr_comment(username: str, pr: PullRequest, code_review_by_file: dict[str, CodeReview] | None = None, dropped_files: list[str] = [], metadata: dict = {}) -> int:
+def create_update_review_pr_comment(username: str, pr: PullRequest, code_review_by_file: dict[str, CodeReview] | None = None, dropped_files: list[str] = []) -> int:
     comment_id = -1
     sweep_comment = None
     # comments that appear in the github ui in the conversation tab are considered issue comments

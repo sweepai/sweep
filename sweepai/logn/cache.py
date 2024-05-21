@@ -61,6 +61,8 @@ def file_cache(ignore_params=[], ignore_contents=False, verbose=False, redis=Fal
         func_source_code_hash = hash_code(inspect.getsource(func)) if not ignore_contents else ""
 
         def wrapper(*args, **kwargs):
+            if kwargs.get('do_not_use_file_cache', False):
+                return func(*args, **kwargs)
             cache_dir = os.environ.get("MOUNT_DIR", "/mnt/caches") + "/file_cache"
             os.makedirs(cache_dir, exist_ok=True)
             result = None

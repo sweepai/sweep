@@ -34,3 +34,10 @@ class PRChange:
     status: str
     patches: list[Patch]
     annotations: list[str] = field(default_factory=list)
+
+@dataclass
+class FunctionDef:
+    file_name: str
+    function_code: str
+    start_line: int
+    end_line: int
