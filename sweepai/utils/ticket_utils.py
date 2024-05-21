@@ -82,7 +82,7 @@ type_to_score_floor = { # the lower, the more snippets. we set this higher for l
     "dependencies": 0.025, # usually not matched, this won't hit often
     "docs": 0.30, # matched often, so we can set a high threshold
     "tests": 0.15, # matched often, so we can set a high threshold
-    "source": 0.05, # very low floor for source code
+    "source": 0.0, # very low floor for source code
 }
 
 type_to_result_count = {
@@ -288,7 +288,7 @@ def multi_prep_snippets(
         )
     separated_snippets = separate_snippets_by_type(snippets)
     if not skip_pointwise_reranking:
-        ranked_snippets = []
+        all_snippets = []
         for type_name, snippets_subset in separated_snippets:
             if type_name == "junk":
                 continue
@@ -315,17 +315,17 @@ def multi_prep_snippets(
             top_score = snippets_subset[0].score
             max_results = type_to_result_count[type_name]
             filtered_subset_snippets = []
-            for idx, snippet in enumerate(snippets_subset):
+            for idx, snippet in enumerate(snippets_subset[:max_results]):
                 percentile = 0 if top_score == 0 else snippet.score / top_score
-                if percentile < type_to_percentile_floor[type_name] or snippet.score < type_to_score_floor[type_name] or idx >= max_results:
+                if percentile < type_to_percentile_floor[type_name] or snippet.score < type_to_score_floor[type_name]:
                     break 
                 logger.info(f"{idx}: {snippet.denotation} {snippet.score} {percentile}")
                 snippet.type_name = type_name
                 filtered_subset_snippets.append(snippet)
             if type_name != "source": # do more filtering
                 filtered_subset_snippets = AnalyzeSnippetAgent().analyze_snippets(filtered_subset_snippets, type_name, queries[0])
-            ranked_snippets.extend(filtered_subset_snippets)
-        ranked_snippets = ranked_snippets[:k]
+            all_snippets.extend(filtered_subset_snippets)
+        ranked_snippets = all_snippets[:k]
     else:
         ranked_snippets = sorted(
             snippets,
