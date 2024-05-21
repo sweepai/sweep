@@ -10,6 +10,7 @@ from loguru import logger
 from redis import Redis
 from tqdm import tqdm
 
+from sweepai.utils.timer import Timer
 from sweepai.config.server import DEBUG, REDIS_URL
 from sweepai.core.entities import Snippet
 from sweepai.core.repo_parsing_utils import directory_to_chunks
@@ -207,13 +208,15 @@ SNIPPET_FORMAT = """File path: {file_path}
 # @file_cache(ignore_params=["snippets"])
 def compute_vector_search_scores(queries: list[str], snippets: list[Snippet]):
     # get get dict of snippet to score
-    snippet_str_to_contents = {
-        snippet.denotation: SNIPPET_FORMAT.format(
-            file_path=snippet.file_path,
-            contents=snippet.get_snippet(add_ellipsis=False, add_lines=False),
-        )
-        for snippet in snippets
-    }
+    with Timer() as timer:
+        snippet_str_to_contents = {
+            snippet.denotation: SNIPPET_FORMAT.format(
+                file_path=snippet.file_path,
+                contents=snippet.get_snippet(add_ellipsis=False, add_lines=False),
+            )
+            for snippet in snippets
+        }
+    logger.info(f"Snippet to contents took {timer.time_elapsed:.2f} seconds")
     snippet_contents_array = list(snippet_str_to_contents.values())
     multi_query_snippet_similarities = multi_get_query_texts_similarity(
         queries, snippet_contents_array
