@@ -79,7 +79,7 @@ class CustomIndex:
         return idf * tf
 
     def search_index(self, query: str) -> list[tuple[str, float, dict]]:
-        query_tokens = self.tokenizer(query)
+        query_tokens = tokenize_code(query)
         scores = defaultdict(float)
 
         for token in query_tokens:
@@ -100,52 +100,27 @@ variable_pattern = re.compile(r"([A-Z][a-z]+|[a-z]+|[A-Z]+(?=[A-Z]|$))")
 
 
 def tokenize_call(code: str) -> list[str]:
-    def check_valid_token(token):
-        return token and len(token) > 1
-
-    matches = re.finditer(r"\b\w+\b", code)
-    pos = 0
+    matches = re.finditer(r"\b\w{2,}\b", code)
     valid_tokens = []
     for m in matches:
         text = m.group()
-        m.start()
 
         if "_" in text:  # snakecase
-            offset = 0
             for part in text.split("_"):
-                if check_valid_token(part):
+                if len(part) > 1:
                     valid_tokens.append(part.lower())
-                    pos += 1
-                offset += len(part) + 1
         elif parts := variable_pattern.findall(text):  # pascal and camelcase
-            # first one "MyVariable" second one "myVariable" third one "MYVariable"
-            offset = 0
             for part in parts:
-                if check_valid_token(part):
+                if len(part) > 1:
                     valid_tokens.append(part.lower())
-                    pos += 1
-                offset += len(part)
-        else:  # everything else
-            if check_valid_token(text):
-                valid_tokens.append(text.lower())
-                pos += 1
+        else:
+            valid_tokens.append(text.lower())
     return valid_tokens
 
 def tokenize_code(code: str) -> list[str]:
     tokens = tokenize_call(code)
-    
-    bigrams = []
-    trigrams = []
-    prev_token = None
-    prev_prev_token = None
-
-    for token in tokens:
-        if prev_token:
-            bigrams.append(prev_token + "_" + token)
-            if prev_prev_token:
-                trigrams.append(prev_prev_token + "_" + prev_token + "_" + token)
-        prev_token = token
-    
+    bigrams = [f"{tokens[i]}_{tokens[i + 1]}" for i in range(len(tokens) - 1)]
+    trigrams = [f"{tokens[i]}_{tokens[i + 1]}_{tokens[i + 2]}" for i in range(len(tokens) - 2)]
     tokens.extend(bigrams + trigrams)
     
     return tokens
@@ -153,9 +128,9 @@ def tokenize_code(code: str) -> list[str]:
 def compute_document_tokens(
     content: str,
 ) -> Counter:  # method that offloads the computation to a separate process
-    tokens = token_cache.get(content)
-    if tokens is not None:
-        return tokens
+    # tokens = token_cache.get(content)
+    # if tokens is not None:
+    #     return tokens
     tokens = tokenize_code(content)
     result = Counter(tokens)
     token_cache[content] = result
@@ -186,14 +161,16 @@ def prepare_index_from_snippets(
     try:
         import time
         start = time.time()
-        # imap: 1.26s. map: 0.79s, no-parallel: 0.9s
-        with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4) as p:
-            all_tokens = list(tqdm(
-                p.map(compute_document_tokens, [doc.content for doc in all_docs]),
-                total=len(all_docs),
-                desc="Tokenizing documents"
-            ))
-        # all_tokens = [compute_document_tokens(doc.content) for doc in all_docs]
+        with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 2) as p:
+            all_tokens = p.map(
+                compute_document_tokens,
+                tqdm(
+                    [doc.content for doc in all_docs],
+                    total=len(all_docs),
+                    desc="Tokenizing documents"
+                )
+            )
+        # all_tokens = [compute_document_tokens(doc.content) for doc in tqdm(all_docs)]
         print("Time taken to tokenize:", time.time() - start)
         all_titles = [doc.title for doc in all_docs]
         index.add_documents(
