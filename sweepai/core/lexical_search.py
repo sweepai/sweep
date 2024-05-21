@@ -40,23 +40,16 @@ class CustomIndex:
         self.tokenizer = tokenize_code
 
     def add_documents(self, documents: Iterable):
-        doc_lengths = []
-        total_doc_length = 0
-        inverted_index = defaultdict(list)
+        self.doc_lengths = defaultdict(int)
+        self.total_doc_length = 0
+        self.inverted_index = defaultdict(list)
         
-        for doc_id, (title, token_freq) in tqdm(enumerate(documents), desc="Indexing"):
+        for doc_id, (title, token_freq, doc_length) in enumerate(documents):
             self.metadata[doc_id] = title
-            doc_length = sum(token_freq.values())
-            doc_lengths.append((doc_id, doc_length))
-            total_doc_length += doc_length
+            self.doc_lengths[doc_id] = doc_length
+            self.total_doc_length += doc_length
             for token, freq in token_freq.items():
-                inverted_index[token].append((doc_id, freq))
-        
-        # Update class attributes in one go
-        self.doc_lengths.update(dict(doc_lengths))
-        self.total_doc_length += total_doc_length
-        for token, postings in inverted_index.items():
-            self.inverted_index[token].extend(postings)
+                self.inverted_index[token].append((doc_id, freq))
 
     def bm25(self, doc_id: str, term: str, term_freq: int) -> float:
         num_docs = len(self.doc_lengths)
@@ -124,12 +117,12 @@ def tokenize_code(code: str) -> list[str]:
 
 def compute_document_tokens(
     content: str,
-) -> Counter:  # method that offloads the computation to a separate process
-    tokens = token_cache.get(content)
-    if tokens is not None:
-        return tokens
+) -> tuple[Counter, int]:  # method that offloads the computation to a separate process
+    results = token_cache.get(content)
+    if results is not None:
+        return results
     tokens = tokenize_code(content)
-    result = Counter(tokens)
+    result = (Counter(tokens), len(tokens))
     token_cache[content] = result
     return result
 
@@ -155,11 +148,10 @@ def prepare_index_from_snippets(
         return None
     index = CustomIndex()
     all_tokens = []
+    all_lengths = []
     try:
-        import time
-        start = time.time()
         with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 2) as p:
-            all_tokens = p.map(
+            results = p.map(
                 compute_document_tokens,
                 tqdm(
                     [doc.content for doc in all_docs],
@@ -167,11 +159,10 @@ def prepare_index_from_snippets(
                     desc="Tokenizing documents"
                 )
             )
-        # all_tokens = [compute_document_tokens(doc.content) for doc in tqdm(all_docs)]
-        print("Time taken to tokenize:", time.time() - start)
+            all_tokens, all_lengths = zip(*results)
         all_titles = [doc.title for doc in all_docs]
         index.add_documents(
-            zip(all_titles, all_tokens)
+            tqdm(zip(all_titles, all_tokens, all_lengths), total=len(all_docs), desc="Indexing")
         )
     except FileNotFoundError as e:
         logger.exception(e)
