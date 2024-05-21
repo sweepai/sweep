@@ -106,7 +106,7 @@ def file_path_to_chunks(file_path: str) -> list[str]:
 def directory_to_chunks(
     directory: str, sweep_config: SweepConfig, do_not_use_file_cache: bool = False,
 ) -> tuple[list[Snippet], list[str]]:
-    dir_file_count = {}
+    # dir_file_count = {}
 
     logger.info(f"Reading files from {directory}")
     vis = set()
