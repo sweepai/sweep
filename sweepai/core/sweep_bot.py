@@ -630,8 +630,6 @@ def context_get_files_to_change(
             interleaved_snippets.append(read_only_snippets[i])
 
     interleaved_snippets = partition_snippets_if_test(interleaved_snippets, include_tests=False)
-    # we can change this to be a length + score penalty
-    interleaved_snippets = [snippet for snippet in interleaved_snippets if snippet.score > RELEVANCE_THRESHOLD] # this will break if old caches exist
     max_snippets = get_max_snippets(interleaved_snippets)
     if True:
         max_snippets = max_snippets[::-1]
