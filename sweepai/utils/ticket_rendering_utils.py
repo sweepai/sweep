@@ -352,7 +352,7 @@ def process_summary(summary, issue_number, repo_full_name, installation_id):
     if assignee is None:
         assignee = current_issue.user.login
     branch_match = re.search(
-            r"([B|b]ranch:) *(?P<branch_name>.+?)(\s|$)", summary
+            r"(\s[B|b]ranch:) *(?P<branch_name>.+?)(\s|$)", summary
         )
     overrided_branch_name = None
     if branch_match and "branch_name" in branch_match.groupdict():
