@@ -226,7 +226,7 @@ def create_branch(repo: Repository, branch: str, base_branch: str = None, retry=
         repo.create_git_ref(f"refs/heads/{branch}", base_branch.commit.sha)
         return branch
     except GithubException as e:
-        logger.error(f"Error: {e}, trying with other branch names...")
+        logger.warning(f"Warning: {e}, trying with other branch names...")
         logger.warning(
             f"{branch}\n{base_branch}, {base_branch.name}\n{base_branch.commit.sha}"
         )
