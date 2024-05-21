@@ -718,7 +718,7 @@ def group_vote_review_pr(
                 logger.error(f"Error fetching result: {e}")
     else:
         for _ in range(GROUP_SIZE):
-            code_reviews_by_file.append(get_code_reviews_for_file(pr_changes, formatted_pr_changes_by_file))
+            code_reviews_by_file.append(get_code_reviews_for_file(pr_changes, formatted_pr_changes_by_file, chat_logger=chat_logger))
     
     # embed each issue and then cluster them
     # extract code issues for each file and prepare them for embedding
