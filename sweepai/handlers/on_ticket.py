@@ -464,7 +464,7 @@ def on_ticket(
                     "Relevant files (click to expand). Mentioned files will always appear here.",
                     "\n".join(
                         [
-                            f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline) - 1)}\n"
+                            f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{max(min(snippet.end, snippet.content.count(newline) - 1), 1)}\n"
                             for snippet in snippets + repo_context_manager.read_only_snippets
                         ]
                     ),

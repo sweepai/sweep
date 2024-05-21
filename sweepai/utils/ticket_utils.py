@@ -7,6 +7,7 @@ from loguru import logger
 from tqdm import tqdm
 import networkx as nx
 
+from sweepai.utils.timer import Timer
 from sweepai.agents.analyze_snippets import AnalyzeSnippetAgent
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import COHERE_API_KEY
@@ -50,11 +51,6 @@ code_snippet_separation_features = {
         "suffix": [".txt", ".rst", ".md", ".html", ".1", ".adoc", ".rdoc"],
         "substring": [],
     },
-    # "config" : {
-    #     "prefix": [""],
-    #     "suffix": ["config.js", "config.ts", "config.json"],
-    #     "substring": [],
-    # },
     "tests": {
         "prefix": ["tests/", "test/", "spec/"],
         "suffix": [
@@ -82,7 +78,7 @@ type_to_score_floor = { # the lower, the more snippets. we set this higher for l
     "dependencies": 0.025, # usually not matched, this won't hit often
     "docs": 0.30, # matched often, so we can set a high threshold
     "tests": 0.15, # matched often, so we can set a high threshold
-    "source": 0.05, # very low floor for source code
+    "source": 0.0, # very low floor for source code
 }
 
 type_to_result_count = {
@@ -141,22 +137,24 @@ def multi_get_top_k_snippets(
     sweep_config: SweepConfig = SweepConfig()
     blocked_dirs = get_blocked_dirs(cloned_repo.repo)
     sweep_config.exclude_dirs += blocked_dirs
-    _, snippets, lexical_index = prepare_lexical_search_index(
-        cloned_repo.cached_dir,
-        sweep_config,
-        ticket_progress,
-        ref_name=f"{str(cloned_repo.git_repo.head.commit.hexsha)}",
-    )
-    if ticket_progress:
-        ticket_progress.search_progress.indexing_progress = (
-            ticket_progress.search_progress.indexing_total
+    with Timer() as timer:
+        _, snippets, lexical_index = prepare_lexical_search_index(
+            cloned_repo.cached_dir,
+            sweep_config,
+            ticket_progress,
+            ref_name=f"{str(cloned_repo.git_repo.head.commit.hexsha)}",
         )
-        ticket_progress.save()
+    logger.info(f"Lexical search index took {timer.time_elapsed} seconds")
 
     for snippet in snippets:
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
-    content_to_lexical_score_list = [search_index(query, lexical_index) for query in queries]
-    files_to_scores_list = compute_vector_search_scores(queries, snippets)
+    with Timer() as timer:
+        content_to_lexical_score_list = [search_index(query, lexical_index) for query in queries]
+    logger.info(f"Lexical search took {timer.time_elapsed} seconds")
+
+    with Timer() as timer:
+        files_to_scores_list = compute_vector_search_scores(queries, snippets)
+    logger.info(f"Vector search took {timer.time_elapsed} seconds")
 
     for i, query in enumerate(queries):
         for snippet in tqdm(snippets):
@@ -288,7 +286,7 @@ def multi_prep_snippets(
         )
     separated_snippets = separate_snippets_by_type(snippets)
     if not skip_pointwise_reranking:
-        ranked_snippets = []
+        all_snippets = []
         for type_name, snippets_subset in separated_snippets:
             if type_name == "junk":
                 continue
@@ -310,20 +308,22 @@ def multi_prep_snippets(
             logger.info(f"Reranked {type_name}")
             # cutoff snippets at percentile
             logger.info("Kept these snippets")
+            if not snippets_subset:
+                continue
             top_score = snippets_subset[0].score
             max_results = type_to_result_count[type_name]
             filtered_subset_snippets = []
-            for idx, snippet in enumerate(snippets_subset):
-                percentile = snippet.score / top_score
-                if percentile < type_to_percentile_floor[type_name] or snippet.score < type_to_score_floor[type_name] or idx >= max_results:
-                    break
+            for idx, snippet in enumerate(snippets_subset[:max_results]):
+                percentile = 0 if top_score == 0 else snippet.score / top_score
+                if percentile < type_to_percentile_floor[type_name] or snippet.score < type_to_score_floor[type_name]:
+                    break 
                 logger.info(f"{idx}: {snippet.denotation} {snippet.score} {percentile}")
                 snippet.type_name = type_name
                 filtered_subset_snippets.append(snippet)
             if type_name != "source": # do more filtering
                 filtered_subset_snippets = AnalyzeSnippetAgent().analyze_snippets(filtered_subset_snippets, type_name, queries[0])
-            ranked_snippets.extend(filtered_subset_snippets)
-        ranked_snippets = ranked_snippets[:k]
+            all_snippets.extend(filtered_subset_snippets)
+        ranked_snippets = all_snippets[:k]
     else:
         ranked_snippets = sorted(
             snippets,
@@ -504,14 +504,20 @@ def fire_and_forget_wrapper(call):
 
 if __name__ == "__main__":
     from sweepai.utils.github_utils import MockClonedRepo
+    from sweepai.utils.timer import Timer
     cloned_repo = MockClonedRepo(
-        _repo_dir="/tmp/sweep",
-        repo_full_name="sweepai/sweep",
+        _repo_dir="/mnt/langchain",
+        repo_full_name="langchain-ai/langchain",
     )
-    rcm = prep_snippets(
-        cloned_repo,
-        "How does caching work in this repo?",
-        use_multi_query=False,
-        skip_reranking=True
-    )
+
+    with Timer() as timer:
+        ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
+            cloned_repo,
+            "How does caching work in this repo?",
+            None,
+            15,
+            False,
+            False
+        )
+    print("Time taken:", timer.time_elapsed)
     breakpoint()

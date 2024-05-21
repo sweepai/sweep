@@ -3,12 +3,12 @@ import os
 import re
 
 import chardet
-from github.GithubException import GithubException
+
 from github.Repository import Repository
 from loguru import logger
 from networkx import Graph
 
-from sweepai.utils.file_utils import read_file_with_fallback_encodings
+
 from tqdm import tqdm
 from rapidfuzz import fuzz
 
@@ -123,15 +123,17 @@ def safe_decode(
         contents = repo.get_contents(path, *args, **kwargs)
         if contents.encoding == "none":
             blob = repo.get_git_blob(contents.sha)
-            try:
-                return base64.b64decode(blob.content).decode(chardet.detect(base64.b64decode(blob.content))['encoding'])
-            except UnicodeDecodeError:
-                return read_file_with_fallback_encodings(base64.b64decode(blob.content))
+            detected_encoding = chardet.detect(base64.b64decode(blob.content))['encoding']
+            if detected_encoding is None:
+                return None
+            else:
+                try:
+                    return base64.b64decode(blob.content).decode(detected_encoding)
+                except UnicodeDecodeError:
+                    return None
         return contents.decoded_content.decode("utf-8")
-    except GithubException as e:
-        raise e
-    except Exception as e:
-        raise e
+    except Exception:
+        return None
 
 def remove_line_numbers(s: str) -> str:
     # Check if more than 50% of lines have line numbers
@@ -628,8 +630,6 @@ def context_get_files_to_change(
             interleaved_snippets.append(read_only_snippets[i])
 
     interleaved_snippets = partition_snippets_if_test(interleaved_snippets, include_tests=False)
-    # we can change this to be a length + score penalty
-    interleaved_snippets = [snippet for snippet in interleaved_snippets if snippet.score > RELEVANCE_THRESHOLD] # this will break if old caches exist
     max_snippets = get_max_snippets(interleaved_snippets)
     if True:
         max_snippets = max_snippets[::-1]
