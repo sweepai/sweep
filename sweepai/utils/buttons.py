@@ -76,6 +76,7 @@ class ButtonList:
 
 
 if __name__ == "__main__":
+    print("test")
     # Example serialized string (str -> buttons)
     serialized_str = """## My Favorite Foods
     - [x] Pizza
