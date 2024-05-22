@@ -628,7 +628,14 @@ def format_code_sections(text: str) -> str:
 
 # turns code_review_by_file into markdown string
 @posthog_trace
-def render_pr_review_by_file(username: str, pr: PullRequest, code_review_by_file: dict[str, CodeReview], dropped_files: list[str] = [], pr_authors: str = "") -> str:
+def render_pr_review_by_file(
+    username: str, 
+    pr: PullRequest, 
+    code_review_by_file: dict[str, CodeReview], 
+    dropped_files: list[str] = [], 
+    unsuitable_files: list[tuple[str, Exception]] = [], 
+    pr_authors: str = ""
+) -> str:
     body = f"{SWEEP_PR_REVIEW_HEADER}\n"
     if pr_authors:
         body += f"Authors of pull request: {pr_authors}\n"
@@ -651,12 +658,24 @@ def render_pr_review_by_file(username: str, pr: PullRequest, code_review_by_file
     elif len(dropped_files) > 1:
         dropped_files_string = "".join([f"<li>{file}</li>" for file in dropped_files])
         reviewed_files += f"<p>The following files were not reviewed because our filter identified them as typically non-human-readable or less important files (e.g., dist files, package.json, images). If this is an error, please let us know.</p><ul>{dropped_files_string}</ul>"
+    if len(unsuitable_files) == 1:
+        reviewed_files += f"<p>The following file {unsuitable_files[0][0]} were not reviewed as they were deemed unsuitable for the following reason: {str(unsuitable_files[0][1])}. If this is an error please let us know.</p>"
+    elif len(unsuitable_files) > 1:
+        unsuitable_files_string = "".join([f"<li>{file}: {str(exception)}</li>" for file, exception in unsuitable_files])
+        reviewed_files += f"<p>The following files were not reviewed as they were deemed unsuitable for a variety of reasons. If this is an error please let us know.</p><ul>{unsuitable_files_string}</ul>"
+
     return body + reviewed_files
 
 # handles the creation or update of the Sweep comment letting the user know that Sweep is reviewing a pr
 # returns the comment_id
 @posthog_trace
-def create_update_review_pr_comment(username: str, pr: PullRequest, code_review_by_file: dict[str, CodeReview] | None = None, dropped_files: list[str] = []) -> int:
+def create_update_review_pr_comment(
+    username: str, 
+    pr: PullRequest, 
+    code_review_by_file: dict[str, CodeReview] | None = None, 
+    dropped_files: list[str] = [],
+    unsuitable_files: list[tuple[str, Exception]] = [],
+) -> int:
     comment_id = -1
     sweep_comment = None
     # comments that appear in the github ui in the conversation tab are considered issue comments
@@ -685,7 +704,7 @@ def create_update_review_pr_comment(username: str, pr: PullRequest, code_review_
     
     # update body of sweep_comment
     if code_review_by_file:
-        rendered_pr_review = render_pr_review_by_file(username, pr, code_review_by_file, dropped_files=dropped_files, pr_authors=pr_authors)
+        rendered_pr_review = render_pr_review_by_file(username, pr, code_review_by_file, dropped_files=dropped_files, unsuitable_files=unsuitable_files, pr_authors=pr_authors)
         sweep_comment.edit(rendered_pr_review)
     comment_id = sweep_comment.id
     return comment_id

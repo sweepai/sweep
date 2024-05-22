@@ -210,6 +210,6 @@ def extract_objects_from_string(text: str, object_tag: str, object_params: list[
             extracted_objects.append(object_args)
         else: 
             failed_extraction = True
-            logger.error(f"Failure occured during extraction on the following param: {failed_param}")
+            logger.warning(f"Failure occured during extraction on the following param: {failed_param}\ntext:\n{text}")
             posthog.capture("extract_objects_from_string", "extract_objects_from_string failed", properties={"failed_param": failed_param, "text": text, "object_tag": object_tag})
     return extracted_objects, failed_extraction

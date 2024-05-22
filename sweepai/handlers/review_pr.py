@@ -62,13 +62,15 @@ def review_pr(
             )
             # handle creating comments on the pr to tell the user we are going to begin reviewing the pr
             # _comment_id = create_update_review_pr_comment(username, pr)
-            pr_changes, dropped_files = get_pr_changes(repository, pr)
+            pr_changes, dropped_files, unsuitable_files = get_pr_changes(repository, pr)
             formatted_pr_changes_by_file = format_pr_changes_by_file(pr_changes)
             # get initial code review by group vote
             code_review_by_file = group_vote_review_pr(username, pr_changes, formatted_pr_changes_by_file, multiprocess=True, chat_logger=chat_logger)
             # do more specific checks now, i.e. duplicated util functions
             code_review_by_file = review_pr_detailed_checks(username, cloned_repo, pr_changes, code_review_by_file, chat_logger=chat_logger)
-            _comment_id = create_update_review_pr_comment(username, pr, code_review_by_file=code_review_by_file, dropped_files=dropped_files)
+            _comment_id = create_update_review_pr_comment(
+                username, pr, code_review_by_file=code_review_by_file, dropped_files=dropped_files, unsuitable_files=unsuitable_files
+            )
         except Exception as e:
             posthog.capture(
                 username,

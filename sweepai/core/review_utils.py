@@ -11,7 +11,7 @@ from tqdm import tqdm
 from sweepai.chat.api import posthog_trace
 from sweepai.config.client import SweepConfig
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message
+from sweepai.core.entities import Message, UnsuitableFileException
 from sweepai.core.review_annotations import get_diff_annotations
 from sweepai.core.sweep_bot import safe_decode
 from sweepai.core.vector_db import cosine_similarity, embed_text_array
@@ -19,7 +19,6 @@ from sweepai.dataclasses.codereview import CodeReview, CodeReviewIssue, Function
 from sweepai.logn.cache import file_cache
 from sweepai.utils.event_logger import logger, posthog
 from sweepai.utils.chat_logger import ChatLogger
-from github.GithubException import GithubException
 from github.Repository import Repository
 from github.PullRequest import PullRequest
 
@@ -74,7 +73,8 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
     file_diffs = comparison.files
 
     pr_diffs = []
-    dropped_files = []
+    dropped_files = [] # files that were dropped due them being commonly ignored
+    unsuitable_files: list[tuple[str, Exception]] = [] # files dropped for other reasons such as being way to large or not encodable, error objects included
     for file in tqdm(file_diffs, desc="Annotating diffs"):
         file_name = file.filename
         diff = file.patch
@@ -95,32 +95,57 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
         if sweep_config.is_file_excluded(file_name):
             dropped_files.append(file_name)
             continue
-
+        
+        errored = False
+        e = None
         if file.status == "added":
             old_code = ""
         else:
             try:
                 old_code = safe_decode(repo=repo, path=previous_filename, ref=base_sha)
-            except GithubException:
-                old_code = ""
+                if old_code is None:
+                    raise UnsuitableFileException("Could not decode file")
+            except Exception as e_:
+                e = e_
+                errored = True
+                unsuitable_files.append((file_name, e))
         if file.status == "removed":
             new_code = ""
         else:
-            new_code = safe_decode(repo=repo, path=file.filename, ref=head_sha)
+            try:
+                new_code = safe_decode(repo=repo, path=file.filename, ref=head_sha)
+                if new_code is None:
+                    raise UnsuitableFileException("Could not decode file")
+            except Exception as e_:
+                e = e_
+                errored = True
+                unsuitable_files.append((file_name, e))
 
-        if old_code == "":
-            logger.info(f"Skipping file {file.filename} due to bad encoding")
+        # drop unsuitable files
+        if new_code: 
+            suitable, reason = sweep_config.is_file_suitable(new_code)
+            if not suitable:
+                errored = True
+                e = UnsuitableFileException(e)
+                unsuitable_files.append((file_name, e))
+
+        if errored:
+            posthog.capture(
+                "get_pr_changes", 
+                "get_pr_changes error", 
+                properties={"error": str(e), "file_name": file_name}
+            )
             continue
 
         status = file.status
         pr_change = PRChange(
-                file_name=file_name,
-                diff=diff,
-                old_code=old_code,
-                new_code=new_code,
-                status=status,
-                patches=split_diff_into_patches(diff)
-            )
+            file_name=file_name,
+            diff=diff,
+            old_code=old_code,
+            new_code=new_code,
+            status=status,
+            patches=split_diff_into_patches(diff)
+        )
         diff_annotations = get_diff_annotations(
             source_code=pr_change.new_code,
             diffs=[patch.changes for patch in pr_change.patches],
@@ -130,7 +155,7 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
         pr_diffs.append(
             pr_change
         )
-    return pr_diffs, dropped_files
+    return pr_diffs, dropped_files, unsuitable_files
 
 def split_diff_into_patches(diff: str) -> list[Patch]:
     patches = []
@@ -212,7 +237,7 @@ system_prompt = """You are a careful and smart tech lead that wants to avoid pro
 system_prompt_review = """You are a busy tech manager who is responsible for reviewing prs and identifying any possible production issues. 
 You will be analyzing a list of potential issues that have been identified by a previous engineer and determing which issues are severe enough to bring up to the original engineer."""
 
-system_prompt_identify_new_functions = """You are an expert programmer with a keen eye for detail, assigned to analyze a series of code patches in a pull request. Your primary responsibility is to meticulously identify all newly defined functions within the code."""
+system_prompt_identify_new_functions = """You are an expert programmer with a keen eye for detail, assigned to analyze a series of code patches in a pull request. Your primary responsibility is to meticulously identify all newly created functions within the code."""
 
 system_prompt_identify_repeats = """You are a proficient programmer tasked with identifying repeated or unnecessary functions in a codebase. Your job is to find and highlight any duplicated or redundant function definitions.
 You will be given a function definition that was just added to the codebase and your job will be to check whether or not this function was actually necessary or not given a series of code snippets.
@@ -333,7 +358,7 @@ Below are the changes made in the pull request as context
 </severe_issues>
 """
 
-user_prompt_identify_new_functions = """Below are all the patches made to the file {file_name} in this pull request. Use these patches to determine if there are any newly defined functions.
+user_prompt_identify_new_functions = """Below are all the patches made to the file {file_name} in this pull request. Use these patches to determine if there are any newly created functions.
 # PR Patches
 
 {patches}
@@ -344,11 +369,11 @@ Below is the file {file_name} with all the above patches applied along with the 
 {numbered_code_file}
 
 # Instructions
-1. Analyze each of the patches above and identify ALL newly defined functions.
-    1a. Note that if a function is renamed, or has some of its parameters changed, this should not be included as a newly defined function.
-    1b. All newly defined functions should mean that the function is ENTIRELY new and must have been coded from scratch.
-2. Return the list of all newly defined functions in the following xml format:
-<newly_defined_functions>
+1. Analyze each of the patches above and identify ALL newly created functions.
+    1a. Note that if a function is renamed such as having of its parameters changed, or if a function has been reworked meaning the contents of the file has changed, this should not be included as a newly created function.
+    1b. All newly created functions should mean that the function is ENTIRELY new and must have been coded from scratch.
+2. Return the list of all newly created functions in the following xml format:
+<newly_created_functions>
 <function>
 <function_code>
 {{Function code copied verbatim for the patch}}
@@ -361,7 +386,7 @@ Below is the file {file_name} with all the above patches applied along with the 
 </end_line>
 </function>
 ...
-</newly_defined_functions>
+</newly_created_functions>
 """
 
 user_prompt_identify_repeats = """
@@ -503,7 +528,7 @@ class PRReviewBot(ChatGPT):
                     })
         return code_reviews_by_file
 
-    # given a list of changes identify newly defined functions
+    # given a list of changes identify newly created functions
     def identify_functions_in_patches(
         self,
         pr_changes: list[PRChange],
@@ -544,10 +569,10 @@ class PRReviewBot(ChatGPT):
                     })
             # extract function defs from string
             function_def_params = ["function_code", "start_line", "end_line"]
-            newly_defined_functions_regex = r'<newly_defined_functions>(?P<content>.*?)<\/newly_defined_functions>'
-            newly_defined_functions_match = re.search(newly_defined_functions_regex, new_functions_response, re.DOTALL)
-            if newly_defined_functions_match:
-                extracted_functions, _ = extract_objects_from_string(newly_defined_functions_match.group("content"), "function", function_def_params)
+            newly_created_functions_regex = r'<newly_created_functions>(?P<content>.*?)<\/newly_created_functions>'
+            newly_created_functions_match = re.search(newly_created_functions_regex, new_functions_response, re.DOTALL)
+            if newly_created_functions_match:
+                extracted_functions, _ = extract_objects_from_string(newly_created_functions_match.group("content"), "function", function_def_params)
                 patches = pr_change.patches
                 for extracted_function in extracted_functions:
                     # do some basic double checking, make sure the start and end lines make sense
@@ -565,8 +590,7 @@ class PRReviewBot(ChatGPT):
                                 newly_created_functions[file_name] = []
                             newly_created_functions[file_name].append(FunctionDef(**{**extracted_function, "file_name": file_name}))
                         else:
-                            logger.error(f"Extracted function {extracted_function} was dropped do to incorrect start and end lines!")
-                            print("error")
+                            logger.warning(f"Extracted function was dropped due to incorrect start and end lines!\nFunction:\n{extracted_function}")
             else:
                 newly_created_functions[file_name] = []
         return newly_created_functions
@@ -832,7 +856,7 @@ def review_pr_detailed_checks(
     chat_logger: ChatLogger | None = None, 
 ) -> dict[str, CodeReview]:
     review_bot = PRReviewBot()
-    # get a list of newly defined functions
+    # get a list of newly created functions
     newly_created_functions_dict: dict[str, list[FunctionDef]] = review_bot.identify_functions_in_patches(pr_changes, chat_logger=chat_logger)
     new_code_issues: dict[str, list[CodeReviewIssue]] = review_bot.identify_repeated_functions(
         cloned_repo, newly_created_functions_dict, chat_logger=chat_logger

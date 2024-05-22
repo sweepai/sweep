@@ -11,7 +11,7 @@ from loguru import logger
 from pydantic import BaseModel
 
 from sweepai.core.entities import EmptyRepository
-from sweepai.utils.file_utils import read_file_with_fallback_encodings
+from sweepai.utils.file_utils import encode_file_with_fallback_encodings, read_file_with_fallback_encodings
 
 
 class SweepConfig(BaseModel):
@@ -274,6 +274,30 @@ class SweepConfig(BaseModel):
             if part in file_path:
                 return True
         return False
+    
+    # checks the actual context of a file to see if it is suitable for sweep or not
+    # for example checks for size and composition of the file_contents
+    # returns False if the file is bad
+    def is_file_suitable(self, file_contents: str) -> tuple[bool, str]:
+        if file_contents is None:
+            return False, "The file contents were a None Type object, this is most likely an issue on our end!"
+        try:
+            encoded_file = encode_file_with_fallback_encodings(file_contents)
+        except UnicodeEncodeError as e:
+            logger.warning(f"Failed to encode file: {e}")
+            return False, "Failed to encode file!"
+        # file is too large or too small
+        file_length = len(encoded_file)
+        if file_length > 240000:
+            return False, "The size of this file is too large to work with!"
+        lines = file_contents.split("\n")
+        line_count = len(lines)
+        # if average line length is greater than 200, then it is likely not human readable
+        if line_count == 0:
+            return False, "Line count for this file was 0!"
+        if len(file_contents)/line_count > 200:
+            return False, "This file was determined to be non human readable due to the average line length!"
+        return True, ""
         
 
 

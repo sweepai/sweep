@@ -272,7 +272,7 @@ def on_comment(
             )
             snippets = repo_context_manager.current_top_snippets
 
-            pr_diffs, _dropped_files = get_pr_changes(repo, pr)
+            pr_diffs, _dropped_files, _unsuitable_files = get_pr_changes(repo, pr)
             snippets_modified = [Snippet.from_file(
                 pr_diff.file_name, cloned_repo.get_file_contents(pr_diff.file_name)
             ) for pr_diff in pr_diffs]

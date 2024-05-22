@@ -129,11 +129,11 @@ def safe_decode(
             else:
                 try:
                     return base64.b64decode(blob.content).decode(detected_encoding)
-                except UnicodeDecodeError:
-                    return None
+                except UnicodeDecodeError as e:
+                    raise e
         return contents.decoded_content.decode("utf-8")
-    except Exception:
-        return None
+    except Exception as e:
+        raise e
 
 def remove_line_numbers(s: str) -> str:
     # Check if more than 50% of lines have line numbers
