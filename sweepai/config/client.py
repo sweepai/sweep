@@ -279,7 +279,7 @@ class SweepConfig(BaseModel):
     # for example checks for size and composition of the file_contents
     # returns False if the file is bad
     def is_file_suitable(self, file_contents: str) -> tuple[bool, str]:
-        if file_contents == None:
+        if file_contents is None:
             return False, "The file contents were a None Type object, this is most likely an issue on our end!"
         try:
             encoded_file = encode_file_with_fallback_encodings(file_contents)
