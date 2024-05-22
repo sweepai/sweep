@@ -11,7 +11,7 @@ from redis import Redis
 from tqdm import tqdm
 
 from sweepai.utils.timer import Timer
-from sweepai.config.server import DEBUG, REDIS_URL
+from sweepai.config.server import CACHE_DIRECTORY, DEBUG, REDIS_URL
 from sweepai.core.entities import Snippet
 from sweepai.core.repo_parsing_utils import directory_to_chunks
 from sweepai.core.vector_db import multi_get_query_texts_similarity
@@ -20,7 +20,7 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils.progress import TicketProgress
 from sweepai.config.client import SweepConfig
 
-token_cache = Cache('/mnt/caches/token_cache') # we instantiate a singleton, diskcache will handle concurrency
+token_cache = Cache(f'{CACHE_DIRECTORY}/token_cache') # we instantiate a singleton, diskcache will handle concurrency
 CACHE_VERSION = "v1.0.14"
 
 if DEBUG:
