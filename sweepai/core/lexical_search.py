@@ -102,16 +102,10 @@ def tokenize_code(code: str) -> list[str]:
     for m in matches:
         text = m.group()
 
-        if "_" in text:  # snakecase
-            for part in text.split("_"):
+        for section in text.split("_"):
+            for part in variable_pattern.findall(section):
                 if len(part) > 1:
                     tokens.append(part.lower())
-        elif parts := variable_pattern.findall(text):  # pascal and camelcase
-            for part in parts:
-                if len(part) > 1:
-                    tokens.append(part.lower())
-        else:
-            tokens.append(text.lower())
 
     bigrams = [f"{tokens[i]}_{tokens[i + 1]}" for i in range(len(tokens) - 1)]
     trigrams = [f"{tokens[i]}_{tokens[i + 1]}_{tokens[i + 2]}" for i in range(len(tokens) - 2)]
@@ -244,8 +238,9 @@ def prepare_lexical_search_index(
 ):
     lexical_cache_key = get_lexical_cache_key(repo_directory)
 
-    snippets_results = snippets_cache.get(lexical_cache_key)
-    if snippets_results is None:
+    with Timer() as timer:
+        snippets_results = snippets_cache.get(lexical_cache_key)
+    if snippets_results is None or True:
         snippets, file_list = directory_to_chunks(
             repo_directory, sweep_config, do_not_use_file_cache=do_not_use_file_cache
         )
@@ -253,8 +248,10 @@ def prepare_lexical_search_index(
     else:
         snippets, file_list = snippets_results
 
-    index = lexical_index_cache.get(lexical_cache_key)
-    if index is None:
+    with Timer() as timer:
+        index = lexical_index_cache.get(lexical_cache_key)
+    # breakpoint()
+    if index is None or True:
         index = prepare_index_from_snippets(
             snippets,
             len_repo_cache_dir=len(repo_directory) + 1,
