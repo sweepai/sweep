@@ -69,7 +69,7 @@ def snippet_majority_vote(outcomes: list[list[Snippet]]):
     return majority_snippets
 
 class AnalyzeSnippetAgent(ChatGPT):
-    @majority_vote_decorator(num_samples=3, voting_func=snippet_majority_vote) # unsure about 3 vs 1
+    @majority_vote_decorator(num_samples=2, voting_func=snippet_majority_vote) # unsure about 3 vs 1
     def analyze_snippets(self, snippets: list[Snippet], type_name: str, issue: str, seed: int=0):
         # should a subset of the relevant snippets from a slice of the repo
         snippet_text = self.format_code_snippets(snippets)

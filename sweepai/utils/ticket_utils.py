@@ -323,7 +323,7 @@ def multi_prep_snippets(
                 logger.info(f"{idx}: {snippet.denotation} {snippet.score} {percentile}")
                 snippet.type_name = type_name
                 filtered_subset_snippets.append(snippet)
-            if type_name != "source": # do more filtering
+            if type_name != "source" and filtered_subset_snippets: # do more filtering
                 filtered_subset_snippets = AnalyzeSnippetAgent().analyze_snippets(filtered_subset_snippets, type_name, queries[0])
             all_snippets.extend(filtered_subset_snippets)
         ranked_snippets = all_snippets[:k]
