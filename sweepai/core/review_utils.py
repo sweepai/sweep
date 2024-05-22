@@ -303,12 +303,13 @@ Below are the changes made in the pull request as context
 1. Analyze each identified potential issue for the file {file_name}
     1a. Review each identified issue individually, formulate 3-5 questions to answer in order to determine the severity of the issue.
     1b. Answer the questions formulated in step 1a. In order to accomplish this examine the referenced lines of code in the provided code files above.
-    1c. Determine whether or not this issue is severe enough to prevent the pull request from being merged or not. For example, any potential logical error is considered severe.
-    1d. Take note of some common issues: Accidently removing or commenting out lines of code that has functional utility. In this case double check if this change was intentional or accidental.
-    1e. Deliver your analysis in the following format:
+    1c. Answer the following questions in addition to the ones you generated in steps 1a. Is this reported issue accurate (double check that the previous reviewer was not mistaken, be sure to include the corresponding patch for proof)? If the answer to this question is no, then the issue is not severe. 
+    1d. Determine whether or not this issue is severe enough to prevent the pull request from being merged or not. For example, any potential logical error is considered severe.
+    1e. Take note of some common issues: Accidently removing or commenting out lines of code that has functional utility. In this case double check if this change was intentional or accidental.
+    1f. Deliver your analysis in the following format:
 <thoughts>
 <thinking>
-{{Analysis of the issue, include the questions and answers}}
+{{Analysis of the issue, include ALL the questions and answers}}
 </thinking>
 ...
 </thoughts>
@@ -403,7 +404,7 @@ CLAUDE_MODEL = "claude-3-opus-20240229"
 
 class PRReviewBot(ChatGPT):
     # fetch all potential issues for each file based on the diffs of that file
-    def review_code_changes_by_file(self, pr_changes_by_file: dict[str, str], chat_logger: ChatLogger = None):
+    def review_code_changes_by_file(self, pr_changes_by_file: dict[str, str], chat_logger: ChatLogger = None, seed: int | None = None):
         code_reviews_by_file = {}
         for file_name, pr_changes in pr_changes_by_file.items():
             self.messages = [
@@ -417,7 +418,8 @@ class PRReviewBot(ChatGPT):
                 content=formatted_user_prompt,
                 temperature=0,
                 model=CLAUDE_MODEL,
-                use_openai=True
+                use_openai=True,
+                seed=seed
             )
             diff_summary = ""
             diff_summary_pattern = r"<diff_summary>(.*?)</diff_summary>"
@@ -447,7 +449,8 @@ class PRReviewBot(ChatGPT):
         pr_changes: list[PRChange], 
         formatted_pr_changes_by_file: dict[str, str], 
         code_reviews_by_file: dict[str, CodeReview], 
-        chat_logger: ChatLogger = None
+        chat_logger: ChatLogger = None,
+        seed: int | None = None
     ):
         files_to_patches: dict[str, str] = {}
         # format all patches for all files
@@ -476,7 +479,8 @@ class PRReviewBot(ChatGPT):
                 content=formatted_user_prompt,
                 temperature=0,
                 model=CLAUDE_MODEL,
-                use_openai=True
+                use_openai=True,
+                seed=seed
             )
 
             severe_issues_pattern = r"<severe_issues>(.*?)</severe_issues>"
@@ -686,11 +690,12 @@ def get_group_voted_best_issue_index(
 def get_code_reviews_for_file(
     pr_changes: list[PRChange], 
     formatted_pr_changes_by_file: dict[str, str], 
-    chat_logger: ChatLogger | None = None
+    chat_logger: ChatLogger | None = None,
+    seed: int | None = None
 ):
     review_bot = PRReviewBot()
-    code_review_by_file = review_bot.review_code_changes_by_file(formatted_pr_changes_by_file, chat_logger=chat_logger)
-    code_review_by_file = review_bot.review_code_issues_by_file(pr_changes, formatted_pr_changes_by_file, code_review_by_file, chat_logger=chat_logger)
+    code_review_by_file = review_bot.review_code_changes_by_file(formatted_pr_changes_by_file, chat_logger=chat_logger, seed=seed)
+    code_review_by_file = review_bot.review_code_issues_by_file(pr_changes, formatted_pr_changes_by_file, code_review_by_file, chat_logger=chat_logger, seed=seed)
     return code_review_by_file
 
 # run 5 seperate instances of review_pr and then group the resulting issues and only take the issues that appear the majority of the time (> 3)
@@ -709,8 +714,8 @@ def group_vote_review_pr(
         chat_logger = None
         pool = multiprocessing.Pool(processes=5)
         results = [
-            pool.apply_async(get_code_reviews_for_file, args=(pr_changes, formatted_pr_changes_by_file, chat_logger))
-            for _ in range(GROUP_SIZE)
+            pool.apply_async(get_code_reviews_for_file, args=(pr_changes, formatted_pr_changes_by_file, chat_logger, i))
+            for i in range(GROUP_SIZE)
         ]
         pool.close()
         pool.join()
@@ -726,8 +731,8 @@ def group_vote_review_pr(
                     properties={"error": str(e)}
                 )
     else:
-        for _ in range(GROUP_SIZE):
-            code_reviews_by_file.append(get_code_reviews_for_file(pr_changes, formatted_pr_changes_by_file, chat_logger=chat_logger))
+        for i in range(GROUP_SIZE):
+            code_reviews_by_file.append(get_code_reviews_for_file(pr_changes, formatted_pr_changes_by_file, chat_logger=chat_logger, seed=i))
     
     # embed each issue and then cluster them
     # extract code issues for each file and prepare them for embedding
