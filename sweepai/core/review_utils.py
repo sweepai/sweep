@@ -303,7 +303,7 @@ Below are the changes made in the pull request as context
 1. Analyze each identified potential issue for the file {file_name}
     1a. Review each identified issue individually, formulate 3-5 questions to answer in order to determine the severity of the issue.
     1b. Answer the questions formulated in step 1a. In order to accomplish this examine the referenced lines of code in the provided code files above.
-    1c. Answer the following questions in addition to the ones you generated in steps 1a. Is this reported issue accurate (double check that the previous reviewer was not mistaken, be sure to include the corresponding patch for proof)? If the answer to this question is no, then the issue is not severe. 
+    1c. Answer the following questions in addition to the ones you generated in steps 1a. Is this reported issue accurate (double check that the previous reviewer was not mistaken, YOU MUST include the corresponding patch for proof)? If the answer to this question is no, then the issue is not severe. 
     1d. Determine whether or not this issue is severe enough to prevent the pull request from being merged or not. For example, any potential logical error is considered severe.
     1e. Take note of some common issues: Accidently removing or commenting out lines of code that has functional utility. In this case double check if this change was intentional or accidental.
     1f. Deliver your analysis in the following format:
