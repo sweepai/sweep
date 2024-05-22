@@ -7,7 +7,7 @@ import time
 from loguru import logger
 from redis import Redis
 
-from sweepai.config.server import DEBUG, REDIS_URL
+from sweepai.config.server import CACHE_DIRECTORY, DEBUG, REDIS_URL
 
 TEST_BOT_NAME = "sweep-nightly[bot]"
 MAX_DEPTH = 6
@@ -56,14 +56,14 @@ def file_cache(ignore_params=[], ignore_contents=False, verbose=False, redis=Fal
     """
 
     def decorator(func):
-        if DEBUG:
+        if not DEBUG:
             return func
         func_source_code_hash = hash_code(inspect.getsource(func)) if not ignore_contents else ""
 
         def wrapper(*args, **kwargs):
             if kwargs.get('do_not_use_file_cache', False):
                 return func(*args, **kwargs)
-            cache_dir = os.environ.get("MOUNT_DIR", "/mnt/caches") + "/file_cache"
+            cache_dir = CACHE_DIRECTORY + "/file_cache"
             os.makedirs(cache_dir, exist_ok=True)
             result = None
 

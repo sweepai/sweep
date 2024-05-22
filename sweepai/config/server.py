@@ -208,3 +208,5 @@ ALTERNATE_AWS = os.environ.get("ALTERNATE_AWS", "none").lower() == "true"
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", None)
 
 SENTRY_URL = os.environ.get("SENTRY_URL", None)
+
+CACHE_DIRECTORY = os.environ.get("CACHE_DIRECTORY", "/mnt/caches")
