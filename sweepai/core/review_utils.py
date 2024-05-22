@@ -11,7 +11,7 @@ from tqdm import tqdm
 from sweepai.chat.api import posthog_trace
 from sweepai.config.client import SweepConfig
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message
+from sweepai.core.entities import Message, UnsuitableFileException
 from sweepai.core.review_annotations import get_diff_annotations
 from sweepai.core.sweep_bot import safe_decode
 from sweepai.core.vector_db import cosine_similarity, embed_text_array
@@ -19,7 +19,6 @@ from sweepai.dataclasses.codereview import CodeReview, CodeReviewIssue, Function
 from sweepai.logn.cache import file_cache
 from sweepai.utils.event_logger import logger, posthog
 from sweepai.utils.chat_logger import ChatLogger
-from github.GithubException import GithubException
 from github.Repository import Repository
 from github.PullRequest import PullRequest
 
@@ -74,7 +73,8 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
     file_diffs = comparison.files
 
     pr_diffs = []
-    dropped_files = []
+    dropped_files = [] # files that were dropped due them being commonly ignored
+    unsuitable_files: list[tuple[str, Exception]] = [] # files dropped for other reasons such as being way to large or not encodable, error objects included
     for file in tqdm(file_diffs, desc="Annotating diffs"):
         file_name = file.filename
         diff = file.patch
@@ -95,32 +95,53 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
         if sweep_config.is_file_excluded(file_name):
             dropped_files.append(file_name)
             continue
-
+        
+        errored = False
+        e = None
         if file.status == "added":
             old_code = ""
         else:
             try:
                 old_code = safe_decode(repo=repo, path=previous_filename, ref=base_sha)
-            except GithubException:
-                old_code = ""
+            except Exception as e_:
+                e = e_
+                errored = True
+                unsuitable_files.append((file_name, e))
         if file.status == "removed":
             new_code = ""
         else:
-            new_code = safe_decode(repo=repo, path=file.filename, ref=head_sha)
+            try:
+                new_code = safe_decode(repo=repo, path=file.filename, ref=head_sha)
+            except Exception as e_:
+                e = e_
+                errored = True
+                unsuitable_files.append((file_name, e))
 
-        if old_code == "":
-            logger.info(f"Skipping file {file.filename} due to bad encoding")
+        # drop unsuitable files
+        if new_code: 
+            suitable, reason = sweep_config.is_file_suitable(new_code)
+            if not suitable:
+                errored = True
+                e = UnsuitableFileException(e)
+                unsuitable_files.append((file_name, e))
+
+        if errored:
+            posthog.capture(
+                "get_pr_changes", 
+                "get_pr_changes error", 
+                properties={"error": str(e), "file_name": file_name}
+            )
             continue
 
         status = file.status
         pr_change = PRChange(
-                file_name=file_name,
-                diff=diff,
-                old_code=old_code,
-                new_code=new_code,
-                status=status,
-                patches=split_diff_into_patches(diff)
-            )
+            file_name=file_name,
+            diff=diff,
+            old_code=old_code,
+            new_code=new_code,
+            status=status,
+            patches=split_diff_into_patches(diff)
+        )
         diff_annotations = get_diff_annotations(
             source_code=pr_change.new_code,
             diffs=[patch.changes for patch in pr_change.patches],
@@ -130,7 +151,7 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
         pr_diffs.append(
             pr_change
         )
-    return pr_diffs, dropped_files
+    return pr_diffs, dropped_files, unsuitable_files
 
 def split_diff_into_patches(diff: str) -> list[Patch]:
     patches = []
