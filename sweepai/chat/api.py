@@ -189,6 +189,7 @@ def search_codebase(
         git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"/tmp/{repo}")
         print(f"Cloned {repo_name} to /tmp/{repo}")
     cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name)
+    cloned_repo.pull()
     repo_context_manager = prep_snippets(cloned_repo, query, use_multi_query=False, NUM_SNIPPETS_TO_KEEP=0)
     return repo_context_manager.current_top_snippets
 
@@ -334,7 +335,8 @@ def chat_codebase_stream(
                     *current_messages
                 ]
             
-            current_messages[-1].function_call["is_complete"] = True
+            if current_messages[-1].role == "function":
+                current_messages[-1].function_call["is_complete"] = True
             
             new_messages.extend(current_messages)
             
