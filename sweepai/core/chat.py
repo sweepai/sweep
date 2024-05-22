@@ -617,7 +617,7 @@ class ChatGPT(MessageList):
                 if ALTERNATE_AWS: # alternate between aws and anthropic (for load balancing only)
                     use_aws = not use_aws and not hit_content_filtering
         else:
-            raise Exception("Anthropic call failed") from e
+            raise Exception(f"Anthropic call failed:\n{e}") from e
         self.messages.append(
             Message(
                 role="assistant",
