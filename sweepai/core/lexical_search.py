@@ -104,7 +104,14 @@ def tokenize_code(code: str) -> list[str]:
 
         for section in text.split("_"):
             for part in variable_pattern.findall(section):
-                if len(part) > 1:
+                if len(part) < 2:
+                    continue
+                if len(part) < 10:
+                    tokens.append(part.lower())
+                # if more than half of the characters are letters 
+                # and the ratio of unique characters to the number of characters is less than 5
+                elif sum(1 for c in part if 'a' <= c <= 'z' or 'A' <= c <= 'Z') > len(part) // 2 \
+                    and len(part) / len(set(part)) < 5:
                     tokens.append(part.lower())
 
     bigrams = [f"{tokens[i]}_{tokens[i + 1]}" for i in range(len(tokens) - 1)]
@@ -148,17 +155,27 @@ def prepare_index_from_snippets(
     index = CustomIndex()
     all_tokens = []
     all_lengths = []
+    workers = multiprocessing.cpu_count() // 2
+    # workers = 1
     try:
-        with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 2) as p:
-            results = p.map(
-                compute_document_tokens,
-                tqdm(
-                    [doc.content for doc in all_docs],
-                    total=len(all_docs),
-                    desc="Tokenizing documents"
+        if workers > 1:
+            with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 2) as p:
+                results = p.map(
+                    compute_document_tokens,
+                    tqdm(
+                        [doc.content for doc in all_docs],
+                        total=len(all_docs),
+                        desc="Tokenizing documents"
+                    )
                 )
+                all_tokens, all_lengths = zip(*results)
+        else:
+            all_tokens, all_lengths = zip(
+                *[
+                    compute_document_tokens(doc.content)
+                    for doc in tqdm(all_docs, desc="Tokenizing documents")
+                ]
             )
-            all_tokens, all_lengths = zip(*results)
         all_titles = [doc.title for doc in all_docs]
         index.add_documents(
             tqdm(zip(all_titles, all_tokens, all_lengths), total=len(all_docs), desc="Indexing")
@@ -238,8 +255,7 @@ def prepare_lexical_search_index(
 ):
     lexical_cache_key = get_lexical_cache_key(repo_directory)
 
-    with Timer() as timer:
-        snippets_results = snippets_cache.get(lexical_cache_key)
+    snippets_results = snippets_cache.get(lexical_cache_key)
     if snippets_results is None or True:
         snippets, file_list = directory_to_chunks(
             repo_directory, sweep_config, do_not_use_file_cache=do_not_use_file_cache
@@ -257,7 +273,13 @@ def prepare_lexical_search_index(
             len_repo_cache_dir=len(repo_directory) + 1,
             do_not_use_file_cache=do_not_use_file_cache,
         )
-        lexical_index_cache[lexical_cache_key] = index
+        sorted_keys = sorted(index.inverted_index.keys(), key=len, reverse=True)
+        print(sorted_keys[0])
+        breakpoint()
+
+        with Timer() as timer:
+            lexical_index_cache[lexical_cache_key] = index
+    
 
     return file_list, snippets, index
 
