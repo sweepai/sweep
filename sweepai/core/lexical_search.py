@@ -23,6 +23,7 @@ from sweepai.config.client import SweepConfig
 
 token_cache = Cache(f'{CACHE_DIRECTORY}/token_cache') # we instantiate a singleton, diskcache will handle concurrency
 lexical_index_cache = Cache(f'{CACHE_DIRECTORY}/lexical_index_cache')
+snippets_cache = Cache(f'{CACHE_DIRECTORY}/snippets_cache')
 CACHE_VERSION = "v1.0.14"
 
 if DEBUG:
@@ -241,10 +242,16 @@ def prepare_lexical_search_index(
     sweep_config: SweepConfig,
     do_not_use_file_cache: bool = False # choose to not cache results
 ):
-    snippets, file_list = directory_to_chunks(
-        repo_directory, sweep_config, do_not_use_file_cache=do_not_use_file_cache
-    )
-    lexical_cache_key = get_lexical_cache_key()
+    lexical_cache_key = get_lexical_cache_key(repo_directory)
+
+    snippets_results = snippets_cache.get(lexical_cache_key)
+    if snippets_results is None:
+        snippets, file_list = directory_to_chunks(
+            repo_directory, sweep_config, do_not_use_file_cache=do_not_use_file_cache
+        )
+    else:
+        snippets, file_list = snippets_results
+
     index = lexical_index_cache.get(lexical_cache_key)
     if index is None:
         index = prepare_index_from_snippets(
