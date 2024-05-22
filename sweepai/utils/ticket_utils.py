@@ -314,6 +314,7 @@ def multi_prep_snippets(
             if not snippets_subset:
                 continue
             top_score = snippets_subset[0].score
+            logger.debug(f"Top score for {type_name}: {top_score}")
             max_results = type_to_result_count[type_name]
             filtered_subset_snippets = []
             for idx, snippet in enumerate(snippets_subset[:max_results]):
@@ -323,6 +324,7 @@ def multi_prep_snippets(
                 logger.info(f"{idx}: {snippet.denotation} {snippet.score} {percentile}")
                 snippet.type_name = type_name
                 filtered_subset_snippets.append(snippet)
+            logger.info(f"Length of filtered subset snippets for {type_name}: {len(filtered_subset_snippets)}")
             if type_name != "source" and filtered_subset_snippets: # do more filtering
                 filtered_subset_snippets = AnalyzeSnippetAgent().analyze_snippets(filtered_subset_snippets, type_name, queries[0])
             all_snippets.extend(filtered_subset_snippets)
