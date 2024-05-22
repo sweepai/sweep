@@ -8,14 +8,15 @@ from loguru import logger
 from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig
+from sweepai.config.server import CACHE_DIRECTORY
 from sweepai.core.entities import Snippet
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
 from sweepai.utils.utils import Tiktoken, chunk_code
 from sweepai.utils.timer import Timer
 from diskcache import Cache
 
-chunk_cache = Cache('/mnt/caches/chunk_cache') # we instantiate a singleton, diskcache will handle concurrency
-file_name_cache = Cache('/mnt/caches/file_name_cache')
+chunk_cache = Cache(f'{CACHE_DIRECTORY}/chunk_cache') # we instantiate a singleton, diskcache will handle concurrency
+file_name_cache = Cache(f'{CACHE_DIRECTORY}/file_name_cache')
 
 tiktoken_client = Tiktoken()
 
