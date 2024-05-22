@@ -442,6 +442,7 @@ def on_ticket(
                     images=image_contents
                 )
                 cloned_repo = repo_context_manager.cloned_repo
+                assert repo_context_manager.current_top_snippets or repo_context_manager.read_only_snippets, "No relevant files found."
             except Exception as e:
                 edit_sweep_comment(
                     (
