@@ -103,6 +103,8 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
         else:
             try:
                 old_code = safe_decode(repo=repo, path=previous_filename, ref=base_sha)
+                if old_code is None:
+                    raise UnsuitableFileException("Could not decode file")
             except Exception as e_:
                 e = e_
                 errored = True
@@ -112,6 +114,8 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
         else:
             try:
                 new_code = safe_decode(repo=repo, path=file.filename, ref=head_sha)
+                if new_code is None:
+                    raise UnsuitableFileException("Could not decode file")
             except Exception as e_:
                 e = e_
                 errored = True
@@ -233,7 +237,7 @@ system_prompt = """You are a careful and smart tech lead that wants to avoid pro
 system_prompt_review = """You are a busy tech manager who is responsible for reviewing prs and identifying any possible production issues. 
 You will be analyzing a list of potential issues that have been identified by a previous engineer and determing which issues are severe enough to bring up to the original engineer."""
 
-system_prompt_identify_new_functions = """You are an expert programmer with a keen eye for detail, assigned to analyze a series of code patches in a pull request. Your primary responsibility is to meticulously identify all newly defined functions within the code."""
+system_prompt_identify_new_functions = """You are an expert programmer with a keen eye for detail, assigned to analyze a series of code patches in a pull request. Your primary responsibility is to meticulously identify all newly created functions within the code."""
 
 system_prompt_identify_repeats = """You are a proficient programmer tasked with identifying repeated or unnecessary functions in a codebase. Your job is to find and highlight any duplicated or redundant function definitions.
 You will be given a function definition that was just added to the codebase and your job will be to check whether or not this function was actually necessary or not given a series of code snippets.
@@ -354,7 +358,7 @@ Below are the changes made in the pull request as context
 </severe_issues>
 """
 
-user_prompt_identify_new_functions = """Below are all the patches made to the file {file_name} in this pull request. Use these patches to determine if there are any newly defined functions.
+user_prompt_identify_new_functions = """Below are all the patches made to the file {file_name} in this pull request. Use these patches to determine if there are any newly created functions.
 # PR Patches
 
 {patches}
@@ -365,11 +369,11 @@ Below is the file {file_name} with all the above patches applied along with the 
 {numbered_code_file}
 
 # Instructions
-1. Analyze each of the patches above and identify ALL newly defined functions.
-    1a. Note that if a function is renamed, or has some of its parameters changed, this should not be included as a newly defined function.
-    1b. All newly defined functions should mean that the function is ENTIRELY new and must have been coded from scratch.
-2. Return the list of all newly defined functions in the following xml format:
-<newly_defined_functions>
+1. Analyze each of the patches above and identify ALL newly created functions.
+    1a. Note that if a function is renamed such as having of its parameters changed, or if a function has been reworked meaning the contents of the file has changed, this should not be included as a newly created function.
+    1b. All newly created functions should mean that the function is ENTIRELY new and must have been coded from scratch.
+2. Return the list of all newly created functions in the following xml format:
+<newly_created_functions>
 <function>
 <function_code>
 {{Function code copied verbatim for the patch}}
@@ -382,7 +386,7 @@ Below is the file {file_name} with all the above patches applied along with the 
 </end_line>
 </function>
 ...
-</newly_defined_functions>
+</newly_created_functions>
 """
 
 user_prompt_identify_repeats = """
@@ -524,7 +528,7 @@ class PRReviewBot(ChatGPT):
                     })
         return code_reviews_by_file
 
-    # given a list of changes identify newly defined functions
+    # given a list of changes identify newly created functions
     def identify_functions_in_patches(
         self,
         pr_changes: list[PRChange],
@@ -565,10 +569,10 @@ class PRReviewBot(ChatGPT):
                     })
             # extract function defs from string
             function_def_params = ["function_code", "start_line", "end_line"]
-            newly_defined_functions_regex = r'<newly_defined_functions>(?P<content>.*?)<\/newly_defined_functions>'
-            newly_defined_functions_match = re.search(newly_defined_functions_regex, new_functions_response, re.DOTALL)
-            if newly_defined_functions_match:
-                extracted_functions, _ = extract_objects_from_string(newly_defined_functions_match.group("content"), "function", function_def_params)
+            newly_created_functions_regex = r'<newly_created_functions>(?P<content>.*?)<\/newly_created_functions>'
+            newly_created_functions_match = re.search(newly_created_functions_regex, new_functions_response, re.DOTALL)
+            if newly_created_functions_match:
+                extracted_functions, _ = extract_objects_from_string(newly_created_functions_match.group("content"), "function", function_def_params)
                 patches = pr_change.patches
                 for extracted_function in extracted_functions:
                     # do some basic double checking, make sure the start and end lines make sense
@@ -852,7 +856,7 @@ def review_pr_detailed_checks(
     chat_logger: ChatLogger | None = None, 
 ) -> dict[str, CodeReview]:
     review_bot = PRReviewBot()
-    # get a list of newly defined functions
+    # get a list of newly created functions
     newly_created_functions_dict: dict[str, list[FunctionDef]] = review_bot.identify_functions_in_patches(pr_changes, chat_logger=chat_logger)
     new_code_issues: dict[str, list[CodeReviewIssue]] = review_bot.identify_repeated_functions(
         cloned_repo, newly_created_functions_dict, chat_logger=chat_logger
