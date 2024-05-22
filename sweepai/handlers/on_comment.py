@@ -11,6 +11,7 @@ from typing import Any
 from loguru import logger
 
 from sentry_sdk import set_user
+from sweepai.chat.api import posthog_trace
 from sweepai.config.server import (
     ENV,
     GITHUB_BOT_USERNAME,
@@ -36,14 +37,14 @@ num_extended_snippets = 2
 ERROR_FORMAT = "❌ {title}\n\nPlease report this on our [community forum](https://community.sweep.dev/)."
 SWEEPING_GIF = f"{center(sweeping_gif)}\n\n<div align='center'><h3>Sweep is working on resolving your comment...<h3/></div>\n\n"
 
-
+@posthog_trace
 def on_comment(
+    username: str,
     repo_full_name: str,
     repo_description: str,
     comment: str,
     pr_path: str | None,
     pr_line_position: int | None,
-    username: str,
     installation_id: int,
     pr_number: int = None,
     comment_id: int | None = None,

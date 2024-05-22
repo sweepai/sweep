@@ -341,11 +341,11 @@ def run(issue_url: str):
     try:
         cprint(f'\nRunning Sweep to solve "{request.issue.title}"!\n')
         on_ticket(
+            username=request.sender.login,
             title=request.issue.title,
             summary=request.issue.body,
             issue_number=request.issue.number,
             issue_url=request.issue.html_url,
-            username=request.sender.login,
             repo_full_name=request.repository.full_name,
             repo_description=request.repository.description,
             installation_id=request.installation.id,
