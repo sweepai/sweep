@@ -249,6 +249,7 @@ def prepare_lexical_search_index(
         snippets, file_list = directory_to_chunks(
             repo_directory, sweep_config, do_not_use_file_cache=do_not_use_file_cache
         )
+        snippets_cache[lexical_cache_key] = snippets, file_list
     else:
         snippets, file_list = snippets_results
 
