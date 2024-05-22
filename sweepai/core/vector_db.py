@@ -19,7 +19,7 @@ from botocore.exceptions import ClientError
 from voyageai import error as voyageai_error
 
 from sweepai.utils.timer import Timer
-from sweepai.config.server import BATCH_SIZE, REDIS_URL, VOYAGE_API_AWS_ENDPOINT_NAME, VOYAGE_API_KEY, VOYAGE_API_USE_AWS
+from sweepai.config.server import BATCH_SIZE, CACHE_DIRECTORY, REDIS_URL, VOYAGE_API_AWS_ENDPOINT_NAME, VOYAGE_API_KEY, VOYAGE_API_USE_AWS
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.openai_proxy import get_embeddings_client
 from sweepai.utils.utils import Tiktoken
@@ -30,7 +30,7 @@ suffix = "-voyage-aws" if VOYAGE_API_USE_AWS else "-voyage" if VOYAGE_API_KEY el
 CACHE_VERSION = "v2.1.1" + suffix 
 redis_client: Redis = Redis.from_url(REDIS_URL)  # TODO: add lazy loading
 tiktoken_client = Tiktoken()
-vector_cache = Cache('/mnt/caches/vector_cache') # we instantiate a singleton, diskcache will handle concurrency
+vector_cache = Cache(f'{CACHE_DIRECTORY}/vector_cache') # we instantiate a singleton, diskcache will handle concurrency
 
 
 def cosine_similarity(a, B):
