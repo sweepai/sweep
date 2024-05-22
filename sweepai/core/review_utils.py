@@ -243,6 +243,9 @@ system_prompt_identify_repeats = """You are a proficient programmer tasked with 
 You will be given a function definition that was just added to the codebase and your job will be to check whether or not this function was actually necessary or not given a series of code snippets.
 """
 
+system_prompt_pr_summary = """You are a talented software engineer that excels at summarising pull requests for readability and brevity. You will be analysing a series of patches that represent all the changes made in a specific pull request.
+It is your job to write a short and concise but still descriptive summary that describes what the pull request accomplishes."""
+
 user_prompt = """\
 # Code Review
 Here are the changes in the pull request diffs:
@@ -425,9 +428,55 @@ Below are a series of code snippets retrieved from the codebase via vector searc
 </solution>
 </redundant_new_function>"""
 
+user_prompt_pr_summary = """Below are all the patches associated with this pull request along with each of their file names
+
+# All Pull Request Patches
+
+{all_patches}
+
+1. Summarise the major changes in the following xml format below:
+<pr_summary>
+{{Provide a detailed summary here. Be sure to reference relevant entities and variables to make it very clear what you are referencing. Speak in past tense. This summary should be maximum 10 sentences.}}
+</pr_summary>
+
+Here are a few example <pr_summary></pr_summary> blocks:
+<example_pr_summary>
+Support for bulk actions were added to the admin dashboard. A new `BulkActionDropdown` component in `components/BulkActionDropdown.vue` was created that renders a dropdown menu with options for bulk actions that can be performed on selected items.\n
+The existing `ItemList` component in `components/ItemList.vue` was updated to include checkboxes for each item and to enable the `BulkActionDropdown` when one or more items are selected. \n
+A new `bulkDelete` action was added to the item store in `store/item.js` which accepts an array of item IDs and deletes them from the database in a single query. The `BulkActionDropdown` component dispatches this action when the "Delete Selected" option is chosen.\n
+Unit tests were added for the `BulkActionDropdown` component and the `bulkDelete` store action in the `components/BulkActionDropdown.test.js` and `store/item.test.js` files respectively.
+</example_pr_summary>
+<example_pr_summary>
+The user authentication flow in the `auth.js` file was refactored by introducing a new function `verifyTwoFactorCode` to handle verifying the user's two-factor authentication code. The existing `loginUser` function was updated to call `verifyTwoFactorCode` after validating the user's password. 
+\nUnit tests were added for the new `verifyTwoFactorCode` function in the `auth.test.js` file. These tests covered the following scenarios: providing a valid code, an expired code, and an invalid code.
+\nAdditionally, the documentation in `README.md` was updated to reflect the changes to the authentication flow and now describe the new two-factor authentication step.
+</example_pr_summary>
+"""
+
 CLAUDE_MODEL = "claude-3-opus-20240229"
 
 class PRReviewBot(ChatGPT):
+    # get a comprehensive pr summary
+    def get_pr_summary(self, formatted_patches: str):
+        self.messages = [
+            Message(
+                role="system",
+                content=system_prompt_pr_summary,
+            )
+        ]
+        formatted_user_prompt = user_prompt_pr_summary.format(all_patches=formatted_patches)
+        pr_summary_response = self.chat_anthropic(
+            content=formatted_user_prompt,
+            temperature=0.1,
+            model=CLAUDE_MODEL,
+            use_openai=True,
+        )
+        pr_summary = ""
+        pr_summary_pattern = r"<pr_summary>(?P<pr_summary>.*?)</pr_summary>"
+        pr_summary_match = re.search(pr_summary_pattern, pr_summary_response, re.DOTALL)
+        if pr_summary_match:
+            pr_summary = pr_summary_match.group("pr_summary")
+        return pr_summary
     # fetch all potential issues for each file based on the diffs of that file
     def review_code_changes_by_file(self, pr_changes_by_file: dict[str, str], chat_logger: ChatLogger = None, seed: int | None = None):
         code_reviews_by_file = {}
@@ -867,4 +916,15 @@ def review_pr_detailed_checks(
             code_review_by_file[file_name].issues.extend(new_code_issues)
     
     return code_review_by_file
+
+# get the summary for a pr given all the changes
+def get_pr_summary_from_patches(pr_changes: list[PRChange]):
+    review_bot = PRReviewBot()
+    formatted_pr_patches = ""
+    for pr_change in pr_changes:
+        file_name = pr_change.file_name
+        patches = format_patches_for_pr_change(pr_change)
+        formatted_pr_patches += f'\n\n<patches file_name="{file_name}">\n{patches}\n</patches>\n\n'
+    pr_summary = review_bot.get_pr_summary(formatted_pr_patches)
+    return pr_summary
     
