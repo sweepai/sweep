@@ -238,21 +238,6 @@ const MessageDisplay = ({ message }: { message: Message }) => {
 };
 
 
-const getLastLine = (content: string) => {
-  const splitContent = content.trim().split("\n");
-  return splitContent[splitContent.length - 1];
-}
-
-const getLastLineEndingWithBracket = (content: string) => {
-  const splitContent = content.trim().split("\n");
-  for (let i = splitContent.length - 1; i >= 0; i--) {
-    if (splitContent[i].trim().endsWith("]")) {
-      return splitContent[i];
-    }
-  }
-  return null;
-}
-
 function App() {
   const [repoName, setRepoName] = useLocalStorage<string>("repoName", "")
   const [repoNameValid, setRepoNameValid] = useLocalStorage<boolean>("repoNameValid", false)
@@ -480,6 +465,9 @@ function App() {
                           throw new Error(responseObj.error)
                         }
                         currentSnippets = (responseObj as Snippet[]).slice(0, 5);
+                        if (!currentSnippets.length) {
+                          throw new Error("No snippets found. Are you sure you have the right codebase?");
+                        }
                         setSnippets(currentSnippets);
                       } catch (e: any) {
                         console.log(e)
