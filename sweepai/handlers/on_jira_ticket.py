@@ -47,11 +47,11 @@ def handle_jira_ticket(event):
     
     # wait for this
     on_ticket(
+        username=github_issue.user.login,
         title=title,
         summary=description,
         issue_number=github_issue.number,
         issue_url=github_issue.html_url,
-        username=github_issue.user.login,
         repo_full_name=repo_full_name,
         repo_description=repo.description,
         installation_id=installation_id,

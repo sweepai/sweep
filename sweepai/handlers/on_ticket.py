@@ -14,6 +14,7 @@ from github.PullRequest import PullRequest as GithubPullRequest
 from loguru import logger
 
 
+from sweepai.chat.api import posthog_trace
 from sweepai.core.context_pruning import RepoContextManager
 from sweepai.core.sweep_bot import GHA_PROMPT
 from sweepai.agents.image_description_bot import ImageDescriptionBot
@@ -79,12 +80,13 @@ from sweepai.utils.ticket_utils import (
     prep_snippets,
 )
 
+@posthog_trace
 def on_ticket(
+    username: str,
     title: str,
     summary: str,
     issue_number: int,
     issue_url: str, # purely for logging purposes
-    username: str,
     repo_full_name: str,
     repo_description: str,
     installation_id: int,

@@ -30,14 +30,17 @@ def make_serializable(dictionary: dict):
     new_dictionary = {}
     # find any unserializable objects then turn them to strings
     for arg, value in dictionary.items():
+        stringified = False
         try:
-            new_dictionary[arg] = json.dumps(value)
+            _ = json.dumps(value)
+            new_dictionary[arg] = value
         except TypeError:
             try:
                 new_dictionary[arg] = str(value)[:500]
+                stringified = True
             except Exception:
                 new_dictionary[arg] = "Unserializable"
-        if len(new_dictionary[arg]) > MAX_STRING_LENGTH:
+        if stringified and len(new_dictionary[arg]) > MAX_STRING_LENGTH:
             new_dictionary[arg] = new_dictionary[arg][:MAX_STRING_LENGTH] + "..."
     return new_dictionary
 
