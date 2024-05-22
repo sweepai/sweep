@@ -436,7 +436,8 @@ user_prompt_pr_summary = """Below are all the patches associated with this pull 
 
 1. Summarise the major changes in the following xml format below:
 <pr_summary>
-{{Provide a detailed summary here. Be sure to reference relevant entities and variables to make it very clear what you are referencing. Speak in past tense. This summary should be maximum 10 sentences.}}
+{{Provide a detailed summary here. Be sure to reference relevant entities and variables to make it very clear what you are referencing. Speak in past tense. 
+This summary should be maximum 10 sentences. Make sure the summary is not a wall of text, use an adequate amount of new lines.}}
 </pr_summary>
 
 Here are a few example <pr_summary></pr_summary> blocks:
