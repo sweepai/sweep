@@ -27,6 +27,9 @@ from sweepai.utils.str_utils import add_line_numbers, extract_object_fields_from
 from sweepai.utils.ticket_rendering_utils import parse_issues_from_code_review
 from sweepai.utils.ticket_utils import get_top_k_snippets
 
+# approximately 100k tokens
+MAX_CHAR_BUDGET = 100000 * 3.5
+
 def get_pr_diffs(repo: Repository, pr: PullRequest):
     base_sha = pr.base.sha
     head_sha = pr.head.sha
@@ -218,12 +221,49 @@ def format_patches_for_pr_change(pr_change: PRChange):
             patches += "\n"
     return patches
 
+# prunes a file based on the patches for that file, removes long sections in between
+def smart_prune_file_based_on_patches(file_contents: str, patches: list[Patch], context_lines: int = 10):
+    lines = file_contents.splitlines(keepends=True)
+    num_of_lines = len(lines)
+    patch_ranges = []
+    # sort patches based on new_start
+    sorted_patches = sorted(patches, key=lambda patch: patch.new_start)
+    for patch in sorted_patches:
+        start = max(0, patch.new_start - context_lines - 1)
+        end = min(num_of_lines - 1, patch.new_start + patch.new_count + context_lines - 1)
+        if len(patch_ranges) == 0:
+            patch_ranges.append((start, end))
+        else: 
+            previous_range = patch_ranges[-1]
+            # combine if overlap
+            if previous_range[1] >= start:
+                patch_ranges[-1] = (previous_range[0], end)
+            else:
+                patch_ranges.append((start, end))
+    # now replace any sections not within the patch ranges with ...
+    new_lines = []
+    for i, range in enumerate(patch_ranges):
+        range_lines = lines[range[0]: range[1] + 1]
+        # with list slicing we can safely extend past the actual length of the array
+        if range[0] != 0:
+            range_lines = ['...\n'] + range_lines
+        # check if we need trailing ...
+        if i == len(patch_ranges) - 1 and range[1] < len(lines) - 1:
+            range_lines = range_lines + ['...\n']
+        new_lines.extend(range_lines)
+    new_file_contents = "".join(new_lines)
+    return new_file_contents
+
 def format_pr_change(pr_change: PRChange, pr_idx: int=0):
     patches = format_patches_for_pr_change(pr_change)
+    numbered_file_contents = add_line_numbers(pr_change.new_code, start=1)
+    # enforce context length
+    if len(numbered_file_contents) >= MAX_CHAR_BUDGET:
+        numbered_file_contents = smart_prune_file_based_on_patches(numbered_file_contents, pr_change.patches)
     return pr_change_with_source_code_unformatted.format(
         file_name=pr_change.file_name,
         patches=patches,
-        file_contents=add_line_numbers(pr_change.new_code, start=1)
+        file_contents=numbered_file_contents
     )
 
 def format_pr_changes_by_file(pr_changes: list[PRChange]) -> dict[str, str]:
