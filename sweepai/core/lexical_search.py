@@ -4,6 +4,7 @@ import os
 import re
 from collections import Counter, defaultdict
 from math import log
+import subprocess
 
 from diskcache import Cache
 from loguru import logger
@@ -21,6 +22,7 @@ from sweepai.utils.progress import TicketProgress
 from sweepai.config.client import SweepConfig
 
 token_cache = Cache(f'{CACHE_DIRECTORY}/token_cache') # we instantiate a singleton, diskcache will handle concurrency
+lexical_index_cache = Cache(f'{CACHE_DIRECTORY}/lexical_index_cache')
 CACHE_VERSION = "v1.0.14"
 
 if DEBUG:
@@ -229,23 +231,29 @@ def compute_vector_search_scores(queries: list[str], snippets: list[Snippet]):
     } for query_snippet_similarities in multi_query_snippet_similarities]
     return snippet_denotation_to_scores
 
+def get_lexical_cache_key(repo_directory: str, commit_hash: str | None = None):
+    commit_hash = commit_hash or subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_directory, capture_output=True, text=True).stdout.strip()
+    return f"{repo_directory}_{commit_hash}_{CACHE_VERSION}"
 
 @file_cache(ignore_params=["sweep_config", "ticket_progress"])
 def prepare_lexical_search_index(
-    repo_directory,
+    repo_directory: str,
     sweep_config: SweepConfig,
-    ticket_progress: TicketProgress | None = None,
-    ref_name: str | None = None,  # used for caching on different refs
     do_not_use_file_cache: bool = False # choose to not cache results
 ):
     snippets, file_list = directory_to_chunks(
         repo_directory, sweep_config, do_not_use_file_cache=do_not_use_file_cache
     )
-    index = prepare_index_from_snippets(
-        snippets,
-        len_repo_cache_dir=len(repo_directory) + 1,
-        do_not_use_file_cache=do_not_use_file_cache,
-    )
+    lexical_cache_key = get_lexical_cache_key()
+    index = lexical_index_cache.get(lexical_cache_key)
+    if index is None:
+        index = prepare_index_from_snippets(
+            snippets,
+            len_repo_cache_dir=len(repo_directory) + 1,
+            do_not_use_file_cache=do_not_use_file_cache,
+        )
+        lexical_index_cache[lexical_cache_key] = index
+
     return file_list, snippets, index
 
 
@@ -255,7 +263,7 @@ if __name__ == "__main__":
     assert repo_directory
     import time
     start = time.time()
-    _, _ , index = prepare_lexical_search_index(repo_directory, sweep_config, None, ref_name=None)
+    _, _ , index = prepare_lexical_search_index(repo_directory, sweep_config, None)
     result = search_index("logger export", index)
     print("Time taken:", time.time() - start)
     # print some of the keys
