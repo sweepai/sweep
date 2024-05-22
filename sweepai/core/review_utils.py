@@ -226,6 +226,13 @@ def smart_prune_file_based_on_patches(file_contents: str, patches: list[Patch], 
     lines = file_contents.splitlines(keepends=True)
     num_of_lines = len(lines)
     patch_ranges = []
+    # if we dont have patches we naively truncate the file to around 100 lines
+    if len(patches) == 0:
+        if len(lines) > 100:
+            return "".join(lines[:100]) + "...\n"
+        else:
+            return file_contents
+
     # sort patches based on new_start
     sorted_patches = sorted(patches, key=lambda patch: patch.new_start)
     for patch in sorted_patches:
