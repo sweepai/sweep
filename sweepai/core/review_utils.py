@@ -565,8 +565,7 @@ class PRReviewBot(ChatGPT):
                                 newly_created_functions[file_name] = []
                             newly_created_functions[file_name].append(FunctionDef(**{**extracted_function, "file_name": file_name}))
                         else:
-                            logger.error(f"Extracted function {extracted_function} was dropped do to incorrect start and end lines!")
-                            print("error")
+                            logger.warning(f"Extracted function was dropped due to incorrect start and end lines!\nFunction:\n{extracted_function}")
             else:
                 newly_created_functions[file_name] = []
         return newly_created_functions
