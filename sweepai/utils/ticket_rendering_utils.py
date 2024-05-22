@@ -658,7 +658,9 @@ def render_pr_review_by_file(
     elif len(dropped_files) > 1:
         dropped_files_string = "".join([f"<li>{file}</li>" for file in dropped_files])
         reviewed_files += f"<p>The following files were not reviewed because our filter identified them as typically non-human-readable or less important files (e.g., dist files, package.json, images). If this is an error, please let us know.</p><ul>{dropped_files_string}</ul>"
-    if unsuitable_files:
+    if len(unsuitable_files) == 1:
+        reviewed_files += f"<p>The following file {unsuitable_files[0][0]} were not reviewed as they were deemed unsuitable for the following reason: {str(unsuitable_files[0][1])}. If this is an error please let us know.</p>"
+    elif len(unsuitable_files) > 1:
         unsuitable_files_string = "".join([f"<li>{file}: {str(exception)}</li>" for file, exception in unsuitable_files])
         reviewed_files += f"<p>The following files were not reviewed as they were deemed unsuitable for a variety of reasons. If this is an error please let us know.</p><ul>{unsuitable_files_string}</ul>"
 
