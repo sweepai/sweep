@@ -413,6 +413,7 @@ function App() {
               variant="secondary"
               onClick={async () => {
                 isStream.current = false;
+                setIsLoading(false);
               }}
             >
               <FaStop />

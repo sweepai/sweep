@@ -210,3 +210,6 @@ WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", None)
 SENTRY_URL = os.environ.get("SENTRY_URL", None)
 
 CACHE_DIRECTORY = os.environ.get("CACHE_DIRECTORY", "/mnt/caches")
+
+assert OPENAI_API_KEY, "OPENAI_API_KEY is required."
+assert COHERE_API_KEY, "COHERE_API_KEY is required."

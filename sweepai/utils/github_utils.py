@@ -328,9 +328,7 @@ class ClonedRepo:
         else:
             try:
                 repo = git.Repo(self.cached_dir)
-                repo.remotes.origin.pull(
-                    kill_after_timeout=60, progress=git.RemoteProgress()
-                )
+                self.git_repo.git.pull(self.clone_url)
             except Exception:
                 logger.warning("Could not pull repo")
                 shutil.rmtree(self.cached_dir, ignore_errors=True)
@@ -339,7 +337,7 @@ class ClonedRepo:
         logger.info("Copying repo...")
         shutil.copytree(
             self.cached_dir, self.repo_dir, symlinks=True, copy_function=shutil.copy
-        )
+        ) # this step is slow, should use system calls
         logger.info("Done copying")
         repo = git.Repo(self.repo_dir)
         return repo
@@ -364,6 +362,10 @@ class ClonedRepo:
             return True
         except Exception:
             return False
+    
+    def pull(self):
+        if self.git_repo:
+            self.git_repo.git.pull(self.clone_url)
 
     def list_directory_tree(
         self,
