@@ -15,7 +15,7 @@ from sweepai.core.review_utils import (
     group_vote_review_pr,
     review_pr_detailed_checks,
 )
-from sweepai.utils.github_utils import ClonedRepo, get_github_client
+from sweepai.utils.github_utils import ClonedRepo, get_github_client, refresh_token
 from sweepai.utils.ticket_rendering_utils import create_update_review_pr_comment
 from sweepai.utils.ticket_utils import fire_and_forget_wrapper
 from sweepai.utils.validate_license import validate_license
@@ -73,21 +73,33 @@ def review_pr(
             error: Exception = None
 
             try:
-                sleep(30) # sleep for 30 seconds to prevent race conditions with github uploading remote branch
-                cloned_repo: ClonedRepo = ClonedRepo(
-                    repository.full_name,
-                    installation_id=installation_id,
-                    token=user_token,
-                    repo=repository,
-                    branch=pr.head.ref,
-                )
+                # check if this is a pr from a forked repo
+                if pr.head.repo.full_name != pr.base.repo.full_name:
+                    error = Exception(
+                        "Sweep does not support reviewing PRs from forked repositories."
+                    )
+                    raise error
+                sleep(10) # sleep for 10 seconds to prevent race conditions with github uploading remote branch
+                try:
+                    cloned_repo: ClonedRepo = ClonedRepo(
+                        repository.full_name,
+                        installation_id=installation_id,
+                        token=user_token,
+                        repo=repository,
+                        branch=pr.head.ref,
+                    )
+                except GitCommandError as e:
+                    raise e
+                except Exception:
+                    error = Exception(
+                        f"Failed to clone repository: {repository.full_name}. This may be because Sweep does not have the necessary permissions to access your repository."
+                    )
+                    raise error
             except GitCommandError as e:
                 raise e
             except Exception as e:
                 logger.error(f"Failure cloning repo in review_pr: {e}")
-                error = Exception(
-                    f"Failed to clone repository: {repository.full_name}. This may be because Sweep does not have the necessary permissions to access your repository."
-                )
+                error = e
 
             # try and update the user to let them know why we can not review the pr.
             # if the error is due to credential issues, this will probably not work
@@ -122,6 +134,11 @@ def review_pr(
                 code_review_by_file,
                 chat_logger=chat_logger,
             )
+            # after 50 minutes have passed refresh token to re get pr
+            if time() - review_pr_start_time > 50 * 60:
+                _, _ , repository = refresh_token(repository.full_name, installation_id)
+                pr = repository.get_pull(pr.number)
+
             _comment_id = create_update_review_pr_comment(
                 username,
                 pr,

@@ -27,8 +27,8 @@ from sweepai.utils.str_utils import add_line_numbers, extract_object_fields_from
 from sweepai.utils.ticket_rendering_utils import parse_issues_from_code_review
 from sweepai.utils.ticket_utils import get_top_k_snippets
 
-# approximately 100k tokens
-MAX_CHAR_BUDGET = 100000 * 3.5
+# approximately 120k tokens
+MAX_CHAR_BUDGET = 120000 * 3.5
 
 def get_pr_diffs(repo: Repository, pr: PullRequest):
     base_sha = pr.base.sha
@@ -129,14 +129,14 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
             suitable, reason = sweep_config.is_file_suitable(new_code)
             if not suitable:
                 errored = True
-                e = UnsuitableFileException(e)
+                e = UnsuitableFileException(reason)
                 unsuitable_files.append((file_name, e))
 
         if errored:
             posthog.capture(
                 "get_pr_changes", 
                 "get_pr_changes error", 
-                properties={"error": str(e), "file_name": file_name}
+                properties={"error": str(e), "file_name": file_name, "pr": str(pr), "repo": str(repo)}
             )
             continue
 
@@ -207,16 +207,28 @@ patch_format = """\
 {annotation}
 </patch_annotation>"""
 
+patch_format_without_annotations = """\
+<patch file_name="{file_name}" index="{index}">
+{diff}
+</patch>"""
+
 # format only the patches for the PRChange
-def format_patches_for_pr_change(pr_change: PRChange):
+def format_patches_for_pr_change(pr_change: PRChange, include_patch_annotations: bool = True):
     patches = ""
     for idx, patch in enumerate(pr_change.patches):
-        patches += patch_format.format(
-            file_name=pr_change.file_name,
-            index=idx + 1,
-            diff=patch.changes,
-            annotation=pr_change.annotations[idx]
-        )
+        if include_patch_annotations:
+            patches += patch_format.format(
+                file_name=pr_change.file_name,
+                index=idx + 1,
+                diff=patch.changes,
+                annotation=pr_change.annotations[idx]
+            )
+        else:
+            patches += patch_format_without_annotations.format(
+                file_name=pr_change.file_name,
+                index=idx + 1,
+                diff=patch.changes,
+            )
         if idx < len(pr_change.patches) - 1:
             patches += "\n"
     return patches
@@ -267,8 +279,11 @@ def format_pr_change(pr_change: PRChange, pr_idx: int=0):
     patches = format_patches_for_pr_change(pr_change)
     numbered_file_contents = add_line_numbers(pr_change.new_code, start=1)
     # enforce context length
-    if len(numbered_file_contents) >= MAX_CHAR_BUDGET:
+    if len(patches + numbered_file_contents) >= MAX_CHAR_BUDGET:
         numbered_file_contents = smart_prune_file_based_on_patches(numbered_file_contents, pr_change.patches)
+    # if we still exceed the budget, we need to remove patch annotations
+    if len(patches + numbered_file_contents) >= MAX_CHAR_BUDGET:
+        patches = format_patches_for_pr_change(pr_change, include_patch_annotations=False)
     return pr_change_with_source_code_unformatted.format(
         file_name=pr_change.file_name,
         patches=patches,
@@ -421,10 +436,15 @@ Below is the file {file_name} with all the above patches applied along with the 
 {numbered_code_file}
 
 # Instructions
-1. Analyze each of the patches above and identify ALL newly created functions.
+1. Analyze each of the patches above and identify ALL newly created functions. To determine if a function is newly created, answer the following:
     1a. Note that if a function is renamed such as having of its parameters changed, or if a function has been reworked meaning the contents of the file has changed, this should not be included as a newly created function.
-    1b. All newly created functions should mean that the function is ENTIRELY new and must have been coded from scratch.
-2. Return the list of all newly created functions in the following xml format:
+    1b. Is the function created from scratch? If not, the function is not newly created.
+    1c. Is there a corresponding patch that shows the creation of the function? If the answer is no, then the function is not newly created. If the answer is yes, give the patch number as proof.
+    1c. Answer these questions in the following xml format:
+<thinking>
+{{Questions and answer for each function that you believe is newly created.}}
+</thinking>
+2. Based on the questions and answers above return the list of all newly created functions in the following xml format:
 <newly_created_functions>
 <function>
 <function_code>

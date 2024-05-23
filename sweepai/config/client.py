@@ -231,6 +231,9 @@ class SweepConfig(BaseModel):
                 for ext in self.exclude_exts:
                     if part.endswith(ext):
                         return True
+                # if there is not extension, then it is likely bad
+                if "." not in part:
+                    return True
         return False
     
     # returns if file is excluded or not, this version may drop actual relevant files
