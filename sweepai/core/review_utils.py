@@ -223,6 +223,8 @@ def format_patches_for_pr_change(pr_change: PRChange):
 
 # prunes a file based on the patches for that file, removes long sections in between
 def smart_prune_file_based_on_patches(file_contents: str, patches: list[Patch], context_lines: int = 10):
+    if not file_contents:
+        return file_contents
     lines = file_contents.splitlines(keepends=True)
     num_of_lines = len(lines)
     patch_ranges = []
