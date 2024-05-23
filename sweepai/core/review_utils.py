@@ -27,6 +27,9 @@ from sweepai.utils.str_utils import add_line_numbers, extract_object_fields_from
 from sweepai.utils.ticket_rendering_utils import parse_issues_from_code_review
 from sweepai.utils.ticket_utils import get_top_k_snippets
 
+# approximately 100k tokens
+MAX_CHAR_BUDGET = 100000 * 3.5
+
 def get_pr_diffs(repo: Repository, pr: PullRequest):
     base_sha = pr.base.sha
     head_sha = pr.head.sha
@@ -218,12 +221,58 @@ def format_patches_for_pr_change(pr_change: PRChange):
             patches += "\n"
     return patches
 
+# prunes a file based on the patches for that file, removes long sections in between
+def smart_prune_file_based_on_patches(file_contents: str, patches: list[Patch], context_lines: int = 10):
+    if not file_contents:
+        return file_contents
+    lines = file_contents.splitlines(keepends=True)
+    num_of_lines = len(lines)
+    patch_ranges = []
+    # if we dont have patches we naively truncate the file to around 100 lines
+    if len(patches) == 0:
+        if len(lines) > 100:
+            return "".join(lines[:100]) + "...\n"
+        else:
+            return file_contents
+
+    # sort patches based on new_start
+    sorted_patches = sorted(patches, key=lambda patch: patch.new_start)
+    for patch in sorted_patches:
+        start = max(0, patch.new_start - context_lines - 1)
+        end = min(num_of_lines - 1, patch.new_start + patch.new_count + context_lines - 1)
+        if len(patch_ranges) == 0:
+            patch_ranges.append((start, end))
+        else: 
+            previous_range = patch_ranges[-1]
+            # combine if overlap
+            if previous_range[1] >= start:
+                patch_ranges[-1] = (previous_range[0], end)
+            else:
+                patch_ranges.append((start, end))
+    # now replace any sections not within the patch ranges with ...
+    new_lines = []
+    for i, range in enumerate(patch_ranges):
+        range_lines = lines[range[0]: range[1] + 1]
+        # with list slicing we can safely extend past the actual length of the array
+        if range[0] != 0:
+            range_lines = ['...\n'] + range_lines
+        # check if we need trailing ...
+        if i == len(patch_ranges) - 1 and range[1] < len(lines) - 1:
+            range_lines = range_lines + ['...\n']
+        new_lines.extend(range_lines)
+    new_file_contents = "".join(new_lines)
+    return new_file_contents
+
 def format_pr_change(pr_change: PRChange, pr_idx: int=0):
     patches = format_patches_for_pr_change(pr_change)
+    numbered_file_contents = add_line_numbers(pr_change.new_code, start=1)
+    # enforce context length
+    if len(numbered_file_contents) >= MAX_CHAR_BUDGET:
+        numbered_file_contents = smart_prune_file_based_on_patches(numbered_file_contents, pr_change.patches)
     return pr_change_with_source_code_unformatted.format(
         file_name=pr_change.file_name,
         patches=patches,
-        file_contents=add_line_numbers(pr_change.new_code, start=1)
+        file_contents=numbered_file_contents
     )
 
 def format_pr_changes_by_file(pr_changes: list[PRChange]) -> dict[str, str]:
@@ -242,6 +291,9 @@ system_prompt_identify_new_functions = """You are an expert programmer with a ke
 system_prompt_identify_repeats = """You are a proficient programmer tasked with identifying repeated or unnecessary functions in a codebase. Your job is to find and highlight any duplicated or redundant function definitions.
 You will be given a function definition that was just added to the codebase and your job will be to check whether or not this function was actually necessary or not given a series of code snippets.
 """
+
+system_prompt_pr_summary = """You are a talented software engineer that excels at summarising pull requests for readability and brevity. You will be analysing a series of patches that represent all the changes made in a specific pull request.
+It is your job to write a short and concise but still descriptive summary that describes what the pull request accomplishes."""
 
 user_prompt = """\
 # Code Review
@@ -425,9 +477,72 @@ Below are a series of code snippets retrieved from the codebase via vector searc
 </solution>
 </redundant_new_function>"""
 
+user_prompt_pr_summary = """Below are all the patches associated with this pull request along with each of their file names
+
+# All Pull Request Patches
+
+{all_patches}
+
+1. Summarise the major changes using the following principles:
+    1a. Begin with a 2-3 line overall summary of what the main goal of the pull request was.
+    1b. Now dive deeper into how the main changes for the pull request were accomplished in order of importance.
+    1c. Never provide "useless" summaries. "useless" summaries are the following: informing the user a variable or function was created without explaining how it contributes the the main goal of the pull request.
+    1d. Instead summarize how the changes were accomplished like this: function `foo` implements feature bar and this had xyz effect of abc.
+    1e. It is okay to not summarize minor changes that do not tie into the main goal of the pull request.
+    1f. Avoid using overly complex language. For example: instead of the word 'utilize' instead use the word 'use'. 
+    1g. Respond in the following xml format:
+<pr_summary>
+{{Provide a detailed summary here. Be sure to reference relevant entities and variables to make it very clear what you are referencing. Speak in past tense. 
+This summary should be maximum 10 sentences. Make sure the summary is not a wall of text, use an adequate amount of new lines.}}
+</pr_summary>
+
+Here are a few example <pr_summary></pr_summary> blocks:
+<example_pr_summary>
+This pull request added support for bulk actions to the admin dashboard.\n\n
+A new `BulkActionDropdown` component in `components/BulkActionDropdown.vue` was created that renders a dropdown menu with options for bulk actions that can be performed on selected items in the admin dashboard.\n
+The existing `ItemList` component in `components/ItemList.vue` was updated to include checkboxes for each item and to enable the `BulkActionDropdown` when one or more items are selected. \n
+A new `bulkDelete` action was added to the item store in `store/item.js` which accepts an array of item IDs and deletes them from the database in a single query. The `BulkActionDropdown` component dispatches this action when the "Delete Selected" option is chosen.\n
+Unit tests were added for the `BulkActionDropdown` component and the `bulkDelete` store action in the `components/BulkActionDropdown.test.js` and `store/item.test.js` files respectively.
+</example_pr_summary>
+<example_pr_summary>
+This pull request adds two factor authentication to the user authentication process.\n\n
+The `loginUser` function in `handlers/auth.js` now calls the new `verifyTwoFactorCode` function located in `utils/auth-utils.js` after validating the user's password. `verifyTwoFactorCode` is responsible for verifying the user's two-factor authentication code.
+\nUnit tests were added for `verifyTwoFactorCode` in `tests/auth.test.js`. These tests covered the following scenarios: providing a valid code, an expired code, and an invalid code.
+\nAdditionally, the documentation in `README.md` was updated to reflect the changes to the authentication flow and now describe the new two-factor authentication step.
+</example_pr_summary>
+"""
+
 CLAUDE_MODEL = "claude-3-opus-20240229"
 
 class PRReviewBot(ChatGPT):
+    # get a comprehensive pr summary
+    def get_pr_summary(self, formatted_patches: str, chat_logger: ChatLogger = None):
+        self.messages = [
+            Message(
+                role="system",
+                content=system_prompt_pr_summary,
+            )
+        ]
+        formatted_user_prompt = user_prompt_pr_summary.format(all_patches=formatted_patches)
+        pr_summary_response = self.chat_anthropic(
+            content=formatted_user_prompt,
+            temperature=0.1,
+            model=CLAUDE_MODEL,
+            use_openai=True,
+        )
+        pr_summary = ""
+        pr_summary_pattern = r"<pr_summary>(?P<pr_summary>.*?)</pr_summary>"
+        pr_summary_match = re.search(pr_summary_pattern, pr_summary_response, re.DOTALL)
+        if pr_summary_match:
+            pr_summary = pr_summary_match.group("pr_summary")
+        if chat_logger:
+            chat_logger.add_chat(
+                {
+                    "model": self.model,
+                    "messages": [{"role": message.role, "content": message.content} for message in self.messages],
+                    "output": "END OF MESSAGES",
+                })
+        return pr_summary
     # fetch all potential issues for each file based on the diffs of that file
     def review_code_changes_by_file(self, pr_changes_by_file: dict[str, str], chat_logger: ChatLogger = None, seed: int | None = None):
         code_reviews_by_file = {}
@@ -867,4 +982,15 @@ def review_pr_detailed_checks(
             code_review_by_file[file_name].issues.extend(new_code_issues)
     
     return code_review_by_file
+
+# get the summary for a pr given all the changes
+def get_pr_summary_from_patches(pr_changes: list[PRChange], chat_logger: ChatLogger | None = None):
+    review_bot = PRReviewBot()
+    formatted_pr_patches = ""
+    for pr_change in pr_changes:
+        file_name = pr_change.file_name
+        patches = format_patches_for_pr_change(pr_change)
+        formatted_pr_patches += f'\n\n<patches file_name="{file_name}">\n{patches}\n</patches>\n\n'
+    pr_summary = review_bot.get_pr_summary(formatted_pr_patches, chat_logger=chat_logger)
+    return pr_summary
     

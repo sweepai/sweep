@@ -6,7 +6,7 @@ from github.PullRequest import PullRequest
 from loguru import logger
 
 from sweepai.chat.api import posthog_trace
-from sweepai.core.review_utils import format_pr_changes_by_file, get_pr_changes, group_vote_review_pr, review_pr_detailed_checks
+from sweepai.core.review_utils import format_pr_changes_by_file, get_pr_changes, get_pr_summary_from_patches, group_vote_review_pr, review_pr_detailed_checks
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.ticket_rendering_utils import create_update_review_pr_comment
 from sweepai.utils.ticket_utils import fire_and_forget_wrapper
@@ -64,12 +64,17 @@ def review_pr(
             # _comment_id = create_update_review_pr_comment(username, pr)
             pr_changes, dropped_files, unsuitable_files = get_pr_changes(repository, pr)
             formatted_pr_changes_by_file = format_pr_changes_by_file(pr_changes)
+            pull_request_summary = get_pr_summary_from_patches(pr_changes, chat_logger=chat_logger)
             # get initial code review by group vote
             code_review_by_file = group_vote_review_pr(username, pr_changes, formatted_pr_changes_by_file, multiprocess=True, chat_logger=chat_logger)
             # do more specific checks now, i.e. duplicated util functions
             code_review_by_file = review_pr_detailed_checks(username, cloned_repo, pr_changes, code_review_by_file, chat_logger=chat_logger)
             _comment_id = create_update_review_pr_comment(
-                username, pr, code_review_by_file=code_review_by_file, dropped_files=dropped_files, unsuitable_files=unsuitable_files
+                username, pr, 
+                code_review_by_file=code_review_by_file, 
+                pull_request_summary=pull_request_summary, 
+                dropped_files=dropped_files, 
+                unsuitable_files=unsuitable_files
             )
         except Exception as e:
             posthog.capture(
