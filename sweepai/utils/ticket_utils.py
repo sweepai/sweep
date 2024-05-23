@@ -142,8 +142,6 @@ def multi_get_top_k_snippets(
         _, snippets, lexical_index = prepare_lexical_search_index(
             cloned_repo.cached_dir,
             sweep_config,
-            ticket_progress,
-            ref_name=f"{str(cloned_repo.git_repo.head.commit.hexsha)}",
             do_not_use_file_cache=do_not_use_file_cache
         )
     logger.info(f"Lexical search index took {timer.time_elapsed} seconds")

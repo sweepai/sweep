@@ -41,7 +41,7 @@ schema = schema_builder.build()
 class CustomIndex:
     def __init__(self, cache_path: str = None):
         os.makedirs(cache_path, exist_ok=True)
-        self.index = tantivy.Index(schema, path=cache_path)
+        self.index = tantivy.Index(schema)
     
     def add_documents(self, documents: Iterable):
         writer = self.index.writer()
