@@ -1,6 +1,7 @@
 import os
-from time import time
+from time import sleep, time
 import traceback
+import backoff
 from git import GitCommandError
 from github.Repository import Repository
 from github.PullRequest import PullRequest
@@ -21,7 +22,11 @@ from sweepai.utils.validate_license import validate_license
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 
-
+@backoff.on_exception(
+    backoff.expo,
+    GitCommandError,
+    max_tries=2,
+)
 @posthog_trace
 def review_pr(
     username: str,
@@ -68,6 +73,7 @@ def review_pr(
             error: Exception = None
 
             try:
+                sleep(15) # sleep for 15 seconds to prevent race conditions with github uploading remote branch
                 cloned_repo: ClonedRepo = ClonedRepo(
                     repository.full_name,
                     installation_id=installation_id,
@@ -75,10 +81,12 @@ def review_pr(
                     repo=repository,
                     branch=pr.head.ref,
                 )
+            except GitCommandError as e:
+                raise e
             except Exception as e:
                 logger.error(f"Failure cloning repo in review_pr: {e}")
                 error = Exception(
-                    f"Failed to clone repository: {repository.full_name}. This may be because the branch {pr.head.ref} associated with this pull request no longer exists or Sweep does not have the necessary permissions to access your repository."
+                    f"Failed to clone repository: {repository.full_name}. This may be because the branch `{pr.head.ref}` associated with this pull request no longer exists or Sweep does not have the necessary permissions to access your repository."
                 )
 
             # try and update the user to let them know why we can not review the pr.
