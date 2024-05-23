@@ -75,9 +75,9 @@ def review_pr(
                     repo=repository,
                     branch=pr.head.ref,
                 )
-            except GitCommandError as e:
+            except Exception as e:
                 logger.error(f"Failure cloning repo in review_pr: {e}")
-                error = GitCommandError(
+                error = Exception(
                     f"Failed to clone repository: {repository.full_name}. This may be because the branch {pr.head.ref} associated with this pull request no longer exists or Sweep does not have the necessary permissions to access your repository."
                 )
 
