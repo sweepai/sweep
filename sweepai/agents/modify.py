@@ -50,7 +50,7 @@ def modify(
     full_instructions = instructions + modify_tools
     chat_gpt.messages = [Message(role="system", content=full_instructions)]
     try:
-        if fcrs[0].change_type == "modify" and (compiled_fcr := compile_fcr(fcrs[0], 0)):
+        if compiled_fcr := compile_fcr(fcrs[0], 0):
             chat_gpt.messages.append(Message(role="user", content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}"))
             function_calls_string = compiled_fcr
             chat_gpt.messages.append(Message( # this will happen no matter what
@@ -61,25 +61,6 @@ def modify(
             # update state if it's bad
             # TODO: handling logic to be moved out
             function_call: AnthropicFunctionCall = validate_and_parse_function_call(function_calls_string, chat_gpt) # this will raise if it's bad but compile_fcr should guarantee it's good
-            if function_call.function_parameters["original_code"] == function_call.function_parameters["new_code"]:
-                current_fcr_index = get_current_task_index(llm_state["fcrs"])
-                llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
-                for fcr in llm_state["fcrs"]:
-                    if not fcr.is_completed:
-                        fcr.is_completed = True # incrementing because we should skip bad calls
-                        break
-                llm_state["attempt_count"] = 0
-                llm_state['current_task'] = render_current_task(llm_state["fcrs"]) # rerender the current task
-                user_response = f"SUCCESS\n\nThe previous task is now complete. Please move on to the next task. {llm_state['current_task']}"
-                llm_state["attempt_lazy_change"] = True
-                llm_state["visited_set"] = set()
-                function_calls_string = chat_gpt.chat_anthropic(
-                    content=user_response,
-                    stop_sequences=["</function_call>"],
-                    model=MODEL,
-                    message_key="user_request",
-                    use_openai=use_openai,
-                )
         else:
             model = MODEL
             logger.info(f"Using model: {model}")
@@ -182,33 +163,10 @@ def modify(
             else:
                 # on first attempt of a new task we use the first fcr
                 if llm_state["attempt_lazy_change"]:
-                    if fcrs[current_fcr_index].change_type == "modify" and (compiled_fcr := compile_fcr(fcrs[current_fcr_index], change_in_fcr_index)):
+                    if compiled_fcr := compile_fcr(fcrs[current_fcr_index], change_in_fcr_index):
                         function_calls_string = compiled_fcr
                         function_call = validate_and_parse_function_call(function_calls_string, chat_gpt) # this will raise if it's bad but compile_fcr should guarantee it's good
                         logger.info(f"Function call:\n{function_call}")
-                        if function_call.function_parameters["original_code"] == function_call.function_parameters["new_code"]:
-                            current_fcr_index = get_current_task_index(llm_state["fcrs"])
-                            llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
-                            for fcr in llm_state["fcrs"]:
-                                if not fcr.is_completed:
-                                    fcr.is_completed = True # incrementing because we should skip bad calls
-                                    break
-                            if all(
-                                fcr.is_completed for fcr in llm_state["fcrs"]
-                            ):
-                                return modify_files_dict
-                            llm_state["attempt_count"] = 0
-                            llm_state['current_task'] = render_current_task(llm_state["fcrs"]) # rerender the current task
-                            llm_state["attempt_lazy_change"] = True
-                            llm_state["visited_set"] = set()
-                            user_response = f"SUCCESS\n\nThe previous task is now complete. Please move on to the next task. {llm_state['current_task']}"
-                            function_calls_string = chat_gpt.chat_anthropic(
-                                content=user_response,
-                                stop_sequences=["</function_call>"],
-                                model=MODEL,
-                                message_key="user_request",
-                                use_openai=use_openai,
-                            )
                         # update messages to make it seem as if it called the fcr
                         chat_gpt.messages.append(Message(
                             role="assistant",

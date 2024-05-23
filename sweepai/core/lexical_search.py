@@ -11,7 +11,7 @@ from redis import Redis
 from tqdm import tqdm
 
 from sweepai.utils.timer import Timer
-from sweepai.config.server import CACHE_DIRECTORY, DEBUG, REDIS_URL
+from sweepai.config.server import CACHE_DIRECTORY, FILE_CACHE_DISABLED, REDIS_URL
 from sweepai.core.entities import Snippet
 from sweepai.core.repo_parsing_utils import directory_to_chunks
 from sweepai.core.vector_db import multi_get_query_texts_similarity
@@ -23,11 +23,10 @@ from sweepai.config.client import SweepConfig
 token_cache = Cache(f'{CACHE_DIRECTORY}/token_cache') # we instantiate a singleton, diskcache will handle concurrency
 CACHE_VERSION = "v1.0.14"
 
-if DEBUG:
-    redis_client = Redis.from_url(REDIS_URL)
-else:
+if FILE_CACHE_DISABLED:
     redis_client = None
-
+else:
+    redis_client = Redis.from_url(REDIS_URL)
 
 
 class CustomIndex:

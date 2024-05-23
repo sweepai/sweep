@@ -311,9 +311,9 @@ def get_gha_enabled(repo: Repository) -> bool:
         return gha_enabled
     except Exception:
         logger.info(
-            "Error when getting gha enabled, falling back to False"
+            "Error when getting gha enabled, falling back to True"
         )
-        return False
+        return True
 
 
 @lru_cache(maxsize=None)
