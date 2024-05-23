@@ -4,7 +4,6 @@ import ast
 from io import StringIO
 import os
 import re
-import shutil
 import subprocess
 from tempfile import TemporaryDirectory
 import tempfile
