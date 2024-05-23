@@ -54,6 +54,10 @@ class CustomIndex:
             self.total_doc_length += doc_length
             for token, freq in token_freq.items():
                 self.inverted_index[token].append((doc_id, freq))
+        
+        if len(self.doc_lengths) > 1000:
+            skipped_tokens = {token for token, value in self.inverted_index.items() if "_" not in token and len(value) == 1}
+            self.inverted_index = {k: v for k, v in tqdm(self.inverted_index.items(), total=len(self.inverted_index)) if not k in skipped_tokens and not any(token in skipped_tokens for token in k.split("_"))}
 
     def bm25(self, doc_id: str, term: str, term_freq: int) -> float:
         num_docs = len(self.doc_lengths)
@@ -106,12 +110,12 @@ def tokenize_code(code: str) -> list[str]:
             for part in variable_pattern.findall(section):
                 if len(part) < 2:
                     continue
-                if len(part) < 10:
-                    tokens.append(part.lower())
+                # if len(part) < 5:
+                #     tokens.append(part.lower())
                 # if more than half of the characters are letters 
                 # and the ratio of unique characters to the number of characters is less than 5
-                elif sum(1 for c in part if 'a' <= c <= 'z' or 'A' <= c <= 'Z') > len(part) // 2 \
-                    and len(part) / len(set(part)) < 5:
+                if sum(1 for c in part if 'a' <= c <= 'z' or 'A' <= c <= 'Z' or '0' <= c <= '9') > len(part) // 2 \
+                    and len(part) / len(set(part)) < 4:
                     tokens.append(part.lower())
 
     bigrams = [f"{tokens[i]}_{tokens[i + 1]}" for i in range(len(tokens) - 1)]
@@ -156,7 +160,6 @@ def prepare_index_from_snippets(
     all_tokens = []
     all_lengths = []
     workers = multiprocessing.cpu_count() // 2
-    # workers = 1
     try:
         if workers > 1:
             with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 2) as p:
@@ -266,7 +269,6 @@ def prepare_lexical_search_index(
 
     with Timer() as timer:
         index = lexical_index_cache.get(lexical_cache_key)
-    # breakpoint()
     if index is None or True:
         index = prepare_index_from_snippets(
             snippets,
