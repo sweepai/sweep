@@ -214,7 +214,7 @@ You will first think step-by-step about the error, and then either rewrite the i
 Analyze extremely carefully in great detail what went wrong, including the file path and the specific code block that needs to be modified. If you have failed to copy code verbatim, indicate precisely what is different between the code you provided and the code in the actual file.
 </thinking>
 
-Then, let's resolve the errors in your proposed plan. If you would like patch the corresponding task of the plan, create a modify or create block with an index. The index should be equivalent to the error number of this error_resolution block, so it must be one of the following integers: {allowed_indices}. Otherwise, if you absolutely cannot resolve the error, drop the task. You must pick exactly ONE of the three options. Follow this format:
+Then, let's resolve the errors in your proposed plan. If you would like to patch the corresponding task of the plan, create a modify or create block with an index. The index should be equivalent to the error number of this error_resolution block, so it must be one of the following integers: {allowed_indices}. Otherwise, if you absolutely cannot resolve the error, drop the task. You must pick exactly ONE of the three options. Follow this format:
 
 Option a: To patch the error as a modify block, follow this format:
 
@@ -241,7 +241,16 @@ All the new code required to be added to the file.
 </new_code>
 </create>
 
-Option c: Otherwise, if you absolutely cannot resolve the error, drop the task like so:
+Option c: To patch a task to create a file with an incorrect file_path (this is preferred if the code does not need to be changed), follow this format:
+
+<create file="file_path" index="0">
+Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, and schemas. Enter COPIED_FROM_PREVIOUS_CREATE to copy the code from the previous change.
+<new_code>
+COPIED_FROM_PREVIOUS_CREATE
+</new_code>
+</create>
+
+Option d: Otherwise, if you absolutely cannot resolve the error, drop the task like so:
 
 <drop>Index of the task to drop</drop>
 </error_resolution>
@@ -664,39 +673,6 @@ Step-by-step thoughts with explanations:
 
 ...
 </plan>"""
-
-create_file_prompt = """You are creating a file of code as part of a PR to solve the GitHub user's request. You will follow the request under "# Request" and respond based on the format under "# Format".
-
-# Request
-
-file_name: "{filename}"
-
-{instructions}
-
-# Format
-
-You MUST respond in the following XML format:
-
-<contextual_request_analysis>
-Concisely analyze the request and list step-by-step thoughts on what to create in each section, with low-level, detailed references to functions, variables, and imports to create, and what each function does. Be as explicit and specific as possible.
-Maximize information density in this section.
-</contextual_request_analysis>
-
-<new_file>
-The contents of the new file. NEVER write comments. All functions and classes will be fully implemented.
-When writing unit tests, they will be complete, extensive, and cover ALL edge cases. You will make up data for unit tests. Create mocks when necessary.
-</new_file>
-
-Commit message: "feat/fix: the commit message\"""".strip()
-
-"""
-Reply in the format below.
-* You MUST use the new_file XML tags
-* DO NOT write ``` anywhere, unless it's markdown
-* DO NOT write "pass" or "Rest of code"
-* Do not literally write "{{new_file}}".
-* Format:
-"""
 
 chunking_prompt = """
 We are handling this file in chunks. You have been provided a section of the code.

@@ -386,7 +386,7 @@ def raise_on_no_file_change_requests(title, summary, edit_sweep_comment, file_ch
                             ),
                             -1,
                         )
-        raise Exception("Sorry, we couldn't find any files to change. Can you please provide the full path to the file you want to change?")
+        raise Exception("Sorry, we failed to make the file changes. Please report this and we will fix it.")
 
 def rewrite_pr_description(issue_number, repo, overrided_branch_name, pull_request, pr_changes):
                 # change the body here
