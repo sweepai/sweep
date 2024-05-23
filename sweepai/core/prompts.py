@@ -193,8 +193,17 @@ Take these steps:
 
 3. List all of the relevant files to reference while making changes, one per line."""
 
+fix_files_to_change_system_prompt = """You proposed a plan previously but there are some errors in your plan. You must resolve these errors before proceeding.
 
-fix_files_to_change_prompt = """You proposed plan a plan. However, your proposed plan has the following errors:
+For each error, follow these steps:
+1. Identify the error and what went wrong.
+2. Select a strategy to fix the error. You have four options:
+    a. Fix invalid contents in the plan.
+    b. Correct a file path. This is preferred if the code does not need to be changed.
+    c. Drop the task.
+"""
+
+fix_files_to_change_prompt = """You proposed a plan. However, your proposed plan has the following errors:
 
 <errors>
 {error_message}
@@ -203,8 +212,6 @@ fix_files_to_change_prompt = """You proposed plan a plan. However, your proposed
 You must resolve these errors before proceeding. Respond in the following format:
 
 <error_resolutions>
-For each error, identify what went wrong and what the fix is. Analyze the contents of the provided file path to find the correct code block that needs to be modified. Update the <original_code> block with the actual code from the file, and then provide the necessary changes in the <new_code> block. Follow the format:
-
 <error_resolution>
 Error #0: Description of the error
 
@@ -214,9 +221,9 @@ You will first think step-by-step about the error, and then either rewrite the i
 Analyze extremely carefully in great detail what went wrong, including the file path and the specific code block that needs to be modified. If you have failed to copy code verbatim, indicate precisely what is different between the code you provided and the code in the actual file.
 </thinking>
 
-Then, let's resolve the errors in your proposed plan. If you would like to patch the corresponding task of the plan, create a modify or create block with an index. The index should be equivalent to the error number of this error_resolution block, so it must be one of the following integers: {allowed_indices}. Otherwise, if you absolutely cannot resolve the error, drop the task. You must pick exactly ONE of the three options. Follow this format:
+Then, let's resolve the errors in your proposed plan. If you would like to patch the corresponding task of the plan, create a modify block with an index. The index should be equivalent to the error number of this error_resolution block, so it must be one of the following integers: {allowed_indices}. Otherwise, if you absolutely cannot resolve the error, drop the task. You must pick exactly ONE of the three options. Follow this format:
 
-Option a: To patch the error as a modify block, follow this format:
+Option a: To patch an invalid modification:
 
 <modify file="file_path" index="0">
 Rewritten instructions to resolve the error. Update the original_code and new_code blocks as required, ensuring that the <original_code> block contains the actual code from the file.
@@ -232,33 +239,21 @@ Updated new code, based on the corrections in <original_code>. Ensure all newly 
 </new_code>
 </modify>
 
-Option b: To patch a task to create a file instead, create a create block like so:
+Option b: To fix an invalid file path, such as a non-existent directory (this is preferred if the code does not need to be changed):
 
-<create file="file_path" index="0">
-Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, and schemas. You may only have one new_code block in this section.
-<new_code>
-All the new code required to be added to the file.
-</new_code>
-</create>
+Enter "COPIED_FROM_PREVIOUS_MODIFY" verbatim into the modify block to copy the code from the previous change.
 
-Option c: To patch a task to create a file with an incorrect file_path (this is preferred if the code does not need to be changed), follow this format:
+<modify file="file_path" index="0">
+COPIED_FROM_PREVIOUS_MODIFY
+</modify>
 
-<create file="file_path" index="0">
-Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, and schemas. Enter COPIED_FROM_PREVIOUS_CREATE to copy the code from the previous change.
-<new_code>
-COPIED_FROM_PREVIOUS_CREATE
-</new_code>
-</create>
-
-Option d: Otherwise, if you absolutely cannot resolve the error, drop the task like so:
+Option c: Otherwise, if you absolutely cannot resolve the error, drop the task like so:
 
 <drop>Index of the task to drop</drop>
 </error_resolution>
 
 [additional <error_resolution> blocks as needed, for the same file or different files]
-</error_resolutions>
-
-Please resolve the errors in your proposed plan."""
+</error_resolutions>"""
 
 test_files_to_change_system_prompt = """You are an AI assistant helping an intern write tests to validate his code that aims to resolve a GitHub issue. The user will provide code files, a description of the issue, and relevant parts of the codebase.
 Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
@@ -380,24 +375,22 @@ Take these steps:
             - Start with a function header.
         Step 2. Write the new code in <new_code> tags, specifying necessary imports and including relevant type definitions, interfaces, and schemas.
             - BE EXACT as this code will replace the mentioned <original_code>.
-        Step 3. Determine if this is a change that occurs EXACTLY in other parts of the same file. If so, add a <replace_all>true</replace_all> flag.
-
-3. List all of the relevant files to reference while making changes, one per line."""
+        Step 3. Look carefully to find all similar changes (potentially unreported) in the code that need to be made in other parts of the same file. Address those as well."""
 
 gha_files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve the errors in his code while also resolving the GitHub issue.
 
 You will analyze the provided issue, error log, relevant parts of the codebase, and changes he's made to understand the requested change. Create a step-by-step plan for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code files and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
 
 Guidelines:
+<guidelines>
 - Always include the full file path and reference the provided files 
-- Provide clear instructions for updating the code, specifying necessary imports
-- Reference relevant type definitions, interfaces, and schemas 
-- Ensure your plan is complete and covers all necessary changes to fully resolve the issue
-- Suggest high-quality, safe, maintainable, efficient and backwards compatible changes
 - Prioritize using existing code and utility methods to minimize writing new code
+- Break the task into small steps, with each <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file, such as for imports.
+- A <modify> block must contain exactly one change in one <new_code> tag.
 - To remove code, replace it with empty <new_code> tags.
-- Break the task into small steps, with each <create> or <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file. However, if a particular change is repeated exactly across an entire file, use <replace_all>true</replace_all>.
+- If imports are necessary, place them in a separate <modify> block. Use multiple <modify> blocks for the same file to separate distinct changes.
 - Do not make a change that has already been made by the intern.
+<guidelines>
 
 Please use the following XML format for your response:
 
@@ -424,12 +417,11 @@ List ALL the types of error messages in the error logs and their root causes. Fo
 There are a total of X errors in the error logs:
 
 <error_analysis index="1">
-Error message 1: Copy the full error message here VERBOSE, abbreviations, paraphrasing, ellipses, and placeholder comments are not permitted.
-- This is for one type of error message. If multiple errors are occurring due to the same root cause, group them together.
-- Count the number of occurrences of this error and list all of the particular tests that raised it.
-- Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code. Most of the time, the test case has yet to be updated.
-- Explain how to resolve the error in the test case. Be complete and precise.
-- Indicate whether this exact fix is required in multiple places in the same file.
+Error message 1: Identify the error message. If multiple errors are occurring due to the same root cause, group them together.
+1. Then, find all lines of code that may have the same failure as the erroring lines of code.
+2. Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code. Most of the time, the test case has yet to be updated.
+3. Explain how to resolve the error in the test case. Be complete and precise.
+4. Look carefully to find all similar changes (potentially unreported) in the code that need to be made in other parts of the same file. Address those as well.
 
 Then, based on the analysis, propose a fix by following the format below. If the error has already been fixed, you can skip this step.
 
@@ -446,12 +438,12 @@ b. Describe the changes that need to be made to the code, i.e. the test case sho
 Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
 </new_code>
 
-c. (Optional) Identify whether this is a change that needs to be applied exactly in other places of this file. If so, add <replace_all>true</replace_all> to replace all instances of the <original_code> in the file with the <new_code>.
-
 Use multiple <modify> blocks for the same file to separate distinct changes, such as for imports.
 </modify>
+
+Then, determine if there are similar issues that we should also resolve. Make similar additional modify blocks as needed.
 </error_analysis>
-[additional <error_analysis> blocks as needed, for ALL error messages in the error logs]
+[additional <error_analysis> blocks as needed, for ALL error messages in the error logs
 </plan>""" # + files_to_change_example TODO: test separately
 
 plan_selection_prompt = """Critique the pros and cons of each plan based on the following guidelines, prioritizing thoroughness and correctness over potential performance overhead: 

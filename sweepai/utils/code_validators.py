@@ -14,7 +14,6 @@ import uuid
 
 from pylint.lint import Run
 from pylint.reporters.text import TextReporter
-import tiktoken
 from loguru import logger
 from tree_sitter import Node, Parser, Language
 from tree_sitter_languages import get_parser as tree_sitter_get_parser
@@ -24,6 +23,8 @@ import tree_sitter_javascript
 from sweepai.core.entities import Snippet
 from sweepai.logn.cache import file_cache
 from sweepai.utils.fuzzy_diff import patience_fuzzy_additions
+
+AVG_CHAR_IN_LINE = 60
 
 def get_parser(language: str):
     parser = Parser()
@@ -84,7 +85,6 @@ class Span:
         return self.end - self.start
 
 
-AVG_CHAR_IN_LINE = 60
 
 
 def chunk_tree(
@@ -536,68 +536,60 @@ def get_check_results(file_path: str, code: str, last_fcr_for_file=False) -> Che
                     pass
     return CheckResults()
 
-def check_code(file_path: str, code: str) -> tuple[bool, str]:
-    is_valid, error_message = check_syntax(file_path, code)
-    if not is_valid:
-        return is_valid, error_message
-    ext = file_path.split(".")[-1] # noqa
-    if ext == "py":
-        file_hash = uuid.uuid4().hex
-        new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
-        stem = os.path.splitext(os.path.basename(file_path))[0]
-        try:
-            with open(new_file, "w") as f:
-                f.write(code)
-            pylint_output = StringIO()
-            reporter = TextReporter(pylint_output)
-            Run(
-                [
-                    new_file,
-                    "--errors-only",
-                    "--disable=import-error",
-                    "--disable=no-member",
-                    "--disable=relative-beyond-top-level",
-                ],
-                reporter=reporter,
-                exit=False,
-            )
-            error_message = pylint_output.getvalue().strip()
+PRETTIERRC_FILES = [
+    ".prettierrc",
+    ".prettierrc.json",
+    ".prettierrc.yaml",
+    ".prettierrc.yml",
+    ".prettierrc.js",
+    "prettier.config.js",
+]
+
+def format_file(file_path: str, code: str, cwd: str | None = None) -> str:
+    """
+    Currently only supports JavaScript, TypeScript, and JSX.
+    """
+    file_name, ext = os.path.splitext(file_path)
+    ext = ext.removeprefix(".")
+    if ext in ("js", "jsx", "ts", "tsx"):
+        prettier_config_path, prettier_config_contents = None, None
+        for prettierrc_file in PRETTIERRC_FILES:
+            full_path = os.path.join(cwd, prettierrc_file)
+            if os.path.exists(full_path):
+                # shutil.copy2(os.path.join(cwd, prettierrc_file), temp_dir)
+                prettier_config_path = prettierrc_file
+                with open(full_path, "r") as f:
+                    prettier_config_contents = f.read()
+                break
+                
+        if not prettier_config_path or not prettier_config_contents:
+            return code
+
+        with TemporaryDirectory(dir=os.getcwd()) as temp_dir:
+            """
+            Check if there is a prettierrc file in the current directory and copy it to the temp directory.
+            If there is no prettierrc file, return the original code.
+            """
+            with open(os.path.join(temp_dir, prettierrc_file), "w") as f:
+                f.write(prettier_config_contents)
+            npx_commands = ["npx", "prettier", "--stdin-filepath", file_path]
             try:
-                os.remove(new_file)
-            except FileNotFoundError:
-                pass
-            if not error_message.startswith("------------------------------------"):
-                error_message = error_message.replace(new_file, file_path).replace(f"{file_hash}_" + stem, stem)
-                error_message = error_message.split("-----------------------------------", 1)[0].strip()
-                error_message = f"> pylint {file_path}\n\n" + error_message
-                return False, error_message
-        except Exception as e:
-            logger.exception(e)
-    if ext == "ts":
-        # see if eslint is installed
-        result = subprocess.run(
-            ["npx", "eslint", "--version"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if result.returncode != 0:
-            with TemporaryDirectory() as temp_dir:
-                new_file = os.path.join(temp_dir, "temp.ts")
-                with open(os.path.join(temp_dir, ".eslintrc"), "w") as f:
-                    f.write(DEFAULT_ESLINTRC)
-                with open(new_file, "w") as f:
-                    f.write(code)
                 result = subprocess.run(
-                    ["npx", "eslint", new_file, "--config", ".eslintrc"],
+                    " ".join(npx_commands),
+                    input=code,
                     capture_output=True,
                     text=True,
-                    timeout=5,
+                    shell=True,
+                    cwd=temp_dir,
                 )
                 if result.returncode != 0:
-                    return False, result.stdout + "\n\n" + result.stderr
-    return True, ""
-
+                    logger.error(result.stderr)
+                    return code
+                return result.stdout
+            except Exception as e:
+                logger.error(e)
+                return code
+    return code
 
 # @file_cache()
 def chunk_code(
@@ -646,61 +638,6 @@ def chunk_code(
         return []
 
 
-TIKTOKEN_CACHE_DIR = "/tmp/cache/tiktoken"
-
-
-class Tiktoken:
-    def __init__(self):
-        openai_models = [
-            "gpt-3.5-turbo",
-            "gpt-3.5-turbo-1106",
-            "gpt-4",
-            "gpt-4-32k",
-            "gpt-4-32k-0613",
-            "gpt-4-1106-preview",
-            "gpt-4-0125-preview",
-        ]
-        self.openai_models = {
-            model: tiktoken.encoding_for_model(model) for model in openai_models
-        }
-
-    def count(self, text: str, model: str = "gpt-4") -> int:
-        return len(self.openai_models[model].encode(text, disallowed_special=()))
-
-    def truncate_string(
-        self, text: str, model: str = "gpt-4", max_tokens: int = 8192
-    ) -> str:
-        tokens = self.openai_models[model].encode(text)[:max_tokens - 1]
-        return self.openai_models[model].decode(tokens)
-
-
-test_code = """
-import React from 'react';
-import { render } from '@testing-library/react';
-import CallToAction from '../components/CallToAction';
-describe('CallToAction component', () => {
-  it('renders the correct YouTube video link', () => {
-    const { getByTitle } = render(<CallToAction />);
-    const iframeElement = getByTitle('YouTube video player');
-    expect(iframeElement.getAttribute('src')).toBe('https://www.youtube.com/embed/GVEkDZmWw8E?autoplay=1&mute=1&loop=1&vq=hd1080&modestbranding=1&controls=0');
-    it('has a button with the correct color properties', () => {
-    const { getByRole } = render(<CallToAction />);
-    const buttonElement = getByRole('button', { name: /install sweep/i });
-    expect(buttonElement).toHaveStyle({
-      colorScheme: 'green',
-      bg: 'green.400',
-      _hover: { bg: 'green.600' }
-    });
-  });
-});
-"""
-
-test_code = """
-x = "test"
-
-import numpy
-"""
-
 def get_function_name(file_name: str, source_code: str, line_number: int):
     ext = file_name.split(".")[-1]
     if ext in extension_to_language:
@@ -737,9 +674,33 @@ def get_function_name(file_name: str, source_code: str, line_number: int):
     return function_name
 
 if __name__ == "__main__":
-    # print(check_code("main.tsx", test_code))
-    # print(get_check_results("main.py", test_code))
-    code = """import {
+    test_code = """
+import React from 'react';
+import { render } from '@testing-library/react';
+import CallToAction from '../components/CallToAction';
+describe('CallToAction component', () => {
+  it('renders the correct YouTube video link', () => {
+    const { getByTitle } = render(<CallToAction />);
+    const iframeElement = getByTitle('YouTube video player');
+    expect(iframeElement.getAttribute('src')).toBe('https://www.youtube.com/embed/GVEkDZmWw8E?autoplay=1&mute=1&loop=1&vq=hd1080&modestbranding=1&controls=0');
+    it('has a button with the correct color properties', () => {
+    const { getByRole } = render(<CallToAction />);
+    const buttonElement = getByRole('button', { name: /install sweep/i });
+    expect(buttonElement).toHaveStyle({
+      colorScheme: 'green',
+      bg: 'green.400',
+      _hover: { bg: 'green.600' }
+    });
+  });
+});
+"""
+
+    test_code = """
+x = "test"
+
+import numpy
+"""
+    typescript_code = """import {
     Flex,
     Container,
     Heading,
@@ -769,8 +730,6 @@ export default function CallToAction() {
     );
 }
 """
-   
-if __name__ == "__main__":
     python_code = """\
 import math
 import pandas
@@ -778,13 +737,15 @@ import pandas
 def get_circle_area(radius: float) -> float:
     return math.pi * radius ** 2
 """
-    function_name = get_function_name("main.ts", code, 20)
+    print(get_check_results("main.py", test_code))
+    formatted_code = format_file("main.tsx", typescript_code, cwd="sweep_chat")
+    function_name = get_function_name("main.ts", typescript_code, 20)
     print(function_name)
     function_name = get_function_name("main.py", python_code, 3)
     print(function_name)
     # new_code = """console.log("hello world")"""
     # check_results = check_syntax("test.js", new_code)
-    check_results = get_check_results("test.tsx", code)
+    check_results = get_check_results("test.tsx", typescript_code)
     check_results = get_check_results("test.py", python_code)
     assert check_results.pylint == "" # this should pass
     check_results = get_check_results("test.py", python_code, last_fcr_for_file=True)

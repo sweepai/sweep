@@ -670,12 +670,17 @@ def on_ticket(
             GITHUB_ACTIONS_ENABLED = get_gha_enabled(repo=repo) and DEPLOYMENT_GHA_ENABLED
             GHA_MAX_EDIT_ATTEMPTS = 5 # max number of times to edit PR
             current_commit = pr.head.sha
-            while True and GITHUB_ACTIONS_ENABLED:
+
+            main_runs: list[WorkflowRun] = list(repo.get_workflow_runs(branch=repo.default_branch, head_sha=pr.base.sha))
+            main_passing = all([run.conclusion in ["success", None] for run in main_runs]) and any([run.conclusion == "success" for run in main_runs])
+
+            while True and GITHUB_ACTIONS_ENABLED and main_passing:
                 logger.info(
                     f"Polling to see if Github Actions have finished... {total_poll_attempts}"
                 )
                 # we wait at most 60 minutes
                 if total_poll_attempts * SLEEP_DURATION_SECONDS // 60 >= 60:
+                    logger.debug("Polling for Github Actions has taken too long, giving up.")
                     break
                 else:
                     # wait one minute between check attempts
@@ -688,7 +693,7 @@ def on_ticket(
                 current_commit = repo.get_pull(pr.number).head.sha # IMPORTANT: resync PR otherwise you'll fetch old GHA runs
                 runs: list[WorkflowRun] = list(repo.get_workflow_runs(branch=pr.head.ref, head_sha=current_commit))
                 # if all runs have succeeded or have no result, break
-                if all([run.conclusion in ["success", None] for run in runs]):
+                if all([run.conclusion in ["success", None] for run in runs]) and any([run.conclusion == "success" for run in runs]):
                     break
                 # if any of them have failed we retry
                 if any([run.conclusion == "failure" for run in runs]):

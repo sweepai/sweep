@@ -165,6 +165,8 @@ def create_error_logs(
         else ""
     )
 
+def remove_ansi_tags(logs: str) -> str:
+    return re.sub(r"\x1b\[[0-9;]*m", "", logs)
 
 # takes in a list of workflow runs and returns a list of messages containing the logs of the failing runs
 def get_failing_gha_logs(runs, installation_id) -> str:
@@ -231,7 +233,7 @@ def get_failing_gha_logs(runs, installation_id) -> str:
             logger.error(
                 "Failed to get logs for failing github actions, likely a credentials issue"
             )
-    return all_logs
+    return remove_ansi_tags(all_logs)
 
 
 def delete_old_prs(repo: Repository, issue_number: int):
