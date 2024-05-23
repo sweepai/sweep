@@ -6,6 +6,7 @@ from sweepai.agents.modify_utils import (NO_TOOL_CALL_PROMPT, SLOW_MODEL, create
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message
 from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.code_validators import format_file
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
@@ -218,6 +219,12 @@ def modify(
             break
     else:
         logger.error("Max iterations reached")
+
+    for file_path, file_data in modify_files_dict.items():
+        file_data["contents"] = format_file(
+            file_path, file_data["contents"], cloned_repo.repo_dir
+        )
+
     diff_string = ""
     for file_name, file_data in modify_files_dict.items():
         if diff := generate_diff(
