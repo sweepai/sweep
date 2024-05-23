@@ -547,16 +547,32 @@ PRETTIERRC_FILES = [
 ]
 
 def format_file(file_path: str, code: str, cwd: str | None = None) -> str:
+    """
+    Currently only supports JavaScript, TypeScript, and JSX.
+    """
     file_name, ext = os.path.splitext(file_path)
     ext = ext.removeprefix(".")
     if ext in ("js", "jsx", "ts", "tsx"):
+        prettier_config_path, prettier_config_contents = None, None
+        for prettierrc_file in PRETTIERRC_FILES:
+            full_path = os.path.join(cwd, prettierrc_file)
+            if os.path.exists(full_path):
+                # shutil.copy2(os.path.join(cwd, prettierrc_file), temp_dir)
+                prettier_config_path = prettierrc_file
+                with open(full_path, "r") as f:
+                    prettier_config_contents = f.read()
+                break
+                
+        if not prettier_config_path or not prettier_config_contents:
+            return code
+
         with TemporaryDirectory(dir=os.getcwd()) as temp_dir:
-            for prettierrc_file in PRETTIERRC_FILES:
-                if os.path.exists(os.path.join(cwd, prettierrc_file)):
-                    shutil.copy2(os.path.join(cwd, prettierrc_file), temp_dir)
-                    break
-            else:
-                return code
+            """
+            Check if there is a prettierrc file in the current directory and copy it to the temp directory.
+            If there is no prettierrc file, return the original code.
+            """
+            with open(os.path.join(temp_dir, prettierrc_file), "w") as f:
+                f.write(prettier_config_contents)
             npx_commands = ["npx", "prettier", "--stdin-filepath", file_path]
             try:
                 result = subprocess.run(
@@ -725,7 +741,6 @@ def get_circle_area(radius: float) -> float:
 """
     print(get_check_results("main.py", test_code))
     formatted_code = format_file("main.tsx", typescript_code, cwd="sweep_chat")
-    breakpoint()
     function_name = get_function_name("main.ts", typescript_code, 20)
     print(function_name)
     function_name = get_function_name("main.py", python_code, 3)
