@@ -774,7 +774,7 @@ class PRReviewBot(ChatGPT):
                 repeated_function, _, failed_param = extract_object_fields_from_string(repeated_functions_response, repeated_function_params)
                 # if extraction fails
                 if failed_param == "answer":
-                    logger.error(f"Failure in extract_object_fields_from_string")
+                    logger.error("Failure in extract_object_fields_from_string")
                     posthog.capture(
                         "extract_object_fields_from_string", "extract_object_fields_from_string failed", properties={"text": repeated_functions_response, "params": str(repeated_function_params)}
                     )
