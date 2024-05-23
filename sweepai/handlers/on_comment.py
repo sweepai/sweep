@@ -247,7 +247,8 @@ def on_comment(
                 pr_file = repo.get_contents(
                     pr_path, ref=branch_name
                 ).decoded_content.decode("utf-8")
-                pr_lines = pr_file.splitlines()
+                # splitlines returns empty array if the string is empty, split(\n) returns ['']
+                pr_lines = pr_file.split('\n')
                 start = max(0, pr_line_position - 11)
                 end = min(len(pr_lines), pr_line_position + 10)
                 pr_chunk = "\n".join(pr_lines[start:end])
