@@ -6,7 +6,7 @@ from tqdm import tqdm
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 from sweepai.logn.cache import file_cache
-from sweepai.utils.utils import chunk_code
+from sweepai.utils.tiktoken_utils import chunk_code
 
 CLAUDE_MODEL = "claude-3-haiku-20240307"
 NUM_WORKERS = 4 # tune based on haiku rate limit

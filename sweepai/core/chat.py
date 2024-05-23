@@ -34,7 +34,7 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.image_utils import create_message_with_images
 from sweepai.utils.openai_proxy import OpenAIProxy
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.utils import Tiktoken
+from sweepai.utils.tiktoken_utils import Tiktoken
 from parea import Parea
 
 parea_client = None
