@@ -798,6 +798,12 @@ def sanitize_string_for_github(message: str):
             message = message.replace(secret, "*" * len(secret))
     return message
 
+# refresh user token, github client and repo object
+def refresh_token(repo_full_name: str, installation_id: int):
+    user_token, g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
+    return user_token, g, repo
+
 
 try:
     try:

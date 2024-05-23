@@ -57,6 +57,7 @@ from sweepai.utils.github_utils import (
     convert_pr_draft_field,
     create_branch,
     get_github_client,
+    refresh_token,
     sanitize_string_for_github,
     validate_and_sanitize_multi_file_changes,
 )
@@ -263,11 +264,6 @@ def on_ticket(
             initial_sandbox_response = -1
             initial_sandbox_response_file = None
 
-            def refresh_token():
-                user_token, g = get_github_client(installation_id)
-                repo = g.get_repo(repo_full_name)
-                return user_token, g, repo
-
             def edit_sweep_comment(
                 message: str,
                 index: int,
@@ -455,7 +451,7 @@ def on_ticket(
                 raise e
 
             _user_token, g = get_github_client(installation_id)
-            user_token, g, repo = refresh_token()
+            user_token, g, repo = refresh_token(repo_full_name, installation_id)
             cloned_repo.token = user_token
             repo = g.get_repo(repo_full_name)
 
@@ -599,7 +595,7 @@ def on_ticket(
             try:
                 current_issue = repo.get_issue(number=issue_number)
             except BadCredentialsException:
-                user_token, g, repo = refresh_token()
+                user_token, g, repo = refresh_token(repo_full_name, installation_id)
                 cloned_repo.token = user_token
 
             pr_changes = MockPR(
@@ -642,7 +638,7 @@ def on_ticket(
             try:
                 pr.add_to_assignees(username)
             except Exception as e:
-                logger.error(
+                logger.warning(
                     f"Failed to add assignee {username}: {e}, probably a bot."
                 )
 
