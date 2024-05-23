@@ -46,13 +46,14 @@ jobs:
       - run: pip install uv
       - run: uv venv
       - run: source .venv/bin/activate
+      - run: echo ".venv/bin" >> $GITHUB_PATH
         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
       - run: uv pip install -r requirements.txt
         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
       - run: uv pip install ruff pylint pytest pytest-xdist black
         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
       - name: Format with Black
-        run: .venv/bin/black sweepai
+        run: black sweepai
 
       - name: Lint with Ruff
         run: ruff check sweepai
