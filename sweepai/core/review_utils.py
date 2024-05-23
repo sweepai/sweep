@@ -207,16 +207,28 @@ patch_format = """\
 {annotation}
 </patch_annotation>"""
 
+patch_format_without_annotations = """\
+<patch file_name="{file_name}" index="{index}">
+{diff}
+</patch>"""
+
 # format only the patches for the PRChange
-def format_patches_for_pr_change(pr_change: PRChange):
+def format_patches_for_pr_change(pr_change: PRChange, include_patch_annotations: bool = True):
     patches = ""
     for idx, patch in enumerate(pr_change.patches):
-        patches += patch_format.format(
-            file_name=pr_change.file_name,
-            index=idx + 1,
-            diff=patch.changes,
-            annotation=pr_change.annotations[idx]
-        )
+        if include_patch_annotations:
+            patches += patch_format.format(
+                file_name=pr_change.file_name,
+                index=idx + 1,
+                diff=patch.changes,
+                annotation=pr_change.annotations[idx]
+            )
+        else:
+            patches += patch_format_without_annotations.format(
+                file_name=pr_change.file_name,
+                index=idx + 1,
+                diff=patch.changes,
+            )
         if idx < len(pr_change.patches) - 1:
             patches += "\n"
     return patches
@@ -269,6 +281,9 @@ def format_pr_change(pr_change: PRChange, pr_idx: int=0):
     # enforce context length
     if len(patches + numbered_file_contents) >= MAX_CHAR_BUDGET:
         numbered_file_contents = smart_prune_file_based_on_patches(numbered_file_contents, pr_change.patches)
+    # if we still exceed the budget, we need to remove patch annotations
+    if len(patches + numbered_file_contents) >= MAX_CHAR_BUDGET:
+        patches = format_patches_for_pr_change(pr_change, include_patch_annotations=False)
     return pr_change_with_source_code_unformatted.format(
         file_name=pr_change.file_name,
         patches=patches,
