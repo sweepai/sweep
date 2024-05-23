@@ -436,10 +436,15 @@ Below is the file {file_name} with all the above patches applied along with the 
 {numbered_code_file}
 
 # Instructions
-1. Analyze each of the patches above and identify ALL newly created functions.
+1. Analyze each of the patches above and identify ALL newly created functions. To determine if a function is newly created, answer the following:
     1a. Note that if a function is renamed such as having of its parameters changed, or if a function has been reworked meaning the contents of the file has changed, this should not be included as a newly created function.
-    1b. All newly created functions should mean that the function is ENTIRELY new and must have been coded from scratch.
-2. Return the list of all newly created functions in the following xml format:
+    1b. Is the function created from scratch? If not, the function is not newly created.
+    1c. Is there a corresponding patch that shows the creation of the function? If the answer is no, then the function is not newly created. If the answer is yes, give the patch number as proof.
+    1c. Answer these questions in the following xml format:
+<thinking>
+{{Questions and answer for each function that you believe is newly created.}}
+</thinking>
+2. Based on the questions and answers above return the list of all newly created functions in the following xml format:
 <newly_created_functions>
 <function>
 <function_code>
