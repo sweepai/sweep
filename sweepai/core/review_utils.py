@@ -779,6 +779,7 @@ class PRReviewBot(ChatGPT):
                         "extract_object_fields_from_string", "extract_object_fields_from_string failed", properties={"text": repeated_functions_response, "params": str(repeated_function_params)}
                     )
                 else:
+                    print("test")
                     # case insensitive match
                     answer_true = r'true'
                     if bool(re.search(answer_true, repeated_function['answer'], re.IGNORECASE)):
