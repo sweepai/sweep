@@ -796,3 +796,6 @@ def on_ticket(
         )
         logger.info("on_ticket success in " + str(round(time() - on_ticket_start_time)))
         return {"success": True}
+
+if __name__ == "__main__":
+    print("test")
