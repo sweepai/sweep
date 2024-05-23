@@ -65,8 +65,18 @@ def get_token(installation_id: int):
             raise SystemExit
         except Exception:
             time.sleep(timeout)
+    signing_key = GITHUB_APP_PEM
+    app_id = GITHUB_APP_ID
+    exception_message = "Could not get token."
+    if not signing_key:
+        exception_message += " Missing GITHUB_APP_PEM in the .env file."
+    if not app_id:
+        exception_message += " Missing GITHUB_APP_ID in the .env file."
+    if signing_key and app_id:
+        exception_message += "Please double check that Sweep has the correct permissions to access your repository."
+
     raise Exception(
-        "Could not get token, please double check your GITHUB_APP_PEM and GITHUB_APP_ID in the .env file."
+        exception_message
     )
 
 
