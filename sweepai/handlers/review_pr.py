@@ -90,7 +90,7 @@ def review_pr(
                     )
                 except GitCommandError as e:
                     raise e
-                except Exception as e:
+                except Exception:
                     error = Exception(
                         f"Failed to clone repository: {repository.full_name}. This may be because Sweep does not have the necessary permissions to access your repository."
                     )
