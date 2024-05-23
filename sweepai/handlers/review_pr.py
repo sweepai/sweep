@@ -73,7 +73,7 @@ def review_pr(
             error: Exception = None
 
             try:
-                sleep(15) # sleep for 15 seconds to prevent race conditions with github uploading remote branch
+                sleep(30) # sleep for 30 seconds to prevent race conditions with github uploading remote branch
                 cloned_repo: ClonedRepo = ClonedRepo(
                     repository.full_name,
                     installation_id=installation_id,
