@@ -810,7 +810,6 @@ except Exception:
     CURRENT_USERNAME = g.get_user().login
 
 if __name__ == "__main__":
-    print("test")
     try:
         organization_name = "sweepai"
         sweep_config = SweepConfig()
