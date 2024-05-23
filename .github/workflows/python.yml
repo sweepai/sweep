@@ -52,7 +52,7 @@ jobs:
       - run: uv pip install ruff pylint pytest pytest-xdist black
         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
       - name: Format with Black
-        run: black sweepai
+        run: .venv/bin/black sweepai
 
       - name: Lint with Ruff
         run: ruff check sweepai
