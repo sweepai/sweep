@@ -43,6 +43,7 @@ def get_jwt():
 
 def get_token(installation_id: int):
     if int(installation_id) < 0:
+        logger.error(f"installation_id is {installation_id}, using GITHUB_PAT instead.")
         return os.environ["GITHUB_PAT"]
     for timeout in [5.5, 5.5, 10.5]:
         try:
