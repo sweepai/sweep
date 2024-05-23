@@ -44,6 +44,8 @@ jobs:
       - run: echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
       - run: pip install uv
+      - run: uv venv
+      - run: source .venv/bin/activate
         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
       - run: uv pip install -r requirements.txt
         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
