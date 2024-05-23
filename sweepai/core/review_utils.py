@@ -136,7 +136,7 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
             posthog.capture(
                 "get_pr_changes", 
                 "get_pr_changes error", 
-                properties={"error": str(e), "file_name": file_name}
+                properties={"error": str(e), "file_name": file_name, "pr": str(pr), "repo": str(repo)}
             )
             continue
 
