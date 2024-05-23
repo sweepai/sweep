@@ -692,8 +692,23 @@ class PRReviewBot(ChatGPT):
                 for extracted_function in extracted_functions:
                     # do some basic double checking, make sure the start and end lines make sense
                     # the start and end lines should fall within the start and end of one patch, if they dont, then it is clearly wrong
-                    start = int(extracted_function.get('start_line', -1))
-                    end = int(extracted_function.get('end_line', -1))
+                    try:
+                        start = int(extracted_function.get("start_line", -1))
+                        end = int(extracted_function.get("end_line", -1))
+                    except ValueError as e:  # invalid start and end lines
+                        logger.error(
+                            "Non fatal error in identify_functions_in_patches attempting to extract start and end lines."
+                        )
+                        posthog.capture(
+                            "identify_repeated_functions",
+                            "identify_repeated_functions error line_numbers",
+                            properties={
+                                "error": str(e),
+                                "extracted_function": str(extracted_function),
+                            },
+                        )
+                        start = -1
+                        end = -1
                     if start != -1 and end != -1:
                         valid_function = False
                         for patch in patches:

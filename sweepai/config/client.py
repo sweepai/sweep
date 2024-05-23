@@ -223,9 +223,14 @@ class SweepConfig(BaseModel):
     # returns if file is excluded or not
     def is_file_excluded(self, file_path: str) -> bool:
         parts = file_path.split(os.path.sep)
-        for part in parts:
-            if part in self.exclude_dirs or part in self.exclude_exts:
+        for i, part in enumerate(parts):
+            if part in self.exclude_dirs:
                 return True
+            # check extension of file
+            if i == len(parts) - 1:
+                for ext in self.exclude_exts:
+                    if part.endswith(ext):
+                        return True
         return False
     
     # returns if file is excluded or not, this version may drop actual relevant files
