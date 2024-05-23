@@ -78,7 +78,7 @@ def review_pr(
             except GitCommandError as e:
                 logger.error(f"Failure cloning repo in review_pr: {e}")
                 error = GitCommandError(
-                    f"Failed to clone repository: {repository.full_name}. This may be because the branch associated with this pull request no longer exists or Sweep does not have the necessary permissions to access your repository."
+                    f"Failed to clone repository: {repository.full_name}. This may be because the branch {pr.head.ref} associated with this pull request no longer exists or Sweep does not have the necessary permissions to access your repository."
                 )
 
             # try and update the user to let them know why we can not review the pr.
