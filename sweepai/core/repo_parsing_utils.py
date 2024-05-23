@@ -11,7 +11,8 @@ from sweepai.config.client import SweepConfig
 from sweepai.config.server import CACHE_DIRECTORY
 from sweepai.core.entities import Snippet
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
-from sweepai.utils.tiktoken_utils import Tiktoken, chunk_code
+from sweepai.utils.tiktoken_utils import Tiktoken
+from sweepai.utils.code_validators import chunk_code
 from sweepai.utils.timer import Timer
 from diskcache import Cache
 

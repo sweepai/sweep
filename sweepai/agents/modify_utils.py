@@ -14,7 +14,7 @@ from sweepai.core.entities import FileChangeRequest
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo
-from sweepai.utils.modify_utils import manual_code_check
+from sweepai.utils.ripgrep_utils import manual_code_check
 from sweepai.utils.tiktoken_utils import get_check_results
 
 modify_tools = """
