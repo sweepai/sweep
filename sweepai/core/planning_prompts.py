@@ -161,3 +161,20 @@ Describe the changes to be made.
 
 [additional modifies as needed, for the same file or different files]
 </plan>"""
+
+
+"""
+Respond in this format:
+
+# 1. Comprehensive error analysis:
+<thinking>
+First, for each error message in the logs:
+a. Identify the root cause.
+b. Then, spell out all lines of code that may have the same failure as the erroring lines of code.
+</thinking>
+
+# 2. Root cause analysis:
+<root_cause_analysis>
+Final response, including all areas requiring changes.
+</root_cause_analysis>
+"""
