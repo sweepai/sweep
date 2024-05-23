@@ -647,8 +647,8 @@ def get_function_name(file_name: str, source_code: str, line_number: int):
     return function_name
 
 if __name__ == "__main__":
-    # print(check_code("main.tsx", test_code))
-    # print(get_check_results("main.py", test_code))
+    print(get_check_results("main.py", test_code))
+    # exit()
     code = """import {
     Flex,
     Container,
