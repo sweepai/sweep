@@ -638,7 +638,7 @@ def on_ticket(
             try:
                 pr.add_to_assignees(username)
             except Exception as e:
-                logger.error(
+                logger.warning(
                     f"Failed to add assignee {username}: {e}, probably a bot."
                 )
 
