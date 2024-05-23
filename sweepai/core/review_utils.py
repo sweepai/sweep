@@ -27,8 +27,8 @@ from sweepai.utils.str_utils import add_line_numbers, extract_object_fields_from
 from sweepai.utils.ticket_rendering_utils import parse_issues_from_code_review
 from sweepai.utils.ticket_utils import get_top_k_snippets
 
-# approximately 100k tokens
-MAX_CHAR_BUDGET = 100000 * 3.5
+# approximately 120k tokens
+MAX_CHAR_BUDGET = 120000 * 3.5
 
 def get_pr_diffs(repo: Repository, pr: PullRequest):
     base_sha = pr.base.sha
@@ -267,7 +267,7 @@ def format_pr_change(pr_change: PRChange, pr_idx: int=0):
     patches = format_patches_for_pr_change(pr_change)
     numbered_file_contents = add_line_numbers(pr_change.new_code, start=1)
     # enforce context length
-    if len(numbered_file_contents) >= MAX_CHAR_BUDGET:
+    if len(patches + numbered_file_contents) >= MAX_CHAR_BUDGET:
         numbered_file_contents = smart_prune_file_based_on_patches(numbered_file_contents, pr_change.patches)
     return pr_change_with_source_code_unformatted.format(
         file_name=pr_change.file_name,
