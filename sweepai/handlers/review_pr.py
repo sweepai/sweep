@@ -73,21 +73,33 @@ def review_pr(
             error: Exception = None
 
             try:
-                sleep(30) # sleep for 30 seconds to prevent race conditions with github uploading remote branch
-                cloned_repo: ClonedRepo = ClonedRepo(
-                    repository.full_name,
-                    installation_id=installation_id,
-                    token=user_token,
-                    repo=repository,
-                    branch=pr.head.ref,
-                )
+                # check if this is a pr from a forked repo
+                if pr.head.repo.full_name != pr.base.repo.full_name:
+                    error = Exception(
+                        "Sweep does not support reviewing PRs from forked repositories."
+                    )
+                    raise error
+                sleep(10) # sleep for 10 seconds to prevent race conditions with github uploading remote branch
+                try:
+                    cloned_repo: ClonedRepo = ClonedRepo(
+                        repository.full_name,
+                        installation_id=installation_id,
+                        token=user_token,
+                        repo=repository,
+                        branch=pr.head.ref,
+                    )
+                except GitCommandError as e:
+                    raise e
+                except Exception as e:
+                    error = Exception(
+                        f"Failed to clone repository: {repository.full_name}. This may be because Sweep does not have the necessary permissions to access your repository."
+                    )
+                    raise error
             except GitCommandError as e:
                 raise e
             except Exception as e:
                 logger.error(f"Failure cloning repo in review_pr: {e}")
-                error = Exception(
-                    f"Failed to clone repository: {repository.full_name}. This may be because Sweep does not have the necessary permissions to access your repository."
-                )
+                error = e
 
             # try and update the user to let them know why we can not review the pr.
             # if the error is due to credential issues, this will probably not work
