@@ -536,68 +536,6 @@ def get_check_results(file_path: str, code: str, last_fcr_for_file=False) -> Che
                     pass
     return CheckResults()
 
-def check_code(file_path: str, code: str) -> tuple[bool, str]:
-    is_valid, error_message = check_syntax(file_path, code)
-    if not is_valid:
-        return is_valid, error_message
-    ext = file_path.split(".")[-1] # noqa
-    if ext == "py":
-        file_hash = uuid.uuid4().hex
-        new_file = os.path.join("/tmp", file_hash + "_" + os.path.basename(file_path))
-        stem = os.path.splitext(os.path.basename(file_path))[0]
-        try:
-            with open(new_file, "w") as f:
-                f.write(code)
-            pylint_output = StringIO()
-            reporter = TextReporter(pylint_output)
-            Run(
-                [
-                    new_file,
-                    "--errors-only",
-                    "--disable=import-error",
-                    "--disable=no-member",
-                    "--disable=relative-beyond-top-level",
-                ],
-                reporter=reporter,
-                exit=False,
-            )
-            error_message = pylint_output.getvalue().strip()
-            try:
-                os.remove(new_file)
-            except FileNotFoundError:
-                pass
-            if not error_message.startswith("------------------------------------"):
-                error_message = error_message.replace(new_file, file_path).replace(f"{file_hash}_" + stem, stem)
-                error_message = error_message.split("-----------------------------------", 1)[0].strip()
-                error_message = f"> pylint {file_path}\n\n" + error_message
-                return False, error_message
-        except Exception as e:
-            logger.exception(e)
-    if ext == "ts":
-        # see if eslint is installed
-        result = subprocess.run(
-            ["npx", "eslint", "--version"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if result.returncode != 0:
-            with TemporaryDirectory() as temp_dir:
-                new_file = os.path.join(temp_dir, "temp.ts")
-                with open(os.path.join(temp_dir, ".eslintrc"), "w") as f:
-                    f.write(DEFAULT_ESLINTRC)
-                with open(new_file, "w") as f:
-                    f.write(code)
-                result = subprocess.run(
-                    ["npx", "eslint", new_file, "--config", ".eslintrc"],
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
-                )
-                if result.returncode != 0:
-                    return False, result.stdout + "\n\n" + result.stderr
-    return True, ""
-
 
 # @file_cache()
 def chunk_code(
