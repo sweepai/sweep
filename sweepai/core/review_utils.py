@@ -786,7 +786,7 @@ class PRReviewBot(ChatGPT):
                         end = int(extracted_function.get("end_line", -1))
                     except ValueError as e:  # invalid start and end lines
                         logger.error(
-                            f"Non fatal error in identify_functions_in_patches attempting to extract start and end lines."
+                            "Non fatal error in identify_functions_in_patches attempting to extract start and end lines."
                         )
                         posthog.capture(
                             "identify_repeated_functions",
