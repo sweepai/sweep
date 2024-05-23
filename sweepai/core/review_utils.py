@@ -129,7 +129,7 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
             suitable, reason = sweep_config.is_file_suitable(new_code)
             if not suitable:
                 errored = True
-                e = UnsuitableFileException(e)
+                e = UnsuitableFileException(reason)
                 unsuitable_files.append((file_name, e))
 
         if errored:
