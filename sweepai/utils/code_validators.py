@@ -4,6 +4,7 @@ import ast
 from io import StringIO
 import os
 import re
+import shutil
 import subprocess
 from tempfile import TemporaryDirectory
 import tempfile
@@ -536,6 +537,44 @@ def get_check_results(file_path: str, code: str, last_fcr_for_file=False) -> Che
                     pass
     return CheckResults()
 
+PRETTIERRC_FILES = [
+    ".prettierrc",
+    ".prettierrc.json",
+    ".prettierrc.yaml",
+    ".prettierrc.yml",
+    ".prettierrc.js",
+    "prettier.config.js",
+]
+
+def format_file(file_path: str, code: str, cwd: str | None = None) -> str:
+    file_name, ext = os.path.splitext(file_path)
+    ext = ext.removeprefix(".")
+    if ext in ("js", "jsx", "ts", "tsx"):
+        with TemporaryDirectory(dir=os.getcwd()) as temp_dir:
+            for prettierrc_file in PRETTIERRC_FILES:
+                if os.path.exists(os.path.join(cwd, prettierrc_file)):
+                    shutil.copy2(os.path.join(cwd, prettierrc_file), temp_dir)
+                    break
+            else:
+                return code
+            npx_commands = ["npx", "prettier", "--stdin-filepath", file_path]
+            try:
+                result = subprocess.run(
+                    " ".join(npx_commands),
+                    input=code,
+                    capture_output=True,
+                    text=True,
+                    shell=True,
+                    cwd=temp_dir,
+                )
+                if result.returncode != 0:
+                    logger.error(result.stderr)
+                    return code
+                return result.stdout
+            except Exception as e:
+                logger.error(e)
+                return code
+    return code
 
 # @file_cache()
 def chunk_code(
@@ -647,9 +686,7 @@ def get_function_name(file_name: str, source_code: str, line_number: int):
     return function_name
 
 if __name__ == "__main__":
-    print(get_check_results("main.py", test_code))
-    # exit()
-    code = """import {
+    typescript_code = """import {
     Flex,
     Container,
     Heading,
@@ -679,8 +716,6 @@ export default function CallToAction() {
     );
 }
 """
-   
-if __name__ == "__main__":
     python_code = """\
 import math
 import pandas
@@ -688,13 +723,16 @@ import pandas
 def get_circle_area(radius: float) -> float:
     return math.pi * radius ** 2
 """
-    function_name = get_function_name("main.ts", code, 20)
+    print(get_check_results("main.py", test_code))
+    formatted_code = format_file("main.tsx", typescript_code, cwd="sweep_chat")
+    breakpoint()
+    function_name = get_function_name("main.ts", typescript_code, 20)
     print(function_name)
     function_name = get_function_name("main.py", python_code, 3)
     print(function_name)
     # new_code = """console.log("hello world")"""
     # check_results = check_syntax("test.js", new_code)
-    check_results = get_check_results("test.tsx", code)
+    check_results = get_check_results("test.tsx", typescript_code)
     check_results = get_check_results("test.py", python_code)
     assert check_results.pylint == "" # this should pass
     check_results = get_check_results("test.py", python_code, last_fcr_for_file=True)
