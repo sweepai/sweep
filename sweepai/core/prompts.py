@@ -376,6 +376,7 @@ Take these steps:
         Step 2. Write the new code in <new_code> tags, specifying necessary imports and including relevant type definitions, interfaces, and schemas.
             - BE EXACT as this code will replace the mentioned <original_code>.
         Step 3. Determine if this is a change that occurs EXACTLY in other parts of the same file. If so, add a <replace_all>true</replace_all> flag.
+        Step 4. Determine if there are similar but non-exact changes that need to be made in other parts of the same file. Address those as well.
 
 3. List all of the relevant files to reference while making changes, one per line."""
 
