@@ -193,8 +193,17 @@ Take these steps:
 
 3. List all of the relevant files to reference while making changes, one per line."""
 
+fix_files_to_change_system_prompt = """You proposed a plan previously but there are some errors in your plan. You must resolve these errors before proceeding.
 
-fix_files_to_change_prompt = """You proposed plan a plan. However, your proposed plan has the following errors:
+For each error, follow these steps:
+1. Identify the error and what went wrong.
+2. Select a strategy to fix the error. You have four options:
+    a. Fix invalid contents in the plan.
+    b. Correct a file path. This is preferred if the code does not need to be changed.
+    c. Drop the task.
+"""
+
+fix_files_to_change_prompt = """You proposed a plan. However, your proposed plan has the following errors:
 
 <errors>
 {error_message}
@@ -203,8 +212,6 @@ fix_files_to_change_prompt = """You proposed plan a plan. However, your proposed
 You must resolve these errors before proceeding. Respond in the following format:
 
 <error_resolutions>
-For each error, identify what went wrong and what the fix is. Analyze the contents of the provided file path to find the correct code block that needs to be modified. Update the <original_code> block with the actual code from the file, and then provide the necessary changes in the <new_code> block. Follow the format:
-
 <error_resolution>
 Error #0: Description of the error
 
@@ -214,9 +221,9 @@ You will first think step-by-step about the error, and then either rewrite the i
 Analyze extremely carefully in great detail what went wrong, including the file path and the specific code block that needs to be modified. If you have failed to copy code verbatim, indicate precisely what is different between the code you provided and the code in the actual file.
 </thinking>
 
-Then, let's resolve the errors in your proposed plan. If you would like to patch the corresponding task of the plan, create a modify or create block with an index. The index should be equivalent to the error number of this error_resolution block, so it must be one of the following integers: {allowed_indices}. Otherwise, if you absolutely cannot resolve the error, drop the task. You must pick exactly ONE of the three options. Follow this format:
+Then, let's resolve the errors in your proposed plan. If you would like to patch the corresponding task of the plan, create a modify block with an index. The index should be equivalent to the error number of this error_resolution block, so it must be one of the following integers: {allowed_indices}. Otherwise, if you absolutely cannot resolve the error, drop the task. You must pick exactly ONE of the three options. Follow this format:
 
-Option a: To patch the error as a modify block, follow this format:
+Option a: To patch an invalid modification:
 
 <modify file="file_path" index="0">
 Rewritten instructions to resolve the error. Update the original_code and new_code blocks as required, ensuring that the <original_code> block contains the actual code from the file.
@@ -232,33 +239,21 @@ Updated new code, based on the corrections in <original_code>. Ensure all newly 
 </new_code>
 </modify>
 
-Option b: To patch a task to create a file instead, create a create block like so:
+Option b: To fix an invalid file path, such as a non-existent directory (this is preferred if the code does not need to be changed):
 
-<create file="file_path" index="0">
-Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, and schemas. You may only have one new_code block in this section.
-<new_code>
-All the new code required to be added to the file.
-</new_code>
-</create>
+Enter "COPIED_FROM_PREVIOUS_MODIFY" verbatim into the modify block to copy the code from the previous change.
 
-Option c: To patch a task to create a file with an incorrect file_path (this is preferred if the code does not need to be changed), follow this format:
+<modify file="file_path" index="0">
+COPIED_FROM_PREVIOUS_MODIFY
+</modify>
 
-<create file="file_path" index="0">
-Instructions for creating the new file. Reference imports and entity names. Include relevant type definitions, interfaces, and schemas. Enter COPIED_FROM_PREVIOUS_CREATE to copy the code from the previous change.
-<new_code>
-COPIED_FROM_PREVIOUS_CREATE
-</new_code>
-</create>
-
-Option d: Otherwise, if you absolutely cannot resolve the error, drop the task like so:
+Option c: Otherwise, if you absolutely cannot resolve the error, drop the task like so:
 
 <drop>Index of the task to drop</drop>
 </error_resolution>
 
 [additional <error_resolution> blocks as needed, for the same file or different files]
-</error_resolutions>
-
-Please resolve the errors in your proposed plan."""
+</error_resolutions>"""
 
 test_files_to_change_system_prompt = """You are an AI assistant helping an intern write tests to validate his code that aims to resolve a GitHub issue. The user will provide code files, a description of the issue, and relevant parts of the codebase.
 Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.

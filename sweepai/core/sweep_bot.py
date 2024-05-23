@@ -28,7 +28,8 @@ from sweepai.core.prompts import (
     gha_files_to_change_prompt,
     test_files_to_change_system_prompt,
     test_files_to_change_prompt,
-    fix_files_to_change_prompt
+    fix_files_to_change_prompt,
+    fix_files_to_change_system_prompt,
 )
 from sweepai.core.planning_prompts import (
     openai_files_to_change_prompt,
@@ -304,7 +305,7 @@ def validate_file_path(cloned_repo: ClonedRepo, file_name: str, file_dir: str, f
     if not os.path.exists(full_file_dir):
         similar_directories = cloned_repo.get_similar_directories(file_dir)
         if similar_directories:
-            current_error_message = f"The directory {file_dir} does not exist. Did you mean one of the following directories?\n\n" + "\n".join(f"- {d}" for d in similar_directories)
+            current_error_message = f"The directory {file_dir} does not exist. Select one of the following directories:\n\n" + "\n".join(f"- {d}" for d in similar_directories)
         else:
             current_error_message = f"The directory {file_dir} does not exist. Make sure the new file you want to create exists within an existing directory!"
     return current_error_message
@@ -564,7 +565,10 @@ def get_files_to_change(
                 break
             # todo: segment these into smaller calls to handle different edge cases
             # delete the error messages
-            chat_gpt.messages = [message for message in chat_gpt.messages if message.key != "system"]
+            chat_gpt.messages = [message if message.role != "system" else Message(
+                content=fix_files_to_change_system_prompt,
+                role="system"
+            ) for message in chat_gpt.messages]
             fix_attempt = chat_gpt.chat_anthropic(
                 content=fix_files_to_change_prompt.format(
                     error_message=error_message,
@@ -574,6 +578,7 @@ def get_files_to_change(
                 temperature=0.1,
                 images=images,
                 seed=seed,
+                stop_sequences=["</error_resolutions>"],
                 use_openai=use_openai
             )
             drops, matches = parse_patch_fcrs(fix_attempt)
@@ -581,7 +586,7 @@ def get_files_to_change(
                 if index >= len(error_indices):
                     logger.warning(f"Index {index} not in error indices")
                     continue
-                if new_fcr.change_type == "create" and "COPIED_FROM_PREVIOUS_CREATE" in new_fcr.instructions:
+                if "COPIED_FROM_PREVIOUS_MODIFY" in new_fcr.instructions:
                     # if COPIED_FROM_PREVIOUS_CREATE, we just need to override the filename
                     file_change_requests[error_indices[index]].filename = new_fcr.filename
                     continue
