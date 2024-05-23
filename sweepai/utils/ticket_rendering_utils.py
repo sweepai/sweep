@@ -632,6 +632,7 @@ def render_pr_review_by_file(
     username: str, 
     pr: PullRequest, 
     code_review_by_file: dict[str, CodeReview], 
+    pull_request_summary: str = "",
     dropped_files: list[str] = [], 
     unsuitable_files: list[tuple[str, Exception]] = [], 
     pr_authors: str = ""
@@ -639,32 +640,44 @@ def render_pr_review_by_file(
     body = f"{SWEEP_PR_REVIEW_HEADER}\n"
     if pr_authors:
         body += f"Authors of pull request: {pr_authors}\n"
-    reviewed_files = ""
+    if pull_request_summary:
+        body += f"\n{pull_request_summary}\n<hr>\n"
+    issues_section = ""
+    potential_issues_section = ""
+    # build issues section and potential issues sections
     for file_name, code_review in code_review_by_file.items():
         sweep_issues = code_review.issues
         potential_issues = code_review.potential_issues
-        reviewed_files += f"""<details open>
-<summary>{file_name}</summary>
-<p>{format_code_sections(code_review.diff_summary)}</p>"""
         if sweep_issues:
             sweep_issues_string = render_code_review_issues(username, pr, code_review)
-            reviewed_files += f"<p><strong>Sweep Found These Issues</strong></p><ul>{format_code_sections(sweep_issues_string)}</ul>"
+            issues_section += f"""<details open>
+<summary>{file_name}</summary>
+<ul>{format_code_sections(sweep_issues_string)}</ul></details>"""
         if potential_issues:
             potential_issues_string = render_code_review_issues(username, pr, code_review, issue_type="potential")
-            reviewed_files += f"<details><summary><strong>Potential Issues</strong></summary><p>Sweep isn't 100% sure if the following are issues or not but they may be worth taking a look at.</p><ul>{format_code_sections(potential_issues_string)}</ul></details>"
-        reviewed_files += "</details><hr>"
+            potential_issues_section += f"""<details>
+<summary>{file_name}</summary>
+<ul>{format_code_sections(potential_issues_string)}</ul></details>"""
+    # add titles/dropdowns for issues and potential issues section depending on if there were any issues/potential issues
+    if issues_section:
+        issues_section = f"<details open><summary><h3>Sweep Found These Issues</h3></summary>\n\n{issues_section}</details><hr>"
+    if potential_issues_section:
+        potential_issues_section = f"<details><summary><h3>Potential Issues</h3></summary><p><strong>Sweep is unsure if these are issues, but they might be worth checking out.</strong></p>\n\n{potential_issues_section}</details><hr>"
+
+    # add footer describing dropped files
+    footer = ""
     if len(dropped_files) == 1:
-        reviewed_files += f"<p>{dropped_files[0]} was not reviewed because our filter identified it as typically a non-human-readable or less important file (e.g., dist files, package.json, images). If this is an error, please let us know.</p>"
+        footer += f"<p>{dropped_files[0]} was not reviewed because our filter identified it as typically a non-human-readable or less important file (e.g., dist files, package.json, images). If this is an error, please let us know.</p>"
     elif len(dropped_files) > 1:
         dropped_files_string = "".join([f"<li>{file}</li>" for file in dropped_files])
-        reviewed_files += f"<p>The following files were not reviewed because our filter identified them as typically non-human-readable or less important files (e.g., dist files, package.json, images). If this is an error, please let us know.</p><ul>{dropped_files_string}</ul>"
+        footer += f"<p>The following files were not reviewed because our filter identified them as typically non-human-readable or less important files (e.g., dist files, package.json, images). If this is an error, please let us know.</p><ul>{dropped_files_string}</ul>"
     if len(unsuitable_files) == 1:
-        reviewed_files += f"<p>The following file {unsuitable_files[0][0]} were not reviewed as they were deemed unsuitable for the following reason: {str(unsuitable_files[0][1])}. If this is an error please let us know.</p>"
+        footer += f"<p>The following file {unsuitable_files[0][0]} were not reviewed as they were deemed unsuitable for the following reason: {str(unsuitable_files[0][1])}. If this is an error please let us know.</p>"
     elif len(unsuitable_files) > 1:
         unsuitable_files_string = "".join([f"<li>{file}: {str(exception)}</li>" for file, exception in unsuitable_files])
-        reviewed_files += f"<p>The following files were not reviewed as they were deemed unsuitable for a variety of reasons. If this is an error please let us know.</p><ul>{unsuitable_files_string}</ul>"
+        footer += f"<p>The following files were not reviewed as they were deemed unsuitable for a variety of reasons. If this is an error please let us know.</p><ul>{unsuitable_files_string}</ul>"
 
-    return body + reviewed_files
+    return body + issues_section + potential_issues_section + footer
 
 # handles the creation or update of the Sweep comment letting the user know that Sweep is reviewing a pr
 # returns the comment_id
@@ -673,6 +686,7 @@ def create_update_review_pr_comment(
     username: str, 
     pr: PullRequest, 
     code_review_by_file: dict[str, CodeReview] | None = None, 
+    pull_request_summary: str = "",
     dropped_files: list[str] = [],
     unsuitable_files: list[tuple[str, Exception]] = [],
 ) -> int:
@@ -704,7 +718,13 @@ def create_update_review_pr_comment(
     
     # update body of sweep_comment
     if code_review_by_file:
-        rendered_pr_review = render_pr_review_by_file(username, pr, code_review_by_file, dropped_files=dropped_files, unsuitable_files=unsuitable_files, pr_authors=pr_authors)
+        rendered_pr_review = render_pr_review_by_file(
+            username, pr, code_review_by_file, 
+            pull_request_summary=pull_request_summary, 
+            dropped_files=dropped_files, 
+            unsuitable_files=unsuitable_files, 
+            pr_authors=pr_authors
+        )
         sweep_comment.edit(rendered_pr_review)
     comment_id = sweep_comment.id
     return comment_id
