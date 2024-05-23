@@ -6,6 +6,7 @@ from collections import Counter, defaultdict
 from math import log
 import subprocess
 
+import tantivy
 from diskcache import Cache
 from loguru import logger
 from redis import Redis
@@ -31,71 +32,100 @@ if DEBUG:
 else:
     redis_client = None
 
-
+schema_builder = tantivy.SchemaBuilder()
+schema_builder.add_text_field("title", stored=True)
+schema_builder.add_text_field("body", stored=True)
+schema_builder.add_integer_field("doc_id", stored=True)
+schema = schema_builder.build()
 
 class CustomIndex:
-    def __init__(self):
-        self.inverted_index = defaultdict(list)
-        self.doc_lengths = {}
-        self.total_doc_length = 0.0
-        self.k1 = 1.2
-        self.b = 0.75
-        self.metadata = {}  # Store custom metadata here
-        self.tokenizer = tokenize_code
-
+    def __init__(self, cache_path: str = None):
+        os.makedirs(cache_path, exist_ok=True)
+        self.index = tantivy.Index(schema, path=cache_path)
+    
     def add_documents(self, documents: Iterable):
-        self.doc_lengths = defaultdict(int)
-        self.total_doc_length = 0
-        self.inverted_index = defaultdict(list)
-        
-        for doc_id, (title, token_freq, doc_length) in enumerate(documents):
-            self.metadata[doc_id] = title
-            self.doc_lengths[doc_id] = doc_length
-            self.total_doc_length += doc_length
-            for token, freq in token_freq.items():
-                self.inverted_index[token].append((doc_id, freq))
-        
-        if len(self.doc_lengths) > 1000:
-            skipped_tokens = {token for token, value in self.inverted_index.items() if "_" not in token and len(value) == 1}
-            self.inverted_index = {k: v for k, v in tqdm(self.inverted_index.items(), total=len(self.inverted_index)) if not k in skipped_tokens and not any(token in skipped_tokens for token in k.split("_"))}
-
-    def bm25(self, doc_id: str, term: str, term_freq: int) -> float:
-        num_docs = len(self.doc_lengths)
-        idf = log(
-            ((num_docs - len(self.inverted_index[term])) + 0.5)
-            / (len(self.inverted_index[term]) + 0.5)
-            + 1.0
-        )
-        doc_length = self.doc_lengths[doc_id]
-        tf = ((self.k1 + 1) * term_freq) / (
-            term_freq
-            + self.k1
-            * (
-                1
-                - self.b
-                + self.b
-                * (doc_length / (self.total_doc_length / len(self.doc_lengths)))
+        writer = self.index.writer()
+        for doc_id, (title, text) in enumerate(documents):
+            writer.add_document(
+                tantivy.Document(
+                    title=title,
+                    body=text,
+                    doc_id=doc_id
+                )
             )
-        )
-        return idf * tf
-
+        writer.commit()
+    
     def search_index(self, query: str) -> list[tuple[str, float, dict]]:
-        query_tokens = tokenize_code(query)
-        scores = defaultdict(float)
+        query = tokenize_code(query)
+        query = self.index.parse_query(query)
+        searcher = self.index.searcher()
+        results = searcher.search(query, limit=200).hits
+        return [(searcher.doc(doc_id)["title"][0], score, searcher.doc(doc_id)) for score, doc_id in results]
 
-        for token in query_tokens:
-            for doc_id, term_freq in self.inverted_index.get(token, []):
-                scores[doc_id] += self.bm25(doc_id, token, term_freq)
+# class CustomIndex:
+#     def __init__(self, cache_path: str = None):
+#         self.inverted_index = defaultdict(list)
+#         self.doc_lengths = {}
+#         self.total_doc_length = 0.0
+#         self.k1 = 1.2
+#         self.b = 0.75
+#         self.metadata = {}  # Store custom metadata here
+#         self.tokenizer = tokenize_code
+#         self.tantivy_index = tantivy.Index(schema, path=cache_path)
 
-        sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+#     def add_documents(self, documents: Iterable):
+#         self.doc_lengths = defaultdict(int)
+#         self.total_doc_length = 0
+#         self.inverted_index = defaultdict(list)
+        
+#         for doc_id, (title, token_freq, doc_length) in enumerate(documents):
+#             self.metadata[doc_id] = title
+#             self.doc_lengths[doc_id] = doc_length
+#             self.total_doc_length += doc_length
+#             for token, freq in token_freq.items():
+#                 self.inverted_index[token].append((doc_id, freq))
+        
+#         if len(self.doc_lengths) > 1000:
+#             skipped_tokens = {token for token, value in self.inverted_index.items() if "_" not in token and len(value) == 1}
+#             self.inverted_index = {k: v for k, v in tqdm(self.inverted_index.items(), total=len(self.inverted_index)) if not k in skipped_tokens and not any(token in skipped_tokens for token in k.split("_"))}
 
-        # Attach metadata to the results
-        results_with_metadata = [
-            (self.metadata[doc_id], score, self.metadata.get(doc_id, {}))
-            for doc_id, score in sorted_scores
-        ]
+#     def bm25(self, doc_id: str, term: str, term_freq: int) -> float:
+#         num_docs = len(self.doc_lengths)
+#         idf = log(
+#             ((num_docs - len(self.inverted_index[term])) + 0.5)
+#             / (len(self.inverted_index[term]) + 0.5)
+#             + 1.0
+#         )
+#         doc_length = self.doc_lengths[doc_id]
+#         tf = ((self.k1 + 1) * term_freq) / (
+#             term_freq
+#             + self.k1
+#             * (
+#                 1
+#                 - self.b
+#                 + self.b
+#                 * (doc_length / (self.total_doc_length / len(self.doc_lengths)))
+#             )
+#         )
+#         return idf * tf
 
-        return results_with_metadata
+#     def search_index(self, query: str) -> list[tuple[str, float, dict]]:
+#         query_tokens = tokenize_code(query)
+#         scores = defaultdict(float)
+
+#         for token in query_tokens:
+#             for doc_id, term_freq in self.inverted_index.get(token, []):
+#                 scores[doc_id] += self.bm25(doc_id, token, term_freq)
+
+#         sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+
+#         # Attach metadata to the results
+#         results_with_metadata = [
+#             (self.metadata[doc_id], score, self.metadata.get(doc_id, {}))
+#             for doc_id, score in sorted_scores
+#         ]
+
+#         return results_with_metadata
 
 variable_pattern = re.compile(r"([A-Z][a-z]+|[a-z]+|[A-Z]+(?=[A-Z]|$))")
 
@@ -118,11 +148,11 @@ def tokenize_code(code: str) -> list[str]:
                     and len(part) / len(set(part)) < 4:
                     tokens.append(part.lower())
 
-    bigrams = [f"{tokens[i]}_{tokens[i + 1]}" for i in range(len(tokens) - 1)]
-    trigrams = [f"{tokens[i]}_{tokens[i + 1]}_{tokens[i + 2]}" for i in range(len(tokens) - 2)]
-    tokens.extend(bigrams + trigrams)
+    # bigrams = [f"{tokens[i]}_{tokens[i + 1]}" for i in range(len(tokens) - 1)]
+    # trigrams = [f"{tokens[i]}_{tokens[i + 1]}_{tokens[i + 2]}" for i in range(len(tokens) - 2)]
+    # tokens.extend(bigrams + trigrams)
     
-    return tokens
+    return " ".join(tokens)
 
 def compute_document_tokens(
     content: str,
@@ -131,9 +161,8 @@ def compute_document_tokens(
     if results is not None:
         return results
     tokens = tokenize_code(content)
-    result = (Counter(tokens), len(tokens))
-    token_cache[content] = result
-    return result
+    token_cache[content] = tokens
+    return tokens
 
 def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
     docs = []
@@ -152,18 +181,21 @@ def prepare_index_from_snippets(
     snippets: list[Snippet],
     len_repo_cache_dir: int = 0,
     do_not_use_file_cache: bool = False,
+    cache_path: str = None,
 ) -> CustomIndex | None:
     all_docs: list[Document] = snippets_to_docs(snippets, len_repo_cache_dir)
     if len(all_docs) == 0:
         return None
-    index = CustomIndex()
+    index = CustomIndex(
+        cache_path=cache_path
+    )
     all_tokens = []
     all_lengths = []
     workers = multiprocessing.cpu_count() // 2
     try:
         if workers > 1:
             with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 2) as p:
-                results = p.map(
+                all_tokens = p.map(
                     compute_document_tokens,
                     tqdm(
                         [doc.content for doc in all_docs],
@@ -171,18 +203,18 @@ def prepare_index_from_snippets(
                         desc="Tokenizing documents"
                     )
                 )
-                all_tokens, all_lengths = zip(*results)
         else:
-            all_tokens, all_lengths = zip(
+            all_tokens = zip(
                 *[
                     compute_document_tokens(doc.content)
                     for doc in tqdm(all_docs, desc="Tokenizing documents")
                 ]
             )
         all_titles = [doc.title for doc in all_docs]
-        index.add_documents(
-            tqdm(zip(all_titles, all_tokens, all_lengths), total=len(all_docs), desc="Indexing")
-        )
+        with Timer() as timer:
+            index.add_documents(
+                tqdm(zip(all_titles, all_tokens), total=len(all_docs), desc="Indexing")
+            )
     except FileNotFoundError as e:
         logger.exception(e)
 
@@ -195,7 +227,6 @@ def search_index(query, index: CustomIndex):
     This function takes a query and an index as input and returns a dictionary of document IDs
     and their corresponding scores.
     """
-    """Title, score, content"""
     if index is None:
         return {}
     try:
@@ -248,6 +279,7 @@ def compute_vector_search_scores(queries: list[str], snippets: list[Snippet]):
 
 def get_lexical_cache_key(repo_directory: str, commit_hash: str | None = None):
     commit_hash = commit_hash or subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_directory, capture_output=True, text=True).stdout.strip()
+    repo_directory = os.path.basename(repo_directory)
     return f"{repo_directory}_{commit_hash}_{CACHE_VERSION}"
 
 @file_cache(ignore_params=["sweep_config", "ticket_progress"])
@@ -259,7 +291,7 @@ def prepare_lexical_search_index(
     lexical_cache_key = get_lexical_cache_key(repo_directory)
 
     snippets_results = snippets_cache.get(lexical_cache_key)
-    if snippets_results is None or True:
+    if snippets_results is None:
         snippets, file_list = directory_to_chunks(
             repo_directory, sweep_config, do_not_use_file_cache=do_not_use_file_cache
         )
@@ -267,21 +299,12 @@ def prepare_lexical_search_index(
     else:
         snippets, file_list = snippets_results
 
-    with Timer() as timer:
-        index = lexical_index_cache.get(lexical_cache_key)
-    if index is None or True:
-        index = prepare_index_from_snippets(
-            snippets,
-            len_repo_cache_dir=len(repo_directory) + 1,
-            do_not_use_file_cache=do_not_use_file_cache,
-        )
-        sorted_keys = sorted(index.inverted_index.keys(), key=len, reverse=True)
-        print(sorted_keys[0])
-        breakpoint()
-
-        with Timer() as timer:
-            lexical_index_cache[lexical_cache_key] = index
-    
+    index = prepare_index_from_snippets(
+        snippets,
+        len_repo_cache_dir=len(repo_directory) + 1,
+        do_not_use_file_cache=do_not_use_file_cache,
+        cache_path=f"{CACHE_DIRECTORY}/lexical_index_cache/{lexical_cache_key}"
+    )
 
     return file_list, snippets, index
 
