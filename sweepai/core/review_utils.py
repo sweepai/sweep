@@ -1,6 +1,7 @@
 """
 Take a PR and provide an AI generated review of the PR.
 """
+
 import copy
 import multiprocessing
 import re
@@ -15,7 +16,13 @@ from sweepai.core.entities import Message, UnsuitableFileException
 from sweepai.core.review_annotations import get_diff_annotations
 from sweepai.core.sweep_bot import safe_decode
 from sweepai.core.vector_db import cosine_similarity, embed_text_array
-from sweepai.dataclasses.codereview import CodeReview, CodeReviewIssue, FunctionDef, PRChange, Patch
+from sweepai.dataclasses.codereview import (
+    CodeReview,
+    CodeReviewIssue,
+    FunctionDef,
+    PRChange,
+    Patch,
+)
 from sweepai.logn.cache import file_cache
 from sweepai.utils.event_logger import logger, posthog
 from sweepai.utils.chat_logger import ChatLogger
@@ -23,12 +30,20 @@ from github.Repository import Repository
 from github.PullRequest import PullRequest
 
 from sweepai.utils.github_utils import ClonedRepo, update_file
-from sweepai.utils.str_utils import add_line_numbers, extract_object_fields_from_string, extract_objects_from_string, object_to_xml, objects_to_xml, remove_lines_from_text
+from sweepai.utils.str_utils import (
+    add_line_numbers,
+    extract_object_fields_from_string,
+    extract_objects_from_string,
+    object_to_xml,
+    objects_to_xml,
+    remove_lines_from_text,
+)
 from sweepai.utils.ticket_rendering_utils import parse_issues_from_code_review
 from sweepai.utils.ticket_utils import get_top_k_snippets
 
 # approximately 100k tokens
 MAX_CHAR_BUDGET = 100000 * 3.5
+
 
 def get_pr_diffs(repo: Repository, pr: PullRequest):
     base_sha = pr.base.sha
@@ -51,10 +66,9 @@ def get_pr_diffs(repo: Repository, pr: PullRequest):
         elif file.status == "renamed":
             pr_diffs.append((file.filename, f"{file.filename} was renamed."))
         else:
-            logger.info(
-            f"File status {file.status} not recognized"
-            )
+            logger.info(f"File status {file.status} not recognized")
     return pr_diffs
+
 
 def validate_diff(file_name: str, diff: str):
     MAX_DIFF_LENGTH = 1000
@@ -66,8 +80,11 @@ def validate_diff(file_name: str, diff: str):
         return f"diff is over {MAX_DIFF_LENGTH}", False
     return "", True
 
+
 @file_cache()
-def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], list[str]]:
+def get_pr_changes(
+    repo: Repository, pr: PullRequest
+) -> tuple[list[PRChange], list[str]]:
     sweep_config: SweepConfig = SweepConfig()
     base_sha = pr.base.sha
     head_sha = pr.head.sha
@@ -76,21 +93,21 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
     file_diffs = comparison.files
 
     pr_diffs = []
-    dropped_files = [] # files that were dropped due them being commonly ignored
-    unsuitable_files: list[tuple[str, Exception]] = [] # files dropped for other reasons such as being way to large or not encodable, error objects included
+    dropped_files = []  # files that were dropped due them being commonly ignored
+    unsuitable_files: list[tuple[str, Exception]] = (
+        []
+    )  # files dropped for other reasons such as being way to large or not encodable, error objects included
     for file in tqdm(file_diffs, desc="Annotating diffs"):
         file_name = file.filename
         diff = file.patch
-        # Ensure diff is a string 
+        # Ensure diff is a string
         if not isinstance(diff, str):
             diff = str(diff)
-        
-        # we can later migrate this to use a cloned repo and fetch off of two hashes  
+
+        # we can later migrate this to use a cloned repo and fetch off of two hashes
         reason, is_valid_diff = validate_diff(file_name, diff)
         if not is_valid_diff:
-            logger.info(
-                f"Skipping invalid diff for file {file_name} because {reason}"
-            )
+            logger.info(f"Skipping invalid diff for file {file_name} because {reason}")
             continue
         previous_filename = file.previous_filename or file.filename
 
@@ -98,7 +115,7 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
         if sweep_config.is_file_excluded(file_name):
             dropped_files.append(file_name)
             continue
-        
+
         errored = False
         e = None
         if file.status == "added":
@@ -125,7 +142,7 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
                 unsuitable_files.append((file_name, e))
 
         # drop unsuitable files
-        if new_code: 
+        if new_code:
             suitable, reason = sweep_config.is_file_suitable(new_code)
             if not suitable:
                 errored = True
@@ -134,9 +151,9 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
 
         if errored:
             posthog.capture(
-                "get_pr_changes", 
-                "get_pr_changes error", 
-                properties={"error": str(e), "file_name": file_name}
+                "get_pr_changes",
+                "get_pr_changes error",
+                properties={"error": str(e), "file_name": file_name},
             )
             continue
 
@@ -147,36 +164,36 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
             old_code=old_code,
             new_code=new_code,
             status=status,
-            patches=split_diff_into_patches(diff)
+            patches=split_diff_into_patches(diff),
         )
         diff_annotations = get_diff_annotations(
             source_code=pr_change.new_code,
             diffs=[patch.changes for patch in pr_change.patches],
-            file_name=pr_change.file_name
+            file_name=pr_change.file_name,
         )
         pr_change.annotations = diff_annotations
-        pr_diffs.append(
-            pr_change
-        )
+        pr_diffs.append(pr_change)
     return pr_diffs, dropped_files, unsuitable_files
+
 
 def split_diff_into_patches(diff: str) -> list[Patch]:
     patches = []
-    hunks = re.findall(r'@@ -\d+,\d+ \+\d+,\d+ @@.*?(?=\n@@ -|\Z)', diff, re.DOTALL)
+    hunks = re.findall(r"@@ -\d+,\d+ \+\d+,\d+ @@.*?(?=\n@@ -|\Z)", diff, re.DOTALL)
     for hunk in hunks:
-        line_numbers = re.findall(r'-(\d+),(\d+) \+(\d+),(\d+)', hunk)
+        line_numbers = re.findall(r"-(\d+),(\d+) \+(\d+),(\d+)", hunk)
         if line_numbers:
             old_start, old_count, new_start, new_count = map(int, line_numbers[0])
-            changes = hunk[hunk.index('@@'):].strip()
+            changes = hunk[hunk.index("@@") :].strip()
             patch = Patch(
                 old_start=old_start,
                 old_count=old_count,
                 new_start=new_start,
                 new_count=new_count,
-                changes=changes
+                changes=changes,
             )
             patches.append(patch)
     return patches
+
 
 pr_changes_prefix = "The following changes were made in the PR. Each change contains all of the patches that were applied to a file, as well as the source code after the change.\n"
 
@@ -207,6 +224,7 @@ patch_format = """\
 {annotation}
 </patch_annotation>"""
 
+
 # format only the patches for the PRChange
 def format_patches_for_pr_change(pr_change: PRChange):
     patches = ""
@@ -215,14 +233,17 @@ def format_patches_for_pr_change(pr_change: PRChange):
             file_name=pr_change.file_name,
             index=idx + 1,
             diff=patch.changes,
-            annotation=pr_change.annotations[idx]
+            annotation=pr_change.annotations[idx],
         )
         if idx < len(pr_change.patches) - 1:
             patches += "\n"
     return patches
 
+
 # prunes a file based on the patches for that file, removes long sections in between
-def smart_prune_file_based_on_patches(file_contents: str, patches: list[Patch], context_lines: int = 10):
+def smart_prune_file_based_on_patches(
+    file_contents: str, patches: list[Patch], context_lines: int = 10
+):
     if not file_contents:
         return file_contents
     lines = file_contents.splitlines(keepends=True)
@@ -239,10 +260,12 @@ def smart_prune_file_based_on_patches(file_contents: str, patches: list[Patch], 
     sorted_patches = sorted(patches, key=lambda patch: patch.new_start)
     for patch in sorted_patches:
         start = max(0, patch.new_start - context_lines - 1)
-        end = min(num_of_lines - 1, patch.new_start + patch.new_count + context_lines - 1)
+        end = min(
+            num_of_lines - 1, patch.new_start + patch.new_count + context_lines - 1
+        )
         if len(patch_ranges) == 0:
             patch_ranges.append((start, end))
-        else: 
+        else:
             previous_range = patch_ranges[-1]
             # combine if overlap
             if previous_range[1] >= start:
@@ -252,34 +275,41 @@ def smart_prune_file_based_on_patches(file_contents: str, patches: list[Patch], 
     # now replace any sections not within the patch ranges with ...
     new_lines = []
     for i, range in enumerate(patch_ranges):
-        range_lines = lines[range[0]: range[1] + 1]
+        range_lines = lines[range[0] : range[1] + 1]
         # with list slicing we can safely extend past the actual length of the array
         if range[0] != 0:
-            range_lines = ['...\n'] + range_lines
+            range_lines = ["...\n"] + range_lines
         # check if we need trailing ...
         if i == len(patch_ranges) - 1 and range[1] < len(lines) - 1:
-            range_lines = range_lines + ['...\n']
+            range_lines = range_lines + ["...\n"]
         new_lines.extend(range_lines)
     new_file_contents = "".join(new_lines)
     return new_file_contents
 
-def format_pr_change(pr_change: PRChange, pr_idx: int=0):
+
+def format_pr_change(pr_change: PRChange, pr_idx: int = 0):
     patches = format_patches_for_pr_change(pr_change)
     numbered_file_contents = add_line_numbers(pr_change.new_code, start=1)
     # enforce context length
     if len(numbered_file_contents) >= MAX_CHAR_BUDGET:
-        numbered_file_contents = smart_prune_file_based_on_patches(numbered_file_contents, pr_change.patches)
+        numbered_file_contents = smart_prune_file_based_on_patches(
+            numbered_file_contents, pr_change.patches
+        )
     return pr_change_with_source_code_unformatted.format(
         file_name=pr_change.file_name,
         patches=patches,
-        file_contents=numbered_file_contents
+        file_contents=numbered_file_contents,
     )
+
 
 def format_pr_changes_by_file(pr_changes: list[PRChange]) -> dict[str, str]:
     formatted_pr_changes_by_file = {}
     for idx, pr_change in enumerate(pr_changes):
-        formatted_pr_changes_by_file[pr_change.file_name] = format_pr_change(pr_change, idx)
+        formatted_pr_changes_by_file[pr_change.file_name] = format_pr_change(
+            pr_change, idx
+        )
     return formatted_pr_changes_by_file
+
 
 system_prompt = """You are a careful and smart tech lead that wants to avoid production issues. You will be analyzing a set of diffs representing a pull request made to a piece of source code. Be very concise."""
 
@@ -514,6 +544,7 @@ The `loginUser` function in `handlers/auth.js` now calls the new `verifyTwoFacto
 
 CLAUDE_MODEL = "claude-3-opus-20240229"
 
+
 class PRReviewBot(ChatGPT):
     # get a comprehensive pr summary
     def get_pr_summary(self, formatted_patches: str, chat_logger: ChatLogger = None):
@@ -523,7 +554,9 @@ class PRReviewBot(ChatGPT):
                 content=system_prompt_pr_summary,
             )
         ]
-        formatted_user_prompt = user_prompt_pr_summary.format(all_patches=formatted_patches)
+        formatted_user_prompt = user_prompt_pr_summary.format(
+            all_patches=formatted_patches
+        )
         pr_summary_response = self.chat_anthropic(
             content=formatted_user_prompt,
             temperature=0.1,
@@ -539,12 +572,22 @@ class PRReviewBot(ChatGPT):
             chat_logger.add_chat(
                 {
                     "model": self.model,
-                    "messages": [{"role": message.role, "content": message.content} for message in self.messages],
+                    "messages": [
+                        {"role": message.role, "content": message.content}
+                        for message in self.messages
+                    ],
                     "output": "END OF MESSAGES",
-                })
+                }
+            )
         return pr_summary
+
     # fetch all potential issues for each file based on the diffs of that file
-    def review_code_changes_by_file(self, pr_changes_by_file: dict[str, str], chat_logger: ChatLogger = None, seed: int | None = None):
+    def review_code_changes_by_file(
+        self,
+        pr_changes_by_file: dict[str, str],
+        chat_logger: ChatLogger = None,
+        seed: int | None = None,
+    ):
         code_reviews_by_file = {}
         for file_name, pr_changes in pr_changes_by_file.items():
             self.messages = [
@@ -559,38 +602,51 @@ class PRReviewBot(ChatGPT):
                 temperature=0,
                 model=CLAUDE_MODEL,
                 use_openai=True,
-                seed=seed
+                seed=seed,
             )
             diff_summary = ""
             diff_summary_pattern = r"<diff_summary>(.*?)</diff_summary>"
-            diff_summary_matches = re.findall(diff_summary_pattern, code_review_response, re.DOTALL)
+            diff_summary_matches = re.findall(
+                diff_summary_pattern, code_review_response, re.DOTALL
+            )
             if diff_summary_matches:
                 # join all of them into a single string
-                diff_summary = "\n".join([match.strip() for match in diff_summary_matches])
+                diff_summary = "\n".join(
+                    [match.strip() for match in diff_summary_matches]
+                )
             issues = ""
             issues_pattern = r"<issues>(.*?)</issues>"
             issues_matches = re.findall(issues_pattern, code_review_response, re.DOTALL)
             if issues_matches:
                 issues = "\n".join([match.strip() for match in issues_matches])
             potential_issues = parse_issues_from_code_review(issues)
-            code_reviews_by_file[file_name] = CodeReview(file_name=file_name, diff_summary=diff_summary, issues=potential_issues, potential_issues=[])
+            code_reviews_by_file[file_name] = CodeReview(
+                file_name=file_name,
+                diff_summary=diff_summary,
+                issues=potential_issues,
+                potential_issues=[],
+            )
             if chat_logger:
                 chat_logger.add_chat(
                     {
                         "model": self.model,
-                        "messages": [{"role": message.role, "content": message.content} for message in self.messages],
+                        "messages": [
+                            {"role": message.role, "content": message.content}
+                            for message in self.messages
+                        ],
                         "output": "END OF MESSAGES",
-                    })
+                    }
+                )
         return code_reviews_by_file
 
     # review the generated issues more critically for each file to see if they are actually important or not
     def review_code_issues_by_file(
-        self, 
-        pr_changes: list[PRChange], 
-        formatted_pr_changes_by_file: dict[str, str], 
-        code_reviews_by_file: dict[str, CodeReview], 
+        self,
+        pr_changes: list[PRChange],
+        formatted_pr_changes_by_file: dict[str, str],
+        code_reviews_by_file: dict[str, CodeReview],
         chat_logger: ChatLogger = None,
-        seed: int | None = None
+        seed: int | None = None,
     ):
         files_to_patches: dict[str, str] = {}
         # format all patches for all files
@@ -610,44 +666,60 @@ class PRReviewBot(ChatGPT):
             if not code_review.issues:
                 continue
             # convert our CodeReviewIssue list to an xml string
-            potential_issues_string = objects_to_xml(code_review.issues, "issue", outer_field_name="potential_issues")
+            potential_issues_string = objects_to_xml(
+                code_review.issues, "issue", outer_field_name="potential_issues"
+            )
             # now prepend all other pr changes to the current pr change
-            all_other_pr_changes = "\n\n".join([pr_change_unformatted.format(file_name=file, patches=patches) for file, patches in files_to_patches.items() if file != file_name])
-            
-            formatted_user_prompt = user_prompt_review.format(file_name=file_name, potential_issues=potential_issues_string, pr_changes=f"{all_other_pr_changes}\n{formatted_pr_changes_by_file[file_name]}")
+            all_other_pr_changes = "\n\n".join(
+                [
+                    pr_change_unformatted.format(file_name=file, patches=patches)
+                    for file, patches in files_to_patches.items()
+                    if file != file_name
+                ]
+            )
+
+            formatted_user_prompt = user_prompt_review.format(
+                file_name=file_name,
+                potential_issues=potential_issues_string,
+                pr_changes=f"{all_other_pr_changes}\n{formatted_pr_changes_by_file[file_name]}",
+            )
             code_review_response = self.chat_anthropic(
                 content=formatted_user_prompt,
                 temperature=0,
                 model=CLAUDE_MODEL,
                 use_openai=True,
-                seed=seed
+                seed=seed,
             )
 
             severe_issues_pattern = r"<severe_issues>(.*?)</severe_issues>"
-            issues_matches = re.findall(severe_issues_pattern, code_review_response, re.DOTALL)
+            issues_matches = re.findall(
+                severe_issues_pattern, code_review_response, re.DOTALL
+            )
             if issues_matches:
                 issues = "\n".join([match.strip() for match in issues_matches])
                 potential_issues = parse_issues_from_code_review(issues)
             else:
                 potential_issues = []
-            
+
             # update the issues
             code_reviews_by_file[file_name].issues = potential_issues
-            
+
             if chat_logger:
                 chat_logger.add_chat(
                     {
                         "model": self.model,
-                        "messages": [{"role": message.role, "content": message.content} for message in self.messages],
+                        "messages": [
+                            {"role": message.role, "content": message.content}
+                            for message in self.messages
+                        ],
                         "output": "END OF MESSAGES",
-                    })
+                    }
+                )
         return code_reviews_by_file
 
     # given a list of changes identify newly created functions
     def identify_functions_in_patches(
-        self,
-        pr_changes: list[PRChange],
-        chat_logger: ChatLogger | None = None
+        self, pr_changes: list[PRChange], chat_logger: ChatLogger | None = None
     ):
         newly_created_functions: dict[str, list[FunctionDef]] = {}
         files_to_patches: dict[str, str] = {}
@@ -668,88 +740,156 @@ class PRReviewBot(ChatGPT):
             ]
 
             formatted_user_prompt = user_prompt_identify_new_functions.format(
-                file_name=file_name, patches=patches, numbered_code_file=add_line_numbers(files_to_pr_change[file_name].new_code, start=1))
+                file_name=file_name,
+                patches=patches,
+                numbered_code_file=add_line_numbers(
+                    files_to_pr_change[file_name].new_code, start=1
+                ),
+            )
             new_functions_response = self.chat_anthropic(
                 content=formatted_user_prompt,
                 temperature=0,
                 model=CLAUDE_MODEL,
-                use_openai=True
+                use_openai=True,
             )
             if chat_logger:
                 chat_logger.add_chat(
                     {
                         "model": self.model,
-                        "messages": [{"role": message.role, "content": message.content} for message in self.messages],
+                        "messages": [
+                            {"role": message.role, "content": message.content}
+                            for message in self.messages
+                        ],
                         "output": "END OF MESSAGES",
-                    })
+                    }
+                )
             # extract function defs from string
             function_def_params = ["function_code", "start_line", "end_line"]
-            newly_created_functions_regex = r'<newly_created_functions>(?P<content>.*?)<\/newly_created_functions>'
-            newly_created_functions_match = re.search(newly_created_functions_regex, new_functions_response, re.DOTALL)
+            newly_created_functions_regex = (
+                r"<newly_created_functions>(?P<content>.*?)<\/newly_created_functions>"
+            )
+            newly_created_functions_match = re.search(
+                newly_created_functions_regex, new_functions_response, re.DOTALL
+            )
             if newly_created_functions_match:
-                extracted_functions, _ = extract_objects_from_string(newly_created_functions_match.group("content"), "function", function_def_params)
+                extracted_functions, _ = extract_objects_from_string(
+                    newly_created_functions_match.group("content"),
+                    "function",
+                    function_def_params,
+                )
                 patches = pr_change.patches
                 for extracted_function in extracted_functions:
                     # do some basic double checking, make sure the start and end lines make sense
                     # the start and end lines should fall within the start and end of one patch, if they dont, then it is clearly wrong
-                    start = int(extracted_function.get('start_line', -1))
-                    end = int(extracted_function.get('end_line', -1))
+                    try:
+                        start = int(extracted_function.get("start_line", -1))
+                        end = int(extracted_function.get("end_line", -1))
+                    except ValueError as e:  # invalid start and end lines
+                        logger.error(
+                            f"Non fatal error in identify_functions_in_patches attempting to extract start and end lines."
+                        )
+                        posthog.capture(
+                            "identify_repeated_functions",
+                            "identify_repeated_functions error line_numbers",
+                            properties={
+                                "error": str(e),
+                                "extracted_function": str(extracted_function),
+                            },
+                        )
+                        start = -1
+                        end = -1
                     if start != -1 and end != -1:
                         valid_function = False
                         for patch in patches:
-                            if start >= patch.new_start and end <= (patch.new_start + patch.new_count):
+                            if start >= patch.new_start and end <= (
+                                patch.new_start + patch.new_count
+                            ):
                                 valid_function = True
                                 break
                         if valid_function:
                             if file_name not in newly_created_functions:
                                 newly_created_functions[file_name] = []
-                            newly_created_functions[file_name].append(FunctionDef(**{**extracted_function, "file_name": file_name}))
+                            newly_created_functions[file_name].append(
+                                FunctionDef(
+                                    **{**extracted_function, "file_name": file_name}
+                                )
+                            )
                         else:
-                            logger.warning(f"Extracted function was dropped due to incorrect start and end lines!\nFunction:\n{extracted_function}")
+                            logger.warning(
+                                f"Extracted function was dropped due to incorrect start and end lines!\nFunction:\n{extracted_function}"
+                            )
             else:
                 newly_created_functions[file_name] = []
         return newly_created_functions
-    
+
     # identifies any repeated utility function definitons and raises them as codereviewissue
     def identify_repeated_functions(
-        self, 
-        cloned_repo: ClonedRepo, 
+        self,
+        cloned_repo: ClonedRepo,
         newly_created_functions_dict: dict[str, list[FunctionDef]],
-        chat_logger: ChatLogger | None = None
+        chat_logger: ChatLogger | None = None,
     ) -> dict[str, list[CodeReviewIssue]]:
         repeated_functions_code_issues: dict[str, list[CodeReviewIssue]] = {}
         for file_name, newly_created_functions in newly_created_functions_dict.items():
             # keep copy of edited files to revert later
             modified_files_dict: dict[str, dict[str, str]] = {}
-            modified_files_dict[file_name] = {"original": cloned_repo.get_file_contents(file_name)}
+            modified_files_dict[file_name] = {
+                "original": cloned_repo.get_file_contents(file_name)
+            }
             repeated_functions_code_issues[file_name] = []
             # do a similarity search over the chunked code base to see if the function name matches anything
             for function in newly_created_functions:
                 # remove the function definition from the file to prevent biased results
                 modified_files_dict[file_name]["modified"] = remove_lines_from_text(
-                    modified_files_dict[file_name]["original"],start=int(function.start_line),end=int(function.end_line)
+                    modified_files_dict[file_name]["original"],
+                    start=int(function.start_line),
+                    end=int(function.end_line),
                 )
                 # now update the cloned repo file in both repo_dir and cached_dir
                 try:
-                    update_file(cloned_repo.repo_dir, file_name, modified_files_dict[file_name]["modified"])
-                    update_file(cloned_repo.cached_dir, file_name, modified_files_dict[file_name]["modified"])
+                    update_file(
+                        cloned_repo.repo_dir,
+                        file_name,
+                        modified_files_dict[file_name]["modified"],
+                    )
+                    update_file(
+                        cloned_repo.cached_dir,
+                        file_name,
+                        modified_files_dict[file_name]["modified"],
+                    )
                 except Exception as e:
-                    logger.error(f"Failure updating file {cloned_repo.repo_dir}{function.file_name}: {e}")
+                    logger.error(
+                        f"Failure updating file {cloned_repo.repo_dir}{function.file_name}: {e}"
+                    )
                     posthog.capture(
-                        "identify_repeated_functions", 
-                        "identify_repeated_functions error updating", 
-                        properties={"error": str(e), "cloned_repo.repo_dir": cloned_repo.repo_dir, "file_name": function.file_name}
+                        "identify_repeated_functions",
+                        "identify_repeated_functions error updating",
+                        properties={
+                            "error": str(e),
+                            "cloned_repo.repo_dir": cloned_repo.repo_dir,
+                            "file_name": function.file_name,
+                        },
                     )
                     raise e
                 # get the top five snippets and then pass those into sweep to ask if there are any repeated function definitions
                 ranked_snippets, _, _ = get_top_k_snippets(
-                    cloned_repo, function.function_code, None, k=5, include_docs=True, include_tests=False, do_not_use_file_cache=True
+                    cloned_repo,
+                    function.function_code,
+                    None,
+                    k=5,
+                    include_docs=True,
+                    include_tests=False,
+                    do_not_use_file_cache=True,
                 )
                 formatted_code_snippets = "\n\n".join(
-                    [f"<code_snippet file_name='{snippet.file_path}' snippet_index='{idx}'>\n{snippet.get_snippet()}\n</code_snippet>" for idx, snippet in enumerate(ranked_snippets)]
+                    [
+                        f"<code_snippet file_name='{snippet.file_path}' snippet_index='{idx}'>\n{snippet.get_snippet()}\n</code_snippet>"
+                        for idx, snippet in enumerate(ranked_snippets)
+                    ]
                 )
                 formatted_user_prompt = user_prompt_identify_repeats.format(
-                    function=f"<new_function>\n{function.function_code}\n</new_function>", formatted_code_snippets=formatted_code_snippets
+                    function=f"<new_function>\n{function.function_code}\n</new_function>",
+                    formatted_code_snippets=formatted_code_snippets,
                 )
                 self.messages = [
                     Message(
@@ -761,90 +901,133 @@ class PRReviewBot(ChatGPT):
                     content=formatted_user_prompt,
                     temperature=0,
                     model=CLAUDE_MODEL,
-                    use_openai=True
+                    use_openai=True,
                 )
                 if chat_logger:
                     chat_logger.add_chat(
                         {
                             "model": self.model,
-                            "messages": [{"role": message.role, "content": message.content} for message in self.messages],
+                            "messages": [
+                                {"role": message.role, "content": message.content}
+                                for message in self.messages
+                            ],
                             "output": "END OF MESSAGES",
-                        })
-                repeated_function_params = ['answer', 'justification', 'solution']
-                repeated_function, _, failed_param = extract_object_fields_from_string(repeated_functions_response, repeated_function_params)
+                        }
+                    )
+                repeated_function_params = ["answer", "justification", "solution"]
+                repeated_function, _, failed_param = extract_object_fields_from_string(
+                    repeated_functions_response, repeated_function_params
+                )
                 # if extraction fails
                 if failed_param == "answer":
                     logger.error("Failure in extract_object_fields_from_string")
                     posthog.capture(
-                        "extract_object_fields_from_string", "extract_object_fields_from_string failed", properties={"text": repeated_functions_response, "params": str(repeated_function_params)}
+                        "extract_object_fields_from_string",
+                        "extract_object_fields_from_string failed",
+                        properties={
+                            "text": repeated_functions_response,
+                            "params": str(repeated_function_params),
+                        },
                     )
                 else:
                     # case insensitive match
-                    answer_true = r'true'
-                    if bool(re.search(answer_true, repeated_function['answer'], re.IGNORECASE)):
+                    answer_true = r"true"
+                    if bool(
+                        re.search(
+                            answer_true, repeated_function["answer"], re.IGNORECASE
+                        )
+                    ):
                         justification = repeated_function.get("justification", "")
                         new_code_issue = CodeReviewIssue(
                             issue_description=f"Sweep has identified a redundant function: {justification}",
                             start_line=function.start_line,
-                            end_line=function.end_line
+                            end_line=function.end_line,
                         )
-                        repeated_functions_code_issues[function.file_name].append(new_code_issue)
+                        repeated_functions_code_issues[function.file_name].append(
+                            new_code_issue
+                        )
 
                 # now revert the cloned repo file - if this fails this can cause big issues
                 try:
-                    update_file(cloned_repo.repo_dir, file_name, modified_files_dict[file_name]["original"])
-                    update_file(cloned_repo.cached_dir, file_name, modified_files_dict[file_name]["original"])
+                    update_file(
+                        cloned_repo.repo_dir,
+                        file_name,
+                        modified_files_dict[file_name]["original"],
+                    )
+                    update_file(
+                        cloned_repo.cached_dir,
+                        file_name,
+                        modified_files_dict[file_name]["original"],
+                    )
                 except Exception as e:
-                    logger.error(f"Failure updating file {cloned_repo.repo_dir}{function.file_name}: {e}")
+                    logger.error(
+                        f"Failure updating file {cloned_repo.repo_dir}{function.file_name}: {e}"
+                    )
                     posthog.capture(
-                        "identify_repeated_functions", 
-                        "identify_repeated_functions error reverting", 
-                        properties={"error": str(e), "cloned_repo.repo_dir": cloned_repo.repo_dir, "file_name": function.file_name}
+                        "identify_repeated_functions",
+                        "identify_repeated_functions error reverting",
+                        properties={
+                            "error": str(e),
+                            "cloned_repo.repo_dir": cloned_repo.repo_dir,
+                            "file_name": function.file_name,
+                        },
                     )
                     raise e
         return repeated_functions_code_issues
-        
+
 
 # get the best issue to return based on group vote
 @posthog_trace
 def get_group_voted_best_issue_index(
-    username: str, 
-    file_name: str, 
-    label: str, 
-    files_to_labels_indexes: dict[str, dict[str, list[int]]], 
-    files_to_embeddings: dict[str, any], 
-    index_length: int, 
+    username: str,
+    file_name: str,
+    label: str,
+    files_to_labels_indexes: dict[str, dict[str, list[int]]],
+    files_to_embeddings: dict[str, any],
+    index_length: int,
 ):
     similarity_scores = [0 for _ in range(index_length)]
     for index_i in range(index_length):
         for index_j in range(index_length):
             if index_i != index_j:
-                embedding_i = files_to_embeddings[file_name][index_i].reshape(1,512)
-                embedding_j = files_to_embeddings[file_name][index_j].reshape(1,512)
-                similarity_scores[index_i] += cosine_similarity(embedding_i, embedding_j)[0][0]
+                embedding_i = files_to_embeddings[file_name][index_i].reshape(1, 512)
+                embedding_j = files_to_embeddings[file_name][index_j].reshape(1, 512)
+                similarity_scores[index_i] += cosine_similarity(
+                    embedding_i, embedding_j
+                )[0][0]
     max_index = files_to_labels_indexes[file_name][label][np.argmax(similarity_scores)]
     return max_index
 
+
 # function that gets the code review for every file in the pr
 def get_code_reviews_for_file(
-    pr_changes: list[PRChange], 
-    formatted_pr_changes_by_file: dict[str, str], 
+    pr_changes: list[PRChange],
+    formatted_pr_changes_by_file: dict[str, str],
     chat_logger: ChatLogger | None = None,
-    seed: int | None = None
+    seed: int | None = None,
 ):
     review_bot = PRReviewBot()
-    code_review_by_file = review_bot.review_code_changes_by_file(formatted_pr_changes_by_file, chat_logger=chat_logger, seed=seed)
-    code_review_by_file = review_bot.review_code_issues_by_file(pr_changes, formatted_pr_changes_by_file, code_review_by_file, chat_logger=chat_logger, seed=seed)
+    code_review_by_file = review_bot.review_code_changes_by_file(
+        formatted_pr_changes_by_file, chat_logger=chat_logger, seed=seed
+    )
+    code_review_by_file = review_bot.review_code_issues_by_file(
+        pr_changes,
+        formatted_pr_changes_by_file,
+        code_review_by_file,
+        chat_logger=chat_logger,
+        seed=seed,
+    )
     return code_review_by_file
+
 
 # run 5 seperate instances of review_pr and then group the resulting issues and only take the issues that appear the majority of the time (> 3)
 @posthog_trace
 def group_vote_review_pr(
-    username: str, 
-    pr_changes: list[PRChange], 
-    formatted_pr_changes_by_file: dict[str, str], 
-    multiprocess: bool = True, 
-    chat_logger: ChatLogger | None = None, 
+    username: str,
+    pr_changes: list[PRChange],
+    formatted_pr_changes_by_file: dict[str, str],
+    multiprocess: bool = True,
+    chat_logger: ChatLogger | None = None,
 ) -> dict[str, CodeReview]:
     majority_code_review_by_file = {}
     code_reviews_by_file = []
@@ -853,7 +1036,10 @@ def group_vote_review_pr(
         chat_logger = None
         pool = multiprocessing.Pool(processes=5)
         results = [
-            pool.apply_async(get_code_reviews_for_file, args=(pr_changes, formatted_pr_changes_by_file, chat_logger, i))
+            pool.apply_async(
+                get_code_reviews_for_file,
+                args=(pr_changes, formatted_pr_changes_by_file, chat_logger, i),
+            )
             for i in range(GROUP_SIZE)
         ]
         pool.close()
@@ -865,24 +1051,33 @@ def group_vote_review_pr(
             except Exception as e:
                 logger.error(f"Error fetching result: {e}")
                 posthog.capture(
-                    username, 
-                    "get_code_reviews_for_file error multiprocess", 
-                    properties={"error": str(e)}
+                    username,
+                    "get_code_reviews_for_file error multiprocess",
+                    properties={"error": str(e)},
                 )
     else:
         for i in range(GROUP_SIZE):
-            code_reviews_by_file.append(get_code_reviews_for_file(pr_changes, formatted_pr_changes_by_file, chat_logger=chat_logger, seed=i))
-    
+            code_reviews_by_file.append(
+                get_code_reviews_for_file(
+                    pr_changes,
+                    formatted_pr_changes_by_file,
+                    chat_logger=chat_logger,
+                    seed=i,
+                )
+            )
+
     # embed each issue and then cluster them
     # extract code issues for each file and prepare them for embedding
-    code_reviews_ready_for_embedding = [] 
+    code_reviews_ready_for_embedding = []
     for code_review_by_file in code_reviews_by_file:
         prepped_code_review = {}
         for file_name, code_review in code_review_by_file.items():
             # using object_to_xml may not be the most optimal as it adds extra xml tags
-            prepped_code_review[file_name] = [object_to_xml(code_issue, 'issue') for code_issue in code_review.issues]
+            prepped_code_review[file_name] = [
+                object_to_xml(code_issue, "issue") for code_issue in code_review.issues
+            ]
         code_reviews_ready_for_embedding.append(prepped_code_review)
-    
+
     # embed all extracted texts
     code_reviews_embeddings = []
     for prepped_code_review in code_reviews_ready_for_embedding:
@@ -924,7 +1119,7 @@ def group_vote_review_pr(
                 files_to_labels[file_name] = []
         except ValueError as e:
             logger.error(f"Error with dbscan {e}")
-        
+
     LABEL_THRESHOLD = 4
     # get the labels that have a count greater than the threshold
     # format: {file_name: {label: [index, ...]}}
@@ -941,7 +1136,9 @@ def group_vote_review_pr(
     # create the final code_reviews_by_file
     for file_name, labels_dict in files_to_labels_indexes.items():
         # pick first one as diff summary doesnt really matter
-        final_code_review: CodeReview = copy.deepcopy(code_reviews_by_file[0][file_name])
+        final_code_review: CodeReview = copy.deepcopy(
+            code_reviews_by_file[0][file_name]
+        )
         final_code_review.issues = []
         final_code_review.potential_issues = []
         final_issues = []
@@ -950,47 +1147,72 @@ def group_vote_review_pr(
             index_length = len(indexes)
             # -1 is considered as noise
             if index_length >= LABEL_THRESHOLD and label != "-1":
-                max_index = get_group_voted_best_issue_index(username, file_name, label, files_to_labels_indexes, files_to_embeddings, index_length)
+                max_index = get_group_voted_best_issue_index(
+                    username,
+                    file_name,
+                    label,
+                    files_to_labels_indexes,
+                    files_to_embeddings,
+                    index_length,
+                )
                 # add to final issues, first issue - TODO use similarity score of all issues against each other
                 final_issues.append(files_to_issues[file_name][max_index])
             # get potential issues which are one below the label_threshold
             if index_length == LABEL_THRESHOLD - 1 and label != "-1":
-                max_index = get_group_voted_best_issue_index(username, file_name, label, files_to_labels_indexes, files_to_embeddings, index_length)
+                max_index = get_group_voted_best_issue_index(
+                    username,
+                    file_name,
+                    label,
+                    files_to_labels_indexes,
+                    files_to_embeddings,
+                    index_length,
+                )
                 potential_issues.append(files_to_issues[file_name][max_index])
         final_code_review.issues = final_issues
         final_code_review.potential_issues = potential_issues
         majority_code_review_by_file[file_name] = copy.deepcopy(final_code_review)
     return majority_code_review_by_file
 
+
 @posthog_trace
 def review_pr_detailed_checks(
-    username: str, 
+    username: str,
     cloned_repo: ClonedRepo,
-    pr_changes: list[PRChange], 
-    code_review_by_file: dict[str, CodeReview], 
-    chat_logger: ChatLogger | None = None, 
+    pr_changes: list[PRChange],
+    code_review_by_file: dict[str, CodeReview],
+    chat_logger: ChatLogger | None = None,
 ) -> dict[str, CodeReview]:
     review_bot = PRReviewBot()
     # get a list of newly created functions
-    newly_created_functions_dict: dict[str, list[FunctionDef]] = review_bot.identify_functions_in_patches(pr_changes, chat_logger=chat_logger)
-    new_code_issues: dict[str, list[CodeReviewIssue]] = review_bot.identify_repeated_functions(
-        cloned_repo, newly_created_functions_dict, chat_logger=chat_logger
+    newly_created_functions_dict: dict[str, list[FunctionDef]] = (
+        review_bot.identify_functions_in_patches(pr_changes, chat_logger=chat_logger)
+    )
+    new_code_issues: dict[str, list[CodeReviewIssue]] = (
+        review_bot.identify_repeated_functions(
+            cloned_repo, newly_created_functions_dict, chat_logger=chat_logger
+        )
     )
     # now append these code issues to the existing ones
     for file_name, new_code_issues in new_code_issues.items():
         if new_code_issues:
             code_review_by_file[file_name].issues.extend(new_code_issues)
-    
+
     return code_review_by_file
 
+
 # get the summary for a pr given all the changes
-def get_pr_summary_from_patches(pr_changes: list[PRChange], chat_logger: ChatLogger | None = None):
+def get_pr_summary_from_patches(
+    pr_changes: list[PRChange], chat_logger: ChatLogger | None = None
+):
     review_bot = PRReviewBot()
     formatted_pr_patches = ""
     for pr_change in pr_changes:
         file_name = pr_change.file_name
         patches = format_patches_for_pr_change(pr_change)
-        formatted_pr_patches += f'\n\n<patches file_name="{file_name}">\n{patches}\n</patches>\n\n'
-    pr_summary = review_bot.get_pr_summary(formatted_pr_patches, chat_logger=chat_logger)
+        formatted_pr_patches += (
+            f'\n\n<patches file_name="{file_name}">\n{patches}\n</patches>\n\n'
+        )
+    pr_summary = review_bot.get_pr_summary(
+        formatted_pr_patches, chat_logger=chat_logger
+    )
     return pr_summary
-    
