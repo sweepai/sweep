@@ -434,7 +434,7 @@ Error message 1: Copy the full error message here VERBOSE, abbreviations, paraph
 Then, based on the analysis, propose a fix by following the format below. If the error has already been fixed, you can skip this step.
 
 <modify file="file_path"> 
-Instructions for modifying one section of the file. Each block must have exactly one original_code and one new_code block. Do not make a change that has already been made by the intern.
+Instructions for modifying one section of the file, containing the exact changes required. Use multiple blocks for multiple changes to different sections of code, such as for imports. Each block must have exactly one original_code and one new_code block. Do not make a change that has already been made by the intern.
 
 a. Describe the section of code that needs to be modified, i.e. the test case that checks if `foo` == `bar`.
 <original_code>
@@ -450,6 +450,7 @@ c. (Optional) Identify whether this is a change that needs to be applied exactly
 
 Use multiple <modify> blocks for the same file to separate distinct changes, such as for imports.
 </modify>
+[additional modifies as needed, for the same file or different files]
 </error_analysis>
 [additional <error_analysis> blocks as needed, for ALL error messages in the error logs]
 </plan>""" # + files_to_change_example TODO: test separately
