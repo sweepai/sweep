@@ -2,8 +2,7 @@ from collections.abc import Iterable
 import multiprocessing
 import os
 import re
-from collections import Counter, defaultdict
-from math import log
+from collections import Counter
 import subprocess
 
 import tantivy
@@ -19,7 +18,6 @@ from sweepai.core.repo_parsing_utils import directory_to_chunks
 from sweepai.core.vector_db import multi_get_query_texts_similarity
 from sweepai.dataclasses.files import Document
 from sweepai.logn.cache import file_cache
-from sweepai.utils.progress import TicketProgress
 from sweepai.config.client import SweepConfig
 
 token_cache = Cache(f'{CACHE_DIRECTORY}/token_cache') # we instantiate a singleton, diskcache will handle concurrency
@@ -123,7 +121,6 @@ def prepare_index_from_snippets(
         cache_path=cache_path
     )
     all_tokens = []
-    all_lengths = []
     workers = multiprocessing.cpu_count() // 2
     try:
         if workers > 1:
@@ -144,7 +141,7 @@ def prepare_index_from_snippets(
                 ]
             )
         all_titles = [doc.title for doc in all_docs]
-        with Timer() as timer:
+        with Timer():
             index.add_documents(
                 tqdm(zip(all_titles, all_tokens), total=len(all_docs), desc="Indexing")
             )

@@ -72,12 +72,20 @@ def posthog_trace(
         posthog.capture(username, f"{function.__name__} start", properties=metadata)
 
         try:
-            result = function(
-                username,
-                *args,
-                **kwargs,
-                metadata = metadata
-            )
+            # check if metadata is in the function signature
+            if "metadata" in function.__code__.co_varnames[: function.__code__.co_argcount]:
+                result = function(
+                    username,
+                    *args,
+                    **kwargs,
+                    metadata=metadata
+                )
+            else:
+                result = function(
+                    username,
+                    *args,
+                    **kwargs,
+                )
         except Exception as e:
             posthog.capture(username, f"{function.__name__} error", properties={**metadata, "error": str(e), "trace": traceback.format_exc()})
             raise e
