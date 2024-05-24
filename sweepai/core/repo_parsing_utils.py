@@ -40,16 +40,17 @@ def _filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
     Returns:
         bool: True if the file should be included, False otherwise.
     """
-
     for ext in sweep_config.exclude_exts:
         if file.endswith(ext):
             return False
+    only_file_name = file[len(directory) + 1 :]
+    only_file_name_parts = only_file_name.split(os.path.sep)
     for dir_name in sweep_config.exclude_dirs:
-        if file[len(directory) + 1 :].startswith(dir_name):
-            return False
+        for file_part in only_file_name_parts[:-1]:
+            if file_part == dir_name:
+                return False
     for dir_name in sweep_config.exclude_path_dirs:
-        file_parts = file.split(os.path.sep)
-        if dir_name in file_parts:
+        if dir_name in only_file_name_parts:
             return False
     try:
         size = os.stat(file).st_size
