@@ -3,10 +3,17 @@ issue_sub_request_system_prompt = """You are a tech lead helping to break down a
 issue_sub_request_prompt = """\
 Break down the GitHub issue to identify every single one of the user's requests. Be complete. The changes should be atomic.
 
+Guidelines:
+- For well-specified issues, where all required steps are already listed, simply break down the issue.
+- For less well-specified issues, where the user's requests are vague or incomplete, infer the user's intent and break down the issue accordingly.
+- A sub request should correspond to a code or test change.
+- A sub request should not be speculative, such as "catch any other errors", "abide by best practices" or "update any other code". Instead explicitly state the changes you would like to see.
+- Tests and error handling will be run automatically in the CI/CD pipeline, so do not mention them in the sub requests.
+
 Respond in the following format:
 <issue_sub_requests>
 <issue_sub_request>
-A relevant, very short subtask from the user's issue. This should correspond to a specific change in the codebase.
+A relevant, very short subtask from the user's issue.
 </issue_sub_request>
 </issue_sub_requests>"""
 
@@ -162,6 +169,19 @@ Describe the changes to be made.
 [additional modifies as needed, for the same file or different files]
 </plan>"""
 
+anthropic_rename_prompt = """Your job is to handle all renames and deletions in the codebase to resolve a user's issue.
+
+Identify all renames that would need to occur in the codebase to resolve the user's issue. Respond in the following format:
+
+<renames>
+<rename>
+<old_name>Current name of the file.</old_name>
+<new_name>New name of the file. Set to empty to delete the file.</new_name>
+</rename>
+[additional renames as needed]
+</renames>
+
+If no renames are needed, respond with an empty <renames> tag."""
 
 """
 Respond in this format:
