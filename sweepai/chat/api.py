@@ -75,7 +75,8 @@ def posthog_trace(
             result = function(
                 username,
                 *args,
-                **kwargs
+                **kwargs,
+                metadata = metadata
             )
         except Exception as e:
             posthog.capture(username, f"{function.__name__} error", properties={**metadata, "error": str(e), "trace": traceback.format_exc()})
@@ -190,7 +191,12 @@ def search_codebase(
         print(f"Cloned {repo_name} to /tmp/{repo}")
     cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name)
     # cloned_repo.pull()
-    repo_context_manager = prep_snippets(cloned_repo, query, use_multi_query=False, NUM_SNIPPETS_TO_KEEP=0)
+    repo_context_manager = prep_snippets(
+        cloned_repo, query, 
+        use_multi_query=False,
+        NUM_SNIPPETS_TO_KEEP=0,
+        skip_analyze_agent=True
+    )
     return repo_context_manager.current_top_snippets
 
 @app.post("/backend/chat")
