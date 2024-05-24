@@ -60,6 +60,7 @@ from sweepai.utils.ticket_utils import (
     fire_and_forget_wrapper,
 )
 from sweepai.utils.user_settings import UserSettings
+from sweepai.exceptions import IncompletableObject
 
 
 sweeping_gif = """<a href="https://github.com/sweepai/sweep"><img class="swing" src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="100" style="width:50px; margin-bottom:10px" alt="Sweeping"></a>"""
@@ -696,9 +697,13 @@ def render_pr_review_by_file(
 <summary>{file_name}</summary>
 <ul>{format_code_sections(sweep_issues_string)}</ul></details>"""
         if potential_issues:
-            potential_issues_string = render_code_review_issues(
-                username, pr, code_review, issue_type="potential"
-            )
+            try:
+                potential_issues_string = render_code_review_issues(
+                    username, pr, code_review, issue_type="potential"
+                )
+            except IncompletableObject as e:
+                logger.exception(f"Error rendering potential issues: {e}")
+                potential_issues_string = ""
             potential_issues_section += f"""<details>
 <summary>{file_name}</summary>
 <ul>{format_code_sections(potential_issues_string)}</ul></details>"""
