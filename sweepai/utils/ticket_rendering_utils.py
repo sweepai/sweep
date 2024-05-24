@@ -681,7 +681,7 @@ def render_pr_review_by_file(
 ) -> str:
     body = f"{SWEEP_PR_REVIEW_HEADER}\n"
     if pr_authors:
-        body += f"Authors of pull request: {pr_authors}\n"
+        body += f"Authors: {pr_authors}\n" if ", " in pr_authors else f"Author: {pr_authors}\n" 
     if pull_request_summary:
         body += f"\n{pull_request_summary}\n<hr>\n"
     issues_section = ""
