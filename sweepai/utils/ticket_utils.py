@@ -142,8 +142,6 @@ def multi_get_top_k_snippets(
         _, snippets, lexical_index = prepare_lexical_search_index(
             cloned_repo.cached_dir,
             sweep_config,
-            ticket_progress,
-            ref_name=f"{str(cloned_repo.git_repo.head.commit.hexsha)}",
             do_not_use_file_cache=do_not_use_file_cache
         )
     logger.info(f"Lexical search index took {timer.time_elapsed} seconds")
@@ -265,6 +263,7 @@ def multi_prep_snippets(
     k: int = 15,
     skip_reranking: bool = False, # This is only for pointwise reranking
     skip_pointwise_reranking: bool = False,
+    skip_analyze_agent: bool = False,
     NUM_SNIPPETS_TO_KEEP=0,
     NUM_SNIPPETS_TO_RERANK=100,
     include_docs: bool = False,
@@ -325,7 +324,7 @@ def multi_prep_snippets(
                 logger.info(f"{idx}: {snippet.denotation} {snippet.score} {percentile}")
                 snippet.type_name = type_name
                 filtered_subset_snippets.append(snippet)
-            if type_name != "source" and filtered_subset_snippets: # do more filtering
+            if type_name != "source" and filtered_subset_snippets and not skip_analyze_agent: # do more filtering
                 filtered_subset_snippets = AnalyzeSnippetAgent().analyze_snippets(filtered_subset_snippets, type_name, queries[0])
             logger.info(f"Length of filtered subset snippets for {type_name}: {len(filtered_subset_snippets)}")
             all_snippets.extend(filtered_subset_snippets)

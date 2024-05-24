@@ -72,11 +72,20 @@ def posthog_trace(
         posthog.capture(username, f"{function.__name__} start", properties=metadata)
 
         try:
-            result = function(
-                username,
-                *args,
-                **kwargs
-            )
+            # check if metadata is in the function signature
+            if "metadata" in function.__code__.co_varnames[: function.__code__.co_argcount]:
+                result = function(
+                    username,
+                    *args,
+                    **kwargs,
+                    metadata=metadata
+                )
+            else:
+                result = function(
+                    username,
+                    *args,
+                    **kwargs,
+                )
         except Exception as e:
             posthog.capture(username, f"{function.__name__} error", properties={**metadata, "error": str(e), "trace": traceback.format_exc()})
             raise e
@@ -190,7 +199,12 @@ def search_codebase(
         print(f"Cloned {repo_name} to /tmp/{repo}")
     cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name)
     # cloned_repo.pull()
-    repo_context_manager = prep_snippets(cloned_repo, query, use_multi_query=False, NUM_SNIPPETS_TO_KEEP=0)
+    repo_context_manager = prep_snippets(
+        cloned_repo, query, 
+        use_multi_query=False,
+        NUM_SNIPPETS_TO_KEEP=0,
+        skip_analyze_agent=True
+    )
     return repo_context_manager.current_top_snippets
 
 @app.post("/backend/chat")
@@ -259,7 +273,7 @@ def chat_codebase_stream(
         *messages[:-1]
     ]
 
-    def stream_state(initial_user_message: str, snippets: list[Snippet], messages: list[Message], access_token: str):
+    def stream_state(initial_user_message: str, snippets: list[Snippet], messages: list[Message], access_token: str, metadata: dict):
         user_message = initial_user_message
         fetched_snippets = snippets
         new_messages = [
@@ -430,6 +444,7 @@ def chat_codebase_stream(
             snippets,
             messages,
             access_token,
+            metadata,
             use_patch=use_patch
         )
     )
