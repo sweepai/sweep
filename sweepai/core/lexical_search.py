@@ -42,13 +42,13 @@ redis_client = Redis.from_url(REDIS_URL) if REDIS_URL else None
 class CustomIndex:
     def __init__(self, cache_path: str = None):
         os.makedirs(cache_path, exist_ok=True)
-        self.index = tantivy.Index(schema)
+        self.index = tantivy.Index(schema) # pylint: disable=no-member
     
     def add_documents(self, documents: Iterable):
         writer = self.index.writer()
         for doc_id, (title, text) in enumerate(documents):
             writer.add_document(
-                tantivy.Document(
+                tantivy.Document( # pylint: disable=no-member
                     title=title,
                     body=text,
                     doc_id=doc_id
