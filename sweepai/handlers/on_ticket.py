@@ -464,7 +464,7 @@ def on_ticket(
                     "\n".join(
                         [
                             f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{max(min(snippet.end, snippet.content.count(newline) - 1), 1)}\n"
-                            for snippet in list(dict.fromkeys(snippets + repo_context_manager.read_only_snippets))
+                            for snippet in list(dict.fromkeys(repo_context_manager.current_top_snippets + repo_context_manager.read_only_snippets))
                         ]
                     ),
                 )
