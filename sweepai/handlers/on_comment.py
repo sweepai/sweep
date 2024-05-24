@@ -11,6 +11,7 @@ from typing import Any
 from loguru import logger
 
 from sentry_sdk import set_user
+from sweepai.chat.api import posthog_trace
 from sweepai.config.server import (
     ENV,
     GITHUB_BOT_USERNAME,
@@ -36,14 +37,14 @@ num_extended_snippets = 2
 ERROR_FORMAT = "❌ {title}\n\nPlease report this on our [community forum](https://community.sweep.dev/)."
 SWEEPING_GIF = f"{center(sweeping_gif)}\n\n<div align='center'><h3>Sweep is working on resolving your comment...<h3/></div>\n\n"
 
-
+@posthog_trace
 def on_comment(
+    username: str,
     repo_full_name: str,
     repo_description: str,
     comment: str,
     pr_path: str | None,
     pr_line_position: int | None,
-    username: str,
     installation_id: int,
     pr_number: int = None,
     comment_id: int | None = None,
@@ -246,7 +247,8 @@ def on_comment(
                 pr_file = repo.get_contents(
                     pr_path, ref=branch_name
                 ).decoded_content.decode("utf-8")
-                pr_lines = pr_file.splitlines()
+                # splitlines returns empty array if the string is empty, split(\n) returns ['']
+                pr_lines = pr_file.split('\n')
                 start = max(0, pr_line_position - 11)
                 end = min(len(pr_lines), pr_line_position + 10)
                 pr_chunk = "\n".join(pr_lines[start:end])
@@ -271,7 +273,7 @@ def on_comment(
             )
             snippets = repo_context_manager.current_top_snippets
 
-            pr_diffs, _dropped_files = get_pr_changes(repo, pr)
+            pr_diffs, _dropped_files, _unsuitable_files = get_pr_changes(repo, pr)
             snippets_modified = [Snippet.from_file(
                 pr_diff.file_name, cloned_repo.get_file_contents(pr_diff.file_name)
             ) for pr_diff in pr_diffs]

@@ -11,7 +11,7 @@ from sweepai.utils.timer import Timer
 from sweepai.agents.analyze_snippets import AnalyzeSnippetAgent
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import COHERE_API_KEY
-from sweepai.core.context_pruning import RepoContextManager, add_relevant_files_to_top_snippets, build_import_trees, integrate_graph_retrieval
+from sweepai.core.context_pruning import RepoContextManager, add_relevant_files_to_top_snippets, build_import_trees, integrate_graph_retrieval, parse_query_for_files
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import (
     compute_vector_search_scores,
@@ -128,6 +128,7 @@ def multi_get_top_k_snippets(
     k: int = 15,
     include_docs: bool = False,
     include_tests: bool = False,
+    do_not_use_file_cache: bool = False, # added for review_pr
     *args,
     **kwargs,
 ):
@@ -143,6 +144,7 @@ def multi_get_top_k_snippets(
             sweep_config,
             ticket_progress,
             ref_name=f"{str(cloned_repo.git_repo.head.commit.hexsha)}",
+            do_not_use_file_cache=do_not_use_file_cache
         )
     logger.info(f"Lexical search index took {timer.time_elapsed} seconds")
 
@@ -188,11 +190,12 @@ def get_top_k_snippets(
     query: str,
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
+    do_not_use_file_cache: bool = False, # added for review_pr
     *args,
     **kwargs,
 ):
     ranked_snippets_list, snippets, content_to_lexical_score_list = multi_get_top_k_snippets(
-        cloned_repo, [query], ticket_progress, k, *args, **kwargs
+        cloned_repo, [query], ticket_progress, k, do_not_use_file_cache=do_not_use_file_cache, *args, **kwargs
     )
     return ranked_snippets_list[0], snippets, content_to_lexical_score_list[0]
 
@@ -236,8 +239,9 @@ def get_pointwise_reranked_snippet_scores(
         documents=snippet_representations,
         max_chunks_per_doc=900 // NUM_SNIPPETS_TO_RERANK,
     )
-
-    new_snippet_scores = {k: v / 1_000_000 for k, v in snippet_scores.items()}
+    # this needs to happen before we update the scores with the (higher) Cohere scores
+    snippet_denotations = set(snippet.denotation for snippet in sorted_snippets)
+    new_snippet_scores = {snippet_denotation: v / 1_000_000 for snippet_denotation, v in snippet_scores.items() if snippet_denotation in snippet_denotations}
 
     for document in response.results:
         new_snippet_scores[sorted_snippets[document.index].denotation] = apply_adjustment_score(
@@ -311,6 +315,7 @@ def multi_prep_snippets(
             if not snippets_subset:
                 continue
             top_score = snippets_subset[0].score
+            logger.debug(f"Top score for {type_name}: {top_score}")
             max_results = type_to_result_count[type_name]
             filtered_subset_snippets = []
             for idx, snippet in enumerate(snippets_subset[:max_results]):
@@ -320,8 +325,9 @@ def multi_prep_snippets(
                 logger.info(f"{idx}: {snippet.denotation} {snippet.score} {percentile}")
                 snippet.type_name = type_name
                 filtered_subset_snippets.append(snippet)
-            if type_name != "source": # do more filtering
+            if type_name != "source" and filtered_subset_snippets: # do more filtering
                 filtered_subset_snippets = AnalyzeSnippetAgent().analyze_snippets(filtered_subset_snippets, type_name, queries[0])
+            logger.info(f"Length of filtered subset snippets for {type_name}: {len(filtered_subset_snippets)}")
             all_snippets.extend(filtered_subset_snippets)
         ranked_snippets = all_snippets[:k]
     else:
@@ -453,6 +459,7 @@ def fetch_relevant_files(
 
         repo_context_manager, import_graph = integrate_graph_retrieval(search_query, repo_context_manager)
 
+        parse_query_for_files(search_query, repo_context_manager)
         repo_context_manager = get_relevant_context(
             formatted_query,
             repo_context_manager,

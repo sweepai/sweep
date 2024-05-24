@@ -14,8 +14,8 @@ from sweepai.core.entities import FileChangeRequest
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo
-from sweepai.utils.modify_utils import manual_code_check
-from sweepai.utils.utils import get_check_results
+from sweepai.utils.ripgrep_utils import manual_code_check
+from sweepai.utils.code_validators import get_check_results
 
 modify_tools = """
 # make_change - Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments, and style. Changes should be minimal, self-contained, and address only one specific modification. If a change affects multiple separate code sections, use multiple calls to this tool, one for each section.
@@ -413,7 +413,7 @@ DEFAULT_FUNCTION_CALL = """<function_call>
 </function_call>"""
 
 DEFAULT_CREATE_FUNCTION_CALL = """<function_call>
-<make_change>
+<create_file>
 <justification>
 {justification}
 </justification>
@@ -423,7 +423,7 @@ DEFAULT_CREATE_FUNCTION_CALL = """<function_call>
 <new_code>
 {new_code}
 </new_code>
-</make_change>
+</create_file>
 </function_call>"""
 
 SUBMIT_TASK_MOCK_FUNCTION_CALL = """<function_call>
@@ -765,6 +765,8 @@ def compile_fcr(fcr: FileChangeRequest, index: int) -> str:
         return ""
     if not parsed_fcr["original_code"] and fcr.change_type == "modify":
         return ""
+    if parsed_fcr["original_code"] == parsed_fcr["new_code"]:
+        return ""
     if parsed_fcr["replace_all"]:
         flags = "\n<replace_all>true</replace_all>"
     else:
@@ -883,8 +885,7 @@ def handle_submit_task(modify_files_dict, llm_state):
     llm_state["visited_set"] = set()
     return llm_response, llm_state
 
-def handle_create_file(cloned_repo, modify_files_dict, tool_name, tool_call) -> tuple[str, dict]:
-    success_message = ""
+def handle_create_file(cloned_repo, modify_files_dict, tool_name, tool_call, llm_state) -> tuple[str, dict]:
     error_message = "".join(
         f"No {key} was provided in the {tool_name} tool call. Call the tool again but this time provide the {key}.\n"
         for key in tool_call_parameters[tool_name]
@@ -908,12 +909,19 @@ def handle_create_file(cloned_repo, modify_files_dict, tool_name, tool_call) -> 
             # if no issues, create the file by placing it in modify_files_dict
     if not error_message:
         modify_files_dict[new_file_name] = {"contents": new_file_contents, "original_contents": ""}
-        success_message = f"The new file {new_file_name} has been created successfully with the following contents:\n\n{new_file_contents}"
-    if error_message:
-        llm_response = f"ERROR\n\n{error_message}"
+        current_fcr_index = get_current_task_index(llm_state["fcrs"])
+        # set contents
+        if new_file_name not in modify_files_dict:
+            modify_files_dict[new_file_name] = {
+                "contents": "",
+                "original_contents": new_file_contents,
+            }
+        llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(new_file_contents, new_file_contents, n=25)}\n```\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
+        modify_files_dict[new_file_name]['contents'] = new_file_contents
+        llm_response, llm_state = finish_applying_changes(modify_files_dict, llm_state, current_fcr_index)
     else:
-        llm_response = f"SUCCESS\n\n{success_message}"
-    return llm_response, modify_files_dict
+        llm_response = f"ERROR\n\n{error_message}"
+    return llm_response, modify_files_dict, llm_state
 
 def finish_applying_changes(modify_files_dict, llm_state, current_fcr_index):
 
@@ -1169,7 +1177,7 @@ def handle_function_call(
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_response, llm_state = finish_applying_changes(modify_files_dict, llm_state, current_fcr_index)
     elif tool_name == "create_file":
-        llm_response, modify_files_dict = handle_create_file(cloned_repo, modify_files_dict, tool_name, tool_call)
+        llm_response, modify_files_dict, llm_state = handle_create_file(cloned_repo, modify_files_dict, tool_name, tool_call, llm_state)
     else:
         llm_response = f"ERROR\nUnexpected tool name: {tool_name}"
     return llm_response, modify_files_dict, llm_state

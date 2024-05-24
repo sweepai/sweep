@@ -1,6 +1,6 @@
 import pytest
 
-from sweepai.utils.utils import check_syntax
+from sweepai.utils.code_validators import check_syntax
 
 
 @pytest.mark.parametrize(

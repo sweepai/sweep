@@ -43,6 +43,7 @@ def get_jwt():
 
 def get_token(installation_id: int):
     if int(installation_id) < 0:
+        logger.error(f"installation_id is {installation_id}, using GITHUB_PAT instead.")
         return os.environ["GITHUB_PAT"]
     for timeout in [5.5, 5.5, 10.5]:
         try:
@@ -65,8 +66,18 @@ def get_token(installation_id: int):
             raise SystemExit
         except Exception:
             time.sleep(timeout)
+    signing_key = GITHUB_APP_PEM
+    app_id = GITHUB_APP_ID
+    exception_message = "Could not get token."
+    if not signing_key:
+        exception_message += " Missing GITHUB_APP_PEM in the .env file."
+    if not app_id:
+        exception_message += " Missing GITHUB_APP_ID in the .env file."
+    if signing_key and app_id:
+        exception_message += "Please double check that Sweep has the correct permissions to access your repository."
+
     raise Exception(
-        "Could not get token, please double check your GITHUB_APP_PEM and GITHUB_APP_ID in the .env file. Make sure to restart uvicorn after."
+        exception_message
     )
 
 
@@ -250,6 +261,7 @@ def create_branch(repo: Repository, branch: str, base_branch: str = None, retry=
         )
         raise e
 
+# REPO_CACHE_BASE_DIR = "/tmp/cache/repos"
 REPO_CACHE_BASE_DIR = "/tmp/cache/repos"
 
 
@@ -327,9 +339,7 @@ class ClonedRepo:
         else:
             try:
                 repo = git.Repo(self.cached_dir)
-                repo.remotes.origin.pull(
-                    kill_after_timeout=60, progress=git.RemoteProgress()
-                )
+                self.git_repo.git.pull(self.clone_url)
             except Exception:
                 logger.warning("Could not pull repo")
                 shutil.rmtree(self.cached_dir, ignore_errors=True)
@@ -338,7 +348,7 @@ class ClonedRepo:
         logger.info("Copying repo...")
         shutil.copytree(
             self.cached_dir, self.repo_dir, symlinks=True, copy_function=shutil.copy
-        )
+        ) # this step is slow, should use system calls
         logger.info("Done copying")
         repo = git.Repo(self.repo_dir)
         return repo
@@ -363,6 +373,10 @@ class ClonedRepo:
             return True
         except Exception:
             return False
+    
+    def pull(self):
+        if self.git_repo:
+            self.git_repo.git.pull(self.clone_url)
 
     def list_directory_tree(
         self,
@@ -794,6 +808,12 @@ def sanitize_string_for_github(message: str):
         if secret in message:
             message = message.replace(secret, "*" * len(secret))
     return message
+
+# refresh user token, github client and repo object
+def refresh_token(repo_full_name: str, installation_id: int):
+    user_token, g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
+    return user_token, g, repo
 
 
 try:

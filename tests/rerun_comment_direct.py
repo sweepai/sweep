@@ -64,12 +64,12 @@ def pull_request_url(
                 comment_object = review_comment
                 break
         on_comment(
+            username=comment_object.user.login,
             repo_full_name=f"{org_name}/{repo_name}",
             repo_description=repo.description,
             comment=comment_object.body,
             pr_path=comment_object.path,
             pr_line_position=comment_object.position,
-            username=comment_object.user.login,
             installation_id=installation_id,
             pr_number=pr_number,
             comment_id=int(comment_id),
@@ -81,12 +81,12 @@ def pull_request_url(
                 comment_object = comment
                 break
         on_comment(
+            username=comment_object.user.login,
             repo_full_name=f"{org_name}/{repo_name}",
             repo_description=repo.description,
             comment=comment_object.body,
             pr_path=None,
             pr_line_position=None,
-            username=comment_object.user.login,
             installation_id=installation_id,
             pr_number=pr_number,
             comment_id=int(comment_id),

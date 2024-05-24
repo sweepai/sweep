@@ -287,7 +287,6 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
         # commits = repo.get_commits(since=since_date, author="lukejagg")
         repo_activity[repo] = commit_date
         # print(repo, commits.totalCount)
-        logger.print(repo, commit_date)
 
     sorted_repos = sorted(repo_activity, key=repo_activity.get, reverse=True)
     sorted_repos = sorted_repos[:max_repos]
@@ -295,7 +294,7 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
     # For each repo, create a branch based on main branch, then create PR to main branch
     for repo in sorted_repos:
         try:
-            logger.error("Creating config for " + repo.full_name)
+            logger.info("Creating config for " + repo.full_name)
             create_config_pr(
                 repo=repo,
                 cloned_repo=ClonedRepo(

@@ -11,7 +11,7 @@ from redis import Redis
 from tqdm import tqdm
 
 from sweepai.utils.timer import Timer
-from sweepai.config.server import DEBUG, REDIS_URL
+from sweepai.config.server import CACHE_DIRECTORY, FILE_CACHE_DISABLED, REDIS_URL
 from sweepai.core.entities import Snippet
 from sweepai.core.repo_parsing_utils import directory_to_chunks
 from sweepai.core.vector_db import multi_get_query_texts_similarity
@@ -20,14 +20,13 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils.progress import TicketProgress
 from sweepai.config.client import SweepConfig
 
-token_cache = Cache('/mnt/caches/token_cache') # we instantiate a singleton, diskcache will handle concurrency
+token_cache = Cache(f'{CACHE_DIRECTORY}/token_cache') # we instantiate a singleton, diskcache will handle concurrency
 CACHE_VERSION = "v1.0.14"
 
-if DEBUG:
-    redis_client = Redis.from_url(REDIS_URL)
-else:
+if FILE_CACHE_DISABLED:
     redis_client = None
-
+else:
+    redis_client = Redis.from_url(REDIS_URL)
 
 
 class CustomIndex:
@@ -143,6 +142,7 @@ def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
 def prepare_index_from_snippets(
     snippets: list[Snippet],
     len_repo_cache_dir: int = 0,
+    do_not_use_file_cache: bool = False,
 ) -> CustomIndex | None:
     all_docs: list[Document] = snippets_to_docs(snippets, len_repo_cache_dir)
     if len(all_docs) == 0:
@@ -235,11 +235,15 @@ def prepare_lexical_search_index(
     sweep_config: SweepConfig,
     ticket_progress: TicketProgress | None = None,
     ref_name: str | None = None,  # used for caching on different refs
+    do_not_use_file_cache: bool = False # choose to not cache results
 ):
-    snippets, file_list = directory_to_chunks(repo_directory, sweep_config)
+    snippets, file_list = directory_to_chunks(
+        repo_directory, sweep_config, do_not_use_file_cache=do_not_use_file_cache
+    )
     index = prepare_index_from_snippets(
         snippets,
         len_repo_cache_dir=len(repo_directory) + 1,
+        do_not_use_file_cache=do_not_use_file_cache,
     )
     return file_list, snippets, index
 

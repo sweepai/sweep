@@ -156,7 +156,7 @@ DEFAULT_GPT4_MODEL = os.environ.get("DEFAULT_GPT4_MODEL", "gpt-4-0125-preview")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", None)
 LOKI_URL = None
 
-DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
+FILE_CACHE_DISABLED = os.environ.get("FILE_CACHE_DISABLED", "true").lower() == "true"
 ENV = "prod" if GITHUB_BOT_USERNAME != TEST_BOT_NAME else "dev"
 
 PROGRESS_BASE_URL = os.environ.get(
@@ -208,3 +208,8 @@ ALTERNATE_AWS = os.environ.get("ALTERNATE_AWS", "none").lower() == "true"
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", None)
 
 SENTRY_URL = os.environ.get("SENTRY_URL", None)
+
+CACHE_DIRECTORY = os.environ.get("CACHE_DIRECTORY", "/mnt/caches")
+
+assert OPENAI_API_KEY, "OPENAI_API_KEY is required."
+assert COHERE_API_KEY, "COHERE_API_KEY is required."

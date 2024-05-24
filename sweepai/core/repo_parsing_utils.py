@@ -8,14 +8,16 @@ from loguru import logger
 from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig
+from sweepai.config.server import CACHE_DIRECTORY
 from sweepai.core.entities import Snippet
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
-from sweepai.utils.utils import Tiktoken, chunk_code
+from sweepai.utils.tiktoken_utils import Tiktoken
+from sweepai.utils.code_validators import chunk_code
 from sweepai.utils.timer import Timer
 from diskcache import Cache
 
-chunk_cache = Cache('/mnt/caches/chunk_cache') # we instantiate a singleton, diskcache will handle concurrency
-file_name_cache = Cache('/mnt/caches/file_name_cache')
+chunk_cache = Cache(f'{CACHE_DIRECTORY}/chunk_cache') # we instantiate a singleton, diskcache will handle concurrency
+file_name_cache = Cache(f'{CACHE_DIRECTORY}/file_name_cache')
 
 tiktoken_client = Tiktoken()
 
@@ -50,40 +52,30 @@ def _filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
         if dir_name in file_parts:
             return False
     try:
-        if os.stat(file).st_size > 240000:
-            return False
-        if os.stat(file).st_size < 10:
+        size = os.stat(file).st_size
+        if size > 240000 or size < 10:
             return False
     except FileNotFoundError as e:
         logging.error(f"File not found: {file}. Error: {e}")
         return False
     if not os.path.isfile(file):
         return False
-    with open(file, "rb") as f:
-        is_binary = False
-        for block in iter(lambda: f.read(1024), b""):
-            if b"\0" in block:
-                is_binary = True
-                break
-        if is_binary:
-            return False
-        f.close()
     try:
-        # fetch file
         data = read_file_with_fallback_encodings(file)
-        lines = data.split("\n")
     except UnicodeDecodeError:
         logger.warning(f"UnicodeDecodeError: {file}, skipping")
         return False
-    line_count = len(lines)
+    if b'\x00' in data.encode():
+        return False
+    line_count = data.count("\n") + 1
     # if average line length is greater than 200, then it is likely not human readable
-    if len(data)/line_count > 200:
+    if len(data) / line_count > 200:
         return False
     # check token density, if it is greater than 2, then it is likely not human readable
     token_count = tiktoken_client.count(data)
     if token_count == 0:
         return False
-    if len(data)/token_count < 2:
+    if len(data) / token_count < 2 and len(data) > 100:
         return False
     return True
 
@@ -103,31 +95,24 @@ def conditional_hash(contents: str):
     return contents
 
 def file_path_to_chunks(file_path: str) -> list[str]:
-    if file_path in chunk_cache:
-        return chunk_cache[file_path]
     file_contents = read_file(file_path)
+    content_hash = conditional_hash(file_path + file_contents)
+    if content_hash in chunk_cache:
+        return chunk_cache[content_hash]
     chunks = chunk_code(file_contents, path=file_path)
-    chunk_cache[file_path] = chunks
+    chunk_cache[content_hash] = chunks
     return chunks
 
 
 # @file_cache()
 def directory_to_chunks(
-    directory: str, sweep_config: SweepConfig
+    directory: str, sweep_config: SweepConfig, do_not_use_file_cache: bool = False,
 ) -> tuple[list[Snippet], list[str]]:
-    dir_file_count = {}
-
-    def is_dir_too_big(file_name):
-        dir_name = os.path.dirname(file_name)
-        only_file_name = os.path.basename(dir_name)
-        if only_file_name in ("node_modules", ".venv", "build", "venv", "patch"):
-            return True
-        if dir_name not in dir_file_count:
-            dir_file_count[dir_name] = len(os.listdir(dir_name))
-        return dir_file_count[dir_name] > FILE_THRESHOLD
+    # dir_file_count = {}
 
     logger.info(f"Reading files from {directory}")
     vis = set()
+    # 81.5s -> 42.68
     def dfs(file_path: str = directory):
         only_file_name = os.path.basename(file_path)
         if only_file_name in ("node_modules", ".venv", "build", "venv", "patch"):
@@ -135,11 +120,17 @@ def directory_to_chunks(
         if file_path in vis:
             return
         vis.add(file_path)
-        if os.path.isdir(file_path):
-            for file_name in os.listdir(file_path):
-                for sub_file_path in dfs(os.path.join(file_path, file_name)):
-                    yield sub_file_path
-        else:
+        try:
+            with os.scandir(file_path) as it:
+                children = list(it)
+                if len(children) > FILE_THRESHOLD:
+                    return
+                for entry in children:
+                    if entry.is_dir(follow_symlinks=False):
+                        yield from dfs(entry.path)
+                    else:
+                        yield entry.path
+        except NotADirectoryError:
             yield file_path
     with Timer():
         file_list = dfs()
@@ -147,8 +138,7 @@ def directory_to_chunks(
             file_name
             for file_name in tqdm(file_list)
             if filter_file(directory, file_name, sweep_config)
-            and os.path.isfile(file_name)
-            and not is_dir_too_big(file_name)
+            # and os.path.isfile(file_name) # should be unneeded
         ]
     logger.info("Done reading files")
     all_chunks = []
