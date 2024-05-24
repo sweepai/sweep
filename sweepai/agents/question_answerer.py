@@ -1,4 +1,6 @@
 from copy import deepcopy
+
+from loguru import logger
 from sweepai.agents.modify import validate_and_parse_function_call
 from sweepai.core.chat import ChatGPT
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
@@ -17,75 +19,44 @@ SNIPPET_FORMAT = """<snippet>
 </snippet>"""
 
 tools_available = """You have access to the following tools to assist in fulfilling the user request:
-<tool_description>
-<tool_name>search_codebase</tool_name>
-<description>
-</description>
-<parameters>
-<parameter>
-<name>question</name>
-<type>str</type>
-<description>
+
+search_codebase - Provide a search question as natural language and this will perform a vector search over the codebase.
+
+<search_codebase>
+<question>
 Detailed, specific natural language search question to search the codebase for relevant snippets. This should be in the form of a natural language question, like "What is the structure of the User model in the authentication module?"
-</description>
-</parameter>
-<parameter>
-<name>include_docs</name>
-<type>str</type>
-<description>
-(Optional) Include documentation in the search results. Default is false.
-</description>
-</parameter>
-<parameter>
-<name>include_tests</name>
-<type>str</type>
-<description>
-(Optional) Include test files in the search results. Default is false.
-</description>
-</parameter>
-</parameters>
-</tool_description>
+</question>
+<include_docs>
+Include documentation in the search results. Default is false. (optional)
+</include_docs>
+<include_tests>
+Include test files in the search results. Default is false. (optional)
+</include_tests>
+</search_codebase>
 
-<tool_description>
-<tool_name>view_file</tool_name>
-<description>
-View the contents of a file in the codebase.
-</description>
-<parameters>
-<parameter>
-<name>file_path</name>
-<type>str</type>
-<description>
+view_file - View the contents of a file in the codebase.
+
+<view_file>
+<justification>
+Justification for why you want to view this file. (optional)
+</justification>
+<file_path>
 The path to the file you want to view.
-</description>
-</parameter>
-</parameters>
-</tool_description>
+</file_path>
+</view_file>
 
-<tool_name>submit_task</tool_name>
-<description>
-Once you have collected and analyzed the relevant snippets, use this tool to submit the final response to the user's question.
-</description>
-<parameters>
-<parameter>
-<name>answer</name>
-<type>str</type>
-<description>
+submit_task - Once you have collected and analyzed the relevant snippets, use this tool to submit the final response to the user's question.
+
+<submit_task>
+<answer>
 Provide a precise, detailed response to the user's question.
 Be sure to copy and paste the relevant code snippets from the codebase into the response to explain implementations, usages and examples.
 Make reference to entities in the codebase, and provide examples of usages and implementations whenever possible. 
 When you mention an entity, be precise and clear by indicating the file they are from. For example, you may say: this functionality is accomplished by calling `foo.bar(x, y)` (from the `Foo` class in `src/modules/foo.py`). If you do not know where it is from, you need use the search_codebase tool to find it.
-</description>
-</parameter>
-<parameter>
-<name>sources</name>
-<type>str</type>
-<description>
+</answer>
+<sources>
 Code files you referenced in your <answer>. Only include sources that are DIRECTLY REFERENCED in your answer, do not provide anything vaguely related. Keep this section MINIMAL. These must be full paths and not symlinks of aliases to files. Follow this format:
 <source>
-<file_path>
-file_path
-</file_path>
 <start_line>
 start_line
 </start_line>
@@ -97,61 +68,45 @@ justification and the section of the file that is relevant
 </justification>
 </source>
 [additional sources...]
-</description>
-</parameter>
-</parameters>
-</tool_description>
+</sources>
+</submit_task>
 
-<tool_name>raise_error</tool_name>
-<description>
-If the relevant information is not found in the codebase, use this tool to raise an error and provide a message to the user.
-</description>
-<parameters>
-<parameter>
-<name>message</name>
-<type>str</type>
-<description>
+raise_error - If the relevant information is not found in the codebase, use this tool to raise an error and provide a message to the user.
+
+<raise_error>
+<message>
 A summary of all the search queries you have tried and the information you have found so far.
-</description>
-</parameter>
-</parameters>
-</tool_description>"""
+</message>
+</raise_error>
+"""
 
 example_tool_calls = """Here are a list of illustrative examples of how to use the tools:
 
 <examples>
 To search the codebase for relevant snippets:
 
-<function_call>
-<invoke>
-<tool_name>search_codebase</tool_name>
-<parameters>
-<question>Where are the push notification configurations and registration logic implemented using the Firebase Cloud Messaging library in the mobile app codebase?</question>
-</parameters>
-</invoke>
-</function_call>
+<search_codebase>
+<question>
+Where are the push notification configurations and registration logic implemented using the Firebase Cloud Messaging library in the mobile app codebase?
+</question>
+</search_codebase>
 
 Notice that the `query` parameter is an extremely detailed, specific natural language search question.
 
-<function_call>
-<invoke>
-<tool_name>search_codebase</tool_name>
-<parameters>
-<question>Where is the documentation that details how to configure the authentication module for the Stripe payments webhook? Is anything related to this detailed in docs/reference/stripe-configuration.mdx?</question>
-<include_docs>true</include_docs>
-</parameters>
-</invoke>
-</function_call>
-</examples>
+<search_codebase>
+<question>
+Where is the documentation that details how to configure the authentication module for the Stripe payments webhook? Is anything related to this detailed in docs/reference/stripe-configuration.mdx?
+</question>
+<include_docs>
+true
+</include_docs>
+</search_codebase>
 
 Notice that `include_docs` is set to true since we are retrieving documentation in this case. Also notice how the question is very specific, directed, with references to specific files or modules.
 
 To submit the final response to the user's question:
 
-<function_call>
-<invoke>
-<tool_name>submit_task</tool_name>
-<parameters>
+<submit_task>
 <answer>
 The push notification configurations and registration logic using the Firebase Cloud Messaging library in the mobile app codebase are implemented in the `PushNotificationService` class in `src/services/push_notification_service.py`. The registration logic is implemented in the `register_device` method. Here is an example of how the registration logic is used in the `register_device` method.
 </answer>
@@ -185,9 +140,7 @@ The `register_device` method that implements the registration logic
 </justification>
 </source>
 </sources>
-</parameters>
-</invoke>
-</function_call>
+</submit_task>
 
 The above are just illustrative examples and you should tailor your search queries to the specific user request.
 
@@ -360,6 +313,7 @@ def rag(
             response = chat_gpt.chat_anthropic(
                 user_message,
                 stop_sequences=["\n</function_call>"],
+                use_openai=True
             ) + "</function_call>"
 
         function_call = validate_and_parse_function_call(
@@ -460,9 +414,17 @@ def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: Clon
         else:
             return "DONE"
     elif function_call.function_name == "view_file":
-        file_contents = cloned_repo.get_file_contents(function_call.function_parameters["file_path"])
+        try:
+            file_path = function_call.function_parameters["file_path"]
+            file_contents = cloned_repo.get_file_contents(file_path)
+        except FileNotFoundError as e:
+            logger.error(f"Could not find file {file_path} view_file:\n{e}")
+            return f"The file {file_path} doesn't exist in this repo, make sure the file path provided is correct."
+        except Exception as e:
+            logger.error(f"Error calling view_file:\n{e}")
+            raise e
         num_lines = len(file_contents.splitlines())
-        return f"Here are the contents:\n\n```\n{file_contents}\n```\n\nHere is how you can denote this snippet for listing it in the sources: {function_call.function_parameters['file_path']}:0-{num_lines-1}"
+        return f"Here are the contents:\n\n```\n{file_contents}\n```\n\nHere is how you can denote this snippet for listing it in the sources: {file_path}:0-{num_lines-1}"
     elif function_call.function_name == "raise_error":
         if "message" not in function_call.function_parameters:
             return "Please provide a message to raise an error."
@@ -476,6 +438,6 @@ if __name__ == "__main__":
         repo_full_name="sweepai/sweep",
     )
     rag(
-        question="What version of django are we using in the codebase?",
+        question="What version of django is used in this codebase?",
         cloned_repo=cloned_repo,
     )

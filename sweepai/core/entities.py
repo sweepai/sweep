@@ -411,6 +411,10 @@ class NoFilesException(Exception):
     def __init__(self, message="Sweep could not find any files to modify"):
         super().__init__(message)
 
+class UnsuitableFileException(Exception):
+    def __init__(self, message="Sweep has determined this file is unsuitable to work with"):
+        super().__init__(message)
+
 
 class PRChangeRequest(BaseModel):
     params: dict

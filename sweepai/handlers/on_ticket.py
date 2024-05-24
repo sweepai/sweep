@@ -57,6 +57,7 @@ from sweepai.utils.github_utils import (
     convert_pr_draft_field,
     create_branch,
     get_github_client,
+    refresh_token,
     sanitize_string_for_github,
     validate_and_sanitize_multi_file_changes,
 )
@@ -263,11 +264,6 @@ def on_ticket(
             initial_sandbox_response = -1
             initial_sandbox_response_file = None
 
-            def refresh_token():
-                user_token, g = get_github_client(installation_id)
-                repo = g.get_repo(repo_full_name)
-                return user_token, g, repo
-
             def edit_sweep_comment(
                 message: str,
                 index: int,
@@ -455,7 +451,7 @@ def on_ticket(
                 raise e
 
             _user_token, g = get_github_client(installation_id)
-            user_token, g, repo = refresh_token()
+            user_token, g, repo = refresh_token(repo_full_name, installation_id)
             cloned_repo.token = user_token
             repo = g.get_repo(repo_full_name)
 
@@ -468,7 +464,7 @@ def on_ticket(
                     "\n".join(
                         [
                             f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{max(min(snippet.end, snippet.content.count(newline) - 1), 1)}\n"
-                            for snippet in snippets + repo_context_manager.read_only_snippets
+                            for snippet in list(dict.fromkeys(repo_context_manager.current_top_snippets + repo_context_manager.read_only_snippets))
                         ]
                     ),
                 )
@@ -599,7 +595,7 @@ def on_ticket(
             try:
                 current_issue = repo.get_issue(number=issue_number)
             except BadCredentialsException:
-                user_token, g, repo = refresh_token()
+                user_token, g, repo = refresh_token(repo_full_name, installation_id)
                 cloned_repo.token = user_token
 
             pr_changes = MockPR(
@@ -621,15 +617,6 @@ def on_ticket(
 
             fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
 
-            revert_buttons = []
-            for changed_file in set(changed_files):
-                revert_buttons.append(
-                    Button(label=f"{RESET_FILE} {changed_file}")
-                )
-            revert_buttons_list = ButtonList(
-                buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
-            )
-
             # create draft pr, then convert to regular pr later
             pr: GithubPullRequest = repo.create_pull(
                 title=pr_changes.title,
@@ -642,14 +629,24 @@ def on_ticket(
             try:
                 pr.add_to_assignees(username)
             except Exception as e:
-                logger.error(
+                logger.warning(
                     f"Failed to add assignee {username}: {e}, probably a bot."
                 )
 
-            if revert_buttons:
-                pr.create_issue_comment(
-                    revert_buttons_list.serialize() + BOT_SUFFIX
+            if len(changed_files) > 1:
+                revert_buttons = []
+                for changed_file in set(changed_files):
+                    revert_buttons.append(
+                        Button(label=f"{RESET_FILE} {changed_file}")
+                    )
+                revert_buttons_list = ButtonList(
+                    buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
                 )
+
+                if revert_buttons:
+                    pr.create_issue_comment(
+                        revert_buttons_list.serialize() + BOT_SUFFIX
+                    )
 
             # add comments before labelling
             pr.add_to_labels(GITHUB_LABEL_NAME)
@@ -674,12 +671,17 @@ def on_ticket(
             GITHUB_ACTIONS_ENABLED = get_gha_enabled(repo=repo) and DEPLOYMENT_GHA_ENABLED
             GHA_MAX_EDIT_ATTEMPTS = 5 # max number of times to edit PR
             current_commit = pr.head.sha
-            while True and GITHUB_ACTIONS_ENABLED:
+
+            main_runs: list[WorkflowRun] = list(repo.get_workflow_runs(branch=repo.default_branch, head_sha=pr.base.sha))
+            main_passing = all([run.conclusion in ["success", None] for run in main_runs]) and any([run.conclusion == "success" for run in main_runs])
+
+            while True and GITHUB_ACTIONS_ENABLED and main_passing:
                 logger.info(
                     f"Polling to see if Github Actions have finished... {total_poll_attempts}"
                 )
                 # we wait at most 60 minutes
                 if total_poll_attempts * SLEEP_DURATION_SECONDS // 60 >= 60:
+                    logger.debug("Polling for Github Actions has taken too long, giving up.")
                     break
                 else:
                     # wait one minute between check attempts
@@ -692,7 +694,7 @@ def on_ticket(
                 current_commit = repo.get_pull(pr.number).head.sha # IMPORTANT: resync PR otherwise you'll fetch old GHA runs
                 runs: list[WorkflowRun] = list(repo.get_workflow_runs(branch=pr.head.ref, head_sha=current_commit))
                 # if all runs have succeeded or have no result, break
-                if all([run.conclusion in ["success", None] for run in runs]):
+                if all([run.conclusion in ["success", None] for run in runs]) and any([run.conclusion == "success" for run in runs]):
                     break
                 # if any of them have failed we retry
                 if any([run.conclusion == "failure" for run in runs]):

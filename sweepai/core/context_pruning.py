@@ -18,7 +18,7 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall, mock_function_calls_to_string
 from sweepai.utils.github_utils import ClonedRepo
-from sweepai.utils.modify_utils import post_process_rg_output
+from sweepai.utils.ripgrep_utils import post_process_rg_output
 from sweepai.utils.openai_listwise_reranker import listwise_rerank_snippets
 from sweepai.utils.progress import AssistantConversation, TicketProgress
 from sweepai.utils.tree_utils import DirectoryTree

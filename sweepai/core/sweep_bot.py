@@ -28,15 +28,16 @@ from sweepai.core.prompts import (
     gha_files_to_change_prompt,
     test_files_to_change_system_prompt,
     test_files_to_change_prompt,
-    fix_files_to_change_prompt
+    fix_files_to_change_prompt,
+    fix_files_to_change_system_prompt,
 )
 from sweepai.core.planning_prompts import (
     openai_files_to_change_prompt,
     anthropic_files_to_change_prompt,
     openai_files_to_change_system_prompt,
     anthropic_files_to_change_system_prompt,
-    issue_excerpt_prompt,
-    issue_excerpt_system_prompt,
+    issue_sub_request_prompt,
+    issue_sub_request_system_prompt,
 )
 from sweepai.utils.chat_logger import ChatLogger
 # from sweepai.utils.previous_diff_utils import get_relevant_commits
@@ -129,11 +130,11 @@ def safe_decode(
             else:
                 try:
                     return base64.b64decode(blob.content).decode(detected_encoding)
-                except UnicodeDecodeError:
-                    return None
+                except UnicodeDecodeError as e:
+                    raise e
         return contents.decoded_content.decode("utf-8")
-    except Exception:
-        return None
+    except Exception as e:
+        raise e
 
 def remove_line_numbers(s: str) -> str:
     # Check if more than 50% of lines have line numbers
@@ -148,7 +149,7 @@ def remove_line_numbers(s: str) -> str:
 
 def parse_filenames(text):
     # Regular expression pattern to match file names
-    pattern = r'\b(?:[\w-]+/)*[\w-]+(?:[.:]\w+)+\b|\b(?:[\w-]+/)+[\w-]+\b'
+    pattern = r'(?:[\w.-]+/)*[\w.-]+(?:[.:]\w.]+)+\b|(?:[\w.-]+/)+[\w.-]+\b'
 
     # Find all occurrences of file names in the text
     filenames = re.findall(pattern, text)
@@ -221,18 +222,7 @@ def get_error_message(
                         full_file_dir = os.path.join(cloned_repo.repo_dir, file_dir)
                         full_file_name = os.path.join(cloned_repo.repo_dir, file_name)
 
-                        current_error_message = ""
-
-                        if os.path.exists(full_file_name):
-                            current_error_message = f"The file {file_name} already exists. Modify this existing file instead of attempting to create a new one!"
-                        if not os.path.isdir(full_file_dir):
-                            current_error_message = f"{file_dir} is a file. Make sure you have the correct directory path!"
-                        if not os.path.exists(full_file_dir):
-                            similar_directories = cloned_repo.get_similar_directories(file_dir)
-                            if similar_directories:
-                                current_error_message = f"The directory {file_dir} does not exist. Did you mean one of the following directories?\n\n" + "\n".join(f"- {d}" for d in similar_directories)
-                            else:
-                                current_error_message = f"The directory {file_dir} does not exist. Make sure the new file you want to create exists within an existing directory!"
+                        current_error_message = validate_file_path(cloned_repo, file_name, file_dir, full_file_dir, full_file_name)
 
                         if current_error_message:
                             error_message += f"<error index=\"{len(error_indices)}\">\n{current_error_message}\n</error>\n\n"
@@ -296,18 +286,7 @@ def get_error_message(
             full_file_dir = os.path.join(cloned_repo.repo_dir, file_dir)
             full_file_name = os.path.join(cloned_repo.repo_dir, file_name)
 
-            current_error_message = ""
-
-            if os.path.exists(full_file_name):
-                current_error_message = f"The file {file_name} already exists. Modify this existing file instead of attempting to create a new one!"
-            if not os.path.isdir(full_file_dir):
-                current_error_message = f"{file_dir} is a file. Make sure you have the correct directory path!"
-            if not os.path.exists(full_file_dir):
-                similar_directories = cloned_repo.get_similar_directories(file_dir)
-                if similar_directories:
-                    current_error_message = f"The directory {file_dir} does not exist. Did you mean one of the following directories?\n\n" + "\n".join(f"- {d}" for d in similar_directories)
-                else:
-                    current_error_message = f"The directory {file_dir} does not exist. Make sure the new file you want to create exists within an existing directory!"
+            current_error_message = validate_file_path(cloned_repo, file_name, file_dir, full_file_dir, full_file_name)
 
             if current_error_message:
                 error_message += f"<error index=\"{len(error_indices)}\">\n{current_error_message}\n</error>\n\n"
@@ -315,6 +294,21 @@ def get_error_message(
     # if error_message:
     #     breakpoint()
     return error_message.strip('\n\n'), error_indices
+
+def validate_file_path(cloned_repo: ClonedRepo, file_name: str, file_dir: str, full_file_dir: str, full_file_name: str):
+    current_error_message = ""
+
+    if os.path.exists(full_file_name):
+        current_error_message = f"The file {file_name} already exists. Modify this existing file instead of attempting to create a new one!"
+    if not os.path.isdir(full_file_dir):
+        current_error_message = f"{file_dir} is a file. Make sure you have the correct directory path!"
+    if not os.path.exists(full_file_dir):
+        similar_directories = cloned_repo.get_similar_directories(file_dir)
+        if similar_directories:
+            current_error_message = f"The directory {file_dir} does not exist. Select one of the following directories:\n\n" + "\n".join(f"- {d}" for d in similar_directories)
+        else:
+            current_error_message = f"The directory {file_dir} does not exist. Make sure the new file you want to create exists within an existing directory!"
+    return current_error_message
         
 def sort_and_fuse_snippets(
     snippets: list[Snippet],
@@ -396,7 +390,7 @@ def get_files_to_change(
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
     messages.append(
-        Message(role="system", content=issue_excerpt_system_prompt, key="system")
+        Message(role="system", content=issue_sub_request_system_prompt, key="system")
     )
 
     new_relevant_snippets = []
@@ -429,7 +423,7 @@ def get_files_to_change(
     # read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
     # attach all relevant snippets
     formatted_relevant_snippets = []
-    for i, snippet in enumerate(tqdm(relevant_snippets)):
+    for i, snippet in enumerate(tqdm(relevant_snippets + read_only_snippets)):
         annotated_source_code, code_summaries = get_annotated_source_code(
             source_code=snippet.get_snippet(add_lines=False),
             issue_text=problem_statement,
@@ -470,93 +464,94 @@ def get_files_to_change(
         messages.append(
             Message(role="user", content=pr_diffs, key="pr_diffs")
         )
-    try:
-        print("messages")
-        for message in messages:
-            print(message.content + "\n\n")
-        joint_message = "\n\n".join(message.content for message in messages[1:])
-        print("messages", joint_message)
-        issue_excerpt_chat_gpt = ChatGPT(
-            messages=[
-                Message(
-                    role="system",
-                    content=issue_excerpt_system_prompt,
-                ),
-            ],
+    print("messages")
+    for message in messages:
+        print(message.content + "\n\n")
+    joint_message = "\n\n".join(message.content for message in messages[1:])
+    print("messages", joint_message)
+    issue_sub_request_chat_gpt = ChatGPT(
+        messages=[
+            Message(
+                role="system",
+                content=issue_sub_request_system_prompt,
+            ),
+        ],
+    )
+    chat_gpt = ChatGPT(
+        messages=[
+            Message(
+                role="system",
+                content=openai_files_to_change_system_prompt if use_openai else anthropic_files_to_change_system_prompt,
+            ),
+        ],
+    )
+    MODEL = "claude-3-opus-20240229"
+    issue_sub_requests = ""
+    if not use_openai:
+        issue_sub_request_response = issue_sub_request_chat_gpt.chat_anthropic(
+            content=joint_message + "\n\n" + issue_sub_request_prompt,
+            model=MODEL,
+            temperature=0.1,
+            images=images,
+            use_openai=use_openai,
+            seed=seed
         )
-        chat_gpt = ChatGPT(
-            messages=[
-                Message(
-                    role="system",
-                    content=openai_files_to_change_system_prompt if use_openai else anthropic_files_to_change_system_prompt,
-                ),
-            ],
-        )
-        ISSUE_EXCERPT_MODEL = "claude-3-haiku-20240307"
-        MODEL = "claude-3-opus-20240229"
-        issue_excerpts = ""
-        if not use_openai:
-            issue_excerpt_response = issue_excerpt_chat_gpt.chat_anthropic(
-                content=joint_message + "\n\n" + issue_excerpt_prompt,
-                model=ISSUE_EXCERPT_MODEL,
+        issue_sub_request_pattern = re.compile(r"<issue_sub_requests>(.*?)</issue_sub_requests>", re.DOTALL)
+        issue_sub_request_match = issue_sub_request_pattern.search(issue_sub_request_response)
+        if not issue_sub_request_match:
+            raise Exception("Failed to match issue excerpts")
+        issue_sub_requests = issue_sub_request_match.group(1)
+        issue_sub_requests = issue_sub_requests.strip("\n")
+
+    # breakpoint()
+    files_to_change_response: str = chat_gpt.chat_anthropic(
+        content=joint_message + "\n\n" + files_to_change_prompt.format(issue_sub_requests=issue_sub_requests),
+        model=MODEL,
+        temperature=0.1,
+        images=images,
+        use_openai=use_openai,
+        seed=seed + 1
+    )
+    num_calls = 0
+    MAX_CALLS = 6
+    # pylint: disable=E1101
+    while "</plan>" not in files_to_change_response \
+        and num_calls < MAX_CALLS:
+        if use_openai:
+            last_block = max(files_to_change_response.find("<original_code>"), files_to_change_response.find("<new_code>"))
+            files_to_change_response = files_to_change_response[:last_block].rstrip()
+            chat_gpt.messages[-1].content = files_to_change_response
+        # ask for a second response
+        try:
+            next_response: str = chat_gpt.chat_anthropic(
+                content="",
+                model=MODEL,
                 temperature=0.1,
                 images=images,
                 use_openai=use_openai,
                 seed=seed
             )
-            issue_excerpt_pattern = re.compile(r"<issue_excerpts>(.*?)</issue_excerpts>", re.DOTALL)
-            issue_excerpt_match = issue_excerpt_pattern.search(issue_excerpt_response)
-            if not issue_excerpt_match:
-                raise Exception("Failed to match issue excerpts")
-            issue_excerpts = issue_excerpt_match.group(1)
-            issue_excerpts = issue_excerpts.strip("\n")
-
-        # breakpoint()
-        files_to_change_response: str = chat_gpt.chat_anthropic(
-            content=joint_message + "\n\n" + files_to_change_prompt.format(issue_excerpts=issue_excerpts),
-            model=MODEL,
-            temperature=0.1,
-            images=images,
-            use_openai=use_openai,
-            seed=seed + 1
-        )
-        expected_plan_count = 1
-        calls = 0
-        # pylint: disable=E1101
-        while files_to_change_response.count("</plan>") < expected_plan_count and calls < 3:
-            last_block = max(files_to_change_response.find("<original_code>"), files_to_change_response.find("<new_code>"))
-            files_to_change_response = files_to_change_response[:last_block].rstrip()
-            chat_gpt.messages[-1].content = files_to_change_response
-            # ask for a second response
-            try:
-                next_response: str = chat_gpt.chat_anthropic(
-                    content="",
-                    model=MODEL,
-                    temperature=0.1,
-                    images=images,
-                    use_openai=use_openai,
-                    seed=seed
-                )
-                # we can simply concatenate the responses
-                files_to_change_response += next_response
-            except Exception as e:
-                logger.warning(f"Failed to get second response due to {e}")
-            calls += 1
-        if chat_logger:
-            chat_logger.add_chat(
-                {
-                    "model": MODEL,
-                    "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
-                    "output": files_to_change_response,
-                })
-        print("files_to_change_response", files_to_change_response)
-        relevant_modules = []
-        pattern = re.compile(r"<relevant_modules>(.*?)</relevant_modules>", re.DOTALL)
-        relevant_modules_match = pattern.search(files_to_change_response)
-        if relevant_modules_match:
-            relevant_modules = [relevant_module.strip() for relevant_module in relevant_modules_match.group(1).split("\n") if relevant_module.strip()]
-        print("relevant_modules", relevant_modules)
-        file_change_requests = []
+            # we can simply concatenate the responses
+            files_to_change_response += next_response
+        except Exception as e:
+            logger.warning(f"Failed to get second response due to {e}")
+        num_calls += 1
+    if chat_logger:
+        chat_logger.add_chat(
+            {
+                "model": MODEL,
+                "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
+                "output": files_to_change_response,
+            })
+    print("files_to_change_response", files_to_change_response)
+    relevant_modules = []
+    pattern = re.compile(r"<relevant_modules>(.*?)</relevant_modules>", re.DOTALL)
+    relevant_modules_match = pattern.search(files_to_change_response)
+    if relevant_modules_match:
+        relevant_modules = [relevant_module.strip() for relevant_module in relevant_modules_match.group(1).split("\n") if relevant_module.strip()]
+    print("relevant_modules", relevant_modules)
+    file_change_requests = []
+    try:
         for re_match in re.finditer(
             FileChangeRequest._regex, files_to_change_response, re.DOTALL
         ):
@@ -569,6 +564,12 @@ def get_files_to_change(
         for _ in range(3):
             if not error_message:
                 break
+            # todo: segment these into smaller calls to handle different edge cases
+            # delete the error messages
+            chat_gpt.messages = [message if message.role != "system" else Message(
+                content=fix_files_to_change_system_prompt,
+                role="system"
+            ) for message in chat_gpt.messages]
             fix_attempt = chat_gpt.chat_anthropic(
                 content=fix_files_to_change_prompt.format(
                     error_message=error_message,
@@ -578,12 +579,17 @@ def get_files_to_change(
                 temperature=0.1,
                 images=images,
                 seed=seed,
+                stop_sequences=["</error_resolutions>"],
                 use_openai=use_openai
             )
             drops, matches = parse_patch_fcrs(fix_attempt)
             for index, new_fcr in matches:
                 if index >= len(error_indices):
                     logger.warning(f"Index {index} not in error indices")
+                    continue
+                if "COPIED_FROM_PREVIOUS_MODIFY" in new_fcr.instructions:
+                    # if COPIED_FROM_PREVIOUS_CREATE, we just need to override the filename
+                    file_change_requests[error_indices[index]].filename = new_fcr.filename
                     continue
                 file_change_requests[error_indices[index]] = new_fcr
             for drop in sorted(drops, reverse=True):
@@ -619,7 +625,7 @@ def context_get_files_to_change(
     use_openai = True
     messages: list[Message] = []
     messages.append(
-        Message(role="system", content=issue_excerpt_system_prompt, key="system")
+        Message(role="system", content=issue_sub_request_system_prompt, key="system")
     )
 
     interleaved_snippets = []
@@ -752,7 +758,7 @@ def get_files_to_change_for_test(
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
     messages.append(
-        Message(role="system", content=issue_excerpt_system_prompt, key="system")
+        Message(role="system", content=issue_sub_request_system_prompt, key="system")
     )
 
     # keep order but move all files without tests to read only snippets
@@ -956,7 +962,7 @@ def get_files_to_change_for_gha(
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
     messages.append(
-        Message(role="system", content=issue_excerpt_system_prompt, key="system")
+        Message(role="system", content=issue_sub_request_system_prompt, key="system")
     )
 
     for relevant_snippet in relevant_snippets:
@@ -1120,6 +1126,7 @@ def get_files_to_change_for_gha(
         for _ in range(3):
             if not error_message:
                 break
+            chat_gpt.messages = [message for message in chat_gpt.messages if message.key != "system"]
             fix_attempt = chat_gpt.chat_anthropic(
                 content=fix_files_to_change_prompt.format(
                     error_message=error_message,
@@ -1134,7 +1141,12 @@ def get_files_to_change_for_gha(
                 if index >= len(error_indices):
                     logger.warning(f"Index {index} not in error indices")
                     continue
+                if new_fcr.change_type == "create" and "COPIED_FROM_PREVIOUS_CREATE" in new_fcr.instructions:
+                    # if COPIED_FROM_PREVIOUS_CREATE, we just need to override the filename
+                    file_change_requests[error_indices[index]].filename = new_fcr.filename
+                    continue
                 file_change_requests[error_indices[index]] = new_fcr
+
             for drop in sorted(drops, reverse=True):
                 if drop >= len(error_indices):
                     logger.warning(f"Index {drop} not in error indices")

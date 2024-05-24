@@ -11,7 +11,7 @@ from tqdm import tqdm
 from sweepai.chat.api import posthog_trace
 from sweepai.config.client import SweepConfig
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message
+from sweepai.core.entities import Message, UnsuitableFileException
 from sweepai.core.review_annotations import get_diff_annotations
 from sweepai.core.sweep_bot import safe_decode
 from sweepai.core.vector_db import cosine_similarity, embed_text_array
@@ -19,7 +19,6 @@ from sweepai.dataclasses.codereview import CodeReview, CodeReviewIssue, Function
 from sweepai.logn.cache import file_cache
 from sweepai.utils.event_logger import logger, posthog
 from sweepai.utils.chat_logger import ChatLogger
-from github.GithubException import GithubException
 from github.Repository import Repository
 from github.PullRequest import PullRequest
 
@@ -27,6 +26,9 @@ from sweepai.utils.github_utils import ClonedRepo, update_file
 from sweepai.utils.str_utils import add_line_numbers, extract_object_fields_from_string, extract_objects_from_string, object_to_xml, objects_to_xml, remove_lines_from_text
 from sweepai.utils.ticket_rendering_utils import parse_issues_from_code_review
 from sweepai.utils.ticket_utils import get_top_k_snippets
+
+# approximately 120k tokens
+MAX_CHAR_BUDGET = 120000 * 3.5
 
 def get_pr_diffs(repo: Repository, pr: PullRequest):
     base_sha = pr.base.sha
@@ -74,7 +76,8 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
     file_diffs = comparison.files
 
     pr_diffs = []
-    dropped_files = []
+    dropped_files = [] # files that were dropped due them being commonly ignored
+    unsuitable_files: list[tuple[str, Exception]] = [] # files dropped for other reasons such as being way to large or not encodable, error objects included
     for file in tqdm(file_diffs, desc="Annotating diffs"):
         file_name = file.filename
         diff = file.patch
@@ -95,32 +98,57 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
         if sweep_config.is_file_excluded(file_name):
             dropped_files.append(file_name)
             continue
-
+        
+        errored = False
+        e = None
         if file.status == "added":
             old_code = ""
         else:
             try:
                 old_code = safe_decode(repo=repo, path=previous_filename, ref=base_sha)
-            except GithubException:
-                old_code = ""
+                if old_code is None:
+                    raise UnsuitableFileException("Could not decode file")
+            except Exception as e_:
+                e = e_
+                errored = True
+                unsuitable_files.append((file_name, e))
         if file.status == "removed":
             new_code = ""
         else:
-            new_code = safe_decode(repo=repo, path=file.filename, ref=head_sha)
+            try:
+                new_code = safe_decode(repo=repo, path=file.filename, ref=head_sha)
+                if new_code is None:
+                    raise UnsuitableFileException("Could not decode file")
+            except Exception as e_:
+                e = e_
+                errored = True
+                unsuitable_files.append((file_name, e))
 
-        if old_code == "":
-            logger.info(f"Skipping file {file.filename} due to bad encoding")
+        # drop unsuitable files
+        if new_code: 
+            suitable, reason = sweep_config.is_file_suitable(new_code)
+            if not suitable:
+                errored = True
+                e = UnsuitableFileException(reason)
+                unsuitable_files.append((file_name, e))
+
+        if errored:
+            posthog.capture(
+                "get_pr_changes", 
+                "get_pr_changes error", 
+                properties={"error": str(e), "file_name": file_name, "pr": str(pr), "repo": str(repo)}
+            )
             continue
 
         status = file.status
         pr_change = PRChange(
-                file_name=file_name,
-                diff=diff,
-                old_code=old_code,
-                new_code=new_code,
-                status=status,
-                patches=split_diff_into_patches(diff)
-            )
+            file_name=file_name,
+            diff=diff,
+            old_code=old_code,
+            new_code=new_code,
+            status=status,
+            patches=split_diff_into_patches(diff)
+        )
         diff_annotations = get_diff_annotations(
             source_code=pr_change.new_code,
             diffs=[patch.changes for patch in pr_change.patches],
@@ -130,7 +158,7 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
         pr_diffs.append(
             pr_change
         )
-    return pr_diffs, dropped_files
+    return pr_diffs, dropped_files, unsuitable_files
 
 def split_diff_into_patches(diff: str) -> list[Patch]:
     patches = []
@@ -179,26 +207,87 @@ patch_format = """\
 {annotation}
 </patch_annotation>"""
 
+patch_format_without_annotations = """\
+<patch file_name="{file_name}" index="{index}">
+{diff}
+</patch>"""
+
 # format only the patches for the PRChange
-def format_patches_for_pr_change(pr_change: PRChange):
+def format_patches_for_pr_change(pr_change: PRChange, include_patch_annotations: bool = True):
     patches = ""
     for idx, patch in enumerate(pr_change.patches):
-        patches += patch_format.format(
-            file_name=pr_change.file_name,
-            index=idx + 1,
-            diff=patch.changes,
-            annotation=pr_change.annotations[idx]
-        )
+        if include_patch_annotations:
+            patches += patch_format.format(
+                file_name=pr_change.file_name,
+                index=idx + 1,
+                diff=patch.changes,
+                annotation=pr_change.annotations[idx]
+            )
+        else:
+            patches += patch_format_without_annotations.format(
+                file_name=pr_change.file_name,
+                index=idx + 1,
+                diff=patch.changes,
+            )
         if idx < len(pr_change.patches) - 1:
             patches += "\n"
     return patches
 
+# prunes a file based on the patches for that file, removes long sections in between
+def smart_prune_file_based_on_patches(file_contents: str, patches: list[Patch], context_lines: int = 10):
+    if not file_contents:
+        return file_contents
+    lines = file_contents.splitlines(keepends=True)
+    num_of_lines = len(lines)
+    patch_ranges = []
+    # if we dont have patches we naively truncate the file to around 100 lines
+    if len(patches) == 0:
+        if len(lines) > 100:
+            return "".join(lines[:100]) + "...\n"
+        else:
+            return file_contents
+
+    # sort patches based on new_start
+    sorted_patches = sorted(patches, key=lambda patch: patch.new_start)
+    for patch in sorted_patches:
+        start = max(0, patch.new_start - context_lines - 1)
+        end = min(num_of_lines - 1, patch.new_start + patch.new_count + context_lines - 1)
+        if len(patch_ranges) == 0:
+            patch_ranges.append((start, end))
+        else: 
+            previous_range = patch_ranges[-1]
+            # combine if overlap
+            if previous_range[1] >= start:
+                patch_ranges[-1] = (previous_range[0], end)
+            else:
+                patch_ranges.append((start, end))
+    # now replace any sections not within the patch ranges with ...
+    new_lines = []
+    for i, range in enumerate(patch_ranges):
+        range_lines = lines[range[0]: range[1] + 1]
+        # with list slicing we can safely extend past the actual length of the array
+        if range[0] != 0:
+            range_lines = ['...\n'] + range_lines
+        # check if we need trailing ...
+        if i == len(patch_ranges) - 1 and range[1] < len(lines) - 1:
+            range_lines = range_lines + ['...\n']
+        new_lines.extend(range_lines)
+    new_file_contents = "".join(new_lines)
+    return new_file_contents
+
 def format_pr_change(pr_change: PRChange, pr_idx: int=0):
     patches = format_patches_for_pr_change(pr_change)
+    numbered_file_contents = add_line_numbers(pr_change.new_code, start=1)
+    # enforce context length
+    if len(patches + numbered_file_contents) >= MAX_CHAR_BUDGET:
+        numbered_file_contents = smart_prune_file_based_on_patches(numbered_file_contents, pr_change.patches)
+    # if we still exceed the budget, we need to remove patch annotations
+    if len(patches + numbered_file_contents) >= MAX_CHAR_BUDGET:
+        patches = format_patches_for_pr_change(pr_change, include_patch_annotations=False)
     return pr_change_with_source_code_unformatted.format(
         file_name=pr_change.file_name,
         patches=patches,
-        file_contents=add_line_numbers(pr_change.new_code, start=1)
+        file_contents=numbered_file_contents
     )
 
 def format_pr_changes_by_file(pr_changes: list[PRChange]) -> dict[str, str]:
@@ -212,11 +301,14 @@ system_prompt = """You are a careful and smart tech lead that wants to avoid pro
 system_prompt_review = """You are a busy tech manager who is responsible for reviewing prs and identifying any possible production issues. 
 You will be analyzing a list of potential issues that have been identified by a previous engineer and determing which issues are severe enough to bring up to the original engineer."""
 
-system_prompt_identify_new_functions = """You are an expert programmer with a keen eye for detail, assigned to analyze a series of code patches in a pull request. Your primary responsibility is to meticulously identify all newly defined functions within the code."""
+system_prompt_identify_new_functions = """You are an expert programmer with a keen eye for detail, assigned to analyze a series of code patches in a pull request. Your primary responsibility is to meticulously identify all newly created functions within the code."""
 
 system_prompt_identify_repeats = """You are a proficient programmer tasked with identifying repeated or unnecessary functions in a codebase. Your job is to find and highlight any duplicated or redundant function definitions.
 You will be given a function definition that was just added to the codebase and your job will be to check whether or not this function was actually necessary or not given a series of code snippets.
 """
+
+system_prompt_pr_summary = """You are a talented software engineer that excels at summarising pull requests for readability and brevity. You will be analysing a series of patches that represent all the changes made in a specific pull request.
+It is your job to write a short and concise but still descriptive summary that describes what the pull request accomplishes."""
 
 user_prompt = """\
 # Code Review
@@ -333,7 +425,7 @@ Below are the changes made in the pull request as context
 </severe_issues>
 """
 
-user_prompt_identify_new_functions = """Below are all the patches made to the file {file_name} in this pull request. Use these patches to determine if there are any newly defined functions.
+user_prompt_identify_new_functions = """Below are all the patches made to the file {file_name} in this pull request. Use these patches to determine if there are any newly created functions.
 # PR Patches
 
 {patches}
@@ -344,11 +436,16 @@ Below is the file {file_name} with all the above patches applied along with the 
 {numbered_code_file}
 
 # Instructions
-1. Analyze each of the patches above and identify ALL newly defined functions.
-    1a. Note that if a function is renamed, or has some of its parameters changed, this should not be included as a newly defined function.
-    1b. All newly defined functions should mean that the function is ENTIRELY new and must have been coded from scratch.
-2. Return the list of all newly defined functions in the following xml format:
-<newly_defined_functions>
+1. Analyze each of the patches above and identify ALL newly created functions. To determine if a function is newly created, answer the following:
+    1a. Note that if a function is renamed such as having of its parameters changed, or if a function has been reworked meaning the contents of the file has changed, this should not be included as a newly created function.
+    1b. Is the function created from scratch? If not, the function is not newly created.
+    1c. Is there a corresponding patch that shows the creation of the function? If the answer is no, then the function is not newly created. If the answer is yes, give the patch number as proof.
+    1c. Answer these questions in the following xml format:
+<thinking>
+{{Questions and answer for each function that you believe is newly created.}}
+</thinking>
+2. Based on the questions and answers above return the list of all newly created functions in the following xml format:
+<newly_created_functions>
 <function>
 <function_code>
 {{Function code copied verbatim for the patch}}
@@ -361,7 +458,7 @@ Below is the file {file_name} with all the above patches applied along with the 
 </end_line>
 </function>
 ...
-</newly_defined_functions>
+</newly_created_functions>
 """
 
 user_prompt_identify_repeats = """
@@ -400,9 +497,72 @@ Below are a series of code snippets retrieved from the codebase via vector searc
 </solution>
 </redundant_new_function>"""
 
+user_prompt_pr_summary = """Below are all the patches associated with this pull request along with each of their file names
+
+# All Pull Request Patches
+
+{all_patches}
+
+1. Summarise the major changes using the following principles:
+    1a. Begin with a 2-3 line overall summary of what the main goal of the pull request was.
+    1b. Now dive deeper into how the main changes for the pull request were accomplished in order of importance.
+    1c. Never provide "useless" summaries. "useless" summaries are the following: informing the user a variable or function was created without explaining how it contributes the the main goal of the pull request.
+    1d. Instead summarize how the changes were accomplished like this: function `foo` implements feature bar and this had xyz effect of abc.
+    1e. It is okay to not summarize minor changes that do not tie into the main goal of the pull request.
+    1f. Avoid using overly complex language. For example: instead of the word 'utilize' instead use the word 'use'. 
+    1g. Respond in the following xml format:
+<pr_summary>
+{{Provide a detailed summary here. Be sure to reference relevant entities and variables to make it very clear what you are referencing. Speak in past tense. 
+This summary should be maximum 10 sentences. Make sure the summary is not a wall of text, use an adequate amount of new lines.}}
+</pr_summary>
+
+Here are a few example <pr_summary></pr_summary> blocks:
+<example_pr_summary>
+This pull request added support for bulk actions to the admin dashboard.\n\n
+A new `BulkActionDropdown` component in `components/BulkActionDropdown.vue` was created that renders a dropdown menu with options for bulk actions that can be performed on selected items in the admin dashboard.\n
+The existing `ItemList` component in `components/ItemList.vue` was updated to include checkboxes for each item and to enable the `BulkActionDropdown` when one or more items are selected. \n
+A new `bulkDelete` action was added to the item store in `store/item.js` which accepts an array of item IDs and deletes them from the database in a single query. The `BulkActionDropdown` component dispatches this action when the "Delete Selected" option is chosen.\n
+Unit tests were added for the `BulkActionDropdown` component and the `bulkDelete` store action in the `components/BulkActionDropdown.test.js` and `store/item.test.js` files respectively.
+</example_pr_summary>
+<example_pr_summary>
+This pull request adds two factor authentication to the user authentication process.\n\n
+The `loginUser` function in `handlers/auth.js` now calls the new `verifyTwoFactorCode` function located in `utils/auth-utils.js` after validating the user's password. `verifyTwoFactorCode` is responsible for verifying the user's two-factor authentication code.
+\nUnit tests were added for `verifyTwoFactorCode` in `tests/auth.test.js`. These tests covered the following scenarios: providing a valid code, an expired code, and an invalid code.
+\nAdditionally, the documentation in `README.md` was updated to reflect the changes to the authentication flow and now describe the new two-factor authentication step.
+</example_pr_summary>
+"""
+
 CLAUDE_MODEL = "claude-3-opus-20240229"
 
 class PRReviewBot(ChatGPT):
+    # get a comprehensive pr summary
+    def get_pr_summary(self, formatted_patches: str, chat_logger: ChatLogger = None):
+        self.messages = [
+            Message(
+                role="system",
+                content=system_prompt_pr_summary,
+            )
+        ]
+        formatted_user_prompt = user_prompt_pr_summary.format(all_patches=formatted_patches)
+        pr_summary_response = self.chat_anthropic(
+            content=formatted_user_prompt,
+            temperature=0.1,
+            model=CLAUDE_MODEL,
+            use_openai=True,
+        )
+        pr_summary = ""
+        pr_summary_pattern = r"<pr_summary>(?P<pr_summary>.*?)</pr_summary>"
+        pr_summary_match = re.search(pr_summary_pattern, pr_summary_response, re.DOTALL)
+        if pr_summary_match:
+            pr_summary = pr_summary_match.group("pr_summary")
+        if chat_logger:
+            chat_logger.add_chat(
+                {
+                    "model": self.model,
+                    "messages": [{"role": message.role, "content": message.content} for message in self.messages],
+                    "output": "END OF MESSAGES",
+                })
+        return pr_summary
     # fetch all potential issues for each file based on the diffs of that file
     def review_code_changes_by_file(self, pr_changes_by_file: dict[str, str], chat_logger: ChatLogger = None, seed: int | None = None):
         code_reviews_by_file = {}
@@ -503,7 +663,7 @@ class PRReviewBot(ChatGPT):
                     })
         return code_reviews_by_file
 
-    # given a list of changes identify newly defined functions
+    # given a list of changes identify newly created functions
     def identify_functions_in_patches(
         self,
         pr_changes: list[PRChange],
@@ -544,16 +704,31 @@ class PRReviewBot(ChatGPT):
                     })
             # extract function defs from string
             function_def_params = ["function_code", "start_line", "end_line"]
-            newly_defined_functions_regex = r'<newly_defined_functions>(?P<content>.*?)<\/newly_defined_functions>'
-            newly_defined_functions_match = re.search(newly_defined_functions_regex, new_functions_response, re.DOTALL)
-            if newly_defined_functions_match:
-                extracted_functions, _ = extract_objects_from_string(newly_defined_functions_match.group("content"), "function", function_def_params)
+            newly_created_functions_regex = r'<newly_created_functions>(?P<content>.*?)<\/newly_created_functions>'
+            newly_created_functions_match = re.search(newly_created_functions_regex, new_functions_response, re.DOTALL)
+            if newly_created_functions_match:
+                extracted_functions, _ = extract_objects_from_string(newly_created_functions_match.group("content"), "function", function_def_params)
                 patches = pr_change.patches
                 for extracted_function in extracted_functions:
                     # do some basic double checking, make sure the start and end lines make sense
                     # the start and end lines should fall within the start and end of one patch, if they dont, then it is clearly wrong
-                    start = int(extracted_function.get('start_line', -1))
-                    end = int(extracted_function.get('end_line', -1))
+                    try:
+                        start = int(extracted_function.get("start_line", -1))
+                        end = int(extracted_function.get("end_line", -1))
+                    except ValueError as e:  # invalid start and end lines
+                        logger.error(
+                            "Non fatal error in identify_functions_in_patches attempting to extract start and end lines."
+                        )
+                        posthog.capture(
+                            "identify_repeated_functions",
+                            "identify_repeated_functions error line_numbers",
+                            properties={
+                                "error": str(e),
+                                "extracted_function": str(extracted_function),
+                            },
+                        )
+                        start = -1
+                        end = -1
                     if start != -1 and end != -1:
                         valid_function = False
                         for patch in patches:
@@ -565,8 +740,7 @@ class PRReviewBot(ChatGPT):
                                 newly_created_functions[file_name] = []
                             newly_created_functions[file_name].append(FunctionDef(**{**extracted_function, "file_name": file_name}))
                         else:
-                            logger.error(f"Extracted function {extracted_function} was dropped do to incorrect start and end lines!")
-                            print("error")
+                            logger.warning(f"Extracted function was dropped due to incorrect start and end lines!\nFunction:\n{extracted_function}")
             else:
                 newly_created_functions[file_name] = []
         return newly_created_functions
@@ -635,7 +809,7 @@ class PRReviewBot(ChatGPT):
                 repeated_function, _, failed_param = extract_object_fields_from_string(repeated_functions_response, repeated_function_params)
                 # if extraction fails
                 if failed_param == "answer":
-                    logger.error(f"Failure in extract_object_fields_from_string: {repeated_functions_response}")
+                    logger.error("Failure in extract_object_fields_from_string")
                     posthog.capture(
                         "extract_object_fields_from_string", "extract_object_fields_from_string failed", properties={"text": repeated_functions_response, "params": str(repeated_function_params)}
                     )
@@ -832,7 +1006,7 @@ def review_pr_detailed_checks(
     chat_logger: ChatLogger | None = None, 
 ) -> dict[str, CodeReview]:
     review_bot = PRReviewBot()
-    # get a list of newly defined functions
+    # get a list of newly created functions
     newly_created_functions_dict: dict[str, list[FunctionDef]] = review_bot.identify_functions_in_patches(pr_changes, chat_logger=chat_logger)
     new_code_issues: dict[str, list[CodeReviewIssue]] = review_bot.identify_repeated_functions(
         cloned_repo, newly_created_functions_dict, chat_logger=chat_logger
@@ -843,4 +1017,15 @@ def review_pr_detailed_checks(
             code_review_by_file[file_name].issues.extend(new_code_issues)
     
     return code_review_by_file
+
+# get the summary for a pr given all the changes
+def get_pr_summary_from_patches(pr_changes: list[PRChange], chat_logger: ChatLogger | None = None):
+    review_bot = PRReviewBot()
+    formatted_pr_patches = ""
+    for pr_change in pr_changes:
+        file_name = pr_change.file_name
+        patches = format_patches_for_pr_change(pr_change)
+        formatted_pr_patches += f'\n\n<patches file_name="{file_name}">\n{patches}\n</patches>\n\n'
+    pr_summary = review_bot.get_pr_summary(formatted_pr_patches, chat_logger=chat_logger)
+    return pr_summary
     

@@ -34,7 +34,7 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.image_utils import create_message_with_images
 from sweepai.utils.openai_proxy import OpenAIProxy
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.utils import Tiktoken
+from sweepai.utils.tiktoken_utils import Tiktoken
 from parea import Parea
 
 parea_client = None
@@ -548,38 +548,28 @@ class ChatGPT(MessageList):
                         print() # clear the line
                         return text
                     else:
-                        if ANTHROPIC_AVAILABLE and use_aws: # streaming doesn't work with AWS
-                            response = client.messages.create(
-                                model=model,
-                                messages=message_dicts,
-                                max_tokens=max_tokens,
-                                temperature=temperature,
-                                system=system_message,
-                                stop_sequences=stop_sequences,
-                            ).content[0].text
-                        else:
-                            verbose = True
-                            start_time = time.time()
+                        verbose = True
+                        start_time = time.time()
+                        if verbose:
+                            print(f"In queue with model {model}...")
+                        with client.messages.stream(
+                            model=model,
+                            temperature=temperature,
+                            max_tokens=max_tokens,
+                            messages=message_dicts,
+                            system=system_message,  
+                            stop_sequences=stop_sequences,
+                        ) as stream:
                             if verbose:
-                                print(f"In queue with model {model}...")
-                            with client.messages.stream(
-                                model=model,
-                                temperature=temperature,
-                                max_tokens=max_tokens,
-                                messages=message_dicts,
-                                system=system_message,  
-                                stop_sequences=stop_sequences,
-                            ) as stream:
+                                print(f"Started stream in {time.time() - start_time:.2f}s!")
+                            for i, text in enumerate(stream.text_stream):
                                 if verbose:
-                                    print(f"Started stream in {time.time() - start_time:.2f}s!")
-                                for i, text in enumerate(stream.text_stream):
-                                    if verbose:
-                                        if i == 0:
-                                            print(f"Time to first token: {time.time() - start_time:.2f}s")
-                                        print(text, end="", flush=True)
-                            response = stream.get_final_message().content[0].text
-                            if verbose:
-                                print("Done streaming results!")
+                                    if i == 0:
+                                        print(f"Time to first token: {time.time() - start_time:.2f}s")
+                                    print(text, end="", flush=True)
+                        response = stream.get_final_message().content[0].text
+                        if verbose:
+                            print("Done streaming results!")
                     return response
                 if use_openai:
                     message_dicts = [

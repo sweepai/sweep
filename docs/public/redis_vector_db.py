@@ -76,7 +76,7 @@ def openai_with_expo_backoff(batch: tuple[str]):
             if cache_value:
                 embeddings[i] = np.array(json.loads(cache_value))
     except Exception as e:
-        logger.exception(e)
+        logger.exception(f"Failure in openai_with_expo_backoff: {e}")
     # 2. If we have all the embeddings, return them
     batch = [text for idx, text in enumerate(batch) if isinstance(embeddings[idx], type(None))]
     if len(batch) == 0:
@@ -93,7 +93,7 @@ def openai_with_expo_backoff(batch: tuple[str]):
             batch = [truncate_string_tiktoken(text) for text in batch] # truncation is slow, so we only do it if we have to
             new_embeddings = openai_call_embedding(batch)
         except Exception as e:
-            logger.exception(e)
+            logger.exception(f"Failure calling openai_call_embedding: {e}")
     # 5. Place the new embeddings in the correct position
     indices = [i for i, emb in enumerate(embeddings) if emb is None]
     for i, index in enumerate(indices):

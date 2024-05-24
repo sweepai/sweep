@@ -13,7 +13,7 @@ from redis import Redis
 from tqdm import tqdm
 
 from sweepai.utils.timer import Timer
-from sweepai.config.server import CACHE_DIRECTORY, DEBUG, REDIS_URL
+from sweepai.config.server import CACHE_DIRECTORY, FILE_CACHE_DISABLED, REDIS_URL
 from sweepai.core.entities import Snippet
 from sweepai.core.repo_parsing_utils import directory_to_chunks
 from sweepai.core.vector_db import multi_get_query_texts_similarity
@@ -27,9 +27,7 @@ lexical_index_cache = Cache(f'{CACHE_DIRECTORY}/lexical_index_cache')
 snippets_cache = Cache(f'{CACHE_DIRECTORY}/snippets_cache')
 CACHE_VERSION = "v1.0.14"
 
-if DEBUG:
-    redis_client = Redis.from_url(REDIS_URL)
-else:
+if FILE_CACHE_DISABLED:
     redis_client = None
 
 schema_builder = tantivy.SchemaBuilder()
@@ -37,6 +35,9 @@ schema_builder.add_text_field("title", stored=True)
 schema_builder.add_text_field("body", stored=True)
 schema_builder.add_integer_field("doc_id", stored=True)
 schema = schema_builder.build()
+
+redis_client = Redis.from_url(REDIS_URL)
+
 
 class CustomIndex:
     def __init__(self, cache_path: str = None):

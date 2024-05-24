@@ -22,7 +22,7 @@ from sweepai.utils.timer import Timer
 from sweepai.config.server import BATCH_SIZE, CACHE_DIRECTORY, REDIS_URL, VOYAGE_API_AWS_ENDPOINT_NAME, VOYAGE_API_KEY, VOYAGE_API_USE_AWS
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.openai_proxy import get_embeddings_client
-from sweepai.utils.utils import Tiktoken
+from sweepai.utils.tiktoken_utils import Tiktoken
 
 # Now uses Voyage AI if available, with asymmetric embedding
 # CACHE_VERSION = "v2.0.04" + "-voyage" if VOYAGE_API_KEY else ""

@@ -116,10 +116,12 @@ def add_emoji(issue: Issue, comment_id: int = None, reaction_content="eyes"):
     item_to_react_to = issue.get_comment(comment_id) if comment_id else issue
     item_to_react_to.create_reaction(reaction_content)
 
+
 # Add :eyes: emoji to ticket
 def add_emoji_to_pr(pr: PullRequest, comment_id: int = None, reaction_content="eyes"):
     item_to_react_to = pr.get_comment(comment_id) if comment_id else pr
     item_to_react_to.create_reaction(reaction_content)
+
 
 # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
 def remove_emoji(issue: Issue, comment_id: int = None, content_to_delete="eyes"):
@@ -163,6 +165,9 @@ def create_error_logs(
         else ""
     )
 
+def remove_ansi_tags(logs: str) -> str:
+    return re.sub(r"\x1b\[[0-9;]*m", "", logs)
+
 # takes in a list of workflow runs and returns a list of messages containing the logs of the failing runs
 def get_failing_gha_logs(runs, installation_id) -> str:
     token = get_token(installation_id)
@@ -199,7 +204,7 @@ def get_failing_gha_logs(runs, installation_id) -> str:
             )
             return all_logs
         # make sure jobs in valid
-        if jobs_response.json()['total_count'] == 0:
+        if jobs_response.json()["total_count"] == 0:
             logger.warning(f"no jobs for this run: {run}, continuing...")
             continue
 
@@ -228,7 +233,8 @@ def get_failing_gha_logs(runs, installation_id) -> str:
             logger.error(
                 "Failed to get logs for failing github actions, likely a credentials issue"
             )
-    return all_logs
+    return remove_ansi_tags(all_logs)
+
 
 def delete_old_prs(repo: Repository, issue_number: int):
     logger.info("Deleting old PRs...")
@@ -244,6 +250,7 @@ def delete_old_prs(repo: Repository, issue_number: int):
         if pr.user.login == CURRENT_USERNAME and f"Fixes #{issue_number}.\n" in pr.body:
             safe_delete_sweep_branch(pr, repo)
             break
+
 
 def get_comment_header(
     index: int,
@@ -298,11 +305,7 @@ def get_comment_header(
     if index < 0:
         index = 0
     if index == 4:
-        return (
-            pr_message
-            + config_pr_message
-            + f"\n\n{actions_message}"
-        )
+        return pr_message + config_pr_message + f"\n\n{actions_message}"
 
     total = len(progress_headers)
     index += 1 if done else 0
@@ -312,8 +315,7 @@ def get_comment_header(
     if errored:
         pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Errored&width=600' alt='{index}%' />"
         return (
-            f"{center(sweeping_gif)}<br/>{center(pbar)}\n\n"
-            + f"\n\n{actions_message}"
+            f"{center(sweeping_gif)}<br/>{center(pbar)}\n\n" + f"\n\n{actions_message}"
         )
     pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
     return (
@@ -326,23 +328,22 @@ def get_comment_header(
         + f"\n\n{actions_message}"
     )
 
+
 def process_summary(summary, issue_number, repo_full_name, installation_id):
     summary = summary or ""
     summary = re.sub(
-            "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
-            "",
-            summary,
-            flags=re.DOTALL,
-        ).strip()
+        "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
+        "",
+        summary,
+        flags=re.DOTALL,
+    ).strip()
     summary = re.sub(
-            "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*",
-            "",
-            summary,
-            flags=re.DOTALL,
-        ).strip()
-    summary = re.sub(
-            "### Details\n\n_No response_", "", summary, flags=re.DOTALL
-        )
+        "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*",
+        "",
+        summary,
+        flags=re.DOTALL,
+    ).strip()
+    summary = re.sub("### Details\n\n_No response_", "", summary, flags=re.DOTALL)
     summary = re.sub("\n\n", "\n", summary, flags=re.DOTALL)
     repo_name = repo_full_name
     user_token, g = get_github_client(installation_id)
@@ -351,54 +352,69 @@ def process_summary(summary, issue_number, repo_full_name, installation_id):
     assignee = current_issue.assignee.login if current_issue.assignee else None
     if assignee is None:
         assignee = current_issue.user.login
-    branch_match = re.search(
-            r"(\s[B|b]ranch:) *(?P<branch_name>.+?)(\s|$)", summary
-        )
+    branch_match = re.search(r"(\s[B|b]ranch:) *(?P<branch_name>.+?)(\s|$)", summary)
     overrided_branch_name = None
     if branch_match and "branch_name" in branch_match.groupdict():
         overrided_branch_name = (
-                branch_match.groupdict()["branch_name"].strip().strip("`\"'")
-            )
-            # TODO: this code might be finicky, might have missed edge cases
+            branch_match.groupdict()["branch_name"].strip().strip("`\"'")
+        )
+        # TODO: this code might be finicky, might have missed edge cases
         if overrided_branch_name.startswith("https://github.com/"):
-            overrided_branch_name = overrided_branch_name.split("?")[0].split(
-                    "tree/"
-                )[-1]
+            overrided_branch_name = overrided_branch_name.split("?")[0].split("tree/")[
+                -1
+            ]
         SweepConfig.get_branch(repo, overrided_branch_name)
-    return summary,repo_name,user_token,g,repo,current_issue,assignee,overrided_branch_name
+    return (
+        summary,
+        repo_name,
+        user_token,
+        g,
+        repo,
+        current_issue,
+        assignee,
+        overrided_branch_name,
+    )
 
-def raise_on_no_file_change_requests(title, summary, edit_sweep_comment, file_change_requests):
+
+def raise_on_no_file_change_requests(
+    title, summary, edit_sweep_comment, file_change_requests
+):
     if not file_change_requests:
         if len(title + summary) < 60:
             edit_sweep_comment(
-                            (
-                                "Sorry, I could not find any files to modify, can you please"
-                                " provide more details? Please make sure that the title and"
-                                " summary of the issue are at least 60 characters."
-                            ),
-                            -1,
-                        )
+                (
+                    "Sorry, I could not find any files to modify, can you please"
+                    " provide more details? Please make sure that the title and"
+                    " summary of the issue are at least 60 characters."
+                ),
+                -1,
+            )
         else:
             edit_sweep_comment(
-                            (
-                                "Sorry, I could not find any files to modify, can you please"
-                                " provide more details?"
-                            ),
-                            -1,
-                        )
-        raise Exception("Sorry, we couldn't find any files to change. Can you please provide the full path to the file you want to change?")
+                (
+                    "Sorry, I could not find any files to modify, can you please"
+                    " provide more details?"
+                ),
+                -1,
+            )
+        raise Exception(
+            "Sorry, we failed to make the file changes. Please report this and we will fix it."
+        )
 
-def rewrite_pr_description(issue_number, repo, overrided_branch_name, pull_request, pr_changes):
-                # change the body here
+
+def rewrite_pr_description(
+    issue_number, repo, overrided_branch_name, pull_request, pr_changes
+):
+    # change the body here
     diff_text = get_branch_diff_text(
-                    repo=repo,
-                    branch=pull_request.branch_name,
-                    base_branch=overrided_branch_name,
-                )
+        repo=repo,
+        branch=pull_request.branch_name,
+        base_branch=overrided_branch_name,
+    )
     new_description = PRDescriptionBot().describe_diffs(
         diff_text,
         pull_request.title,
-    ) # TODO: update the title as well
+    )  # TODO: update the title as well
     if new_description:
         pr_changes.body = (
             f"{new_description}\n\nFixes"
@@ -406,7 +422,19 @@ def rewrite_pr_description(issue_number, repo, overrided_branch_name, pull_reque
         )
     return pr_changes
 
-def send_email_to_user(title, issue_number, username, repo_full_name, tracking_id, repo_name, g, file_change_requests, pr_changes, pr):
+
+def send_email_to_user(
+    title,
+    issue_number,
+    username,
+    repo_full_name,
+    tracking_id,
+    repo_name,
+    g,
+    file_change_requests,
+    pr_changes,
+    pr,
+):
     user_settings = UserSettings.from_username(username=username)
     user = g.get_user(username)
     full_name = user.name or user.login
@@ -431,9 +459,7 @@ def send_email_to_user(title, issue_number, username, repo_full_name, tracking_i
                 for line in diff
                 if line.startswith("-") and not line.startswith("---")
             )
-            files_changed.append(
-                f"<code>{fcr.filename}</code> (+{added}/-{removed})"
-            )
+            files_changed.append(f"<code>{fcr.filename}</code> (+{added}/-{removed})")
     user_settings.send_email(
         subject=f"Sweep Pull Request Complete for {repo_name}#{issue_number} {title}",
         html=email_template.format(
@@ -443,28 +469,25 @@ def send_email_to_user(title, issue_number, username, repo_full_name, tracking_i
             repo_full_name=repo_full_name,
             pr_number=pr.number,
             summary=markdown.markdown(pr_changes.body),
-            files_changed="\n".join(
-                [f"<li>{item}</li>" for item in files_changed]
-            ),
+            files_changed="\n".join([f"<li>{item}</li>" for item in files_changed]),
             sweeping_gif=sweeping_gif,
         ),
     )
 
+
 def handle_empty_repository(comment_id, current_issue, progress_headers, issue_comment):
     first_comment = (
-                    "Sweep is currently not supported on empty repositories. Please add some"
-                    f" code to your repository and try again.\n{sep}##"
-                    f" {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
-                )
+        "Sweep is currently not supported on empty repositories. Please add some"
+        f" code to your repository and try again.\n{sep}##"
+        f" {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
+    )
     if issue_comment is None:
-        issue_comment = current_issue.create_comment(
-                        first_comment + BOT_SUFFIX
-                    )
+        issue_comment = current_issue.create_comment(first_comment + BOT_SUFFIX)
     else:
         issue_comment.edit(first_comment + BOT_SUFFIX)
     fire_and_forget_wrapper(add_emoji)(
-                    current_issue, comment_id, reaction_content="confused"
-                )
+        current_issue, comment_id, reaction_content="confused"
+    )
     fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
 
 
@@ -527,7 +550,9 @@ def get_payment_messages(chat_logger: ChatLogger):
         if not is_paying_user and not is_consumer_tier
         else ""
     )
-    user_type = "💎 <b>Sweep Pro</b>" if is_paying_user else "⚡ <b>Sweep Basic Tier</b>"
+    user_type = (
+        "💎 <b>Sweep Pro</b>" if is_paying_user else "⚡ <b>Sweep Basic Tier</b>"
+    )
     gpt_tickets_left_message = (
         f"{ticket_count} Sweep issues left for the month"
         if not is_paying_user
@@ -545,17 +570,18 @@ def get_payment_messages(chat_logger: ChatLogger):
 
     return payment_message, payment_message_start
 
+
 def parse_issues_from_code_review(issue_string: str):
-    issue_regex = r'<issue>(?P<issue>.*?)<\/issue>'
+    issue_regex = r"<issue>(?P<issue>.*?)<\/issue>"
     issue_matches = list(re.finditer(issue_regex, issue_string, re.DOTALL))
     potential_issues = set()
     for issue in issue_matches:
-        issue_content = issue.group('issue')
-        issue_params = ['issue_description', 'start_line', 'end_line']
+        issue_content = issue.group("issue")
+        issue_params = ["issue_description", "start_line", "end_line"]
         issue_args = {}
         issue_failed = False
         for param in issue_params:
-            regex = rf'<{param}>(?P<{param}>.*?)<\/{param}>'
+            regex = rf"<{param}>(?P<{param}>.*?)<\/{param}>"
             result = re.search(regex, issue_content, re.DOTALL)
             try:
                 issue_args[param] = result.group(param).strip()
@@ -566,14 +592,21 @@ def parse_issues_from_code_review(issue_string: str):
             potential_issues.add(CodeReviewIssue(**issue_args))
     return list(potential_issues)
 
+
 # converts the list of issues inside a code_review into markdown text to display in a github comment
 @posthog_trace
-def render_code_review_issues(username: str, pr: PullRequest, code_review: CodeReview, issue_type: str = "", metadata: dict = {}):
+def render_code_review_issues(
+    username: str,
+    pr: PullRequest,
+    code_review: CodeReview,
+    issue_type: str = "",
+    metadata: dict = {},
+):
     files_to_blobs = {file.filename: file.blob_url for file in list(pr.get_files())}
     # generate the diff urls
     files_to_diffs = {}
     for file_name, _ in files_to_blobs.items():
-        sha_256 = hashlib.sha256(file_name.encode('utf-8')).hexdigest()
+        sha_256 = hashlib.sha256(file_name.encode("utf-8")).hexdigest()
         files_to_diffs[file_name] = f"{pr.html_url}/files#diff-{sha_256}"
     code_issues = code_review.issues
     if issue_type == "potential":
@@ -582,16 +615,22 @@ def render_code_review_issues(username: str, pr: PullRequest, code_review: CodeR
     for issue in code_issues:
         if code_review.file_name in files_to_blobs:
             if issue.start_line == issue.end_line:
-                issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}"
-                issue_diff_url = f"{files_to_diffs[code_review.file_name]}R{issue.start_line}"
+                issue_blob_url = (
+                    f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}"
+                )
+                issue_diff_url = (
+                    f"{files_to_diffs[code_review.file_name]}R{issue.start_line}"
+                )
             else:
                 issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}-L{issue.end_line}"
                 issue_diff_url = f"{files_to_diffs[code_review.file_name]}R{issue.start_line}-R{issue.end_line}"
             code_issues_string += f"<li>{issue.issue_description}</li>\n\n{issue_blob_url}\n[View Diff]({issue_diff_url})"
     return code_issues_string
 
+
 def escape_html(text: str) -> str:
-    return text.replace('<', '&lt;').replace('>', '&gt;')
+    return text.replace("<", "&lt;").replace(">", "&gt;")
+
 
 # make sure code blocks are render properly in github comments markdown
 def format_code_sections(text: str) -> str:
@@ -604,59 +643,104 @@ def format_code_sections(text: str) -> str:
     inside_code = False
     while True:
         try:
-            index = text.index('`', last_index)
+            index = text.index("`", last_index)
             result.append(text[last_index:index])
             if inside_code:
-                result.append('</code>')
+                result.append("</code>")
             else:
-                result.append('<code>')
+                result.append("<code>")
             inside_code = not inside_code
             last_index = index + 1
         except ValueError:
             # No more backticks found
             break
     result.append(text[last_index:])
-    formatted_text = ''.join(result)
+    formatted_text = "".join(result)
     # Escape HTML characters within <code> tags
-    formatted_text = formatted_text.replace('<code>', '<code>').replace('</code>', '</code>')
-    parts = formatted_text.split('<code>')
+    formatted_text = formatted_text.replace("<code>", "<code>").replace(
+        "</code>", "</code>"
+    )
+    parts = formatted_text.split("<code>")
     for i in range(1, len(parts)):
-        code_content, rest = parts[i].split('</code>', 1)
-        parts[i] = escape_html(code_content) + '</code>' + rest
-    
-    return '<code>'.join(parts)
+        code_content, rest = parts[i].split("</code>", 1)
+        parts[i] = escape_html(code_content) + "</code>" + rest
+
+    return "<code>".join(parts)
+
 
 # turns code_review_by_file into markdown string
 @posthog_trace
-def render_pr_review_by_file(username: str, pr: PullRequest, code_review_by_file: dict[str, CodeReview], dropped_files: list[str] = [], pr_authors: str = "") -> str:
+def render_pr_review_by_file(
+    username: str,
+    pr: PullRequest,
+    code_review_by_file: dict[str, CodeReview],
+    pull_request_summary: str = "",
+    dropped_files: list[str] = [],
+    unsuitable_files: list[tuple[str, Exception]] = [],
+    pr_authors: str = "",
+) -> str:
     body = f"{SWEEP_PR_REVIEW_HEADER}\n"
     if pr_authors:
         body += f"Authors of pull request: {pr_authors}\n"
-    reviewed_files = ""
+    if pull_request_summary:
+        body += f"\n{pull_request_summary}\n<hr>\n"
+    issues_section = ""
+    potential_issues_section = ""
+    # build issues section and potential issues sections
     for file_name, code_review in code_review_by_file.items():
         sweep_issues = code_review.issues
         potential_issues = code_review.potential_issues
-        reviewed_files += f"""<details open>
-<summary>{file_name}</summary>
-<p>{format_code_sections(code_review.diff_summary)}</p>"""
         if sweep_issues:
             sweep_issues_string = render_code_review_issues(username, pr, code_review)
-            reviewed_files += f"<p><strong>Sweep Found These Issues</strong></p><ul>{format_code_sections(sweep_issues_string)}</ul>"
+            issues_section += f"""<details open>
+<summary>{file_name}</summary>
+<ul>{format_code_sections(sweep_issues_string)}</ul></details>"""
         if potential_issues:
-            potential_issues_string = render_code_review_issues(username, pr, code_review, issue_type="potential")
-            reviewed_files += f"<details><summary><strong>Potential Issues</strong></summary><p>Sweep isn't 100% sure if the following are issues or not but they may be worth taking a look at.</p><ul>{format_code_sections(potential_issues_string)}</ul></details>"
-        reviewed_files += "</details><hr>"
+            potential_issues_string = render_code_review_issues(
+                username, pr, code_review, issue_type="potential"
+            )
+            potential_issues_section += f"""<details>
+<summary>{file_name}</summary>
+<ul>{format_code_sections(potential_issues_string)}</ul></details>"""
+    # add titles/dropdowns for issues and potential issues section depending on if there were any issues/potential issues
+    if issues_section:
+        issues_section = f"<details open><summary><h3>Sweep Found These Issues</h3></summary>\n\n{issues_section}</details><hr>"
+    if potential_issues_section:
+        potential_issues_section = f"<details><summary><h3>Potential Issues</h3></summary><p><strong>Sweep is unsure if these are issues, but they might be worth checking out.</strong></p>\n\n{potential_issues_section}</details><hr>"
+
+    # add footer describing dropped files
+    footer = ""
     if len(dropped_files) == 1:
-        reviewed_files += f"<p>{dropped_files[0]} was not reviewed because our filter identified it as typically a non-human-readable or less important file (e.g., dist files, package.json, images). If this is an error, please let us know.</p>"
+        footer += f"<p>{dropped_files[0]} was not reviewed because our filter identified it as typically a non-human-readable or less important file (e.g., dist files, package.json, images). If this is an error, please let us know.</p>"
     elif len(dropped_files) > 1:
         dropped_files_string = "".join([f"<li>{file}</li>" for file in dropped_files])
-        reviewed_files += f"<p>The following files were not reviewed because our filter identified them as typically non-human-readable or less important files (e.g., dist files, package.json, images). If this is an error, please let us know.</p><ul>{dropped_files_string}</ul>"
-    return body + reviewed_files
+        footer += f"<p>The following files were not reviewed because our filter identified them as typically non-human-readable or less important files (e.g., dist files, package.json, images). If this is an error, please let us know.</p><ul>{dropped_files_string}</ul>"
+    if len(unsuitable_files) == 1:
+        footer += f"<p>The following file {unsuitable_files[0][0]} were not reviewed as they were deemed unsuitable for the following reason: {str(unsuitable_files[0][1])}. If this is an error please let us know.</p>"
+    elif len(unsuitable_files) > 1:
+        unsuitable_files_string = "".join(
+            [
+                f"<li>{file}: {str(exception)}</li>"
+                for file, exception in unsuitable_files
+            ]
+        )
+        footer += f"<p>The following files were not reviewed as they were deemed unsuitable for a variety of reasons. If this is an error please let us know.</p><ul>{unsuitable_files_string}</ul>"
+
+    return body + issues_section + potential_issues_section + footer
+
 
 # handles the creation or update of the Sweep comment letting the user know that Sweep is reviewing a pr
 # returns the comment_id
 @posthog_trace
-def create_update_review_pr_comment(username: str, pr: PullRequest, code_review_by_file: dict[str, CodeReview] | None = None, dropped_files: list[str] = []) -> int:
+def create_update_review_pr_comment(
+    username: str,
+    pr: PullRequest,
+    code_review_by_file: dict[str, CodeReview] | None = None,
+    pull_request_summary: str = "",
+    dropped_files: list[str] = [],
+    unsuitable_files: list[tuple[str, Exception]] = [],
+    error_message: str = "",  # passing in an error message takes priority over everything else
+) -> int:
     comment_id = -1
     sweep_comment = None
     # comments that appear in the github ui in the conversation tab are considered issue comments
@@ -673,19 +757,37 @@ def create_update_review_pr_comment(username: str, pr: PullRequest, code_review_
     for commit in commits:
         author = commit.author
         if author:
-            pr_authors.add(f'@{author.login}')
+            pr_authors.add(f"@{author.login}")
     pr_authors = ", ".join(pr_authors)
 
     # comment has not yet been created
     if not sweep_comment:
-        comment_content = f"{SWEEP_PR_REVIEW_HEADER}\nSweep is currently reviewing your pr..."
+        comment_content = (
+            f"{SWEEP_PR_REVIEW_HEADER}\nSweep is currently reviewing your pr..."
+        )
         if pr_authors:
             comment_content = f"{SWEEP_PR_REVIEW_HEADER}\nAuthors of pull request: {pr_authors}\n\nSweep is currently reviewing your pr..."
         sweep_comment = pr.create_issue_comment(comment_content)
-    
+
+    # update the comment
+    if error_message:
+        sweep_comment.edit(
+            f"{SWEEP_PR_REVIEW_HEADER}\nSweep was unable to review your pull request due to the following reasons:\n\n{error_message}"
+        )
+        comment_id = sweep_comment.id
+        return comment_id  # early return
+
     # update body of sweep_comment
     if code_review_by_file:
-        rendered_pr_review = render_pr_review_by_file(username, pr, code_review_by_file, dropped_files=dropped_files, pr_authors=pr_authors)
+        rendered_pr_review = render_pr_review_by_file(
+            username,
+            pr,
+            code_review_by_file,
+            pull_request_summary=pull_request_summary,
+            dropped_files=dropped_files,
+            unsuitable_files=unsuitable_files,
+            pr_authors=pr_authors,
+        )
         sweep_comment.edit(rendered_pr_review)
     comment_id = sweep_comment.id
     return comment_id
@@ -708,5 +810,7 @@ def render_fcrs(file_change_requests: list[FileChangeRequest]):
                 _file_base_name, ext = os.path.splitext(fcr.filename)
                 planning_markdown += f"```{ext}\n{parsed_fcr['new_code'][0]}\n```\n"
         else:
-            planning_markdown += f"#### `{fcr.filename}`\n{blockquote(fcr.instructions)}\n"
+            planning_markdown += (
+                f"#### `{fcr.filename}`\n{blockquote(fcr.instructions)}\n"
+            )
     return planning_markdown

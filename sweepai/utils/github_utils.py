@@ -43,6 +43,7 @@ def get_jwt():
 
 def get_token(installation_id: int):
     if int(installation_id) < 0:
+        logger.error(f"installation_id is {installation_id}, using GITHUB_PAT instead.")
         return os.environ["GITHUB_PAT"]
     for timeout in [5.5, 5.5, 10.5]:
         try:
@@ -65,8 +66,18 @@ def get_token(installation_id: int):
             raise SystemExit
         except Exception:
             time.sleep(timeout)
+    signing_key = GITHUB_APP_PEM
+    app_id = GITHUB_APP_ID
+    exception_message = "Could not get token."
+    if not signing_key:
+        exception_message += " Missing GITHUB_APP_PEM in the .env file."
+    if not app_id:
+        exception_message += " Missing GITHUB_APP_ID in the .env file."
+    if signing_key and app_id:
+        exception_message += "Please double check that Sweep has the correct permissions to access your repository."
+
     raise Exception(
-        "Could not get token, please double check your GITHUB_APP_PEM and GITHUB_APP_ID in the .env file."
+        exception_message
     )
 
 
@@ -797,6 +808,12 @@ def sanitize_string_for_github(message: str):
         if secret in message:
             message = message.replace(secret, "*" * len(secret))
     return message
+
+# refresh user token, github client and repo object
+def refresh_token(repo_full_name: str, installation_id: int):
+    user_token, g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
+    return user_token, g, repo
 
 
 try:
