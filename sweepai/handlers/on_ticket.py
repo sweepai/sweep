@@ -617,15 +617,6 @@ def on_ticket(
 
             fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
 
-            revert_buttons = []
-            for changed_file in set(changed_files):
-                revert_buttons.append(
-                    Button(label=f"{RESET_FILE} {changed_file}")
-                )
-            revert_buttons_list = ButtonList(
-                buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
-            )
-
             # create draft pr, then convert to regular pr later
             pr: GithubPullRequest = repo.create_pull(
                 title=pr_changes.title,
@@ -642,10 +633,20 @@ def on_ticket(
                     f"Failed to add assignee {username}: {e}, probably a bot."
                 )
 
-            if revert_buttons:
-                pr.create_issue_comment(
-                    revert_buttons_list.serialize() + BOT_SUFFIX
+            if len(changed_files) > 1:
+                revert_buttons = []
+                for changed_file in set(changed_files):
+                    revert_buttons.append(
+                        Button(label=f"{RESET_FILE} {changed_file}")
+                    )
+                revert_buttons_list = ButtonList(
+                    buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
                 )
+
+                if revert_buttons:
+                    pr.create_issue_comment(
+                        revert_buttons_list.serialize() + BOT_SUFFIX
+                    )
 
             # add comments before labelling
             pr.add_to_labels(GITHUB_LABEL_NAME)
