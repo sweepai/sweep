@@ -213,7 +213,7 @@ You must resolve these errors before proceeding. Respond in the following format
 
 <error_resolutions>
 <error_resolution>
-Error #0: Description of the error
+Error #0: Summary of the error
 
 You will first think step-by-step about the error, and then either rewrite the instructions with the corrected fix, or drop the task.
 
@@ -411,7 +411,7 @@ b. List ALL the changes made so far in extreme detail. Be absolutely complete. F
 </thinking>
 
 # 2. Plan:
-<plan>  
+<plan>
 List ALL the types of error messages in the error logs and their root causes. Follow this format:
 
 There are a total of X errors in the error logs:
