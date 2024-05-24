@@ -548,6 +548,7 @@ starlette==0.36.3
     #   prometheus-fastapi-instrumentator
 stringzilla==3.8.4
 tabulate==0.9.0
+tantivy==0.22.0
 tenacity==8.2.3
     # via voyageai
 terminado==0.18.1
