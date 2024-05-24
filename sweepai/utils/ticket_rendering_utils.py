@@ -760,7 +760,7 @@ def create_update_review_pr_comment(
             if author:
                 pr_authors.add(f"@{author.login}")
         except IncompletableObject as e:
-            logger.error(f"Failed to retrieve author for commit {commit.sha}: {str(e)}")
+            logger.error(f"Failed to retrieve author {author} for commit {commit.sha}: {str(e)}")
     pr_authors = ", ".join(pr_authors)
 
     # comment has not yet been created
