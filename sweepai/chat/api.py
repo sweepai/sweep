@@ -259,7 +259,7 @@ def chat_codebase_stream(
         *messages[:-1]
     ]
 
-    def stream_state(initial_user_message: str, snippets: list[Snippet], messages: list[Message], access_token: str):
+    def stream_state(initial_user_message: str, snippets: list[Snippet], messages: list[Message], access_token: str, metadata: dict):
         user_message = initial_user_message
         fetched_snippets = snippets
         new_messages = [
@@ -430,6 +430,7 @@ def chat_codebase_stream(
             snippets,
             messages,
             access_token,
+            metadata,
             use_patch=use_patch
         )
     )
