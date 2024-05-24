@@ -149,7 +149,7 @@ def remove_line_numbers(s: str) -> str:
 
 def parse_filenames(text):
     # Regular expression pattern to match file names
-    pattern = r'\b(?:[\w-]+/)*[\w-]+(?:[.:]\w+)+\b|\b(?:[\w-]+/)+[\w-]+\b'
+    pattern = r'(?:[\w.-]+/)*[\w.-]+(?:[.:]\w.]+)+\b|(?:[\w.-]+/)+[\w.-]+\b'
 
     # Find all occurrences of file names in the text
     filenames = re.findall(pattern, text)
@@ -503,6 +503,7 @@ def get_files_to_change(
         issue_sub_requests = issue_sub_request_match.group(1)
         issue_sub_requests = issue_sub_requests.strip("\n")
 
+    # breakpoint()
     files_to_change_response: str = chat_gpt.chat_anthropic(
         content=joint_message + "\n\n" + files_to_change_prompt.format(issue_sub_requests=issue_sub_requests),
         model=MODEL,
