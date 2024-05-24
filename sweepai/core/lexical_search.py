@@ -84,10 +84,6 @@ def tokenize_code(code: str) -> list[str]:
                 if sum(1 for c in part if 'a' <= c <= 'z' or 'A' <= c <= 'Z' or '0' <= c <= '9') > len(part) // 2 \
                     and len(part) / len(set(part)) < 4:
                     tokens.append(part.lower())
-
-    # bigrams = [f"{tokens[i]}_{tokens[i + 1]}" for i in range(len(tokens) - 1)]
-    # trigrams = [f"{tokens[i]}_{tokens[i + 1]}_{tokens[i + 2]}" for i in range(len(tokens) - 2)]
-    # tokens.extend(bigrams + trigrams)
     
     return " ".join(tokens)
 
