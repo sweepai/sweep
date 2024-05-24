@@ -464,7 +464,7 @@ def on_ticket(
                     "\n".join(
                         [
                             f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{max(min(snippet.end, snippet.content.count(newline) - 1), 1)}\n"
-                            for snippet in list(dict.fromkeys(snippets + repo_context_manager.read_only_snippets))
+                            for snippet in list(dict.fromkeys(repo_context_manager.current_top_snippets + repo_context_manager.read_only_snippets))
                         ]
                     ),
                 )
@@ -617,15 +617,6 @@ def on_ticket(
 
             fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
 
-            revert_buttons = []
-            for changed_file in set(changed_files):
-                revert_buttons.append(
-                    Button(label=f"{RESET_FILE} {changed_file}")
-                )
-            revert_buttons_list = ButtonList(
-                buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
-            )
-
             # create draft pr, then convert to regular pr later
             pr: GithubPullRequest = repo.create_pull(
                 title=pr_changes.title,
@@ -642,10 +633,20 @@ def on_ticket(
                     f"Failed to add assignee {username}: {e}, probably a bot."
                 )
 
-            if revert_buttons:
-                pr.create_issue_comment(
-                    revert_buttons_list.serialize() + BOT_SUFFIX
+            if len(changed_files) > 1:
+                revert_buttons = []
+                for changed_file in set(changed_files):
+                    revert_buttons.append(
+                        Button(label=f"{RESET_FILE} {changed_file}")
+                    )
+                revert_buttons_list = ButtonList(
+                    buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
                 )
+
+                if revert_buttons:
+                    pr.create_issue_comment(
+                        revert_buttons_list.serialize() + BOT_SUFFIX
+                    )
 
             # add comments before labelling
             pr.add_to_labels(GITHUB_LABEL_NAME)

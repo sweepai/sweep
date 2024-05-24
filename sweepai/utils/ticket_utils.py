@@ -11,7 +11,7 @@ from sweepai.utils.timer import Timer
 from sweepai.agents.analyze_snippets import AnalyzeSnippetAgent
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import COHERE_API_KEY
-from sweepai.core.context_pruning import RepoContextManager, add_relevant_files_to_top_snippets, build_import_trees, integrate_graph_retrieval
+from sweepai.core.context_pruning import RepoContextManager, add_relevant_files_to_top_snippets, build_import_trees, integrate_graph_retrieval, parse_query_for_files
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import (
     compute_vector_search_scores,
@@ -459,6 +459,7 @@ def fetch_relevant_files(
 
         repo_context_manager, import_graph = integrate_graph_retrieval(search_query, repo_context_manager)
 
+        parse_query_for_files(search_query, repo_context_manager)
         repo_context_manager = get_relevant_context(
             formatted_query,
             repo_context_manager,
