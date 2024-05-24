@@ -361,6 +361,16 @@ def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
     except Exception:
         logger.warning("Failed to update sweep PRs")
 
+def should_handle_comment(request: CommentCreatedRequest | IssueCommentRequest):
+    comment = request.comment.body
+    return (
+        (
+            comment.lower().startswith("sweep:") # we will handle all comments (with or without label) that start with "sweep:"
+        )
+        and request.comment.user.type == "User" # ensure it's a user comment
+        and request.comment.user.login not in BLACKLISTED_USERS # ensure it's not a blacklisted user
+        and BOT_SUFFIX not in comment # we don't handle bot commnents
+    )
 
 def handle_event(request_dict, event):
     action = request_dict.get("action")
@@ -590,17 +600,9 @@ def handle_event(request_dict, event):
                     request.issue.pull_request
                     and request.comment.user.type == "User"
                     and request.comment.user.login not in BLACKLISTED_USERS
-                ):  # TODO(sweep): set a limit
-                    logger.info(f"Handling comment on PR: {request.issue.pull_request}")
-                    _, g = get_github_client(request.installation.id)
-                    repo = g.get_repo(request.repository.full_name)
-                    pr = repo.get_pull(request.issue.number)
-                    labels = pr.get_labels()
-                    comment = request.comment.body
-                    if (
-                        comment.lower().startswith("sweep:")
-                        or any(label.name.lower() == "sweep" for label in labels)
-                    ) and BOT_SUFFIX not in comment:
+                ):
+                    if should_handle_comment(request):
+                        logger.info(f"Handling comment on PR: {request.issue.pull_request}")
                         pr_change_request = PRChangeRequest(
                             params={
                                 "comment_type": "comment",
@@ -707,17 +709,8 @@ def handle_event(request_dict, event):
                     and request.comment.user.type == "User"
                     and request.comment.user.login not in BLACKLISTED_USERS
                     and BOT_SUFFIX not in request.comment.body
-                ):  # TODO(sweep): set a limit
-                    _, g = get_github_client(request.installation.id)
-                    repo = g.get_repo(request.repository.full_name)
-                    pr = repo.get_pull(request.issue.number)
-                    labels = pr.get_labels()
-                    comment = request.comment.body
-                    if (
-                        comment.lower().startswith("sweep:")
-                        or any(label.name.lower() == "sweep" for label in labels)
-                        and BOT_SUFFIX not in comment
-                    ):
+                ):
+                    if should_handle_comment(request):
                         pr_change_request = PRChangeRequest(
                             params={
                                 "comment_type": "comment",
@@ -735,20 +728,7 @@ def handle_event(request_dict, event):
                         call_on_comment(**pr_change_request.params)
             case "pull_request_review_comment", "created":
                 request = CommentCreatedRequest(**request_dict)
-                _, g = get_github_client(request.installation.id)
-                repo = g.get_repo(request.repository.full_name)
-                pr = repo.get_pull(request.pull_request.number)
-                labels = pr.get_labels()
-                comment = request.comment.body
-                if (
-                    (
-                        comment.lower().startswith("sweep:")
-                        or any(label.name.lower() == "sweep" for label in labels)
-                    )
-                    and request.comment.user.type == "User"
-                    and request.comment.user.login not in BLACKLISTED_USERS
-                    and BOT_SUFFIX not in comment
-                ):
+                if should_handle_comment(request):
                     pr_change_request = PRChangeRequest(
                         params={
                             "comment_type": "comment",
@@ -766,20 +746,7 @@ def handle_event(request_dict, event):
                     call_on_comment(**pr_change_request.params)
             case "pull_request_review_comment", "edited":
                 request = CommentCreatedRequest(**request_dict)
-                _, g = get_github_client(request.installation.id)
-                repo = g.get_repo(request.repository.full_name)
-                pr = repo.get_pull(request.pull_request.number)
-                labels = pr.get_labels()
-                comment = request.comment.body
-                if (
-                    (
-                        comment.lower().startswith("sweep:")
-                        or any(label.name.lower() == "sweep" for label in labels)
-                    )
-                    and request.comment.user.type == "User"
-                    and request.comment.user.login not in BLACKLISTED_USERS
-                    and BOT_SUFFIX not in comment
-                ):
+                if should_handle_comment(request):
                     pr_change_request = PRChangeRequest(
                         params={
                             "comment_type": "comment",
@@ -832,7 +799,6 @@ def handle_event(request_dict, event):
                     )
             case "installation", "created":
                 repos_added_request = InstallationCreatedRequest(**request_dict)
-
                 try:
                     add_config_to_top_repos(
                         repos_added_request.installation.id,
