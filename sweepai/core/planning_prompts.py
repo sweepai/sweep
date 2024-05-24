@@ -1,5 +1,6 @@
 issue_sub_request_system_prompt = """You are a tech lead helping to break down a GitHub issue for an intern to solve. Identify every single one of the user's requests. Be complete. The changes should be atomic."""
 
+# need to update to make it better at saying  things like "update any other code"
 issue_sub_request_prompt = """\
 Break down the GitHub issue to identify every single one of the user's requests. Be complete. The changes should be atomic.
 
@@ -15,6 +16,11 @@ Respond in the following format:
 <issue_sub_request>
 A relevant, very short subtask from the user's issue.
 </issue_sub_request>
+<justification>
+1. Why this subtask is needed.
+2. A detailed explanation of the subtask, including the specific code entities that need to be changed.
+</justification>
+[additional sub requests as needed]
 </issue_sub_requests>"""
 
 openai_files_to_change_system_prompt = """You are an exceptionally brilliant AI assistant helping an intern write code to resolve a GitHub issue. The user will provide code files, a description of the issue, and relevant parts of the codebase.
@@ -148,7 +154,7 @@ Reference the provided code files, summaries, entity names, and necessary files/
 ...
 </issue_sub_request>
 <proposed_changes>
-1. For each of the sub requests here, pinpoint the exact relevant places to make changes, then write a detailed set of code changes spanning at least one change, possibly more. This code change should describe exactly what to do, referencing specific code entities in the relevant files.
+1. For each of the sub requests here, pinpoint the exact places to make changes. Describe exactly what to do, referencing specific code entities in the relevant files.
 ...
 </proposed_changes>
 </issue_and_proposed_changes>

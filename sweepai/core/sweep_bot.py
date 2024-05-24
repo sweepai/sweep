@@ -578,8 +578,8 @@ def get_files_to_change(
             raise Exception("Failed to match issue excerpts")
         issue_sub_requests = issue_sub_request_match.group(1)
         issue_sub_requests = issue_sub_requests.strip("\n")
+        issue_sub_requests = re.sub(r"<justification>\n(.*?)\n</justification>\n*", "\n", issue_sub_requests, flags=re.DOTALL).strip("\n")
 
-    # breakpoint()
     files_to_change_response: str = chat_gpt.chat_anthropic(
         content=joint_message + "\n\n" + files_to_change_prompt.format(issue_sub_requests=issue_sub_requests),
         model=MODEL,
