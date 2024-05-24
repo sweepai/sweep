@@ -81,11 +81,14 @@ from sweepai.web.health import health_check
 import sentry_sdk
 from sentry_sdk import set_user
 
+version = time.strftime("%y.%m.%d.%H")
+
 if SENTRY_URL:
     sentry_sdk.init(
         dsn=SENTRY_URL,
         traces_sample_rate=1.0,
         profiles_sample_rate=1.0,
+        release=version
     )
 
 app = FastAPI()
@@ -105,8 +108,6 @@ templates = Jinja2Templates(directory="sweepai/web")
 # try:
 #    version = subprocess.check_output(version_command, shell=True, text=True).strip()
 # except Exception:
-
-version = time.strftime("%y.%m.%d.%H")
 
 logger.bind(application="webhook")
 
