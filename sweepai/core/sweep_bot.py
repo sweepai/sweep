@@ -38,6 +38,7 @@ from sweepai.core.planning_prompts import (
     anthropic_files_to_change_system_prompt,
     issue_sub_request_prompt,
     issue_sub_request_system_prompt,
+    anthropic_rename_prompt,
 )
 from sweepai.utils.chat_logger import ChatLogger
 # from sweepai.utils.previous_diff_utils import get_relevant_commits
@@ -107,6 +108,18 @@ def parse_patch_fcrs(fcr_patch_string: str):
     drops = [int(drop.group(1).strip()) for drop in drop_pattern.finditer(fcr_patch_string)]
     matches.sort(key=lambda x: x[0])
     return drops, [match for match in matches]
+
+def parse_renames(renames_string: str):
+    pattern = re.compile(r"<rename>(.*?)</rename>", re.DOTALL)
+    old_name_pattern = re.compile(r"<old_name>(.*?)</old_name>", re.DOTALL)
+    new_name_pattern = re.compile(r"<new_name>(.*?)</new_name>", re.DOTALL)
+    rename_dict = {}
+    for match in pattern.finditer(renames_string):
+        rename_match = match.group(1)
+        old_name = old_name_pattern.search(rename_match).group(1)
+        new_name = new_name_pattern.search(rename_match).group(1)
+        rename_dict[old_name.strip()] = new_name.strip()
+    return rename_dict
 
 def safe_decode(
     repo: Repository,
@@ -191,8 +204,11 @@ def get_error_message(
     file_change_requests: list[FileChangeRequest],
     cloned_repo: ClonedRepo,
     updated_files: dict[str, dict[str, str]] = {},
+    renames_dict: dict[str, str] = {},
 ):
     def get_file_contents(file_path):
+        if file_path in renames_dict.values():
+            file_path = [k for k, v in renames_dict.items() if v == file_path][0]
         if file_path in updated_files:
             return updated_files[file_path]["contents"]
         return cloned_repo.get_file_contents(file_path)
@@ -372,6 +388,32 @@ def partition_snippets_if_test(snippets: list[Snippet], include_tests=False):
         return [snippet for snippet in snippets if "test" in snippet.file_path]
     return [snippet for snippet in snippets if "test" not in snippet.file_path]
 
+def format_snippets(
+    relevant_snippets: list[Snippet],
+    read_only_snippets: list[Snippet],
+    problem_statement: str,
+):
+    relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
+    formatted_relevant_snippets = []
+    for i, snippet in enumerate(tqdm(relevant_snippets + read_only_snippets)):
+        annotated_source_code, code_summaries = get_annotated_source_code(
+            source_code=snippet.get_snippet(add_lines=False),
+            issue_text=problem_statement,
+            file_path=snippet.file_path,
+        )
+        formatted_relevant_snippets.append(
+            relevant_snippet_template.format(
+                i=i,
+                file_path=snippet.file_path,
+                content=annotated_source_code,
+            )
+        )
+    joined_relevant_snippets = "\n".join(
+        formatted_relevant_snippets
+    )
+    relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
+    return relevant_snippets_message
+
 def get_files_to_change(
     relevant_snippets: list[Snippet],
     read_only_snippets: list[Snippet],
@@ -386,6 +428,7 @@ def get_files_to_change(
     images: list[tuple[str, str, str]] | None = None
 ) -> tuple[list[FileChangeRequest], str]:
     use_openai = False
+    problem_statement = problem_statement.strip("\n")
     files_to_change_prompt = openai_files_to_change_prompt if use_openai else anthropic_files_to_change_prompt
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
@@ -419,31 +462,14 @@ def get_files_to_change(
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
     read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
 
-    relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
-    # read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
-    # attach all relevant snippets
-    formatted_relevant_snippets = []
-    for i, snippet in enumerate(tqdm(relevant_snippets + read_only_snippets)):
-        annotated_source_code, code_summaries = get_annotated_source_code(
-            source_code=snippet.get_snippet(add_lines=False),
-            issue_text=problem_statement,
-            file_path=snippet.file_path,
-        )
-        formatted_relevant_snippets.append(
-            relevant_snippet_template.format(
-                i=i,
-                file_path=snippet.file_path,
-                content=annotated_source_code,
-            )
-        )
-    joined_relevant_snippets = "\n".join(
-        formatted_relevant_snippets
-    )
-    relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
     messages.append(
         Message(
             role="user",
-            content=relevant_snippets_message,
+            content=format_snippets(
+                relevant_snippets,
+                read_only_snippets,
+                problem_statement,
+            ),
             key="relevant_snippets",
         )
     )
@@ -486,6 +512,56 @@ def get_files_to_change(
         ],
     )
     MODEL = "claude-3-opus-20240229"
+
+    renames_response = chat_gpt.chat_anthropic(
+        content=joint_message + "\n\n" + anthropic_rename_prompt,
+        temperature=0.1,
+        images=images,
+        use_openai=use_openai,
+        seed=seed + 1,
+        stop_sequences=["</renames>"],
+    )
+    renames_dict = parse_renames(renames_response)
+    if renames_dict:
+        relevant_snippets = [Snippet(
+            file_path=renames_dict.get(snippet.file_path, snippet.file_path),
+            start=snippet.start,
+            end=snippet.end,
+            content=snippet.content,
+            score=snippet.score,
+            type_name=snippet.type_name,
+        ) for snippet in relevant_snippets]
+        read_only_snippets = [Snippet(
+            file_path=renames_dict.get(snippet.file_path, snippet.file_path),
+            start=snippet.start,
+            end=snippet.end,
+            content=snippet.content,
+            score=snippet.score,
+            type_name=snippet.type_name,
+        ) for snippet in read_only_snippets]
+        messages = [
+            message if message.key != "relevant_snippets" else Message(
+                role="user",
+                content=format_snippets(
+                    relevant_snippets,
+                    read_only_snippets,
+                    problem_statement,
+                ),
+                key="relevant_snippets",
+            ) for message in messages
+        ]
+        renames_string = "# Warning\n<warnings>\nIMPORTANT:" + "\n".join(
+            f"`{old_name}` has already been renamed to `{new_name}`" for old_name, new_name in renames_dict.items()
+        ) + "\nDo NOT include any renaming steps in your plan.\n</warnings>"
+        messages.append(
+            Message(
+                role="user",
+                content=renames_string,
+                key="renames"
+            )
+        )
+        joint_message = "\n\n".join(message.content for message in messages[1:])
+
     issue_sub_requests = ""
     if not use_openai:
         issue_sub_request_response = issue_sub_request_chat_gpt.chat_anthropic(
@@ -513,14 +589,13 @@ def get_files_to_change(
         seed=seed + 1
     )
     num_calls = 0
-    MAX_CALLS = 6
+    MAX_CALLS = 10
     # pylint: disable=E1101
     while "</plan>" not in files_to_change_response \
         and num_calls < MAX_CALLS:
-        if use_openai:
-            last_block = max(files_to_change_response.find("<original_code>"), files_to_change_response.find("<new_code>"))
-            files_to_change_response = files_to_change_response[:last_block].rstrip()
-            chat_gpt.messages[-1].content = files_to_change_response
+        last_line_index = files_to_change_response.rfind("\n")
+        files_to_change_response = files_to_change_response[:last_line_index].rstrip()
+        chat_gpt.messages[-1].content = files_to_change_response
         # ask for a second response
         try:
             next_response: str = chat_gpt.chat_anthropic(
@@ -559,7 +634,11 @@ def get_files_to_change(
             file_change_request.raw_relevant_files = " ".join(relevant_modules)
             file_change_requests.append(file_change_request)
         
-        error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
+        error_message, error_indices = get_error_message(
+            file_change_requests,
+            cloned_repo,
+            renames_dict=renames_dict,
+        )
 
         for _ in range(3):
             if not error_message:
