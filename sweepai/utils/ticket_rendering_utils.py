@@ -755,8 +755,8 @@ def create_update_review_pr_comment(
     commits = list(pr.get_commits())
     pr_authors = set()
     for commit in commits:
+        author = commit.author
         try:
-            author = commit.author
             if author:
                 pr_authors.add(f"@{author.login}")
         except IncompletableObject as e:
