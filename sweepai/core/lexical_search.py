@@ -90,7 +90,7 @@ def tokenize_code(code: str) -> list[str]:
 def compute_document_tokens(
     content: str,
 ) -> tuple[Counter, int]:  # method that offloads the computation to a separate process
-    results = token_cache.get(content)
+    results = token_cache.get(content + CACHE_VERSION)
     if results is not None:
         return results
     tokens = tokenize_code(content)
