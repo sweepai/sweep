@@ -28,13 +28,15 @@ CACHE_VERSION = "v1.0.14"
 if FILE_CACHE_DISABLED:
     redis_client = None
 
+# pylint: disable=no-member
 schema_builder = tantivy.SchemaBuilder()
 schema_builder.add_text_field("title", stored=True)
 schema_builder.add_text_field("body", stored=True)
 schema_builder.add_integer_field("doc_id", stored=True)
 schema = schema_builder.build()
+# pylint: enable=no-member
 
-redis_client = Redis.from_url(REDIS_URL)
+redis_client = Redis.from_url(REDIS_URL) if REDIS_URL else None
 
 
 class CustomIndex:
