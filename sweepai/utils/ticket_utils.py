@@ -330,11 +330,10 @@ def multi_prep_snippets(
             logger.info(f"Length of filtered subset snippets for {type_name}: {len(filtered_subset_snippets)}")
             all_snippets.extend(filtered_subset_snippets)
         # if there are no snippets because all of them have been filtered out we will fall back to adding the highest rated ones
+        # only do this for source files
         if not all_snippets:
             for type_name, snippets_subset in separated_snippets:
-                if type_name == "junk":
-                    continue
-                if len(snippets_subset) == 0:
+                if type_name != "source":
                     continue
                 max_results = type_to_result_count[type_name]
                 all_snippets.extend(snippets_subset[:max_results])
