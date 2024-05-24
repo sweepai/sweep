@@ -76,7 +76,7 @@ type_to_percentile_floor = { # lower gets more snippets
 type_to_score_floor = { # the lower, the more snippets. we set this higher for less used types
     "tools": 0.05,
     "dependencies": 0.025, # usually not matched, this won't hit often
-    "docs": 0.30, # matched often, so we can set a high threshold
+    "docs": 0.20, # matched often, so we can set a high threshold
     "tests": 0.15, # matched often, so we can set a high threshold
     "source": 0.0, # very low floor for source code
 }
@@ -95,6 +95,7 @@ def separate_snippets_by_type(snippets: list[Snippet]) -> SeparatedSnippets:
         for type_name, separation in code_snippet_separation_features.items():
             if any(snippet.file_path.startswith(prefix) for prefix in separation["prefix"]) or any(snippet.file_path.endswith(suffix) for suffix in separation["suffix"]) or any(substring in snippet.file_path for substring in separation["substring"]):
                 separated_snippets.add_snippet(snippet, type_name)
+                snippet.type_name = type_name
                 break
         else:
             separated_snippets.add_snippet(snippet, "source")
@@ -328,6 +329,16 @@ def multi_prep_snippets(
                 filtered_subset_snippets = AnalyzeSnippetAgent().analyze_snippets(filtered_subset_snippets, type_name, queries[0])
             logger.info(f"Length of filtered subset snippets for {type_name}: {len(filtered_subset_snippets)}")
             all_snippets.extend(filtered_subset_snippets)
+        # if there are no snippets because all of them have been filtered out we will fall back to adding the highest rated ones
+        if not all_snippets:
+            for type_name, snippets_subset in separated_snippets:
+                if type_name == "junk":
+                    continue
+                if len(snippets_subset) == 0:
+                    continue
+                max_results = type_to_result_count[type_name]
+                all_snippets.extend(snippets_subset[:max_results])
+
         ranked_snippets = all_snippets[:k]
     else:
         ranked_snippets = sorted(
@@ -426,7 +437,6 @@ def get_relevant_context(
             content=content,
         )
         repo_context_manager.read_only_snippets.append(snippet)
-    
     if not repo_context_manager.current_top_snippets and not repo_context_manager.read_only_snippets:
         repo_context_manager.current_top_snippets = copy.deepcopy(previous_top_snippets)
         repo_context_manager.read_only_snippets = copy.deepcopy(previous_read_only_snippets)
