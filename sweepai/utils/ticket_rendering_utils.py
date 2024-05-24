@@ -194,11 +194,11 @@ def get_failing_gha_logs(runs, installation_id) -> str:
                 for step in job["steps"]:
                     if step["conclusion"] == "failure":
                         failed_jobs_name_list.append(
-                            f"{job['name']}/{step['number']}_{step['name']}"
+                            f"{job['name']}/{step['number']}_{step['name'].replace('/', '')}"
                         )
         else:
             logger.error(
-                "Failed to get jobs for failing github actions, possible a credentials issue"
+                "Failed to get jobs for failing github actions, possibly a credentials issue"
             )
             return all_logs
         # make sure jobs in valid
