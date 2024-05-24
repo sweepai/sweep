@@ -12,6 +12,8 @@ A good issue for Sweep is actionable and it is clear how to resolve it. Here is 
 
 Here are some examples of things Sweep does not currently support:
 - Large-scale changes like migrations and large version upgrades.
+- Copying and pasting large amounts of code, including large files or directories.
+- Command line operations, such as updating an npm lockfile.
 - Tasks requiring accessing outside information like AWS consoles or retrieving API keys.
 - Tasks requiring fixes outside of code changes
 - Issues that have an existing fix or duplicate issues

@@ -6,7 +6,7 @@ import YouTube from 'react-youtube';
 
 <Callout type="info">This is a guide for self-hosting Sweep. If you are interested in our hosted version please visit https://github.com/apps/sweep-ai.</Callout>
 
-Sweep GitHub App is an air-gapped, self-hostable version of Sweep which serves many repositories at once.<br/>
+Sweep GitHub App is an **air-gapped**, **self-hostable** version of Sweep which serves many repositories at once.<br/>
 
 Setting up the Sweep GitHub App involves:
 1. Creating the GitHub App and getting a trial license key.
@@ -26,6 +26,7 @@ GITHUB_APP_ID=123456
 GITHUB_APP_PEM=-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n
 GITHUB_BOT_USER=sweepai-self-hosted
 LICENSE_KEY=ABCDE-FGHIJ-KLMNO-PQRST-UVWXY
+WEBHOOK_SECRET=abc123
 ```
 
 ---
@@ -45,7 +46,7 @@ OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 To host Sweep you need to run the Sweep webhook on a publicly accessible server. We recommend using a cloud provider (DigitalOcean, AWS, or Azure) but you can also run it locally and use a reverse proxy like Ngrok.
 
-*If you encounter issues please reach out to us through [Email](team@sweep.dev), [Discourse](https://community.sweep.dev/) or open a [GitHub issue](https://github.com/sweepai/sweep/issues). We are online, please ping us @kevin, @william, and @martin.*
+*If you encounter issues please reach out to us at team@sweep.dev.*
 
 <Tabs items={["Cloud (recommended)", "Local"]}>
 <Tabs.Tab>
@@ -56,7 +57,9 @@ Recommended specs:
 - OS: Ubuntu
 - RAM: 32 GB
 - CPU: 4 vCPUs
-- Storage: 100 GB
+- Storage: 200 GB
+
+The cheapest instance with these specs is `t3.xlarge` on AWS.
 
 <details>
 <summary>If you do not have Docker/Docker Compose setup</summary>
@@ -81,23 +84,12 @@ cd sweep
 vim .env
 ```
 
-Copy the following from your local `.env` to your remote `.env`:
-
-```sh filename=".env"
-# Step 1
-GITHUB_APP_ID=123456
-GITHUB_APP_PEM=-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n
-GITHUB_BOT_USER=sweepai-self-hosted
-LICENSE_KEY=ABCDE-FGHIJ-KLMNO-PQRST-UVWXY
-# Step 2
-ANTHROPIC_API_KEY=sk-ant-api03-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
+Then, copy the contents from your local `.env` to your remote `.env`.
 
 ##### 3. Deploy the Sweep backend
 ```sh filename="terminal"
 docker compose up --build hosted
-# To run in background, docker compose up --build -d hosted
+# To run in background: docker compose up --build -d hosted
 ```
 
 ##### 4. Update the GitHub Webhook URL
@@ -107,12 +99,9 @@ Get the IP address of your instance and add the port Sweep is deployed to (in th
 http://YOUR_IP:8080
 ```
 
-Navigating to this link should look like this:
-{/* <img src="/deployment/digitalocean_step7.png" alt="Skip Resources Page" /> */}
+Go to your GitHub app and update `Webhook URL` to the link above. You can find the GitHub App settings page in your `.env` file.
 
-Go to your GitHub app and update `Webhook URL` to the link above.
-
-For user accounts:
+{/* For user accounts:
 ```txt /GITHUB_BOT_USERNAME/
 https://github.com/settings/apps/GITHUB_BOT_USERNAME
 ```
@@ -120,8 +109,12 @@ https://github.com/settings/apps/GITHUB_BOT_USERNAME
 For organizations:
 ```txt /GITHUB_BOT_USERNAME/, /YOUR_ORGANIZATION/
 https://github.com/YOUR_ORGANIZATION/sweepai/settings/apps/GITHUB_BOT_USERNAME
-```
-{/* <img src="/deployment/digitalocean_step9.png" alt="Skip Resources Page" /> */}
+``` */}
+
+<Callout type="info">
+Sweep has several long-running processes, so naive redeployment may kill these processes. For a script to redeploy gracefully without downtime, see https://github.com/sweepai/sweep/blob/main/bin/redeploy.sh.
+</Callout>
+
 </Tabs.Tab>
 
 <Tabs.Tab>
