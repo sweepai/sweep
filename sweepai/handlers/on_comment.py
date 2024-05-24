@@ -302,7 +302,7 @@ def on_comment(
             edit_comment(SWEEPING_GIF + "I just completed searching for relevant files, now I'm making changes...")
             if file_comment:
                 formatted_query = f"The user left this GitHub PR Review comment in `{pr_path}`:\n<comment>\n{comment}\n</comment>\nThis was where they left their comment on the PR:\n<review_code_chunk>\n{formatted_pr_chunk}\n</review_code_chunk>.\n\nResolve their comment."
-            file_change_requests, plan = get_files_to_change(
+            renames_dict, file_change_requests, plan = get_files_to_change(
                 relevant_snippets=repo_context_manager.current_top_snippets,
                 read_only_snippets=repo_context_manager.read_only_snippets,
                 problem_statement=formatted_query,
@@ -329,6 +329,7 @@ def on_comment(
                 cloned_repo=cloned_repo,
                 username=username,
                 installation_id=installation_id,
+                renames_dict=renames_dict,
             )
             logger.info("\n".join(generate_diff(file_data["original_contents"], file_data["contents"]) for file_data in modify_files_dict.values()))
             commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]

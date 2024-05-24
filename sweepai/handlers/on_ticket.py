@@ -489,7 +489,7 @@ def on_ticket(
             try:
                 newline = "\n"
                 logger.info("Fetching files to modify/create...")
-                file_change_requests, plan = get_files_to_change(
+                renames_dict, file_change_requests, plan = get_files_to_change(
                     relevant_snippets=repo_context_manager.current_top_snippets,
                     read_only_snippets=repo_context_manager.read_only_snippets,
                     problem_statement=f"{title}\n\n{internal_message_summary}",

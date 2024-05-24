@@ -177,18 +177,23 @@ def is_blocked(file_path: str, blocked_dirs: list[str]):
 def validate_file_change_requests(
     file_change_requests: list[FileChangeRequest],
     cloned_repo: ClonedRepo,
+    renames_dict: dict[str, str] = {},
 ):
+    def get_file_contents(file_path):
+        if file_path in renames_dict.values():
+            file_path = [k for k, v in renames_dict.items() if v == file_path][0]
+        return cloned_repo.get_file_contents(file_path)
     # TODO: add better suffixing
     for fcr in file_change_requests:
         if fcr.change_type == "modify":
             try:
-                cloned_repo.get_file_contents(fcr.filename)
+                get_file_contents(fcr.filename)
             except FileNotFoundError as e:
                 logger.warning(f"Failed to get file contents for {fcr.filename} due to {e}, trying prefixes")
                 for file_path in cloned_repo.get_file_list():
                     if file_path.endswith(fcr.filename):
                         logger.info(f"Found similar file {fcr.filename} at {file_path}")
-                        cloned_repo.get_file_contents(file_path)
+                        get_file_contents(file_path)
                         fcr.filename = file_path
                         break
                 else:
@@ -632,6 +637,7 @@ def get_files_to_change(
         ):
             file_change_request = FileChangeRequest.from_string(re_match.group(0))
             file_change_request.raw_relevant_files = " ".join(relevant_modules)
+            file_change_request.filename = renames_dict.get(file_change_request.filename, file_change_request.filename)
             file_change_requests.append(file_change_request)
         
         error_message, error_indices = get_error_message(
@@ -668,7 +674,7 @@ def get_files_to_change(
                     continue
                 if "COPIED_FROM_PREVIOUS_MODIFY" in new_fcr.instructions:
                     # if COPIED_FROM_PREVIOUS_CREATE, we just need to override the filename
-                    file_change_requests[error_indices[index]].filename = new_fcr.filename
+                    file_change_requests[error_indices[index]].filename = renames_dict.get(new_fcr.filename, new_fcr.filename)
                     continue
                 file_change_requests[error_indices[index]] = new_fcr
             for drop in sorted(drops, reverse=True):
@@ -677,13 +683,14 @@ def get_files_to_change(
                     continue
                 file_change_requests.pop(error_indices[drop])
             logger.debug("Old indices", error_indices)
-            error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
+            error_message, error_indices = get_error_message(file_change_requests, cloned_repo, renames_dict=renames_dict)
             logger.debug("New indices", error_indices)
             # breakpoint()
         # breakpoint()
 
-        validate_file_change_requests(file_change_requests, cloned_repo)
-        return file_change_requests, files_to_change_response
+        breakpoint()
+        validate_file_change_requests(file_change_requests, cloned_repo, renames_dict=renames_dict)
+        return renames_dict, file_change_requests, files_to_change_response
     except RegexMatchError as e:
         print("RegexMatchError", e)
 
