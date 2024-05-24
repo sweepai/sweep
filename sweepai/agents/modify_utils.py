@@ -737,8 +737,8 @@ def parse_fcr(fcr: FileChangeRequest):
     justification, *_ = fcr.instructions.split("<original_code>", 1)
     justification, *_ = justification.split("<new_code>", 1)
     justification = justification.rstrip().removesuffix("1.").removesuffix("2.").rstrip() # sometimes Claude puts 1. <original_code> which is weird
-    original_code_pattern = r"<original_code>\s*\n(.*?)</original_code>"
-    new_code_pattern = r"<new_code>\s*\n(.*?)</new_code>"
+    original_code_pattern = r"<original_code( file_path=\".*?\")?( index=\"\d+\")?>\s*\n(.*?)</original_code>"
+    new_code_pattern = r"<new_code( file_path=\".*?\")?( index=\"\d+\")?>\s*\n(.*?)</new_code>"
     original_code_matches = list(re.finditer(original_code_pattern, fcr.instructions, re.DOTALL))
     new_code_matches = list(re.finditer(new_code_pattern, fcr.instructions, re.DOTALL))
     replace_all_pattern = r"<replace_all>true</replace_all>"

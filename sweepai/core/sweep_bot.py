@@ -92,6 +92,39 @@ You have previously already made the following changes:
 
 Fix the above GitHub Actions."""
 
+def continuous_llm_calls(
+    chat_gpt: ChatGPT,
+    *args,
+    stop_sequences: list[str] = ["</plan>"],
+    MAX_CALLS = 10,
+    **kwargs    
+):
+    response: str = chat_gpt.chat_anthropic(
+        *args,
+        **kwargs
+    )
+    num_calls = 0
+    # pylint: disable=E1101
+    while not any(token in response for token in stop_sequences) \
+        and num_calls < MAX_CALLS:
+        last_line_index = response.rfind("\n")
+        response = response[:last_line_index].rstrip()
+        chat_gpt.messages[-1].content = response
+        # ask for a second response
+        try:
+            kwargs.pop("content")
+            next_response: str = chat_gpt.chat_anthropic(
+                *args,
+                **kwargs,
+                content=""
+            )
+            # we can simply concatenate the responses
+            response += next_response
+        except Exception as e:
+            logger.error(f"Failed to get second response due to {e}")
+        num_calls += 1
+    return response
+
 def parse_patch_fcrs(fcr_patch_string: str):
     pattern = re.compile(r"""<(?P<change_type>[a-z_]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- @\{\}]*?)\"\s+index=\"(?P<index>\d+)\">(?P<instructions>.*?)\s*<\/\1>""", re.DOTALL)
     drop_pattern = re.compile("<drop>(\d+?)</drop>", re.DOTALL)
@@ -251,11 +284,11 @@ def get_error_message(
                     continue
             parsed_fcr = parse_fcr(file_change_request)
             if not parsed_fcr["original_code"]:
-                error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to provide an <original_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task use the <drop> marker.\n</error>\n\n"
+                error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to provide an <original_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task, respond with <drop>{len(error_indices)}</drop>.\n</error>\n\n"
                 error_indices.append(i)
                 continue
             if not parsed_fcr["new_code"]:
-                error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to a <new_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task use the <drop> marker.\n</error>\n\n"
+                error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to a <new_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task, respond with <drop>{len(error_indices)}</drop>.\n</error>\n\n"
                 error_indices.append(i)
                 continue
             original_code = parsed_fcr["original_code"][0].strip("\n")
@@ -584,38 +617,20 @@ def get_files_to_change(
         issue_sub_requests = issue_sub_request_match.group(1)
         issue_sub_requests = issue_sub_requests.strip("\n")
         issue_sub_requests = re.sub(r"<justification>\n(.*?)\n</justification>\n*", "\n", issue_sub_requests, flags=re.DOTALL).strip("\n")
-
-    files_to_change_response: str = chat_gpt.chat_anthropic(
+    
+    # handle stop sequences better for multiple chained calls
+    files_to_change_response: str = continuous_llm_calls(
+        chat_gpt,
         content=joint_message + "\n\n" + files_to_change_prompt.format(issue_sub_requests=issue_sub_requests),
         model=MODEL,
         temperature=0.1,
         images=images,
         use_openai=use_openai,
-        seed=seed + 1
-    )
-    num_calls = 0
-    MAX_CALLS = 10
-    # pylint: disable=E1101
-    while "</plan>" not in files_to_change_response \
-        and num_calls < MAX_CALLS:
-        last_line_index = files_to_change_response.rfind("\n")
-        files_to_change_response = files_to_change_response[:last_line_index].rstrip()
-        chat_gpt.messages[-1].content = files_to_change_response
-        # ask for a second response
-        try:
-            next_response: str = chat_gpt.chat_anthropic(
-                content="",
-                model=MODEL,
-                temperature=0.1,
-                images=images,
-                use_openai=use_openai,
-                seed=seed
-            )
-            # we can simply concatenate the responses
-            files_to_change_response += next_response
-        except Exception as e:
-            logger.warning(f"Failed to get second response due to {e}")
-        num_calls += 1
+        seed=seed,
+        stop_sequences=["</plan>"],
+        MAX_CALLS=10
+    ) + "\n</plan>"
+
     if chat_logger:
         chat_logger.add_chat(
             {
@@ -655,7 +670,8 @@ def get_files_to_change(
                 content=fix_files_to_change_system_prompt,
                 role="system"
             ) for message in chat_gpt.messages]
-            fix_attempt = chat_gpt.chat_anthropic(
+            fix_attempt = continuous_llm_calls(
+                chat_gpt,
                 content=fix_files_to_change_prompt.format(
                     error_message=error_message,
                     allowed_indices=english_join([str(index) for index in range(len(error_indices))]),
@@ -665,7 +681,7 @@ def get_files_to_change(
                 images=images,
                 seed=seed,
                 stop_sequences=["</error_resolutions>"],
-                use_openai=use_openai
+                use_openai=use_openai,
             )
             drops, matches = parse_patch_fcrs(fix_attempt)
             for index, new_fcr in matches:

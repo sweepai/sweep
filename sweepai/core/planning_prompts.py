@@ -10,6 +10,7 @@ Guidelines:
 - A sub request should correspond to a code or test change.
 - A sub request should not be speculative, such as "catch any other errors", "abide by best practices" or "update any other code". Instead explicitly state the changes you would like to see.
 - Tests and error handling will be run automatically in the CI/CD pipeline, so do not mention them in the sub requests.
+- Topologically sort the sub requests, such that each sub request only depends on sub requests that come before it. For example, create helper functions before using them.
 
 Respond in the following format:
 <issue_sub_requests>
