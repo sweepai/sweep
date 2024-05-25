@@ -724,8 +724,8 @@ def render_current_task(fcrs: list[FileChangeRequest]) -> str:
 def get_replaces_per_fcr(fcr: FileChangeRequest) -> int:
     if fcr.change_type == "create":
         return 1
-    original_code_pattern = r"<original_code>(.*?)</original_code>"
-    new_code_pattern = r"<new_code>(.*?)</new_code>"
+    original_code_pattern = r"<original_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>(.*?)</original_code>"
+    new_code_pattern = r"<new_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>(.*?)</new_code>"
     original_code_matches = list(re.finditer(original_code_pattern, fcr.instructions, re.DOTALL))
     new_code_matches = list(re.finditer(new_code_pattern, fcr.instructions, re.DOTALL))
     if len(original_code_matches) != len(new_code_matches):
@@ -737,8 +737,8 @@ def parse_fcr(fcr: FileChangeRequest):
     justification, *_ = fcr.instructions.split("<original_code>", 1)
     justification, *_ = justification.split("<new_code>", 1)
     justification = justification.rstrip().removesuffix("1.").removesuffix("2.").rstrip() # sometimes Claude puts 1. <original_code> which is weird
-    original_code_pattern = r"<original_code( file_path=\".*?\")?( index=\"\d+\")?>\s*\n(.*?)</original_code>"
-    new_code_pattern = r"<new_code( file_path=\".*?\")?( index=\"\d+\")?>\s*\n(.*?)</new_code>"
+    original_code_pattern = r"<original_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>\s*\n(.*?)</original_code>"
+    new_code_pattern = r"<new_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>\s*\n(.*?)</new_code>"
     original_code_matches = list(re.finditer(original_code_pattern, fcr.instructions, re.DOTALL))
     new_code_matches = list(re.finditer(new_code_pattern, fcr.instructions, re.DOTALL))
     replace_all_pattern = r"<replace_all>true</replace_all>"

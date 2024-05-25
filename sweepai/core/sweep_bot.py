@@ -212,10 +212,9 @@ def validate_file_change_requests(
     cloned_repo: ClonedRepo,
     renames_dict: dict[str, str] = {},
 ):
+    reverse_renames = {v: k for k, v in renames_dict.items()}
     def get_file_contents(file_path):
-        if file_path in renames_dict.values():
-            file_path = [k for k, v in renames_dict.items() if v == file_path][0]
-        return cloned_repo.get_file_contents(file_path)
+        return cloned_repo.get_file_contents(reverse_renames.get(file_path, file_path))
     # TODO: add better suffixing
     for fcr in file_change_requests:
         if fcr.change_type == "modify":
@@ -631,6 +630,8 @@ def get_files_to_change(
         MAX_CALLS=10
     ) + "\n</plan>"
 
+    open("msg.txt", "w").write(files_to_change_response)
+
     if chat_logger:
         chat_logger.add_chat(
             {
@@ -704,7 +705,6 @@ def get_files_to_change(
             # breakpoint()
         # breakpoint()
 
-        breakpoint()
         validate_file_change_requests(file_change_requests, cloned_repo, renames_dict=renames_dict)
         return renames_dict, file_change_requests, files_to_change_response
     except RegexMatchError as e:

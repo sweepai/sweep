@@ -27,6 +27,14 @@ def modify(
     use_openai = True
     if not fcrs:
         return previous_modify_files_dict
+
+    # handles renames in cloned_repo
+    for file_path, new_file_path in renames_dict.items():
+        file_contents = cloned_repo.get_file_contents(file_path)
+        with open(os.path.join(cloned_repo.repo_dir, new_file_path), "w") as f:
+            f.write(file_contents)
+        os.remove(os.path.join(cloned_repo.repo_dir, file_path))
+    
     user_message = create_user_message(
         fcrs=fcrs,
         request=request,
@@ -88,12 +96,6 @@ def modify(
         previous_modify_files_dict = {}
     modify_files_dict = copy.deepcopy(previous_modify_files_dict)
 
-    # handles renames in cloned_repo
-    for file_path, new_file_path in renames_dict.items():
-        file_contents = cloned_repo.get_file_contents(file_path)
-        with open(os.path.join(cloned_repo.repo_dir, new_file_path), "w") as f:
-            f.write(file_contents)
-        os.remove(os.path.join(cloned_repo.repo_dir, file_path))
 
     # this message list is for the chat logger to have a detailed insight into why failures occur
     detailed_chat_logger_messages = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]

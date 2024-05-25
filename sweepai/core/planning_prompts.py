@@ -168,9 +168,9 @@ c. Detail ALL changes that do not correspond to an sub request from the user's i
 <modify file="file_path"> 
 Describe the changes to be made.
 
-1. If you are creating a file, you may skip this step. Otherwise, reference the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. The referenced original code span should be just enough to cover the change, with 10 extra lines above and below for context.
+1. If you are creating a file, you may skip this step. Otherwise, copy the original code into <original_code></original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. The referenced original code span should be just enough to cover the change, with 10 extra lines above and below for context.
 
-2. Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+2. Write the new code in <new_code></new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code></original_code>.
 </modify>
 
 [additional modifies as needed, for the same file or different files]

@@ -497,7 +497,6 @@ def on_ticket(
                     cloned_repo=cloned_repo,
                     images=image_contents
                 )
-                validate_file_change_requests(file_change_requests, cloned_repo)
                 raise_on_no_file_change_requests(title, summary, edit_sweep_comment, file_change_requests)
 
                 planning_markdown = render_fcrs(file_change_requests)
@@ -537,6 +536,7 @@ def on_ticket(
                     cloned_repo=cloned_repo,
                     username=username,
                     installation_id=installation_id,
+                    renames_dict=renames_dict
                 )
                 commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]
                 new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
@@ -551,7 +551,7 @@ def on_ticket(
                             "new_keys": ",".join(new_file_contents_to_commit.keys()) 
                         },
                     )
-                commit = commit_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, commit_message, pull_request.branch_name)
+                commit = commit_multi_file_changes(cloned_repo, new_file_contents_to_commit, commit_message, pull_request.branch_name, renames_dict=renames_dict)
                 edit_sweep_comment(
                     f"Your changes have been successfully made to the branch [`{pull_request.branch_name}`](https://github.com/{repo_full_name}/tree/{pull_request.branch_name}). I have validated these changes using a syntax checker and a linter.",
                     3,
