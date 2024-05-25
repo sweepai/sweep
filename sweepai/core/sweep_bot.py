@@ -200,12 +200,16 @@ def remove_line_numbers(s: str) -> str:
     return s
 
 def parse_filenames(text):
+    file_names = []
+    possible_files = text.split("\n")
     # Regular expression pattern to match file names
-    pattern = r'(?:[\w.-]+/)*[\w.-]+(?:[.:]\w.]+)+\b|(?:[\w.-]+/)+[\w.-]+\b'
-
+    pattern = r'^[^\/.]+(\/[^\/.]+)*\.[^\/.]+$'
+    for possible_file in possible_files:
+        file_name = possible_file.strip()
+        if re.match(pattern, file_name):
+            file_names.append(file_name)
     # Find all occurrences of file names in the text
-    filenames = re.findall(pattern, text)
-    return filenames
+    return file_names
 
 def is_blocked(file_path: str, blocked_dirs: list[str]):
     for blocked_dir in blocked_dirs:

@@ -449,7 +449,7 @@ Below is the file {file_name} with all the above patches applied along with the 
 <function>
 <function_code>
 {{Function code copied verbatim for the patch}}
-<function_code>
+</function_code>
 <start_line>
 {{Corresponding starting line number for function 1 (inclusive)}}
 </start_line>
