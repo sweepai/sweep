@@ -673,9 +673,10 @@ def on_ticket(
             current_commit = pr.head.sha
 
             main_runs: list[WorkflowRun] = list(repo.get_workflow_runs(branch=repo.default_branch, head_sha=pr.base.sha))
-            main_passing = all([run.conclusion in ["success", None] for run in main_runs]) and any([run.conclusion == "success" for run in main_runs])
+            # main_passing = all([run.conclusion in ["success", None] for run in main_runs]) and any([run.conclusion == "success" for run in main_runs])
+            main_passing = True
 
-            while True and GITHUB_ACTIONS_ENABLED and main_passing:
+            while GITHUB_ACTIONS_ENABLED and main_passing:
                 logger.info(
                     f"Polling to see if Github Actions have finished... {total_poll_attempts}"
                 )
