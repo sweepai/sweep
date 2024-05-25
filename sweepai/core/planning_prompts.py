@@ -161,6 +161,8 @@ Reference the provided code files, summaries, entity names, and necessary files/
 </issue_and_proposed_changes>
 
 c. Detail ALL changes that do not correspond to an sub request from the user's issue. These changes should be necessary to resolve the issue but are not explicitly mentioned in the user's request. This code change should describe exactly what to do, referencing specific code entities in the relevant files. (optional)
+
+d. Sort the proposed changes topologically. This means that each proposed change should only depend on proposed changes that come before it. First, list all new files and entities that need to be created, if any. Then, list all changes to existing files in the order they should be made, starting with the lowest level entities and moving up to the highest level entities.
 </issue_analysis>
 
 # 2. Plan:

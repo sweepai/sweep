@@ -92,6 +92,11 @@ You have previously already made the following changes:
 
 Fix the above GitHub Actions."""
 
+def cleanup_fcrs(fcrs_string: str):
+    fcrs_string = re.sub(r"<original_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>", "<original_code>", fcrs_string)
+    fcrs_string = re.sub(r"<new_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>", "<new_code>", fcrs_string)
+    return fcrs_string
+
 def continuous_llm_calls(
     chat_gpt: ChatGPT,
     *args,
@@ -109,7 +114,7 @@ def continuous_llm_calls(
         and num_calls < MAX_CALLS:
         last_line_index = response.rfind("\n")
         response = response[:last_line_index].rstrip()
-        chat_gpt.messages[-1].content = response
+        chat_gpt.messages[-1].content = cleanup_fcrs(response)
         # ask for a second response
         try:
             kwargs.pop("content")
@@ -118,6 +123,7 @@ def continuous_llm_calls(
                 **kwargs,
                 content=""
             )
+            next_response = cleanup_fcrs(next_response)
             # we can simply concatenate the responses
             response += next_response
         except Exception as e:
