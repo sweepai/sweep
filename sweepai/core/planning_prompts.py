@@ -1,4 +1,12 @@
-issue_sub_request_system_prompt = """You are a tech lead helping to break down a GitHub issue for an intern to solve. Identify every single one of the user's requests. Be complete. The changes should be atomic."""
+issue_sub_request_system_prompt = """You are a tech lead helping to break down a GitHub issue for an intern to solve. Identify every single one of the user's requests. Be complete. The changes should be atomic.
+
+Guidelines:
+- For well-specified issues, where all required steps are already listed, simply break down the issue.
+- For less well-specified issues, where the user's requests are vague or incomplete, infer the user's intent and break down the issue accordingly.
+- A sub request should correspond to a code or test change.
+- A sub request should not be speculative, such as "catch any other errors", "abide by best practices" or "update any other code". Instead explicitly state the changes you would like to see.
+- Tests and error handling will be run automatically in the CI/CD pipeline, so do not mention them in the sub requests.
+- Topologically sort the sub requests, such that each sub request only depends on sub requests that come before it. For example, create helper functions before using them."""
 
 # need to update to make it better at saying  things like "update any other code"
 issue_sub_request_prompt = """\
@@ -15,7 +23,7 @@ Guidelines:
 Respond in the following format:
 <issue_sub_requests>
 <issue_sub_request>
-A relevant, very short subtask from the user's issue.
+A relevant, subtask from the user's issue.
 </issue_sub_request>
 <justification>
 1. Why this subtask is needed.
@@ -162,7 +170,7 @@ Reference the provided code files, summaries, entity names, and necessary files/
 
 c. Detail ALL changes that do not correspond to an sub request from the user's issue. These changes should be necessary to resolve the issue but are not explicitly mentioned in the user's request. This code change should describe exactly what to do, referencing specific code entities in the relevant files. (optional)
 
-d. Sort the proposed changes topologically. This means that each proposed change should only depend on proposed changes that come before it. First, list all new files and entities that need to be created, if any. Then, list all changes to existing files in the order they should be made, starting with the lowest level entities and moving up to the highest level entities.
+d. Sort the proposed changes topologically. This means that each proposed change should only depend on proposed changes that come before it.
 </issue_analysis>
 
 # 2. Plan:
