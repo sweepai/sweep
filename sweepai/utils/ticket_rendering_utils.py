@@ -758,7 +758,7 @@ def create_update_review_pr_comment(
         author = commit.author
         try:
             if author:
-                pr_authors.add(f"@{author.login}")
+                pr_authors.add(f"{author.login}")
         except IncompletableObject as e:
             logger.error(f"Failed to retrieve author {author} for commit {commit.sha}: {str(e)}")
     pr_authors = ", ".join(pr_authors)
