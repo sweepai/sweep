@@ -1193,29 +1193,14 @@ def get_files_to_change_for_gha(
             ],
         )
         MODEL = "claude-3-opus-20240229" if not use_faster_model else "claude-3-sonnet-20240229"
-        files_to_change_response: str = chat_gpt.chat_anthropic(
+        files_to_change_response = continuous_llm_calls(
+            chat_gpt,
             content=joint_message + "\n\n" + gha_files_to_change_prompt,
             model=MODEL,
             temperature=0.1,
-        )
-        # breakpoint()
-        max_tokens = 4096 * 3.5 * 0.8 # approx max tokens per response
-        expected_plan_count = 1
-        # pylint: disable=E1101
-        call_anthropic_second_time = len(files_to_change_response) > max_tokens and files_to_change_response.count("</plan>") < expected_plan_count
-        if call_anthropic_second_time:
-            # ask for a second response
-            try:
-                second_response = chat_gpt.chat_anthropic(
-                    content="",
-                    model=MODEL,
-                    temperature=0.1,
-                )
-                # we can simply concatenate the responses
-                files_to_change_response += second_response
-                chat_gpt.messages[-1].content += second_response
-            except Exception as e:
-                logger.warning(f"Failed to get second response due to {e}")
+            stop_sequences=["</plan>"],
+            MAX_CALLS=10
+        ) + "\n</plan>"
         if chat_logger:
             chat_logger.add_chat(
                 {
@@ -1244,14 +1229,16 @@ def get_files_to_change_for_gha(
             if not error_message:
                 break
             chat_gpt.messages = [message for message in chat_gpt.messages if message.key != "system"]
-            fix_attempt = chat_gpt.chat_anthropic(
+            fix_attempt = continuous_llm_calls(
+                chat_gpt,
                 content=fix_files_to_change_prompt.format(
                     error_message=error_message,
                     allowed_indices=english_join([str(index) for index in range(len(error_indices))]),
                 ),
                 model=MODEL,
-                # model="claude-3-opus-20240229",
                 temperature=0.1,
+                stop_sequences=["</error_resolutions>"],
+                MAX_CALLS=10
             )
             drops, matches = parse_patch_fcrs(fix_attempt)
             for index, new_fcr in matches:
