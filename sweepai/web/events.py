@@ -32,7 +32,7 @@ class PREdited(BaseModel):
 
         html_url: str
         title: str
-        body: str
+        body: str | None
         number: int
 
         user: User
