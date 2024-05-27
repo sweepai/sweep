@@ -631,6 +631,8 @@ def get_files_to_change(
         issue_sub_requests = issue_sub_request_match.group(1)
         issue_sub_requests = issue_sub_requests.strip("\n")
         issue_sub_requests = re.sub(r"<justification>\n(.*?)\n</justification>\n*", "\n", issue_sub_requests, flags=re.DOTALL).strip("\n")
+
+    open("msg.txt", "w").write(joint_message + "\n\n" + files_to_change_prompt.format(issue_sub_requests=issue_sub_requests))
     
     # handle stop sequences better for multiple chained calls
     files_to_change_response: str = continuous_llm_calls(
@@ -644,8 +646,6 @@ def get_files_to_change(
         stop_sequences=["</plan>"],
         MAX_CALLS=10
     ) + "\n</plan>"
-
-    open("msg.txt", "w").write(files_to_change_response)
 
     if chat_logger:
         chat_logger.add_chat(
