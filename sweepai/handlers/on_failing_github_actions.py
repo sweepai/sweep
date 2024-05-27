@@ -1,5 +1,4 @@
 import copy
-import posthog
 
 from github import Repository, WorkflowRun
 from loguru import logger
@@ -15,6 +14,7 @@ from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, va
 from sweepai.utils.prompt_constructor import get_issue_request
 from sweepai.utils.ticket_rendering_utils import get_branch_diff_text, get_failing_gha_logs
 from sweepai.utils.ticket_utils import prep_snippets
+from sweepai.utils.event_logger import posthog
 
 
 def on_failing_github_actions(
@@ -26,17 +26,17 @@ def on_failing_github_actions(
     installation_id: int,
     chat_logger: ChatLogger,
 ):
-    # poll for github to check when gha are done
+    modify_files_dict = {}
+
     repo_full_name = repo.full_name
     total_poll_attempts = 0
     total_edit_attempts = 0
     SLEEP_DURATION_SECONDS = 15
     GITHUB_ACTIONS_ENABLED = get_gha_enabled(repo=repo) and DEPLOYMENT_GHA_ENABLED
     GHA_MAX_EDIT_ATTEMPTS = 5 # max number of times to edit PR
-    current_commit = pr.head.sha
+    current_commit = pull_request.head.sha
 
-    main_runs: list[WorkflowRun.WorkflowRun] = list(repo.get_workflow_runs(branch=repo.default_branch, head_sha=pr.base.sha))
-    # main_passing = all([run.conclusion in ["success", None] for run in main_runs]) and any([run.conclusion == "success" for run in main_runs])
+    main_runs: list[WorkflowRun.WorkflowRun] = list(repo.get_workflow_runs(branch=repo.default_branch, head_sha=pull_request.base.sha))
     main_passing = True
 
     while GITHUB_ACTIONS_ENABLED and main_passing:
@@ -54,10 +54,10 @@ def on_failing_github_actions(
 
             sleep(SLEEP_DURATION_SECONDS)
         # refresh the pr
-        pr = repo.get_pull(pr.number)
-        current_commit = repo.get_pull(pr.number).head.sha # IMPORTANT: resync PR otherwise you'll fetch old GHA runs
+        pull_request = repo.get_pull(pull_request.number)
+        current_commit = repo.get_pull(pull_request.number).head.sha # IMPORTANT: resync PR otherwise you'll fetch old GHA runs
         runs = list(repo.get_commit(current_commit).get_check_runs())
-        suite_runs = list(repo.get_workflow_runs(branch=pr.head.ref, head_sha=pr.head.sha))
+        suite_runs = list(repo.get_workflow_runs(branch=pull_request.head.ref, head_sha=pull_request.head.sha))
         # if all runs have succeeded or have no result, break
         if all([run.conclusion in ["success", None] and run.status not in ["in_progress", "waiting", "pending", "requested", "queued"] for run in runs]):
             break
@@ -78,9 +78,9 @@ def on_failing_github_actions(
                     installation_id=installation_id,
                     token=user_token,
                     repo=repo,
-                    branch=pr.head.ref,
+                    branch=pull_request.head.ref,
                 )
-                diffs = get_branch_diff_text(repo=repo, branch=pr.head.ref, base_branch=pr.base.ref)
+                diffs = get_branch_diff_text(repo=repo, branch=pull_request.head.ref, base_branch=pull_request.base.ref)
                 # problem_statement = f"{title}\n{internal_message_summary}\n{replies_text}"
                 all_information_prompt = GHA_PROMPT.format(
                     problem_statement=problem_statement,

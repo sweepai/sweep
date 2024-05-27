@@ -363,7 +363,7 @@ class ClonedRepo:
         else:
             try:
                 repo = git.Repo(self.cached_dir)
-                self.git_repo.git.pull(self.clone_url)
+                repo.git.pull(self.clone_url)
             except Exception:
                 logger.warning("Could not pull repo")
                 shutil.rmtree(self.cached_dir, ignore_errors=True)
