@@ -4,9 +4,7 @@ It is also responsible for handling Sweep config PR creation. test
 """
 
 import copy
-import datetime
 
-import github
 import openai  
 from github.Repository import Repository
 from loguru import logger
@@ -25,7 +23,7 @@ from sweepai.core.entities import (
     MaxTokensExceeded,
 )
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import ClonedRepo, get_github_client
+from sweepai.utils.github_utils import ClonedRepo
 
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
@@ -256,56 +254,6 @@ def create_config_pr(
     )
     pr.add_to_labels(GITHUB_LABEL_NAME)
     return pr
-
-def add_config_to_top_repos(installation_id, username, repositories, max_repos=3):
-    user_token, g = get_github_client(installation_id)
-
-    repo_activity = {}
-    for repo_entity in repositories:
-        repo = g.get_repo(repo_entity.full_name)
-        
-        try:
-            # instead of using total count, use the date of the latest commit
-            commits = repo.get_commits(
-                author=username,
-                since=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30),
-            )
-        except github.GithubException as e:
-            if e.status == 409 and "Git Repository is empty." in e.data["message"]:
-                logger.warning(f"Skipping empty repository {repo.full_name}")
-                continue
-            else:
-                raise
-        
-        # get latest commit date
-        commit_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)
-        for commit in commits:
-            if commit.commit.author.date > commit_date:
-                commit_date = commit.commit.author.date
-
-        # since_date = datetime.datetime.now() - datetime.timedelta(days=30)
-        # commits = repo.get_commits(since=since_date, author="lukejagg")
-        repo_activity[repo] = commit_date
-        # print(repo, commits.totalCount)
-
-    sorted_repos = sorted(repo_activity, key=repo_activity.get, reverse=True)
-    sorted_repos = sorted_repos[:max_repos]
-
-    # For each repo, create a branch based on main branch, then create PR to main branch
-    for repo in sorted_repos:
-        try:
-            logger.info("Creating config for " + repo.full_name)
-            create_config_pr(
-                repo=repo,
-                cloned_repo=ClonedRepo(
-                    repo_full_name=repo.full_name,
-                    installation_id=installation_id,
-                    token=user_token,
-                ),
-            )
-        except Exception as e:
-            logger.exception(e)
-    logger.info("Finished creating configs for top repos") 
 
 def create_gha_pr(g, repo):
     # Create a new branch
