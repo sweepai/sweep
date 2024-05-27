@@ -24,11 +24,7 @@ ENV = os.environ.get("ENV", "dev")
 
 BOT_TOKEN_NAME = "bot-token"
 
-# goes under Modal 'discord' secret name (optional, can leave env var blank)
-DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
-DISCORD_MEDIUM_PRIORITY_URL = os.environ.get("DISCORD_MEDIUM_PRIORITY_URL")
-DISCORD_LOW_PRIORITY_URL = os.environ.get("DISCORD_LOW_PRIORITY_URL")
-DISCORD_FEEDBACK_WEBHOOK_URL = os.environ.get("DISCORD_FEEDBACK_WEBHOOK_URL")
+GITHUB_BASE_URL = os.environ.get("GITHUB_BASE_URL", "https://api.github.com") # configure for enterprise
 
 SWEEP_HEALTH_URL = os.environ.get("SWEEP_HEALTH_URL")
 DISCORD_STATUS_WEBHOOK_URL = os.environ.get("DISCORD_STATUS_WEBHOOK_URL")
