@@ -263,7 +263,7 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
     repo_activity = {}
     for repo_entity in repositories:
         repo = g.get_repo(repo_entity.full_name)
-        
+
         try:
             # instead of using total count, use the date of the latest commit
             commits = repo.get_commits(
@@ -276,12 +276,14 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
                 continue
             else:
                 raise
-        
+
         # get latest commit date
         commit_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)
         for commit in commits:
             if commit.commit.author.date > commit_date:
                 commit_date = commit.commit.author.date
+
+        repo_activity[repo] = commit_date
 
         # since_date = datetime.datetime.now() - datetime.timedelta(days=30)
         # commits = repo.get_commits(since=since_date, author="lukejagg")
