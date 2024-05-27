@@ -92,7 +92,7 @@ def process_chunk(idx, code_content, source_code, issue_text, file_path):
     formatted_annotation = f'<code_summary file_path="{file_path}" index="{idx}">\n' + annotation + "\n</code_summary>\n"
     return idx, formatted_code_content, formatted_annotation
 
-@file_cache() # safe to cache
+@file_cache(ignore_params=["issue_text"]) # safe to cache
 def get_annotated_source_code(source_code: str, issue_text: str, file_path: str):
     annotated_source_code = source_code
     code_chunks = chunk_code(source_code, file_path, MAX_CHARS=60 * 50)
