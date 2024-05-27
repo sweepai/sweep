@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import datetime
 import difflib
@@ -16,12 +18,18 @@ from typing import Any
 
 import git
 import requests
-from github import Github, PullRequest, Repository, InputGitTreeElement, GithubException
+from github import Github
+from github.Auth import Token
+# get default_base_url from github
+from github.Requester import Requester
+from github.GithubException import BadCredentialsException, UnknownObjectException
+from github import PullRequest, Repository, InputGitTreeElement, GithubException
 from jwt import encode
 from loguru import logger
+from urllib3 import Retry
 
 from sweepai.config.client import SweepConfig
-from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, GITHUB_BOT_USERNAME
+from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, GITHUB_BASE_URL, GITHUB_BOT_USERNAME
 from sweepai.core.entities import FileChangeRequest
 from sweepai.utils.str_utils import get_hash
 from sweepai.utils.tree_utils import DirectoryTree, remove_all_not_included
@@ -91,12 +99,45 @@ def get_app():
     response = requests.get("https://api.github.com/app", headers=headers)
     return response.json()
 
+class CustomRequester(Requester):
+    def __init__(self, token, timeout=15, user_agent="PyGithub/Python", per_page=30, verify=True, retry=None, pool_size=None, installation_id=None) -> "CustomRequester":
+        self.token = token
+        self.installation_id = installation_id
+        base_url = GITHUB_BASE_URL
+        auth = Token(token)
+        retry = Retry(total=3,) # 3 retries
+        super().__init__(auth=auth, base_url=base_url, timeout=timeout, user_agent=user_agent, per_page=per_page, verify=verify, retry=retry, pool_size=pool_size)
 
-def get_github_client(installation_id: int) -> tuple[str, Github]:
+    def _refresh_token(self):
+        self.token = get_token(self.installation_id)
+        self._Requester__authorizationHeader = f"token {self.token}"
+
+    def requestJsonAndCheck(self, *args, **kwargs): # more endpoints like these may need to be added
+        try:
+            return super().requestJsonAndCheck(*args, **kwargs)
+        except (BadCredentialsException, UnknownObjectException):
+            self._refresh_token()
+            return super().requestJsonAndCheck(*args, **kwargs)
+
+class CustomGithub(Github):
+    def __init__(self, installation_id: int, *args, **kwargs) -> "CustomGithub":
+        self.installation_id = installation_id
+        self.token = self._get_token()
+        super().__init__(self.token, *args, **kwargs)
+        self._Github__requester = CustomRequester(self.token, installation_id=self.installation_id)
+
+    def _get_token(self) -> str:
+        if not self.installation_id:
+            return os.environ["GITHUB_PAT"]
+        return get_token(self.installation_id)
+
+def get_github_client(installation_id: int) -> tuple[str, CustomGithub]:
+    github_instance = None
     if not installation_id:
-        return os.environ["GITHUB_PAT"], Github(os.environ["GITHUB_PAT"])
-    token: str = get_token(installation_id)
-    return token, Github(token)
+        github_instance = Github(os.environ["GITHUB_PAT"])
+    else:
+        github_instance = CustomGithub(installation_id)
+    return github_instance.token, github_instance
 
 # fetch installation object
 def get_installation(username: str): 
