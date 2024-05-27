@@ -24,7 +24,7 @@ def on_failing_github_actions(
     pull_request: PullRequest,
     user_token: str,
     installation_id: int,
-    chat_logger: ChatLogger,
+    chat_logger: ChatLogger | None = None,
 ):
     modify_files_dict = {}
 
