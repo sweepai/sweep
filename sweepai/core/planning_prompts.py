@@ -187,7 +187,7 @@ Describe the changes to be made.
 [additional modifies as needed, for the same file or different files]
 </plan>"""
 
-anthropic_rename_prompt = """Your job is to handle all renames and deletions in the codebase to resolve a user's issue.
+anthropic_rename_prompt = """Your job is to handle all renames and deletions in the codebase to resolve a user's issue. Renames will be needed for any form of file or directory movement, translations or migrations.
 
 Identify all renames that would need to occur in the codebase to resolve the user's issue. Respond in the following format:
 
