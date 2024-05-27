@@ -413,7 +413,8 @@ b. List ALL the changes made so far in extreme detail. Be absolutely complete. F
 # 2. Reflect:
 <reflection>
 a. List out all the previous error logs that were solved.
-b. List out the new Github Action error logs that you must now solve and potential root causes and solutions.
+b. List out all previous error logs that are still present or only partially solved.
+c. List out the new Github Action error logs that you must now solve and potential root causes and solutions.
 </reflction>
 
 # 3. Plan:
