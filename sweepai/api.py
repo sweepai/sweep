@@ -45,7 +45,6 @@ from sweepai.core.entities import PRChangeRequest
 from sweepai.global_threads import global_threads
 from sweepai.handlers.review_pr import review_pr
 from sweepai.handlers.create_pr import (  # type: ignore
-    add_config_to_top_repos,
     create_gha_pr,
 )
 from sweepai.handlers.on_button_click import handle_button_click
@@ -70,12 +69,10 @@ from sweepai.utils.str_utils import BOT_SUFFIX, get_hash
 from sweepai.web.events import (
     CheckRunCompleted,
     CommentCreatedRequest,
-    InstallationCreatedRequest,
     IssueCommentRequest,
     IssueRequest,
     PREdited,
     PRRequest,
-    ReposAddedRequest,
 )
 from sweepai.web.health import health_check
 import sentry_sdk
@@ -764,50 +761,11 @@ def handle_event(request_dict, event):
                     )
                     call_on_comment(**pr_change_request.params)
             case "installation_repositories", "added":
-                repos_added_request = ReposAddedRequest(**request_dict)
-                metadata = {
-                    "installation_id": repos_added_request.installation.id,
-                    "repositories": [
-                        repo.full_name
-                        for repo in repos_added_request.repositories_added
-                    ],
-                }
-
-                try:
-                    add_config_to_top_repos(
-                        repos_added_request.installation.id,
-                        repos_added_request.installation.account.login,
-                        repos_added_request.repositories_added,
-                    )
-                except Exception as e:
-                    logger.exception(f"Failed to add config to top repos: {e}")
-
-                posthog.capture(
-                    "installation_repositories",
-                    "started",
-                    properties={**metadata},
-                )
-                for repo in repos_added_request.repositories_added:
-                    organization, repo_name = repo.full_name.split("/")
-                    posthog.capture(
-                        organization,
-                        "installed_repository",
-                        properties={
-                            "repo_name": repo_name,
-                            "organization": organization,
-                            "repo_full_name": repo.full_name,
-                        },
-                    )
+                # don't do anything for now
+                pass
             case "installation", "created":
-                repos_added_request = InstallationCreatedRequest(**request_dict)
-                try:
-                    add_config_to_top_repos(
-                        repos_added_request.installation.id,
-                        repos_added_request.installation.account.login,
-                        repos_added_request.repositories,
-                    )
-                except Exception as e:
-                    logger.exception(f"Failed to add config to top repos: {e}")
+                # don't do anything for now
+                pass
             case "pull_request", "edited":
                 request = PREdited(**request_dict)
 
