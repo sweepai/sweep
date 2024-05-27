@@ -9,23 +9,18 @@ import traceback
 from time import time
 
 from github import BadCredentialsException
-from github.WorkflowRun import WorkflowRun
 from github.PullRequest import PullRequest as GithubPullRequest
 from loguru import logger
 
 
 from sweepai.chat.api import posthog_trace
-from sweepai.core.context_pruning import RepoContextManager
-from sweepai.core.sweep_bot import GHA_PROMPT
 from sweepai.agents.image_description_bot import ImageDescriptionBot
 from sweepai.config.client import (
     RESET_FILE,
     REVERT_CHANGED_FILES_TITLE,
     SweepConfig,
-    get_gha_enabled,
 )
 from sweepai.config.server import (
-    DEPLOYMENT_GHA_ENABLED,
     ENV,
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
@@ -37,7 +32,7 @@ from sweepai.core.entities import (
     PullRequest,
 )
 from sweepai.core.pr_reader import PRReader
-from sweepai.core.sweep_bot import get_files_to_change, get_files_to_change_for_gha, validate_file_change_requests
+from sweepai.core.sweep_bot import get_files_to_change
 from sweepai.handlers.on_failing_github_actions import on_failing_github_actions
 from sweepai.handlers.create_pr import (
     handle_file_change_requests,
@@ -45,7 +40,7 @@ from sweepai.handlers.create_pr import (
 from sweepai.utils.image_utils import get_image_contents_from_urls, get_image_urls_from_issue
 from sweepai.utils.issue_validator import validate_issue
 from sweepai.utils.prompt_constructor import get_issue_request
-from sweepai.utils.ticket_rendering_utils import add_emoji, process_summary, remove_emoji, get_payment_messages, get_comment_header, render_fcrs, send_email_to_user, get_failing_gha_logs, rewrite_pr_description, raise_on_no_file_change_requests, get_branch_diff_text, handle_empty_repository, delete_old_prs
+from sweepai.utils.ticket_rendering_utils import add_emoji, process_summary, remove_emoji, get_payment_messages, get_comment_header, render_fcrs, send_email_to_user, rewrite_pr_description, raise_on_no_file_change_requests, handle_empty_repository, delete_old_prs
 from sweepai.utils.validate_license import validate_license
 from sweepai.utils.buttons import Button, ButtonList
 from sweepai.utils.chat_logger import ChatLogger
@@ -79,7 +74,6 @@ from sweepai.utils.ticket_utils import (
     center,
     fetch_relevant_files,
     fire_and_forget_wrapper,
-    prep_snippets,
 )
 
 @posthog_trace
@@ -672,7 +666,7 @@ def on_ticket(
                 pr,
                 user_token,
                 installation_id,
-                chat_logger
+                chat_logger=chat_logger
             )
 
             # break from main for loop
