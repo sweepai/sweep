@@ -383,7 +383,7 @@ def on_ticket(
                 logger.warning(f"Validation error: {error_message}")
                 edit_sweep_comment(
                     (
-                        f"The issue was rejected:\n\n{bold(error_message)}"
+                        f"\n\n{bold(error_message)}"
                     ),
                     -1,
                 )
