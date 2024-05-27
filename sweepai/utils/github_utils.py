@@ -361,18 +361,19 @@ class ClonedRepo:
                 repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
             logger.info("Done cloning")
         else:
-            try:
-                repo = git.Repo(self.cached_dir)
-                repo.git.pull(self.clone_url)
-            except Exception:
-                logger.warning("Could not pull repo, cloning instead")
-                shutil.rmtree(self.cached_dir, ignore_errors=True)
-                if self.branch:
-                    repo = git.Repo.clone_from(
-                        self.clone_url, self.cached_dir, branch=self.branch
-                    )
-                else:
-                    repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
+            # Pulling with pat doesn't work, have to reclone
+            # try:
+            #     repo = git.Repo(self.cached_dir)
+            #     repo.git.pull(self.clone_url)
+            # except Exception:
+            logger.warning("Could not pull repo, cloning instead")
+            shutil.rmtree(self.cached_dir, ignore_errors=True)
+            if self.branch:
+                repo = git.Repo.clone_from(
+                    self.clone_url, self.cached_dir, branch=self.branch
+                )
+            else:
+                repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
         logger.info("Copying repo...")
         shutil.copytree(
             self.cached_dir, self.repo_dir, symlinks=True, copy_function=shutil.copy

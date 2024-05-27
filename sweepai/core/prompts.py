@@ -372,7 +372,7 @@ Take these steps:
         Step 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file, with correct indentation and whitespace.
             - Do NOT paraphrase or abbreviate the source code.
             - Placeholder comments like "# existing code" are not permitted.
-            - Start with a function header.
+            - Start with the closest header several lines before the target code and end with the closest end of the block or several lines after the code.
         Step 2. Write the new code in <new_code> tags, specifying necessary imports and including relevant type definitions, interfaces, and schemas.
             - BE EXACT as this code will replace the mentioned <original_code>.
         Step 3. Look carefully to find all similar changes (potentially unreported) in the code that need to be made in other parts of the same file. Address those as well."""
@@ -428,7 +428,7 @@ Instructions for modifying one section of the file. Each block must have exactly
 
 a. Describe the section of code that needs to be modified, i.e. the test case that checks if `foo` == `bar`.
 <original_code>
-Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. Start with the closest header several lines before the target code.
+Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. Start with the closest header several lines before the target code and end with the closest end of the block or several lines after the code.
 </original_code>
 
 b. Describe the changes that need to be made to the code, i.e. the test case should instead check if `foo` != `baz`.

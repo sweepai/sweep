@@ -109,7 +109,6 @@ def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
     return docs
 
 
-@file_cache(ignore_params=["ticket_progress", "len_repo_cache_dir"])
 def prepare_index_from_snippets(
     snippets: list[Snippet],
     len_repo_cache_dir: int = 0,
