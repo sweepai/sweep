@@ -93,7 +93,6 @@ def on_failing_github_actions(
                     "Fix the following errors to complete the user request.",
                     all_information_prompt,
                 )
-                breakpoint()
                 file_change_requests, plan = get_files_to_change_for_gha(
                     relevant_snippets=repo_context_manager.current_top_snippets,
                     read_only_snippets=repo_context_manager.read_only_snippets,
