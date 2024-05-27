@@ -11,6 +11,7 @@ import traceback
 from dataclasses import dataclass
 from typing import Optional
 import uuid
+import warnings
 
 from pylint.lint import Run
 from pylint.reporters.text import TextReporter
@@ -23,6 +24,8 @@ import tree_sitter_javascript
 from sweepai.core.entities import Snippet
 from sweepai.logn.cache import file_cache
 from sweepai.utils.fuzzy_diff import patience_fuzzy_additions
+
+warnings.simplefilter("ignore", category=FutureWarning)
 
 AVG_CHAR_IN_LINE = 60
 

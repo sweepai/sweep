@@ -1,4 +1,5 @@
 import copy
+import os
 
 
 from loguru import logger
@@ -20,11 +21,20 @@ def modify(
     chat_logger: ChatLogger | None = None,
     use_openai: bool = False,
     previous_modify_files_dict: dict[str, dict[str, str]] = {},
+    renames_dict: dict[str, str] = {},
 ) -> dict[str, dict[str, str]]:
     # join fcr in case of duplicates
     use_openai = True
     if not fcrs:
         return previous_modify_files_dict
+
+    # handles renames in cloned_repo
+    for file_path, new_file_path in renames_dict.items():
+        file_contents = cloned_repo.get_file_contents(file_path)
+        with open(os.path.join(cloned_repo.repo_dir, new_file_path), "w") as f:
+            f.write(file_contents)
+        os.remove(os.path.join(cloned_repo.repo_dir, file_path))
+    
     user_message = create_user_message(
         fcrs=fcrs,
         request=request,
@@ -85,6 +95,8 @@ def modify(
     if not previous_modify_files_dict:
         previous_modify_files_dict = {}
     modify_files_dict = copy.deepcopy(previous_modify_files_dict)
+
+
     # this message list is for the chat logger to have a detailed insight into why failures occur
     detailed_chat_logger_messages = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]
     # used to determine if changes were made
@@ -94,17 +106,30 @@ def modify(
         if function_call:
             num_of_tasks_done = tasks_completed(fcrs)
             # note that detailed_chat_logger_messages is meant to be modified in place by handle_function_call
-            function_output, modify_files_dict, llm_state = handle_function_call(cloned_repo, function_call, modify_files_dict, llm_state, chat_logger_messages=detailed_chat_logger_messages, use_openai=use_openai)
+            function_output, modify_files_dict, llm_state = handle_function_call(
+                cloned_repo,
+                function_call,
+                modify_files_dict,
+                llm_state,
+                chat_logger_messages=detailed_chat_logger_messages,
+                use_openai=use_openai,
+            )
             print(function_output)
             fcrs = llm_state["fcrs"]
             if function_output == "DONE":
                 # add the diff of all changes to chat_logger
                 if chat_logger:
                     final_message = "DONE\nHere is a summary of all the files changed:\n\n"
+                    reverse_renames_dict = {v: k for k, v in renames_dict.items()}
                     for file_name, file_data in modify_files_dict.items():
+                        tofile = file_name
+                        fromfile = reverse_renames_dict.get(tofile, tofile)
+                        # handle renames
                         if file_diff := generate_diff(
                             file_data['original_contents'],
                             file_data['contents'],
+                            fromfile=fromfile,
+                            tofile=tofile
                         ):
                             final_message += f"\nChanges made to {file_name}:\n{file_diff}"
                     chat_logger.add_chat({
@@ -183,7 +208,7 @@ def modify(
                         content=function_output,
                         model=model,
                         stop_sequences=["</function_call>"],
-                        use_openai=use_openai,
+                        use_openai=use_openai if llm_state["attempt_count"] < 3 else False,
                     )
                     if function_calls_string in llm_state["visited_set"]:
                         if llm_state["attempt_count"] < 3:

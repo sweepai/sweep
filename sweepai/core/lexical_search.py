@@ -23,7 +23,7 @@ from sweepai.config.client import SweepConfig
 token_cache = Cache(f'{CACHE_DIRECTORY}/token_cache') # we instantiate a singleton, diskcache will handle concurrency
 lexical_index_cache = Cache(f'{CACHE_DIRECTORY}/lexical_index_cache')
 snippets_cache = Cache(f'{CACHE_DIRECTORY}/snippets_cache')
-CACHE_VERSION = "v1.0.14"
+CACHE_VERSION = "v1.0.15"
 
 if FILE_CACHE_DISABLED:
     redis_client = None
@@ -109,7 +109,6 @@ def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
     return docs
 
 
-@file_cache(ignore_params=["ticket_progress", "len_repo_cache_dir"])
 def prepare_index_from_snippets(
     snippets: list[Snippet],
     len_repo_cache_dir: int = 0,

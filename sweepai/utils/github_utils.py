@@ -29,7 +29,7 @@ from loguru import logger
 from urllib3 import Retry
 
 from sweepai.config.client import SweepConfig
-from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, GITHUB_BASE_URL, GITHUB_BOT_USERNAME
+from sweepai.config.server import CACHE_DIRECTORY, GITHUB_APP_ID, GITHUB_APP_PEM, GITHUB_BASE_URL, GITHUB_BOT_USERNAME
 from sweepai.core.entities import FileChangeRequest
 from sweepai.utils.str_utils import get_hash
 from sweepai.utils.tree_utils import DirectoryTree, remove_all_not_included
@@ -51,7 +51,7 @@ def get_jwt():
 
 def get_token(installation_id: int):
     if int(installation_id) < 0:
-        logger.error(f"installation_id is {installation_id}, using GITHUB_PAT instead.")
+        logger.warning(f"installation_id is {installation_id}, using GITHUB_PAT instead.")
         return os.environ["GITHUB_PAT"]
     for timeout in [5.5, 5.5, 10.5]:
         try:
@@ -228,8 +228,33 @@ def validate_and_sanitize_multi_file_changes(repo: Repository, file_changes: dic
     return sanitized_file_changes, file_removed
 
 # commits multiple files in a single commit, returns the commit object
-def commit_multi_file_changes(repo: Repository, file_changes: dict[str, str], commit_message: str, branch: str):
+def commit_multi_file_changes(cloned_repo: "ClonedRepo", file_changes: dict[str, str], commit_message: str, branch: str, renames_dict: dict[str, str] = {}):
     assert file_changes
+    repo = cloned_repo.repo
+    if renames_dict:
+        blobs_to_commit = []
+        # make a separate commit with just the renames
+        for old_name, new_name in renames_dict.items():
+            file_contents = cloned_repo.get_file_contents(new_name)
+            blob = repo.create_git_blob(file_contents, "utf-8")
+            blobs_to_commit.append(InputGitTreeElement(path=os.path.normpath(old_name), mode="100644", type="blob", sha=None))
+            blobs_to_commit.append(InputGitTreeElement(path=os.path.normpath(new_name), mode="100644", type="blob", sha=blob.sha))
+        head_sha = repo.get_branch(branch).commit.sha
+        base_tree = repo.get_git_tree(sha=head_sha)
+        # create new git tree
+        new_tree = repo.create_git_tree(blobs_to_commit, base_tree=base_tree)
+        # commit the changes
+        parent = repo.get_git_commit(sha=head_sha)
+        commit_message = "Renamed to " + ", ".join(renames_dict.values())
+        commit_message = commit_message[:69] + "..." if len(commit_message) > 70 else commit_message
+        commit = repo.create_git_commit(
+            commit_message,
+            new_tree,
+            [parent],
+        )
+        # update ref of branch
+        ref = f"heads/{branch}"
+        repo.get_git_ref(ref).edit(sha=commit.sha)
     blobs_to_commit = []
     # convert to blob
     for path, content in file_changes.items():
@@ -302,8 +327,7 @@ def create_branch(repo: Repository, branch: str, base_branch: str = None, retry=
         )
         raise e
 
-# REPO_CACHE_BASE_DIR = "/tmp/cache/repos"
-REPO_CACHE_BASE_DIR = "/tmp/cache/repos"
+REPO_CACHE_BASE_DIR = os.path.join(CACHE_DIRECTORY, "repos")
 
 
 @dataclass
@@ -378,14 +402,19 @@ class ClonedRepo:
                 repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
             logger.info("Done cloning")
         else:
-            try:
-                repo = git.Repo(self.cached_dir)
-                self.git_repo.git.pull(self.clone_url)
-            except Exception:
-                logger.warning("Could not pull repo")
-                shutil.rmtree(self.cached_dir, ignore_errors=True)
+            # Pulling with pat doesn't work, have to reclone
+            # try:
+            #     repo = git.Repo(self.cached_dir)
+            #     repo.git.pull(self.clone_url)
+            # except Exception:
+            logger.warning("Could not pull repo, cloning instead")
+            shutil.rmtree(self.cached_dir, ignore_errors=True)
+            if self.branch:
+                repo = git.Repo.clone_from(
+                    self.clone_url, self.cached_dir, branch=self.branch
+                )
+            else:
                 repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
-            logger.info("Repo already cached, copying")
         logger.info("Copying repo...")
         shutil.copytree(
             self.cached_dir, self.repo_dir, symlinks=True, copy_function=shutil.copy

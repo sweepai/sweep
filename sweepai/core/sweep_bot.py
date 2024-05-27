@@ -38,6 +38,7 @@ from sweepai.core.planning_prompts import (
     anthropic_files_to_change_system_prompt,
     issue_sub_request_prompt,
     issue_sub_request_system_prompt,
+    anthropic_rename_prompt,
 )
 from sweepai.utils.chat_logger import ChatLogger
 # from sweepai.utils.previous_diff_utils import get_relevant_commits
@@ -91,6 +92,70 @@ You have previously already made the following changes:
 
 Fix the above GitHub Actions."""
 
+GHA_PROMPT_WITH_HISTORY = """You're working on resolving a GitHub issue but the code changes fail the GitHub Actions.
+
+You are trying to resolve the following GitHub issue:
+<original_github_issue>
+{problem_statement}
+</original_github_issue>
+
+Previously the Githu Actions were failing with these logs:
+<previous_github_actions_logs>
+{previous_github_actions_logs}
+</previous_github_actions_logs>
+
+You made some changes to address the previous Github Action failures, but GitHub Actions are now failing with the following logs:
+<current_github_actions_logs>
+{current_github_actions_logs}
+</current_github_actions_logs>
+
+You have previously already made the following changes:
+<changes_made>
+{changes_made}
+</changes_made>
+
+Fix the above GitHub Actions."""
+
+def cleanup_fcrs(fcrs_string: str):
+    fcrs_string = re.sub(r"<original_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>", "<original_code>", fcrs_string)
+    fcrs_string = re.sub(r"<new_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>", "<new_code>", fcrs_string)
+    return fcrs_string
+
+def continuous_llm_calls(
+    chat_gpt: ChatGPT,
+    *args,
+    stop_sequences: list[str] = ["</plan>"],
+    MAX_CALLS = 10,
+    **kwargs    
+):
+    response: str = chat_gpt.chat_anthropic(
+        *args,
+        **kwargs
+    )
+    num_calls = 0
+    # pylint: disable=E1101
+    while not any(token in response for token in stop_sequences) \
+        and num_calls < MAX_CALLS:
+        last_line_index = response.rfind("\n")
+        response = response[:last_line_index].rstrip()
+        chat_gpt.messages[-1].content = cleanup_fcrs(response)
+        # ask for a second response
+        try:
+            if "content" in kwargs:
+                kwargs.pop("content")
+            next_response: str = chat_gpt.chat_anthropic(
+                *args,
+                **kwargs,
+                content=""
+            )
+            next_response = cleanup_fcrs(next_response)
+            # we can simply concatenate the responses
+            response += next_response
+        except Exception as e:
+            logger.error(f"Failed to get second response due to {e}")
+        num_calls += 1
+    return response
+
 def parse_patch_fcrs(fcr_patch_string: str):
     pattern = re.compile(r"""<(?P<change_type>[a-z_]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- @\{\}]*?)\"\s+index=\"(?P<index>\d+)\">(?P<instructions>.*?)\s*<\/\1>""", re.DOTALL)
     drop_pattern = re.compile("<drop>(\d+?)</drop>", re.DOTALL)
@@ -107,6 +172,20 @@ def parse_patch_fcrs(fcr_patch_string: str):
     drops = [int(drop.group(1).strip()) for drop in drop_pattern.finditer(fcr_patch_string)]
     matches.sort(key=lambda x: x[0])
     return drops, [match for match in matches]
+
+def parse_renames(renames_string: str):
+    pattern = re.compile(r"<rename>(.*?)</rename>", re.DOTALL)
+    old_name_pattern = re.compile(r"<old_name>(.*?)</old_name>", re.DOTALL)
+    new_name_pattern = re.compile(r"<new_name>(.*?)</new_name>", re.DOTALL)
+    rename_dict = {}
+    for match in pattern.finditer(renames_string):
+        rename_match = match.group(1)
+        old_name = old_name_pattern.search(rename_match).group(1)
+        if not old_name:
+            continue
+        new_name = new_name_pattern.search(rename_match).group(1)
+        rename_dict[old_name.strip()] = new_name.strip()
+    return rename_dict
 
 def safe_decode(
     repo: Repository,
@@ -168,18 +247,22 @@ def is_blocked(file_path: str, blocked_dirs: list[str]):
 def validate_file_change_requests(
     file_change_requests: list[FileChangeRequest],
     cloned_repo: ClonedRepo,
+    renames_dict: dict[str, str] = {},
 ):
+    reverse_renames = {v: k for k, v in renames_dict.items()}
+    def get_file_contents(file_path):
+        return cloned_repo.get_file_contents(reverse_renames.get(file_path, file_path))
     # TODO: add better suffixing
     for fcr in file_change_requests:
         if fcr.change_type == "modify":
             try:
-                cloned_repo.get_file_contents(fcr.filename)
+                get_file_contents(fcr.filename)
             except FileNotFoundError as e:
                 logger.warning(f"Failed to get file contents for {fcr.filename} due to {e}, trying prefixes")
                 for file_path in cloned_repo.get_file_list():
                     if file_path.endswith(fcr.filename):
                         logger.info(f"Found similar file {fcr.filename} at {file_path}")
-                        cloned_repo.get_file_contents(file_path)
+                        get_file_contents(file_path)
                         fcr.filename = file_path
                         break
                 else:
@@ -195,8 +278,11 @@ def get_error_message(
     file_change_requests: list[FileChangeRequest],
     cloned_repo: ClonedRepo,
     updated_files: dict[str, dict[str, str]] = {},
+    renames_dict: dict[str, str] = {},
 ):
     def get_file_contents(file_path):
+        if file_path in renames_dict.values():
+            file_path = [k for k, v in renames_dict.items() if v == file_path][0]
         if file_path in updated_files:
             return updated_files[file_path]["contents"]
         return cloned_repo.get_file_contents(file_path)
@@ -226,7 +312,7 @@ def get_error_message(
                         full_file_dir = os.path.join(cloned_repo.repo_dir, file_dir)
                         full_file_name = os.path.join(cloned_repo.repo_dir, file_name)
 
-                        current_error_message = validate_file_path(cloned_repo, file_name, file_dir, full_file_dir, full_file_name)
+                        current_error_message = validate_file_path(cloned_repo, file_name, file_dir, full_file_dir, full_file_name, i)
 
                         if current_error_message:
                             error_message += f"<error index=\"{len(error_indices)}\">\n{current_error_message}\n</error>\n\n"
@@ -234,11 +320,11 @@ def get_error_message(
                     continue
             parsed_fcr = parse_fcr(file_change_request)
             if not parsed_fcr["original_code"]:
-                error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to provide an <original_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task use the <drop> marker.\n</error>\n\n"
+                error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to provide an <original_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task, respond with <drop>{len(error_indices)}</drop>.\n</error>\n\n"
                 error_indices.append(i)
                 continue
             if not parsed_fcr["new_code"]:
-                error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to a <new_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task use the <drop> marker.\n</error>\n\n"
+                error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to a <new_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task, respond with <drop>{len(error_indices)}</drop>.\n</error>\n\n"
                 error_indices.append(i)
                 continue
             original_code = parsed_fcr["original_code"][0].strip("\n")
@@ -290,7 +376,7 @@ def get_error_message(
             full_file_dir = os.path.join(cloned_repo.repo_dir, file_dir)
             full_file_name = os.path.join(cloned_repo.repo_dir, file_name)
 
-            current_error_message = validate_file_path(cloned_repo, file_name, file_dir, full_file_dir, full_file_name)
+            current_error_message = validate_file_path(cloned_repo, file_name, file_dir, full_file_dir, full_file_name, i)
 
             if current_error_message:
                 error_message += f"<error index=\"{len(error_indices)}\">\n{current_error_message}\n</error>\n\n"
@@ -299,11 +385,11 @@ def get_error_message(
     #     breakpoint()
     return error_message.strip('\n\n'), error_indices
 
-def validate_file_path(cloned_repo: ClonedRepo, file_name: str, file_dir: str, full_file_dir: str, full_file_name: str):
+def validate_file_path(cloned_repo: ClonedRepo, file_name: str, file_dir: str, full_file_dir: str, full_file_name: str, i):
     current_error_message = ""
 
     if os.path.exists(full_file_name):
-        current_error_message = f"The file {file_name} already exists. Modify this existing file instead of attempting to create a new one!"
+        current_error_message = f"You are trying to create the file {file_name}, which already exists. If you want to modify this file, be sure to include the <original_code></original_code> block. Otherwise, you may drop this task using the <drop>{i}</drop> marker."
     if not os.path.isdir(full_file_dir):
         current_error_message = f"{file_dir} is a file. Make sure you have the correct directory path!"
     if not os.path.exists(full_file_dir):
@@ -376,6 +462,32 @@ def partition_snippets_if_test(snippets: list[Snippet], include_tests=False):
         return [snippet for snippet in snippets if "test" in snippet.file_path]
     return [snippet for snippet in snippets if "test" not in snippet.file_path]
 
+def format_snippets(
+    relevant_snippets: list[Snippet],
+    read_only_snippets: list[Snippet],
+    problem_statement: str,
+):
+    relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
+    formatted_relevant_snippets = []
+    for i, snippet in enumerate(tqdm(relevant_snippets + read_only_snippets)):
+        annotated_source_code, code_summaries = get_annotated_source_code(
+            source_code=snippet.get_snippet(add_lines=False),
+            issue_text=problem_statement,
+            file_path=snippet.file_path,
+        )
+        formatted_relevant_snippets.append(
+            relevant_snippet_template.format(
+                i=i,
+                file_path=snippet.file_path,
+                content=annotated_source_code,
+            )
+        )
+    joined_relevant_snippets = "\n".join(
+        formatted_relevant_snippets
+    )
+    relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
+    return relevant_snippets_message
+
 def get_files_to_change(
     relevant_snippets: list[Snippet],
     read_only_snippets: list[Snippet],
@@ -390,6 +502,7 @@ def get_files_to_change(
     images: list[tuple[str, str, str]] | None = None
 ) -> tuple[list[FileChangeRequest], str]:
     use_openai = False
+    problem_statement = problem_statement.strip("\n")
     files_to_change_prompt = openai_files_to_change_prompt if use_openai else anthropic_files_to_change_prompt
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
@@ -423,31 +536,14 @@ def get_files_to_change(
     relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
     read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
 
-    relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
-    # read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
-    # attach all relevant snippets
-    formatted_relevant_snippets = []
-    for i, snippet in enumerate(tqdm(relevant_snippets + read_only_snippets)):
-        annotated_source_code, code_summaries = get_annotated_source_code(
-            source_code=snippet.get_snippet(add_lines=False),
-            issue_text=problem_statement,
-            file_path=snippet.file_path,
-        )
-        formatted_relevant_snippets.append(
-            relevant_snippet_template.format(
-                i=i,
-                file_path=snippet.file_path,
-                content=annotated_source_code,
-            )
-        )
-    joined_relevant_snippets = "\n".join(
-        formatted_relevant_snippets
-    )
-    relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
     messages.append(
         Message(
             role="user",
-            content=relevant_snippets_message,
+            content=format_snippets(
+                relevant_snippets,
+                read_only_snippets,
+                problem_statement,
+            ),
             key="relevant_snippets",
         )
     )
@@ -490,6 +586,58 @@ def get_files_to_change(
         ],
     )
     MODEL = "claude-3-opus-20240229"
+
+    renames_response = chat_gpt.chat_anthropic(
+        content=joint_message + "\n\n" + anthropic_rename_prompt,
+        temperature=0.1,
+        images=images,
+        use_openai=use_openai,
+        seed=seed + 1,
+        stop_sequences=["</renames>"],
+        model=MODEL # haiku can troll this reponse
+    )
+    renames_dict = parse_renames(renames_response)
+    # need better validation
+    if renames_dict:
+        relevant_snippets = [Snippet(
+            file_path=renames_dict.get(snippet.file_path, snippet.file_path),
+            start=snippet.start,
+            end=snippet.end,
+            content=snippet.content,
+            score=snippet.score,
+            type_name=snippet.type_name,
+        ) for snippet in relevant_snippets]
+        read_only_snippets = [Snippet(
+            file_path=renames_dict.get(snippet.file_path, snippet.file_path),
+            start=snippet.start,
+            end=snippet.end,
+            content=snippet.content,
+            score=snippet.score,
+            type_name=snippet.type_name,
+        ) for snippet in read_only_snippets]
+        messages = [
+            message if message.key != "relevant_snippets" else Message(
+                role="user",
+                content=format_snippets(
+                    relevant_snippets,
+                    read_only_snippets,
+                    problem_statement,
+                ),
+                key="relevant_snippets",
+            ) for message in messages
+        ]
+        renames_string = "# Warning\n<warnings>\nIMPORTANT:" + "\n".join(
+            f"`{old_name}` has already been renamed to `{new_name}`" for old_name, new_name in renames_dict.items()
+        ) + "\nDo NOT include any renaming steps in your plan.\n</warnings>"
+        messages.append(
+            Message(
+                role="user",
+                content=renames_string,
+                key="renames"
+            )
+        )
+        joint_message = "\n\n".join(message.content for message in messages[1:])
+
     issue_sub_requests = ""
     if not use_openai:
         issue_sub_request_response = issue_sub_request_chat_gpt.chat_anthropic(
@@ -506,40 +654,23 @@ def get_files_to_change(
             raise Exception("Failed to match issue excerpts")
         issue_sub_requests = issue_sub_request_match.group(1)
         issue_sub_requests = issue_sub_requests.strip("\n")
+        issue_sub_requests = re.sub(r"<justification>\n(.*?)\n</justification>\n*", "\n", issue_sub_requests, flags=re.DOTALL).strip("\n")
 
-    # breakpoint()
-    files_to_change_response: str = chat_gpt.chat_anthropic(
+    open("msg.txt", "w").write(joint_message + "\n\n" + files_to_change_prompt.format(issue_sub_requests=issue_sub_requests))
+    
+    # handle stop sequences better for multiple chained calls
+    files_to_change_response: str = continuous_llm_calls(
+        chat_gpt,
         content=joint_message + "\n\n" + files_to_change_prompt.format(issue_sub_requests=issue_sub_requests),
         model=MODEL,
         temperature=0.1,
         images=images,
         use_openai=use_openai,
-        seed=seed + 1
-    )
-    num_calls = 0
-    MAX_CALLS = 6
-    # pylint: disable=E1101
-    while "</plan>" not in files_to_change_response \
-        and num_calls < MAX_CALLS:
-        if use_openai:
-            last_block = max(files_to_change_response.find("<original_code>"), files_to_change_response.find("<new_code>"))
-            files_to_change_response = files_to_change_response[:last_block].rstrip()
-            chat_gpt.messages[-1].content = files_to_change_response
-        # ask for a second response
-        try:
-            next_response: str = chat_gpt.chat_anthropic(
-                content="",
-                model=MODEL,
-                temperature=0.1,
-                images=images,
-                use_openai=use_openai,
-                seed=seed
-            )
-            # we can simply concatenate the responses
-            files_to_change_response += next_response
-        except Exception as e:
-            logger.warning(f"Failed to get second response due to {e}")
-        num_calls += 1
+        seed=seed,
+        stop_sequences=["</plan>"],
+        MAX_CALLS=10
+    ) + "\n</plan>"
+
     if chat_logger:
         chat_logger.add_chat(
             {
@@ -561,9 +692,14 @@ def get_files_to_change(
         ):
             file_change_request = FileChangeRequest.from_string(re_match.group(0))
             file_change_request.raw_relevant_files = " ".join(relevant_modules)
+            file_change_request.filename = renames_dict.get(file_change_request.filename, file_change_request.filename)
             file_change_requests.append(file_change_request)
         
-        error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
+        error_message, error_indices = get_error_message(
+            file_change_requests,
+            cloned_repo,
+            renames_dict=renames_dict,
+        )
 
         for _ in range(3):
             if not error_message:
@@ -574,7 +710,8 @@ def get_files_to_change(
                 content=fix_files_to_change_system_prompt,
                 role="system"
             ) for message in chat_gpt.messages]
-            fix_attempt = chat_gpt.chat_anthropic(
+            fix_attempt = continuous_llm_calls(
+                chat_gpt,
                 content=fix_files_to_change_prompt.format(
                     error_message=error_message,
                     allowed_indices=english_join([str(index) for index in range(len(error_indices))]),
@@ -584,7 +721,7 @@ def get_files_to_change(
                 images=images,
                 seed=seed,
                 stop_sequences=["</error_resolutions>"],
-                use_openai=use_openai
+                use_openai=use_openai,
             )
             drops, matches = parse_patch_fcrs(fix_attempt)
             for index, new_fcr in matches:
@@ -593,7 +730,7 @@ def get_files_to_change(
                     continue
                 if "COPIED_FROM_PREVIOUS_MODIFY" in new_fcr.instructions:
                     # if COPIED_FROM_PREVIOUS_CREATE, we just need to override the filename
-                    file_change_requests[error_indices[index]].filename = new_fcr.filename
+                    file_change_requests[error_indices[index]].filename = renames_dict.get(new_fcr.filename, new_fcr.filename)
                     continue
                 file_change_requests[error_indices[index]] = new_fcr
             for drop in sorted(drops, reverse=True):
@@ -602,13 +739,13 @@ def get_files_to_change(
                     continue
                 file_change_requests.pop(error_indices[drop])
             logger.debug("Old indices", error_indices)
-            error_message, error_indices = get_error_message(file_change_requests, cloned_repo)
+            error_message, error_indices = get_error_message(file_change_requests, cloned_repo, renames_dict=renames_dict)
             logger.debug("New indices", error_indices)
             # breakpoint()
         # breakpoint()
 
-        validate_file_change_requests(file_change_requests, cloned_repo)
-        return file_change_requests, files_to_change_response
+        validate_file_change_requests(file_change_requests, cloned_repo, renames_dict=renames_dict)
+        return renames_dict, file_change_requests, files_to_change_response
     except RegexMatchError as e:
         print("RegexMatchError", e)
 
@@ -1080,29 +1217,14 @@ def get_files_to_change_for_gha(
             ],
         )
         MODEL = "claude-3-opus-20240229" if not use_faster_model else "claude-3-sonnet-20240229"
-        files_to_change_response: str = chat_gpt.chat_anthropic(
+        files_to_change_response = continuous_llm_calls(
+            chat_gpt,
             content=joint_message + "\n\n" + gha_files_to_change_prompt,
             model=MODEL,
             temperature=0.1,
-        )
-        # breakpoint()
-        max_tokens = 4096 * 3.5 * 0.8 # approx max tokens per response
-        expected_plan_count = 1
-        # pylint: disable=E1101
-        call_anthropic_second_time = len(files_to_change_response) > max_tokens and files_to_change_response.count("</plan>") < expected_plan_count
-        if call_anthropic_second_time:
-            # ask for a second response
-            try:
-                second_response = chat_gpt.chat_anthropic(
-                    content="",
-                    model=MODEL,
-                    temperature=0.1,
-                )
-                # we can simply concatenate the responses
-                files_to_change_response += second_response
-                chat_gpt.messages[-1].content += second_response
-            except Exception as e:
-                logger.warning(f"Failed to get second response due to {e}")
+            stop_sequences=["</plan>"],
+            MAX_CALLS=10
+        ) + "\n</plan>"
         if chat_logger:
             chat_logger.add_chat(
                 {
@@ -1131,14 +1253,16 @@ def get_files_to_change_for_gha(
             if not error_message:
                 break
             chat_gpt.messages = [message for message in chat_gpt.messages if message.key != "system"]
-            fix_attempt = chat_gpt.chat_anthropic(
+            fix_attempt = continuous_llm_calls(
+                chat_gpt,
                 content=fix_files_to_change_prompt.format(
                     error_message=error_message,
                     allowed_indices=english_join([str(index) for index in range(len(error_indices))]),
                 ),
                 model=MODEL,
-                # model="claude-3-opus-20240229",
                 temperature=0.1,
+                stop_sequences=["</error_resolutions>"],
+                MAX_CALLS=10
             )
             drops, matches = parse_patch_fcrs(fix_attempt)
             for index, new_fcr in matches:

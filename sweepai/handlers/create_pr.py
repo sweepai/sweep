@@ -43,6 +43,7 @@ def handle_file_change_requests(
     username: str,
     installation_id: int,
     previous_modify_files_dict: dict = {},
+    renames_dict: dict = {},
 ):
     organization, repo_name = cloned_repo.repo.full_name.split("/")
     metadata = {
@@ -73,6 +74,7 @@ def handle_file_change_requests(
             cloned_repo=cloned_repo,
             relevant_filepaths=relevant_filepaths,
             previous_modify_files_dict=previous_modify_files_dict,
+            renames_dict=renames_dict,
         )
         # If no files were updated, log a warning and return
         if not modify_files_dict:
