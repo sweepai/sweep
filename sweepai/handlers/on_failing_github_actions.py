@@ -1,12 +1,14 @@
 import copy
+from time import sleep
 
-from github import Repository, WorkflowRun
+from github import WorkflowRun
+from github.Repository import Repository
+from github.PullRequest import PullRequest
 from loguru import logger
 
 from sweepai.config.client import get_gha_enabled
 from sweepai.config.server import DEPLOYMENT_GHA_ENABLED
 from sweepai.core.context_pruning import RepoContextManager
-from sweepai.core.entities import PullRequest
 from sweepai.core.sweep_bot import GHA_PROMPT, get_files_to_change_for_gha, validate_file_change_requests
 from sweepai.handlers.create_pr import handle_file_change_requests
 from sweepai.utils.chat_logger import ChatLogger
@@ -24,6 +26,7 @@ def on_failing_github_actions(
     pull_request: PullRequest,
     user_token: str,
     installation_id: int,
+    gha_history: list[str] = [],
     chat_logger: ChatLogger | None = None,
 ):
     modify_files_dict = {}
@@ -36,7 +39,7 @@ def on_failing_github_actions(
     GHA_MAX_EDIT_ATTEMPTS = 5 # max number of times to edit PR
     current_commit = pull_request.head.sha
 
-    main_runs: list[WorkflowRun.WorkflowRun] = list(repo.get_workflow_runs(branch=repo.default_branch, head_sha=pull_request.base.sha))
+    _main_runs: list[WorkflowRun.WorkflowRun] = list(repo.get_workflow_runs(branch=repo.default_branch, head_sha=pull_request.base.sha))
     main_passing = True
 
     while GITHUB_ACTIONS_ENABLED and main_passing:
@@ -50,7 +53,6 @@ def on_failing_github_actions(
         else:
             # wait one minute between check attempts
             total_poll_attempts += 1
-            from time import sleep
 
             sleep(SLEEP_DURATION_SECONDS)
         # refresh the pr
@@ -129,7 +131,7 @@ def on_failing_github_actions(
                                 "new_keys": ",".join(new_file_contents_to_commit.keys()) 
                             },
                         )
-                    commit = commit_multi_file_changes(cloned_repo, new_file_contents_to_commit, commit_message, cloned_repo.branch)
+                    _commit = commit_multi_file_changes(cloned_repo, new_file_contents_to_commit, commit_message, cloned_repo.branch)
                 except Exception as e:
                     logger.info(f"Error in updating file{e}")
                     raise e

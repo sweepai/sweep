@@ -204,7 +204,7 @@ def commit_multi_file_changes(cloned_repo: "ClonedRepo", file_changes: dict[str,
         new_tree = repo.create_git_tree(blobs_to_commit, base_tree=base_tree)
         # commit the changes
         parent = repo.get_git_commit(sha=head_sha)
-        commit_message = f"Renamed to " + ", ".join(renames_dict.values())
+        commit_message = "Renamed to " + ", ".join(renames_dict.values())
         commit_message = commit_message[:69] + "..." if len(commit_message) > 70 else commit_message
         commit = repo.create_git_commit(
             commit_message,
