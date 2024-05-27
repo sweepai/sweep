@@ -497,6 +497,15 @@ def get_branch_diff_text(repo, branch, base_branch=None):
     comparison = repo.compare(base_branch, branch)
     file_diffs = comparison.files
 
+    priorities = {
+        "added": 0,
+        "renamed": 1,
+        "modified": 2,
+        "removed": 3,
+    }
+
+    file_diffs = sorted(file_diffs, key=lambda x: priorities.get(x.status, 4))
+
     pr_diffs = []
     for file in file_diffs:
         diff = file.patch
@@ -504,6 +513,7 @@ def get_branch_diff_text(repo, branch, base_branch=None):
             file.status == "added"
             or file.status == "modified"
             or file.status == "removed"
+            or file.status == "renamed"
         ):
             pr_diffs.append((file.filename, diff))
         else:

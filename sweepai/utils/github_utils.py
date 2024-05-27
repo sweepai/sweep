@@ -21,7 +21,7 @@ from jwt import encode
 from loguru import logger
 
 from sweepai.config.client import SweepConfig
-from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, GITHUB_BOT_USERNAME
+from sweepai.config.server import CACHE_DIRECTORY, GITHUB_APP_ID, GITHUB_APP_PEM, GITHUB_BOT_USERNAME
 from sweepai.core.entities import FileChangeRequest
 from sweepai.utils.str_utils import get_hash
 from sweepai.utils.tree_utils import DirectoryTree, remove_all_not_included
@@ -43,7 +43,7 @@ def get_jwt():
 
 def get_token(installation_id: int):
     if int(installation_id) < 0:
-        logger.error(f"installation_id is {installation_id}, using GITHUB_PAT instead.")
+        logger.warning(f"installation_id is {installation_id}, using GITHUB_PAT instead.")
         return os.environ["GITHUB_PAT"]
     for timeout in [5.5, 5.5, 10.5]:
         try:
@@ -286,8 +286,7 @@ def create_branch(repo: Repository, branch: str, base_branch: str = None, retry=
         )
         raise e
 
-# REPO_CACHE_BASE_DIR = "/tmp/cache/repos"
-REPO_CACHE_BASE_DIR = "/tmp/cache/repos"
+REPO_CACHE_BASE_DIR = os.path.join(CACHE_DIRECTORY, "repos")
 
 
 @dataclass
@@ -364,7 +363,7 @@ class ClonedRepo:
         else:
             try:
                 repo = git.Repo(self.cached_dir)
-                self.git_repo.git.pull(self.clone_url)
+                repo.git.pull(self.clone_url)
             except Exception:
                 logger.warning("Could not pull repo")
                 shutil.rmtree(self.cached_dir, ignore_errors=True)

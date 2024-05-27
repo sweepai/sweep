@@ -114,6 +114,8 @@ def apply_adjustment_score(
     # 3. Versioned files (e.g. v1.2.3)
     # 4. Migration files (e.g. 2022_01_01_*.sql)
     base_file_name = file_path.split("/")[-1]
+    if not base_file_name:
+        return 0
     num_numbers = sum(c.isdigit() for c in base_file_name)
     snippet_score *= (1 - 1 / len(base_file_name)) ** num_numbers
     return snippet_score
