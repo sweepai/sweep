@@ -31,7 +31,7 @@ def on_failing_github_actions(
     repo_full_name = repo.full_name
     total_poll_attempts = 0
     total_edit_attempts = 0
-    SLEEP_DURATION_SECONDS = 15
+    SLEEP_DURATION_SECONDS = 5
     GITHUB_ACTIONS_ENABLED = get_gha_enabled(repo=repo) and DEPLOYMENT_GHA_ENABLED
     GHA_MAX_EDIT_ATTEMPTS = 5 # max number of times to edit PR
     current_commit = pull_request.head.sha
@@ -61,7 +61,8 @@ def on_failing_github_actions(
         # if all runs have succeeded or have no result, break
         if all([run.conclusion in ["success", None] and run.status not in ["in_progress", "waiting", "pending", "requested", "queued"] for run in runs]):
             break
-        logger.debug(f"Run statuses: {[run.status for run in runs]}")
+        logger.debug(f"Run statuses: {[run.conclusion for run in runs]}")
+        print([run.conclusion == "failure" for run in runs])
         # if any of them have failed we retry
         if any([run.conclusion == "failure" for run in runs]):
             failed_runs = [run for run in suite_runs if run.conclusion == "failure"]
@@ -92,6 +93,7 @@ def on_failing_github_actions(
                     "Fix the following errors to complete the user request.",
                     all_information_prompt,
                 )
+                breakpoint()
                 file_change_requests, plan = get_files_to_change_for_gha(
                     relevant_snippets=repo_context_manager.current_top_snippets,
                     read_only_snippets=repo_context_manager.read_only_snippets,
@@ -128,7 +130,7 @@ def on_failing_github_actions(
                                 "new_keys": ",".join(new_file_contents_to_commit.keys()) 
                             },
                         )
-                    commit = commit_multi_file_changes(cloned_repo, new_file_contents_to_commit, commit_message, pull_request.branch_name)
+                    commit = commit_multi_file_changes(cloned_repo, new_file_contents_to_commit, commit_message, cloned_repo.branch)
                 except Exception as e:
                     logger.info(f"Error in updating file{e}")
                     raise e
