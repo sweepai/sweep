@@ -359,15 +359,15 @@ Use multiple <modify> blocks for the same file to separate distinct changes.
 [List of all relevant files to reference while making changes, one per line] 
 </relevant_modules>""" # + files_to_change_example TODO: test separately
 
-gha_files_to_change_system_prompt = """You are an AI assistant helping an intern write a plan to fix failing errors in his code. The intern will provide code files, a description of the issue, the error log, relevant parts of the codebase, and the changes he's made. You may only modify code files to resolve the issue.
+gha_files_to_change_system_prompt = """You are an AI assistant for writing code to fix failing errors in a developer's code. You will be provided code files, a description of the issue, the error log, relevant parts of the codebase, and the changes he's made. You may only modify edit files to resolve the issue.
 
-Your role is to analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to fix the errors. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
+Your role is to analyze the issue and codebase, then write out code changes to fix the errors using the proposed diff format. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
 Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.
 
 Take these steps:
 1. Analyze the issue, errors, codebase and existing changes to understand the problem.
 
-2. Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue.
+2. Create a set of code to remove and code to add, including all necessary changes to resolve the issue, in the following format:
     - When modifying code you MUST take the following approach:
         Step 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file, with correct indentation and whitespace.
             - Do NOT paraphrase or abbreviate the source code.
@@ -377,9 +377,9 @@ Take these steps:
             - BE EXACT as this code will replace the mentioned <original_code>.
         Step 3. Look carefully to find all similar changes (potentially unreported) in the code that need to be made in other parts of the same file. Address those as well."""
 
-gha_files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve the errors in his code while also resolving the GitHub issue.
+gha_files_to_change_prompt = """Your job is to write code changes to help resolve the errors in his code while also resolving the GitHub issue.
 
-You will analyze the provided issue, error log, relevant parts of the codebase, and changes he's made to understand the requested change. Create a step-by-step plan for an intern to fully resolve the user's GitHub issue. The plan should utilize the relevant code files and utility modules provided. Give detailed instructions for updating the code logic, as the intern is unfamiliar with the codebase.
+You will analyze the provided issue, error log, relevant parts of the codebase, and changes he's made to understand the requested change. Create a step-by-step plan for the developer to fully resolve the user's GitHub issue. The plan should utilize the relevant code files and utility modules provided.
 
 Guidelines:
 <guidelines>
@@ -389,7 +389,7 @@ Guidelines:
 - A <modify> block must contain exactly one change in one <new_code> tag.
 - To remove code, replace it with empty <new_code> tags.
 - If imports are necessary, place them in a separate <modify> block. Use multiple <modify> blocks for the same file to separate distinct changes.
-- Do not make a change that has already been made by the intern.
+- Do not make a change that has already been made by the developer.
 <guidelines>
 
 Please use the following XML format for your response:
@@ -414,8 +414,6 @@ b. List ALL the changes made so far in extreme detail. Be absolutely complete. F
 <plan>
 List ALL the types of error messages in the error logs and their root causes. Follow this format:
 
-There are a total of X errors in the error logs:
-
 <error_analysis index="1">
 Error message 1: Identify the error message. If multiple errors are occurring due to the same root cause, group them together.
 1. Then, find all lines of code that may have the same failure as the erroring lines of code.
@@ -426,11 +424,11 @@ Error message 1: Identify the error message. If multiple errors are occurring du
 Then, based on the analysis, propose a fix by following the format below. If the error has already been fixed, you can skip this step.
 
 <modify file="file_path"> 
-Instructions for modifying one section of the file. Each block must have exactly one original_code and one new_code block. Do not make a change that has already been made by the intern.
+Instructions for modifying one section of the file. Each block must have exactly one original_code and one new_code block. Do not make a change that has already been made by the developer.
 
 a. Describe the section of code that needs to be modified, i.e. the test case that checks if `foo` == `bar`.
 <original_code>
-Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. Start with a function header.
+Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. Start with the closest header several lines before the target code.
 </original_code>
 
 b. Describe the changes that need to be made to the code, i.e. the test case should instead check if `foo` != `baz`.

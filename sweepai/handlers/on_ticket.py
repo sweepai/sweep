@@ -669,7 +669,7 @@ def on_ticket(
                 f"{title}\n{internal_message_summary}\n{replies_text}",
                 repo,
                 username,
-                pull_request,
+                pr,
                 user_token,
                 installation_id,
                 chat_logger
