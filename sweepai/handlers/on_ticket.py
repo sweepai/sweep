@@ -666,7 +666,7 @@ def on_ticket(
                 pr,
                 user_token,
                 installation_id,
-                chat_logger
+                chat_logger=chat_logger
             )
 
             # break from main for loop

@@ -92,6 +92,30 @@ You have previously already made the following changes:
 
 Fix the above GitHub Actions."""
 
+GHA_PROMPT_WITH_HISTORY = """You're working on resolving a GitHub issue but the code changes fail the GitHub Actions.
+
+You are trying to resolve the following GitHub issue:
+<original_github_issue>
+{problem_statement}
+</original_github_issue>
+
+Previously the Githu Actions were failing with these logs:
+<previous_github_actions_logs>
+{previous_github_actions_logs}
+</previous_github_actions_logs>
+
+You made some changes to address the previous Github Action failures, but GitHub Actions are now failing with the following logs:
+<current_github_actions_logs>
+{current_github_actions_logs}
+</current_github_actions_logs>
+
+You have previously already made the following changes:
+<changes_made>
+{changes_made}
+</changes_made>
+
+Fix the above GitHub Actions."""
+
 def cleanup_fcrs(fcrs_string: str):
     fcrs_string = re.sub(r"<original_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>", "<original_code>", fcrs_string)
     fcrs_string = re.sub(r"<new_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>", "<new_code>", fcrs_string)

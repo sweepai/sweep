@@ -8,8 +8,10 @@ from loguru import logger
 
 from sweepai.config.client import get_gha_enabled
 from sweepai.config.server import DEPLOYMENT_GHA_ENABLED
+from sweepai.core.chat import ChatGPT
 from sweepai.core.context_pruning import RepoContextManager
-from sweepai.core.sweep_bot import GHA_PROMPT, get_files_to_change_for_gha, validate_file_change_requests
+from sweepai.core.entities import Message
+from sweepai.core.sweep_bot import GHA_PROMPT, GHA_PROMPT_WITH_HISTORY, get_files_to_change_for_gha, validate_file_change_requests
 from sweepai.handlers.create_pr import handle_file_change_requests
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, validate_and_sanitize_multi_file_changes
@@ -17,6 +19,17 @@ from sweepai.utils.prompt_constructor import get_issue_request
 from sweepai.utils.ticket_rendering_utils import get_branch_diff_text, get_failing_gha_logs
 from sweepai.utils.ticket_utils import prep_snippets
 from sweepai.utils.event_logger import posthog
+
+gha_context_cleanup_system_prompt = """You are a skilled programmer. You will be given a set of failing GitHub Action logs. Your sole task is to extract and return only the crucial parts that will help a developer resolve the issues. 
+Eliminate any unnecessary context and return verbatim the useful lines of logs."""
+
+gha_context_cleanup_user_prompt = """
+# The failing Github Action logs are given below
+
+{github_actions_logs}
+
+ONLY RETURN THE USEFUL PARTS OF THE LOGS THAT WILL HELP A DEVELOPER RESOLVE THE ISSUES. NOTHING ELSE.
+"""
 
 
 def on_failing_github_actions(
@@ -74,6 +87,19 @@ def on_failing_github_actions(
                 installation_id,
             )
             if failed_gha_logs:
+                # cleanup the gha logs
+                chat_gpt = ChatGPT()
+                chat_gpt.messages = [
+                    Message(role="system", content=gha_context_cleanup_system_prompt)
+                ]
+                formatted_gha_context_prompt = gha_context_cleanup_user_prompt.format(
+                    github_actions_logs=failed_gha_logs
+                )
+                failed_gha_logs = chat_gpt.chat_anthropic(
+                    content=formatted_gha_context_prompt,
+                    temperature=0.2,
+                    use_openai=True,
+                )
                 # make edits to the PR
                 # TODO: look into rollbacks so we don't continue adding onto errors
                 cloned_repo = ClonedRepo( # reinitialize cloned_repo to avoid conflicts
@@ -90,6 +116,15 @@ def on_failing_github_actions(
                     github_actions_logs=failed_gha_logs,
                     changes_made=diffs,
                 )
+                if gha_history:
+                    previous_gha_logs = gha_history[-1]
+                    all_information_prompt = GHA_PROMPT_WITH_HISTORY.format(
+                        problem_statement=problem_statement,
+                        current_github_actions_logs=failed_gha_logs,
+                        changes_made=diffs,
+                        previous_github_actions_logs=previous_gha_logs,
+                    )
+                
                 repo_context_manager: RepoContextManager = prep_snippets(cloned_repo=cloned_repo, query=problem_statement.strip("\n"), ticket_progress=None) # need to do this, can use the old query for speed
                 issue_request = get_issue_request(
                     "Fix the following errors to complete the user request.",
@@ -136,6 +171,7 @@ def on_failing_github_actions(
                     logger.info(f"Error in updating file{e}")
                     raise e
                 total_edit_attempts += 1
+                gha_history.append(failed_gha_logs)
                 if total_edit_attempts >= GHA_MAX_EDIT_ATTEMPTS:
                     logger.info(f"Tried to edit PR {GHA_MAX_EDIT_ATTEMPTS} times, giving up.")
                     break

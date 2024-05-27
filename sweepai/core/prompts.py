@@ -410,15 +410,21 @@ b. List ALL the changes made so far in extreme detail. Be absolutely complete. F
     [additional files as needed]
 </thinking>
 
-# 2. Plan:
+# 2. Reflect:
+<reflection>
+a. List out all the previous error logs that were solved.
+b. List out the new Github Action error logs that you must now solve and potential root causes and solutions.
+</reflction>
+
+# 3. Plan:
 <plan>
-List ALL the types of error messages in the error logs and their root causes. Follow this format:
+List ALL the types of error messages in the current error logs and their root causes. Follow this format:
 
 <error_analysis index="1">
 Error message 1: Identify the error message. If multiple errors are occurring due to the same root cause, group them together.
 1. Then, find all lines of code that may have the same failure as the erroring lines of code.
 2. Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code. Most of the time, the test case has yet to be updated.
-3. Explain how to resolve the error in the test case. Be complete and precise.
+3. Explain how to resolve the error in the test case. Be complete and precise. Remember that to resolve the error in a way such that the test case is still valid. Do not simply apply a band-aid solution to make the error go away.
 4. Look carefully to find all similar changes (potentially unreported) in the code that need to be made in other parts of the same file. Address those as well.
 
 Then, based on the analysis, propose a fix by following the format below. If the error has already been fixed, you can skip this step.
