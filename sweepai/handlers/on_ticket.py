@@ -308,8 +308,8 @@ def on_ticket(
                         + "\n"
                         + message
                         + (
-                            "\n\nFor bonus Sweep issues, please report this bug on our"
-                            f" **[community forum](https://community.sweep.dev/)** (tracking ID: `{tracking_id}`)."
+                            "\n\n"
+                            " **[Report a bug](https://community.sweep.dev/)**."
                             if add_bonus_message
                             else ""
                         )
@@ -383,7 +383,7 @@ def on_ticket(
                 logger.warning(f"Validation error: {error_message}")
                 edit_sweep_comment(
                     (
-                        f"The issue was rejected with the following response:\n\n{bold(error_message)}"
+                        f"The issue was rejected:\n\n{bold(error_message)}"
                     ),
                     -1,
                 )
