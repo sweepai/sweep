@@ -809,9 +809,6 @@ def handle_event(request_dict, event):
                 except Exception as e:
                     logger.exception(f"Failed to add config to top repos: {e}")
             case "pull_request", "edited":
-                # apparently body is sometimes None
-                if not request_dict.get('body', ''):
-                    request_dict['body'] = ''
                 request = PREdited(**request_dict)
 
                 if (
