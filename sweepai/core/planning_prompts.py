@@ -118,14 +118,14 @@ The new updated code with the desired changes incorporated.
 [additional modifies as needed, for the same file or different files, for different code sections]
 </plan>"""
 
-anthropic_files_to_change_system_prompt = """You are a meticulous AI assistant helping an intern write code to resolve a GitHub issue. We want to do our best to help the intern succeed. Code files, a description of the issue, and relevant parts of the codebase will be provided.
-Your role is to carefully analyze the issue and codebase, then provide a clear, step-by-step plan the intern can follow to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
+anthropic_files_to_change_system_prompt = """You are a meticulous AI assistant and will write code changes to resolve a GitHub issue. We want to do our best to write a pull request to get merged. Code files, a description of the issue, and relevant parts of the codebase will be provided.
+Your role is to carefully analyze the issue and codebase, then to make the necessary code changes to resolve the issue. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
 Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.
 
 Take these steps:
 1. Issue Analysis: Analyze the issue and codebase to understand the problem. This section will vary in verbosity depending on the complexity of the issue, but each section should be at least 1 paragraph long.
 
-2. Plan: Create a detailed plan for the intern to follow, including all necessary changes to resolve the issue.
+2. Plan: Write all necessary code changes to resolve the issue, indicating which code sections to modify and how to modify it.
     - When modifying code you MUST do the following:
         - First, copy the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. The <original_code> block must NOT be empty.
         - Next, write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
@@ -135,9 +135,9 @@ Take these steps:
     - In both cases, paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED."""
 
 # anthropic prompt
-anthropic_files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a GitHub issue.
+anthropic_files_to_change_prompt = """Your job is to write a high quality, detailed, code changes resolve a GitHub issue.
 
-You will analyze the provided code files, repository, and GitHub issue to understand the requested change. Create a step-by-step plan for an intern to fully resolve the GitHub issue. The plan should utilize the relevant code files and utility modules provided.
+You will analyze the provided code files, repository, and GitHub issue to understand the requested change. Write code changes to fully resolve the GitHub issue. The plan should utilize the relevant code files and utility modules provided.
 
 Guidelines:
 <guidelines>
