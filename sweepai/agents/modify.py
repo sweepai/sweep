@@ -208,7 +208,7 @@ def modify(
                         content=function_output,
                         model=model,
                         stop_sequences=["</function_call>"],
-                        use_openai=use_openai,
+                        use_openai=use_openai if llm_state["attempt_count"] < 3 else False,
                     )
                     if function_calls_string in llm_state["visited_set"]:
                         if llm_state["attempt_count"] < 3:
