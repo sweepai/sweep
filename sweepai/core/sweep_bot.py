@@ -676,7 +676,6 @@ def get_files_to_change(
             cloned_repo,
             renames_dict=renames_dict,
         )
-        # breakpoint()
 
         for _ in range(3):
             if not error_message:
