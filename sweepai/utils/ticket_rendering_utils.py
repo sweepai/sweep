@@ -195,8 +195,9 @@ def get_failing_gha_logs(runs, installation_id) -> str:
                 # add failed steps
                 for step in job["steps"]:
                     if step["conclusion"] == "failure":
+                        parsed_name = step['name'].replace('/','')
                         failed_jobs_name_list.append(
-                            f"{job['name']}/{step['number']}_{step['name']}"
+                            f"{job['name']}/{step['number']}_{parsed_name}"
                         )
         else:
             logger.error(
