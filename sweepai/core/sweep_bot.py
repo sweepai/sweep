@@ -117,7 +117,8 @@ def continuous_llm_calls(
         chat_gpt.messages[-1].content = cleanup_fcrs(response)
         # ask for a second response
         try:
-            kwargs.pop("content")
+            if "content" in kwargs:
+                kwargs.pop("content")
             next_response: str = chat_gpt.chat_anthropic(
                 *args,
                 **kwargs,
@@ -156,6 +157,8 @@ def parse_renames(renames_string: str):
     for match in pattern.finditer(renames_string):
         rename_match = match.group(1)
         old_name = old_name_pattern.search(rename_match).group(1)
+        if not old_name:
+            continue
         new_name = new_name_pattern.search(rename_match).group(1)
         rename_dict[old_name.strip()] = new_name.strip()
     return rename_dict
@@ -285,7 +288,7 @@ def get_error_message(
                         full_file_dir = os.path.join(cloned_repo.repo_dir, file_dir)
                         full_file_name = os.path.join(cloned_repo.repo_dir, file_name)
 
-                        current_error_message = validate_file_path(cloned_repo, file_name, file_dir, full_file_dir, full_file_name)
+                        current_error_message = validate_file_path(cloned_repo, file_name, file_dir, full_file_dir, full_file_name, i)
 
                         if current_error_message:
                             error_message += f"<error index=\"{len(error_indices)}\">\n{current_error_message}\n</error>\n\n"
@@ -349,7 +352,7 @@ def get_error_message(
             full_file_dir = os.path.join(cloned_repo.repo_dir, file_dir)
             full_file_name = os.path.join(cloned_repo.repo_dir, file_name)
 
-            current_error_message = validate_file_path(cloned_repo, file_name, file_dir, full_file_dir, full_file_name)
+            current_error_message = validate_file_path(cloned_repo, file_name, file_dir, full_file_dir, full_file_name, i)
 
             if current_error_message:
                 error_message += f"<error index=\"{len(error_indices)}\">\n{current_error_message}\n</error>\n\n"
@@ -358,11 +361,11 @@ def get_error_message(
     #     breakpoint()
     return error_message.strip('\n\n'), error_indices
 
-def validate_file_path(cloned_repo: ClonedRepo, file_name: str, file_dir: str, full_file_dir: str, full_file_name: str):
+def validate_file_path(cloned_repo: ClonedRepo, file_name: str, file_dir: str, full_file_dir: str, full_file_name: str, i):
     current_error_message = ""
 
     if os.path.exists(full_file_name):
-        current_error_message = f"The file {file_name} already exists. Modify this existing file instead of attempting to create a new one!"
+        current_error_message = f"You are trying to create the file {file_name}, which already exists. If you want to modify this file, be sure to include the <original_code></original_code> block. Otherwise, you may drop this task using the <drop>{i}</drop> marker."
     if not os.path.isdir(full_file_dir):
         current_error_message = f"{file_dir} is a file. Make sure you have the correct directory path!"
     if not os.path.exists(full_file_dir):
@@ -567,8 +570,10 @@ def get_files_to_change(
         use_openai=use_openai,
         seed=seed + 1,
         stop_sequences=["</renames>"],
+        model=MODEL # haiku can troll this reponse
     )
     renames_dict = parse_renames(renames_response)
+    # need better validation
     if renames_dict:
         relevant_snippets = [Snippet(
             file_path=renames_dict.get(snippet.file_path, snippet.file_path),
@@ -671,6 +676,7 @@ def get_files_to_change(
             cloned_repo,
             renames_dict=renames_dict,
         )
+        # breakpoint()
 
         for _ in range(3):
             if not error_message:

@@ -131,7 +131,8 @@ Take these steps:
         - Next, write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
     - When creating files you MUST do the following:
         - First, describe in detail EVERYTHING you will need in this file. Skip writing <original_code> tags.
-        - Next, write the new file in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this file will be created in the mentioned <file_path>."""
+        - Next, write the new file in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this file will be created in the mentioned <file_path>.
+    - In both cases, paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED."""
 
 # anthropic prompt
 anthropic_files_to_change_prompt = """Your job is to write a high quality, detailed, step-by-step plan for an intern to help resolve a GitHub issue.
@@ -180,7 +181,7 @@ Describe the changes to be made.
 
 1. If you are creating a file, you may skip this step. Otherwise, copy the original code into <original_code></original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. The referenced original code span should be just enough to cover the change, with 10 extra lines above and below for context.
 
-2. Write the new code in <new_code></new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code></original_code>.
+2. Write the new code in <new_code></new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code></original_code>. Paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED.
 </modify>
 
 [additional modifies as needed, for the same file or different files]
@@ -192,8 +193,8 @@ Identify all renames that would need to occur in the codebase to resolve the use
 
 <renames>
 <rename>
-<old_name>Current name of the file.</old_name>
-<new_name>New name of the file. Set to empty to delete the file.</new_name>
+<old_name>Current full file path of the file.</old_name>
+<new_name>New full file path of the file. Set to empty to delete the file.</new_name>
 </rename>
 [additional renames as needed]
 </renames>
