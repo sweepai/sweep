@@ -184,7 +184,6 @@ def on_failing_github_actions(
                     previous_modify_files_dict=previous_modify_files_dict,
                 )
                 commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]
-                quit()
                 try:
                     new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
                     previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
