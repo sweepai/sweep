@@ -218,12 +218,15 @@ Error #0: Summary of the error
 You will first think step-by-step about the error, and then either rewrite the instructions with the corrected fix, or drop the task.
 
 <thinking>
-Analyze extremely carefully in great detail what went wrong, including the file path and the specific code block that needs to be modified. If you have failed to copy code verbatim, indicate precisely what is different between the code you provided and the code in the actual file.
+Analyze extremely carefully in great detail what went wrong, including the file path and the specific code block that needs to be modified. If you have failed to copy code verbatim, describe precisely what is different between the code you provided and the code in the actual file.
 </thinking>
 
-Then, let's resolve the errors in your proposed plan. If you would like to patch the corresponding task of the plan, create a modify block with an index. The index should be equivalent to the error number of this error_resolution block, so it must be one of the following integers: {allowed_indices}. Otherwise, if you absolutely cannot resolve the error, drop the task. You must pick exactly ONE of the three options. Follow this format:
+Then, let's resolve the errors in your proposed plan. You MUST pick ONE of the following options:
+a. If you would like to patch the corresponding task of the plan, create a modify block with an index. The index should be equivalent to the error number of this error_resolution block, so it must be one of the following allowed integers: {allowed_indices}.
+b. If the error is a file path, correct the file path. This is preferred if the code does not need to be changed.
+c. Otherwise, if you absolutely cannot resolve the error, drop the task. You must pick exactly ONE of the three options. Follow this format:
 
-Option a: To patch an invalid modification:
+Option a: To patch an invalid modify:
 
 <modify file="file_path" index="0">
 Rewritten instructions to resolve the error. Update the original_code and new_code blocks as required, ensuring that the <original_code> block contains the actual code from the file.
@@ -440,7 +443,7 @@ Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbrevi
 
 b. Describe the changes that need to be made to the code, i.e. the test case should instead check if `foo` != `baz`.
 <new_code>
-Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>. This code MUST be different from the original_code.
 </new_code>
 
 Use multiple <modify> blocks for the same file to separate distinct changes, such as for imports.
