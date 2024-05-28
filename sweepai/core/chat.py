@@ -5,7 +5,7 @@ import re
 import threading
 import time
 import traceback
-from typing import Any, Iterator, Literal
+from typing import Any, Callable, Iterator, Literal
 
 from anthropic import Anthropic, BadRequestError, AnthropicBedrock
 from openai import OpenAI
@@ -650,3 +650,47 @@ def call_llm(
         *args,
         **kwargs,
     )
+
+def continuous_llm_calls(
+    chat_gpt: ChatGPT,
+    *args,
+    stop_sequences: list[str] = ["</plan>"],
+    MAX_CALLS = 10,
+    use_openai: bool = False,
+    response_cleanup: Callable[[str], str] = lambda x: x,
+    **kwargs    
+):
+    response: str = chat_gpt.chat_anthropic(
+        use_openai=use_openai,
+        *args,
+        **kwargs
+    )
+    num_calls = 0
+    # pylint: disable=E1101
+    while not any(token in response for token in stop_sequences) \
+        and num_calls < MAX_CALLS:
+        last_line_index = response.rfind("\n")
+        if use_openai:
+            last_block = response.rfind("<original_code>")
+            last_block = response.rfind("<new_code>", last_block)
+            if last_line_index - last_block < 2500:
+                last_line_index = last_block
+        response = response[:last_line_index].rstrip()
+        chat_gpt.messages[-1].content = response_cleanup(response)
+        # ask for a second response
+        try:
+            if "content" in kwargs:
+                kwargs.pop("content")
+            next_response: str = chat_gpt.chat_anthropic(
+                use_openai=use_openai,
+                *args,
+                **kwargs,
+                content=""
+            )
+            next_response = response_cleanup(next_response)
+            # we can simply concatenate the responses
+            response += next_response
+        except Exception as e:
+            logger.error(f"Failed to get second response due to {e}")
+        num_calls += 1
+    return response

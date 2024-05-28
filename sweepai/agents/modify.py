@@ -4,7 +4,7 @@ import os
 
 from loguru import logger
 from sweepai.agents.modify_utils import (NO_TOOL_CALL_PROMPT, SLOW_MODEL, create_user_message, get_replaces_per_fcr, render_current_task, render_plan, instructions, modify_tools, SUBMIT_TASK_MOCK_FUNCTION_CALL, linter_warning_prompt, compile_fcr, validate_and_parse_function_call, handle_function_call, tasks_completed, changes_made, get_current_task_index, MODEL)
-from sweepai.core.chat import ChatGPT
+from sweepai.core.chat import ChatGPT, continuous_llm_calls
 from sweepai.core.entities import FileChangeRequest, Message
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.code_validators import format_file
@@ -75,11 +75,12 @@ def modify(
         else:
             model = MODEL
             logger.info(f"Using model: {model}")
-            function_calls_string = chat_gpt.chat_anthropic(
+            function_calls_string = continuous_llm_calls(
+                chat_gpt,
                 content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}",
-                stop_sequences=["</function_call>"],
                 model=model,
                 message_key="user_request",
+                stop_sequences=["</function_call>"],
                 use_openai=use_openai,
             )
     except Exception as e:
@@ -138,6 +139,7 @@ def modify(
                         "output": f"{final_message}",
                     })
                 break
+            # breakpoint()
             detailed_chat_logger_messages.append({"role": "user", "content": function_output})
 
             if modify_files_dict: # update the state of the LLM
@@ -204,7 +206,8 @@ def modify(
                         llm_state["attempt_count"] = 3 # skip to opus if there is a linter warning
                     model = MODEL if llm_state["attempt_count"] < 3 else SLOW_MODEL
                     # logger.info(f"Using model: {model}")
-                    function_calls_string = chat_gpt.chat_anthropic(
+                    function_calls_string = continuous_llm_calls(
+                        chat_gpt,
                         content=function_output,
                         model=model,
                         stop_sequences=["</function_call>"],
@@ -214,7 +217,8 @@ def modify(
                         if llm_state["attempt_count"] < 3:
                             logger.warning(f"Function call {function_calls_string} has already been visited, retrying with a different model.")
                             llm_state["attempt_count"] = 3
-                            function_calls_string = chat_gpt.chat_anthropic(
+                            function_calls_string = continuous_llm_calls(
+                                chat_gpt,
                                 content=function_output,
                                 model=model,
                                 stop_sequences=["</function_call>"],

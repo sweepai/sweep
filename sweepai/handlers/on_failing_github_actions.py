@@ -1,4 +1,5 @@
 import copy
+import re
 from time import sleep
 
 from github import WorkflowRun
@@ -6,6 +7,7 @@ from github.Repository import Repository
 from github.PullRequest import PullRequest
 from loguru import logger
 
+from sweepai.agents.modify_utils import strip_triple_quotes
 from sweepai.config.client import get_gha_enabled
 from sweepai.config.server import DEPLOYMENT_GHA_ENABLED
 from sweepai.core.chat import ChatGPT
@@ -30,6 +32,43 @@ gha_context_cleanup_user_prompt = """
 
 ONLY RETURN THE USEFUL PARTS OF THE LOGS THAT WILL HELP A DEVELOPER RESOLVE THE ISSUES. NOTHING ELSE.
 """
+
+def get_error_locations_from_error_logs(error_logs: str, cloned_repo: ClonedRepo):
+    annotated_error_logs = error_logs
+    pattern = re.compile(r"^(?P<file_path>.*?)(?P<dummy_match>\b)(?P<line_num>\d+)(?P<error_message>.*?)$", re.MULTILINE)
+    matches = pattern.findall(error_logs)
+    matched_files = []
+
+    file_paths = cloned_repo.get_file_list()
+    for match in matches:
+        formatted_error_message = ""
+        potential_file_path, _, line_number, error_message = match
+        if not any(file_path in potential_file_path
+                   for file_path in file_paths):
+            continue
+        actual_file_path = [
+            file_path 
+            for file_path in file_paths
+            if file_path in potential_file_path
+        ][0]
+        matched_files.append(actual_file_path)
+        
+        # get matching line of code
+        file_contents = cloned_repo.get_file_contents(actual_file_path)
+        lines = file_contents.splitlines()
+        matched_line = int(line_number) - 1
+        if matched_line >= len(lines):
+            continue
+        joined_match = "".join(match)
+        formatted_error_message = f"{joined_match}\n    <code>{lines[matched_line]}</code>"
+        annotated_error_logs = annotated_error_logs.replace(
+            joined_match, formatted_error_message
+        )
+    deduped_matched_files = []
+    for file_path in matched_files:
+        if file_path not in deduped_matched_files:
+            deduped_matched_files.append(file_path)
+    return annotated_error_logs, matched_files
 
 
 def on_failing_github_actions(
@@ -75,14 +114,14 @@ def on_failing_github_actions(
         suite_runs = list(repo.get_workflow_runs(branch=pull_request.head.ref, head_sha=pull_request.head.sha))
         # if all runs have succeeded or have no result, break
         if all([run.conclusion in ["success", "skipped", None] and run.status not in ["in_progress", "waiting", "pending", "requested", "queued"] for run in runs]):
+            logger.info("All Github Actions have succeeded or have no result.")
             break
         logger.debug(f"Run statuses: {[run.conclusion for run in runs]}")
-        print([run.conclusion == "failure" for run in runs])
         # if any of them have failed we retry
         if any([run.conclusion == "failure" for run in runs]):
             failed_runs = [run for run in suite_runs if run.conclusion == "failure"]
 
-            failed_gha_logs: list[str] = get_failing_gha_logs(
+            failed_gha_logs = get_failing_gha_logs(
                 failed_runs,
                 installation_id,
             )
@@ -95,11 +134,13 @@ def on_failing_github_actions(
                 formatted_gha_context_prompt = gha_context_cleanup_user_prompt.format(
                     github_actions_logs=failed_gha_logs
                 )
+                # we can also gate github actions fixes here
                 failed_gha_logs = chat_gpt.chat_anthropic(
                     content=formatted_gha_context_prompt,
                     temperature=0.2,
                     use_openai=True,
                 )
+                failed_gha_logs = strip_triple_quotes(failed_gha_logs)
                 # make edits to the PR
                 # TODO: look into rollbacks so we don't continue adding onto errors
                 cloned_repo = ClonedRepo( # reinitialize cloned_repo to avoid conflicts
@@ -109,6 +150,7 @@ def on_failing_github_actions(
                     repo=repo,
                     branch=pull_request.head.ref,
                 )
+                failed_gha_logs, _ = get_error_locations_from_error_logs(failed_gha_logs, cloned_repo=cloned_repo)
                 diffs = get_branch_diff_text(repo=repo, branch=pull_request.head.ref, base_branch=pull_request.base.ref)
                 # problem_statement = f"{title}\n{internal_message_summary}\n{replies_text}"
                 all_information_prompt = GHA_PROMPT.format(

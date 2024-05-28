@@ -12,9 +12,9 @@ from networkx import Graph
 from tqdm import tqdm
 from rapidfuzz import fuzz
 
-from sweepai.agents.modify_utils import contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, parse_fcr, indent
+from sweepai.agents.modify_utils import contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, find_smallest_valid_superspan, parse_fcr, indent
 from sweepai.core.annotate_code_openai import get_annotated_source_code
-from sweepai.core.chat import ChatGPT
+from sweepai.core.chat import ChatGPT, continuous_llm_calls
 from sweepai.core.entities import (
     FileChangeRequest,
     Message,
@@ -120,44 +120,6 @@ def cleanup_fcrs(fcrs_string: str):
     fcrs_string = re.sub(r"<original_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>", "<original_code>", fcrs_string)
     fcrs_string = re.sub(r"<new_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>", "<new_code>", fcrs_string)
     return fcrs_string
-
-def continuous_llm_calls(
-    chat_gpt: ChatGPT,
-    *args,
-    stop_sequences: list[str] = ["</plan>"],
-    MAX_CALLS = 10,
-    use_openai: bool = False,
-    **kwargs    
-):
-    response: str = chat_gpt.chat_anthropic(
-        use_openai=use_openai,
-        *args,
-        **kwargs
-    )
-    num_calls = 0
-    # pylint: disable=E1101
-    while not any(token in response for token in stop_sequences) \
-        and num_calls < MAX_CALLS:
-        last_line_index = response.rfind("\n")
-        response = response[:last_line_index].rstrip()
-        chat_gpt.messages[-1].content = cleanup_fcrs(response)
-        # ask for a second response
-        try:
-            if "content" in kwargs:
-                kwargs.pop("content")
-            next_response: str = chat_gpt.chat_anthropic(
-                use_openai=use_openai,
-                *args,
-                **kwargs,
-                content=""
-            )
-            next_response = cleanup_fcrs(next_response)
-            # we can simply concatenate the responses
-            response += next_response
-        except Exception as e:
-            logger.error(f"Failed to get second response due to {e}")
-        num_calls += 1
-    return response
 
 def parse_patch_fcrs(fcr_patch_string: str):
     pattern = re.compile(r"""<(?P<change_type>[a-z_]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- @\{\}]*?)\"\s+index=\"(?P<index>\d+)\">(?P<instructions>.*?)\s*<\/\1>""", re.DOTALL)
@@ -359,19 +321,44 @@ def get_error_message(
                         error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nBut the code is no where to be found in the file. There are also no similar code snippets in this file.{too_long_message}{ellipses_message}\n</error>\n\n"
                         continue
 
-                    if best_score == 100:
-                        continue
-                    if best_score > 80:
-                        error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}\n</error>\n\n"
-                    else:
-                        best_matches = find_best_matches(original_code, file_contents, threshold=threshold, tokenized=True)
-                        if len(best_matches) > 1:
-                            best_matches_string = "\n\n".join([f"Code match {i}:\n```\n{match_}\n```" for i, (match_, score) in enumerate(best_matches)])
-                            error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify one of the following pieces of code instead?\n{best_matches_string}{too_long_message}{ellipses_message}\n</error>\n\n"
-                        else:
-                            # Same as case > 80
+                    if best_score != 100:
+                        if best_score > 80:
                             error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}\n</error>\n\n"
-                    error_indices.append(i)
+                        else:
+                            best_matches = find_best_matches(original_code, file_contents, threshold=threshold, tokenized=True)
+                            if len(best_matches) > 1:
+                                best_matches_string = "\n\n".join([f"Code match {i}:\n```\n{match_}\n```" for i, (match_, score) in enumerate(best_matches)])
+                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify one of the following pieces of code instead?\n{best_matches_string}{too_long_message}{ellipses_message}\n</error>\n\n"
+                            else:
+                                # Same as case > 80
+                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}\n</error>\n\n"
+                        error_indices.append(i)
+                else:
+                    # Check for parentheses mismatch, helps catch downstream syntax errors
+                    new_code = parsed_fcr["new_code"][0].strip("\n")
+                    file_path, ext = os.path.splitext(file_change_request.filename)
+                    if ext.removeprefix(".") in ["java", "c", "cpp", "h", "hpp", "js", "ts", "jsx", "tsx", "go", "rs"]:
+                        for parentheses in ["()", "{}", "[]"]:
+                            left, right = parentheses
+                            old_parentheses_diff = original_code.count(left) - original_code.count(right)
+                            new_parentheses_diff = new_code.count(left) - new_code.count(right)
+                            if old_parentheses_diff != new_parentheses_diff:
+                                # check for smallest surrounding span with corrected parentheses
+                                best_superspan = ""
+                                if new_parentheses_diff == 0:
+                                    best_superspan = find_smallest_valid_superspan(original_code, file_contents)
+                                    if best_superspan:
+                                        error_message += f"<error index=\"{len(error_indices)}\">\nYou have a mismatch in parentheses in <original_code>. Your <original_code> has {original_code.count(left)} opening and {original_code.count(right)} closing parentheses:\n```\n{original_code}\n```\nYou can correct this by extending the code to the following:\n```\n{best_superspan}\n```\n</error>\n\n"
+                                if not best_superspan:
+                                    # use naive error message otherwise
+                                    error_message += f"<error index=\"{len(error_indices)}\">\nYou have a mismatch in parentheses in <original_code> and <new_code>."
+                                    if old_parentheses_diff != 0:
+                                        error_message += f" Your <original_code> has {original_code.count(left)} opening and {original_code.count(right)} closing parentheses:\n```\n{original_code}\n```\n"
+                                    if new_parentheses_diff != 0:
+                                        error_message += f" Your <new_code> has {new_code.count(left)} opening and {new_code.count(right)} closing parentheses:\n```\n{new_code}\n```\n"
+                                    error_message += "Make sure the number of opening and closing parentheses match in both <original_code> and <new_code>, otherwise the changes will cause a syntax error.\n</error>\n\n"
+                                error_indices.append(i)
+                                break
         elif file_change_request.change_type == "create":
             file_name = file_change_request.filename
 
@@ -385,7 +372,7 @@ def get_error_message(
                 error_message += f"<error index=\"{len(error_indices)}\">\n{current_error_message}\n</error>\n\n"
                 error_indices.append(i)
     # if error_message:
-    #     breakpoint()
+        # breakpoint()
     return error_message.strip('\n\n'), error_indices
 
 def validate_file_path(cloned_repo: ClonedRepo, file_name: str, file_dir: str, full_file_dir: str, full_file_name: str, i):
@@ -580,7 +567,7 @@ def get_files_to_change(
             ),
         ],
     )
-    chat_gpt = ChatGPT(
+    renames_chat_gpt = ChatGPT(
         messages=[
             Message(
                 role="system",
@@ -590,7 +577,7 @@ def get_files_to_change(
     )
     MODEL = "claude-3-opus-20240229"
 
-    renames_response = chat_gpt.chat_anthropic(
+    renames_response = renames_chat_gpt.chat_anthropic(
         content=joint_message + "\n\n" + anthropic_rename_prompt,
         temperature=0.1,
         images=images,
@@ -652,6 +639,7 @@ def get_files_to_change(
             use_openai=use_openai,
             seed=seed,
             stop_sequences=["</issue_sub_requests>"],
+            response_cleanup=cleanup_fcrs,
             MAX_CALLS=10
         )
         issue_sub_request_pattern = re.compile(r"<issue_sub_requests>(.*?)</issue_sub_requests>", re.DOTALL)
@@ -664,6 +652,14 @@ def get_files_to_change(
 
     open("msg.txt", "w").write(joint_message + "\n\n" + files_to_change_prompt.format(issue_sub_requests=issue_sub_requests))
     
+    chat_gpt = ChatGPT(
+        messages=[
+            Message(
+                role="system",
+                content=openai_files_to_change_system_prompt if use_openai else anthropic_files_to_change_system_prompt,
+            ),
+        ],
+    )
     # handle stop sequences better for multiple chained calls
     files_to_change_response: str = continuous_llm_calls(
         chat_gpt,
@@ -674,6 +670,7 @@ def get_files_to_change(
         use_openai=use_openai,
         seed=seed,
         stop_sequences=["</plan>"],
+        response_cleanup=cleanup_fcrs,
         MAX_CALLS=10
     ) + "\n</plan>"
 
@@ -707,7 +704,7 @@ def get_files_to_change(
             renames_dict=renames_dict,
         )
 
-        for _ in range(3):
+        for error_resolution_count in range(3):
             if not error_message:
                 break
             # todo: segment these into smaller calls to handle different edge cases
@@ -727,7 +724,8 @@ def get_files_to_change(
                 images=images,
                 seed=seed,
                 stop_sequences=["</error_resolutions>"],
-                use_openai=use_openai,
+                response_cleanup=cleanup_fcrs,
+                use_openai=error_resolution_count < 2,
             )
             drops, matches = parse_patch_fcrs(fix_attempt)
             for index, new_fcr in matches:
@@ -868,6 +866,7 @@ def context_get_files_to_change(
         ],
     )
     MODEL = "claude-3-opus-20240229"
+    open("msg.txt", "w").write(joint_message + "\n\n" + context_files_to_change_prompt)
     files_to_change_response = chat_gpt.chat_anthropic(
         content=joint_message + "\n\n" + context_files_to_change_prompt,
         model=MODEL,
@@ -1230,6 +1229,7 @@ def get_files_to_change_for_gha(
             model=MODEL,
             temperature=0.1,
             stop_sequences=["</plan>"],
+            response_cleanup=cleanup_fcrs,
             MAX_CALLS=10,
             use_openai=use_openai,
         ) + "\n</plan>"
@@ -1270,6 +1270,7 @@ def get_files_to_change_for_gha(
                 model=MODEL,
                 temperature=0.1,
                 stop_sequences=["</error_resolutions>"],
+                response_cleanup=cleanup_fcrs,
                 MAX_CALLS=10,
                 use_openai=use_openai,
             )
