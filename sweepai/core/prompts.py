@@ -422,7 +422,7 @@ c. List out the new Github Action error logs that you must now solve and potenti
 List ALL the types of error messages in the current error logs and their root causes. Follow this format:
 
 <error_analysis index="1">
-Error message 1: Identify the error message. If multiple errors are occurring due to the same root cause, group them together.
+Error message 1: Identify the error message.
 1. Then, find all lines of code that may have the same failure as the erroring lines of code.
 2. Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code. Most of the time, the test case has yet to be updated.
 3. Explain how to resolve the error in the test case. Be complete and precise. Remember that to resolve the error in a way such that the test case is still valid. Do not simply apply a band-aid solution to make the error go away.
@@ -446,7 +446,9 @@ Write the new code in <new_code> tags, specifying necessary imports and referenc
 Use multiple <modify> blocks for the same file to separate distinct changes, such as for imports.
 </modify>
 
-Then, determine if there are similar issues that we should also resolve. Make similar additional modify blocks as needed.
+Then, determine if there are similar issues that we should also resolve. Make as many additional modify blocks as needed until ALL similar issues are resolved.
+Any issue that doesn't have a corresponding modify block will not be fixed, you must make modify blocks for every single issue identified.
+Do not attempt to fix multiple issues with a single modify block, each issue must have its own modify block.
 </error_analysis>
 [additional <error_analysis> blocks as needed, for ALL error messages in the error logs
 </plan>""" # + files_to_change_example TODO: test separately
