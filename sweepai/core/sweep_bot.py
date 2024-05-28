@@ -14,7 +14,7 @@ from rapidfuzz import fuzz
 
 from sweepai.agents.modify_utils import contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, parse_fcr, indent
 from sweepai.core.annotate_code_openai import get_annotated_source_code
-from sweepai.core.chat import ChatGPT
+from sweepai.core.chat import ChatGPT, continuous_llm_calls
 from sweepai.core.entities import (
     FileChangeRequest,
     Message,
@@ -120,49 +120,6 @@ def cleanup_fcrs(fcrs_string: str):
     fcrs_string = re.sub(r"<original_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>", "<original_code>", fcrs_string)
     fcrs_string = re.sub(r"<new_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>", "<new_code>", fcrs_string)
     return fcrs_string
-
-def continuous_llm_calls(
-    chat_gpt: ChatGPT,
-    *args,
-    stop_sequences: list[str] = ["</plan>"],
-    MAX_CALLS = 10,
-    use_openai: bool = False,
-    **kwargs    
-):
-    response: str = chat_gpt.chat_anthropic(
-        use_openai=use_openai,
-        *args,
-        **kwargs
-    )
-    num_calls = 0
-    # pylint: disable=E1101
-    while not any(token in response for token in stop_sequences) \
-        and num_calls < MAX_CALLS:
-        last_line_index = response.rfind("\n")
-        if use_openai:
-            last_block = response.rfind("<original_code>")
-            last_block = response.rfind("<new_code>", last_block)
-            if last_line_index - last_block < 2500:
-                last_line_index = last_block
-        response = response[:last_line_index].rstrip()
-        chat_gpt.messages[-1].content = cleanup_fcrs(response)
-        # ask for a second response
-        try:
-            if "content" in kwargs:
-                kwargs.pop("content")
-            next_response: str = chat_gpt.chat_anthropic(
-                use_openai=use_openai,
-                *args,
-                **kwargs,
-                content=""
-            )
-            next_response = cleanup_fcrs(next_response)
-            # we can simply concatenate the responses
-            response += next_response
-        except Exception as e:
-            logger.error(f"Failed to get second response due to {e}")
-        num_calls += 1
-    return response
 
 def parse_patch_fcrs(fcr_patch_string: str):
     pattern = re.compile(r"""<(?P<change_type>[a-z_]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- @\{\}]*?)\"\s+index=\"(?P<index>\d+)\">(?P<instructions>.*?)\s*<\/\1>""", re.DOTALL)
@@ -657,6 +614,7 @@ def get_files_to_change(
             use_openai=use_openai,
             seed=seed,
             stop_sequences=["</issue_sub_requests>"],
+            response_cleanup=cleanup_fcrs,
             MAX_CALLS=10
         )
         issue_sub_request_pattern = re.compile(r"<issue_sub_requests>(.*?)</issue_sub_requests>", re.DOTALL)
@@ -679,6 +637,7 @@ def get_files_to_change(
         use_openai=use_openai,
         seed=seed,
         stop_sequences=["</plan>"],
+        response_cleanup=cleanup_fcrs,
         MAX_CALLS=10
     ) + "\n</plan>"
 
@@ -732,6 +691,7 @@ def get_files_to_change(
                 images=images,
                 seed=seed,
                 stop_sequences=["</error_resolutions>"],
+                response_cleanup=cleanup_fcrs,
                 use_openai=use_openai,
             )
             drops, matches = parse_patch_fcrs(fix_attempt)
@@ -1235,6 +1195,7 @@ def get_files_to_change_for_gha(
             model=MODEL,
             temperature=0.1,
             stop_sequences=["</plan>"],
+            response_cleanup=cleanup_fcrs,
             MAX_CALLS=10,
             use_openai=use_openai,
         ) + "\n</plan>"
@@ -1275,6 +1236,7 @@ def get_files_to_change_for_gha(
                 model=MODEL,
                 temperature=0.1,
                 stop_sequences=["</error_resolutions>"],
+                response_cleanup=cleanup_fcrs,
                 MAX_CALLS=10,
                 use_openai=use_openai,
             )
