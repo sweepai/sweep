@@ -127,7 +127,7 @@ Take these steps:
 
 2. Plan: Write all necessary code changes to resolve the issue, indicating which code sections to modify and how to modify it.
     - When modifying code you MUST do the following:
-        - First, copy the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. The <original_code> block must NOT be empty.
+        - First, copy the original code in <original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. The <original_code> block must NOT be empty. Start from the last header like a function or class definition and include the entire block of code that needs to be modified.
         - Next, write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
     - When creating files you MUST do the following:
         - First, describe in detail EVERYTHING you will need in this file. Skip writing <original_code> tags.
@@ -179,7 +179,7 @@ d. Sort the proposed changes topologically. This means that each proposed change
 <modify file="file_path"> 
 Describe the changes to be made.
 
-1. If you are creating a file, you may skip this step. Otherwise, copy the original code into <original_code></original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. The referenced original code span should be just enough to cover the change, with 10 extra lines above and below for context.
+1. If you are creating a file, you may skip this step. Otherwise, copy the original code into <original_code></original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. The referenced original code span should be just enough to cover the change, with 10 extra lines above and below for context. Start from the last header like a function or class definition and include the entire block of code that needs to be modified.
 
 2. Write the new code in <new_code></new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code></original_code>. Paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED.
 </modify>
