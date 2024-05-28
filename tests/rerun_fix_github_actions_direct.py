@@ -1,6 +1,7 @@
 import typer
 
 from sweepai.handlers.on_failing_github_actions import on_failing_github_actions
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.github_utils import get_github_client, get_installation_id
 
 
@@ -37,7 +38,7 @@ def test_issue_url(
         pull_request=pr,
         user_token=_token,
         installation_id=installation_id,
-        chat_logger=None,
+        chat_logger=ChatLogger({"username": "on_failing_github_actions"}),
     )
 
 
