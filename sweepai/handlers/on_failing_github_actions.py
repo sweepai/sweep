@@ -109,6 +109,7 @@ def on_failing_github_actions(
         suite_runs = list(repo.get_workflow_runs(branch=pull_request.head.ref, head_sha=pull_request.head.sha))
         # if all runs have succeeded or have no result, break
         if all([run.conclusion in ["success", None] and run.status not in ["in_progress", "waiting", "pending", "requested", "queued"] for run in runs]):
+            logger.info("All Github Actions have succeeded or have no result.")
             break
         logger.debug(f"Run statuses: {[run.conclusion for run in runs]}")
         # if any of them have failed we retry
@@ -128,6 +129,7 @@ def on_failing_github_actions(
                 formatted_gha_context_prompt = gha_context_cleanup_user_prompt.format(
                     github_actions_logs=failed_gha_logs
                 )
+                # we can also gate github actions fixes here
                 failed_gha_logs = chat_gpt.chat_anthropic(
                     content=formatted_gha_context_prompt,
                     temperature=0.2,
