@@ -672,8 +672,8 @@ def continuous_llm_calls(
         and num_calls < MAX_CALLS: # 80% of max tokens
         last_line_index = response.rfind("\n")
         if use_openai:
-            last_block_original_code = response.rfind("<original_code>") + len("<original_code>")
-            last_block_new_code = response.rfind("<new_code>") + len("<new_code>")
+            last_block_original_code = response.rfind("<original_code>\n") + len("<original_code>\n")
+            last_block_new_code = response.rfind("<new_code>\n") + len("<new_code>\n")
             last_block = max(last_block_original_code, last_block_new_code)
             if last_line_index - last_block < 2500:
                 last_line_index = last_block

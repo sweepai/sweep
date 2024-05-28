@@ -1101,6 +1101,8 @@ def handle_function_call(
                                 original_code=tool_call['original_code'],
                                 file_path=file_name
                             )
+                            # print(error_message)
+                            # breakpoint()
                     break
                 # ensure original_code and new_code has the correct indents
                 original_code, new_code, original_code_lines = validate_indents(original_code, new_code, file_contents, correct_indent, rstrip_original_code)
