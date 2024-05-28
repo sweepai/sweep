@@ -677,7 +677,6 @@ def continuous_llm_calls(
             last_block = max(last_block_original_code, last_block_new_code)
             if last_line_index - last_block < 2500:
                 last_line_index = last_block
-            breakpoint()
         response = response[:last_line_index].rstrip()
         chat_gpt.messages[-1].content = response_cleanup(response)
         # ask for a second response
