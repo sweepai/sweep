@@ -32,6 +32,7 @@ from sweepai.core.entities import (
     SweepPullRequest,
 )
 from sweepai.core.pr_reader import PRReader
+from sweepai.core.pull_request_bot import PRSummaryBot
 from sweepai.core.sweep_bot import get_files_to_change
 from sweepai.handlers.on_failing_github_actions import on_failing_github_actions
 from sweepai.handlers.create_pr import (
@@ -136,6 +137,7 @@ def on_ticket(
             if MONGODB_URI
             else None
         )
+        modify_files_dict_history: list[dict[str, dict[str, str]]] = []
 
         if chat_logger and not IS_SELF_HOSTED:
             is_paying_user = chat_logger.is_paying_user()
@@ -534,7 +536,9 @@ def on_ticket(
                     installation_id=installation_id,
                     renames_dict=renames_dict
                 )
-                commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]
+                pull_request_bot = PRSummaryBot()
+                commit_message = pull_request_bot.get_commit_message(modify_files_dict, chat_logger=chat_logger)[:50]
+                modify_files_dict_history.append(copy.deepcopy(modify_files_dict))
                 new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
                 previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
                 new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, file_change_requests)

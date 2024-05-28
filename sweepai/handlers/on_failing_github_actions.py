@@ -13,6 +13,7 @@ from sweepai.config.server import DEPLOYMENT_GHA_ENABLED
 from sweepai.core.chat import ChatGPT
 from sweepai.core.context_pruning import RepoContextManager
 from sweepai.core.entities import Message
+from sweepai.core.pull_request_bot import PRSummaryBot
 from sweepai.core.sweep_bot import GHA_PROMPT, GHA_PROMPT_WITH_HISTORY, get_files_to_change_for_gha, validate_file_change_requests
 from sweepai.handlers.create_pr import handle_file_change_requests
 from sweepai.utils.chat_logger import ChatLogger
@@ -79,6 +80,7 @@ def on_failing_github_actions(
     user_token: str,
     installation_id: int,
     gha_history: list[str] = [],
+    modify_files_dict_history: list[dict[str, dict[str, str]]] = [],
     chat_logger: ChatLogger | None = None,
 ):
     modify_files_dict = {}
@@ -192,7 +194,19 @@ def on_failing_github_actions(
                     installation_id=installation_id,
                     previous_modify_files_dict=previous_modify_files_dict,
                 )
-                commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]
+                pull_request_bot = PRSummaryBot()
+                if modify_files_dict_history:
+                    commit_message = pull_request_bot.get_commit_message(
+                        modify_files_dict, 
+                        previous_modify_files_dict=modify_files_dict_history[-1], 
+                        chat_logger=chat_logger
+                    )[:50]
+                else:
+                    commit_message = pull_request_bot.get_commit_message(
+                        modify_files_dict, chat_logger=chat_logger
+                    )[:50]
+                modify_files_dict_history.append(copy.deepcopy(modify_files_dict))
+                    
                 try:
                     new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
                     previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
