@@ -8,8 +8,7 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 
 
-class PRSummaryBot(ChatGPT):
-    commit_message_system_prompt = """[TASK]
+commit_message_system_prompt = """[TASK]
 Create a concise, imperative commit message for GitHub from file operation descriptions (e.g., added, modified, deleted). The output must:
 1. Reflect all relevant file operations clearly.
 2. Use an imperative tone, such as "Add", "Update", "Remove".
@@ -28,7 +27,7 @@ You are expected to out the the resulting commit message in the following xml fo
 short and concise description of the file diffs for a GitHub commit, not exceeding 50 characters
 </commit_message>
 """
-    commit_message_user_prompt = """[INPUT]
+commit_message_user_prompt = """[INPUT]
 Below are a series of file diffs that you need to create a github commit message for:
 
 {file_diffs}
@@ -36,6 +35,7 @@ Below are a series of file diffs that you need to create a github commit message
 [OUTPUT]
 
 <commit_message>"""
+class PRSummaryBot(ChatGPT):
     # get commit message based on the patches
     # if previous patches are passed in then generate the incremental commit message
     def get_commit_message(
@@ -47,7 +47,7 @@ Below are a series of file diffs that you need to create a github commit message
         self.messages = [
             Message(
                 role="system",
-                content=self.commit_message_system_prompt,
+                content=commit_message_system_prompt,
             )
         ]
         file_diffs = ""
@@ -66,7 +66,7 @@ Below are a series of file diffs that you need to create a github commit message
                     file_diff = generate_diff(file_data['original_contents'], file_data['contents'])
                 file_diffs += f"<file_diffs file='{file_name}'>\n{file_diff}\n</file_diffs>"
             
-        formatted_user_prompt = self.commit_message_user_prompt.format(file_diffs=file_diffs)
+        formatted_user_prompt = commit_message_user_prompt.format(file_diffs=file_diffs)
         commit_message_response = self.chat_anthropic(
             content=formatted_user_prompt,
             temperature=0.1,
