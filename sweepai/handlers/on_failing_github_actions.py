@@ -1,4 +1,5 @@
 import copy
+import re
 from time import sleep
 
 from github import WorkflowRun
@@ -30,6 +31,39 @@ gha_context_cleanup_user_prompt = """
 
 ONLY RETURN THE USEFUL PARTS OF THE LOGS THAT WILL HELP A DEVELOPER RESOLVE THE ISSUES. NOTHING ELSE.
 """
+
+def get_error_locations_from_error_logs(error_logs: str, cloned_repo: ClonedRepo):
+    annotated_error_logs = error_logs
+    pattern = re.compile(r"^(?P<file_path>.*?)(?P<dummy_match>\b)(?P<line_num>\d+)(?P<error_message>.*?)$", re.MULTILINE)
+    matches = pattern.findall(error_logs)
+    matched_files = []
+
+    file_paths = cloned_repo.get_file_list()
+    for match in matches:
+        formatted_error_message = ""
+        potential_file_path, _, line_number, error_message = match
+        if not any(file_path in potential_file_path
+                   for file_path in file_paths):
+            continue
+        actual_file_path = [
+            file_path 
+            for file_path in file_paths
+            if file_path in potential_file_path
+        ][0]
+        matched_files.append(actual_file_path)
+        
+        # get matching line of code
+        file_contents = cloned_repo.get_file_contents(actual_file_path)
+        lines = file_contents.splitlines()
+        matched_line = int(line_number) - 1
+        if matched_line >= len(lines):
+            continue
+        joined_match = "".join(match)
+        formatted_error_message = f"{joined_match}\n    <code>{lines[matched_line]}</code>"
+        annotated_error_logs = annotated_error_logs.replace(
+            joined_match, formatted_error_message
+        )
+    return annotated_error_logs, matched_files
 
 
 def on_failing_github_actions(
@@ -82,7 +116,7 @@ def on_failing_github_actions(
         if any([run.conclusion == "failure" for run in runs]):
             failed_runs = [run for run in suite_runs if run.conclusion == "failure"]
 
-            failed_gha_logs: list[str] = get_failing_gha_logs(
+            failed_gha_logs = get_failing_gha_logs(
                 failed_runs,
                 installation_id,
             )
@@ -109,6 +143,7 @@ def on_failing_github_actions(
                     repo=repo,
                     branch=pull_request.head.ref,
                 )
+                failed_gha_logs = get_error_locations_from_error_logs(failed_gha_logs, cloned_repo=cloned_repo)
                 diffs = get_branch_diff_text(repo=repo, branch=pull_request.head.ref, base_branch=pull_request.base.ref)
                 # problem_statement = f"{title}\n{internal_message_summary}\n{replies_text}"
                 all_information_prompt = GHA_PROMPT.format(
@@ -149,6 +184,7 @@ def on_failing_github_actions(
                     previous_modify_files_dict=previous_modify_files_dict,
                 )
                 commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]
+                quit()
                 try:
                     new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
                     previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
