@@ -7,6 +7,7 @@ from github.Repository import Repository
 from github.PullRequest import PullRequest
 from loguru import logger
 
+from sweepai.agents.modify_utils import strip_triple_quotes
 from sweepai.config.client import get_gha_enabled
 from sweepai.config.server import DEPLOYMENT_GHA_ENABLED
 from sweepai.core.chat import ChatGPT
@@ -63,6 +64,10 @@ def get_error_locations_from_error_logs(error_logs: str, cloned_repo: ClonedRepo
         annotated_error_logs = annotated_error_logs.replace(
             joined_match, formatted_error_message
         )
+    deduped_matched_files = []
+    for file_path in matched_files:
+        if file_path not in deduped_matched_files:
+            deduped_matched_files.append(file_path)
     return annotated_error_logs, matched_files
 
 
@@ -135,6 +140,7 @@ def on_failing_github_actions(
                     temperature=0.2,
                     use_openai=True,
                 )
+                failed_gha_logs = strip_triple_quotes(failed_gha_logs)
                 # make edits to the PR
                 # TODO: look into rollbacks so we don't continue adding onto errors
                 cloned_repo = ClonedRepo( # reinitialize cloned_repo to avoid conflicts
@@ -144,7 +150,7 @@ def on_failing_github_actions(
                     repo=repo,
                     branch=pull_request.head.ref,
                 )
-                failed_gha_logs = get_error_locations_from_error_logs(failed_gha_logs, cloned_repo=cloned_repo)
+                failed_gha_logs, _ = get_error_locations_from_error_logs(failed_gha_logs, cloned_repo=cloned_repo)
                 diffs = get_branch_diff_text(repo=repo, branch=pull_request.head.ref, base_branch=pull_request.base.ref)
                 # problem_statement = f"{title}\n{internal_message_summary}\n{replies_text}"
                 all_information_prompt = GHA_PROMPT.format(
