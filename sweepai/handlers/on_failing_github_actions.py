@@ -49,7 +49,7 @@ def on_failing_github_actions(
     total_edit_attempts = 0
     SLEEP_DURATION_SECONDS = 5
     GITHUB_ACTIONS_ENABLED = get_gha_enabled(repo=repo) and DEPLOYMENT_GHA_ENABLED
-    GHA_MAX_EDIT_ATTEMPTS = 5 # max number of times to edit PR
+    GHA_MAX_EDIT_ATTEMPTS = 10 # max number of times to edit PR
     current_commit = pull_request.head.sha
 
     _main_runs: list[WorkflowRun.WorkflowRun] = list(repo.get_workflow_runs(branch=repo.default_branch, head_sha=pull_request.base.sha))
@@ -130,13 +130,15 @@ def on_failing_github_actions(
                     "Fix the following errors to complete the user request.",
                     all_information_prompt,
                 )
+                # only pass in top 3 relevant snippets at this point we dont really need context anymore, we are just modifying the existing files
                 file_change_requests, plan = get_files_to_change_for_gha(
-                    relevant_snippets=repo_context_manager.current_top_snippets,
-                    read_only_snippets=repo_context_manager.read_only_snippets,
+                    relevant_snippets=repo_context_manager.current_top_snippets[:3],
+                    read_only_snippets=repo_context_manager.read_only_snippets[:3],
                     problem_statement=all_information_prompt,
                     updated_files=modify_files_dict,
                     cloned_repo=cloned_repo,
                     chat_logger=chat_logger,
+                    use_openai=True
                 )
                 validate_file_change_requests(file_change_requests, cloned_repo)
                 previous_modify_files_dict: dict[str, dict[str, str | list[str]]] | None = None

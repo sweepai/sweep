@@ -126,9 +126,11 @@ def continuous_llm_calls(
     *args,
     stop_sequences: list[str] = ["</plan>"],
     MAX_CALLS = 10,
+    use_openai: bool = False,
     **kwargs    
 ):
     response: str = chat_gpt.chat_anthropic(
+        use_openai=use_openai,
         *args,
         **kwargs
     )
@@ -144,6 +146,7 @@ def continuous_llm_calls(
             if "content" in kwargs:
                 kwargs.pop("content")
             next_response: str = chat_gpt.chat_anthropic(
+                use_openai=use_openai,
                 *args,
                 **kwargs,
                 content=""
@@ -640,13 +643,16 @@ def get_files_to_change(
 
     issue_sub_requests = ""
     if not use_openai:
-        issue_sub_request_response = issue_sub_request_chat_gpt.chat_anthropic(
+        issue_sub_request_response = continuous_llm_calls(
+            issue_sub_request_chat_gpt,
             content=joint_message + "\n\n" + issue_sub_request_prompt,
             model=MODEL,
             temperature=0.1,
             images=images,
             use_openai=use_openai,
-            seed=seed
+            seed=seed,
+            stop_sequences=["</issue_sub_requests>"],
+            MAX_CALLS=10
         )
         issue_sub_request_pattern = re.compile(r"<issue_sub_requests>(.*?)</issue_sub_requests>", re.DOTALL)
         issue_sub_request_match = issue_sub_request_pattern.search(issue_sub_request_response)
@@ -1099,6 +1105,7 @@ def get_files_to_change_for_gha(
     pr_diffs: str = "",
     chat_logger: ChatLogger = None,
     use_faster_model: bool = False,
+    use_openai: bool = False,
 ) -> tuple[list[FileChangeRequest], str]:
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
@@ -1223,7 +1230,8 @@ def get_files_to_change_for_gha(
             model=MODEL,
             temperature=0.1,
             stop_sequences=["</plan>"],
-            MAX_CALLS=10
+            MAX_CALLS=10,
+            use_openai=use_openai,
         ) + "\n</plan>"
         if chat_logger:
             chat_logger.add_chat(
@@ -1262,7 +1270,8 @@ def get_files_to_change_for_gha(
                 model=MODEL,
                 temperature=0.1,
                 stop_sequences=["</error_resolutions>"],
-                MAX_CALLS=10
+                MAX_CALLS=10,
+                use_openai=use_openai,
             )
             drops, matches = parse_patch_fcrs(fix_attempt)
             for index, new_fcr in matches:
