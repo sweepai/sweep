@@ -9,7 +9,7 @@ import traceback
 from time import time
 
 from github import BadCredentialsException
-from github.PullRequest import PullRequest as GithubPullRequest
+from github.PullRequest import PullRequest
 from loguru import logger
 
 
@@ -29,7 +29,7 @@ from sweepai.config.server import (
 from sweepai.core.entities import (
     MockPR,
     NoFilesException,
-    PullRequest,
+    SweepPullRequest,
 )
 from sweepai.core.pr_reader import PRReader
 from sweepai.core.sweep_bot import get_files_to_change
@@ -517,7 +517,7 @@ def on_ticket(
                     "I'm currently validating your changes using parsers and linters to check for mistakes like syntax errors or undefined variables. If I see any of these errors, I will automatically fix them.",
                     3,
                 )
-                pull_request: PullRequest = PullRequest(
+                pull_request: SweepPullRequest = SweepPullRequest(
                     title="Sweep: " + title,
                     branch_name="sweep/" + to_branch_name(title),
                     content="",
@@ -614,7 +614,7 @@ def on_ticket(
             fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
 
             # create draft pr, then convert to regular pr later
-            pr: GithubPullRequest = repo.create_pull(
+            pr: PullRequest = repo.create_pull(
                 title=pr_changes.title,
                 body=pr_changes.body,
                 head=pr_changes.pr_head,
