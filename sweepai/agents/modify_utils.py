@@ -125,7 +125,7 @@ new code line here
 </make_change>
 </function_call>
 
-If the current task is complete, call the submit_task function.
+Be sure to include the <function_call></function_call> XML tags, as well as XML tags for the the tool name and parameters. If the current task is complete, call the submit_task function.
 """
 
 EMPTY_ORIGINAL_CODE_PROMPT = """The original_code variable is empty. It MUST contain a valid section of code from the existing file that you want to modify.
@@ -485,6 +485,31 @@ def tokenize_code(code: str):
 
 def code_processor(code: str):
     return " ".join(tokenize_code(code))
+
+def check_valid_parentheses(code: str):
+    stack = []
+    parentheses_mapping = {")": "(", "}": "{", "]": "["}
+    for char in code:
+        if char in parentheses_mapping:
+            if stack and stack[-1] == parentheses_mapping[char]:
+                stack.pop()
+            else:
+                stack.append(char)
+    return not stack
+
+def check_valid_parentheses_for_patch(original_code: str, new_code: str):
+    for parentheses in ["()", "{}", "[]"]:
+        left, right = parentheses
+        original_left = original_code.count(left)
+        original_right = original_code.count(right)
+        new_left = new_code.count(left)
+        new_right = new_code.count(right)
+        diff_original = original_left - original_right
+        diff_new = new_left - new_right
+        if diff_original != diff_new:
+            return diff_original, diff_new, left
+    return 0, 0, ""
+
 
 def find_best_matches(
     needle: str,

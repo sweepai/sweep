@@ -12,7 +12,7 @@ from networkx import Graph
 from tqdm import tqdm
 from rapidfuzz import fuzz
 
-from sweepai.agents.modify_utils import contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, find_smallest_valid_superspan, parse_fcr, indent
+from sweepai.agents.modify_utils import check_valid_parentheses, check_valid_parentheses_for_patch, contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, find_smallest_valid_superspan, parse_fcr, indent
 from sweepai.core.annotate_code_openai import get_annotated_source_code
 from sweepai.core.chat import ChatGPT, continuous_llm_calls
 from sweepai.core.entities import (
@@ -293,7 +293,8 @@ def get_error_message(
                 error_indices.append(i)
                 continue
             original_code = parsed_fcr["original_code"][0].strip("\n")
-            if original_code == parsed_fcr["new_code"][0].strip("\n"):
+            new_code = parsed_fcr["new_code"][0].strip("\n")
+            if original_code == new_code:
                 error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> and <new_code> are the same. You must provide a different code snippet in <new_code>.\n</error>\n\n"
                 error_indices.append(i)
                 continue
@@ -322,6 +323,10 @@ def get_error_message(
                         continue
 
                     if best_score != 100:
+                        if not check_valid_parentheses(best_match) and check_valid_parentheses_for_patch(original_code, new_code)[-1]:
+                            extended_match = find_smallest_valid_superspan(best_match, file_contents)
+                            if extended_match and extended_match.count("\n") - best_match.count('\n') < 20:
+                                best_match = extended_match
                         if best_score > 80:
                             error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}\n</error>\n\n"
                         else:
@@ -335,7 +340,6 @@ def get_error_message(
                         error_indices.append(i)
                 else:
                     # Check for parentheses mismatch, helps catch downstream syntax errors
-                    new_code = parsed_fcr["new_code"][0].strip("\n")
                     file_path, ext = os.path.splitext(file_change_request.filename)
                     if ext.removeprefix(".") in ["java", "c", "cpp", "h", "hpp", "js", "ts", "jsx", "tsx", "go", "rs"]:
                         for parentheses in ["()", "{}", "[]"]:
@@ -723,7 +727,7 @@ def get_files_to_change(
                 temperature=0.1,
                 images=images,
                 seed=seed,
-                stop_sequences=["</error_resolutions>"],
+                stop_sequences=["</error_resolutions"],
                 response_cleanup=cleanup_fcrs,
                 use_openai=error_resolution_count < 2,
             )
@@ -1269,7 +1273,7 @@ def get_files_to_change_for_gha(
                 ),
                 model=MODEL,
                 temperature=0.1,
-                stop_sequences=["</error_resolutions>"],
+                stop_sequences=["</error_resolutions"],
                 response_cleanup=cleanup_fcrs,
                 MAX_CALLS=10,
                 use_openai=use_openai,
