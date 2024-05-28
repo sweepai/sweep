@@ -490,7 +490,8 @@ def on_ticket(
                     problem_statement=f"{title}\n\n{internal_message_summary}",
                     repo_name=repo_full_name,
                     cloned_repo=cloned_repo,
-                    images=image_contents
+                    images=image_contents,
+                    chat_logger=chat_logger
                 )
                 raise_on_no_file_change_requests(title, summary, edit_sweep_comment, file_change_requests)
 

@@ -74,7 +74,7 @@ def on_failing_github_actions(
         runs = list(repo.get_commit(current_commit).get_check_runs())
         suite_runs = list(repo.get_workflow_runs(branch=pull_request.head.ref, head_sha=pull_request.head.sha))
         # if all runs have succeeded or have no result, break
-        if all([run.conclusion in ["success", None] and run.status not in ["in_progress", "waiting", "pending", "requested", "queued"] for run in runs]):
+        if all([run.conclusion in ["success", "skipped", None] and run.status not in ["in_progress", "waiting", "pending", "requested", "queued"] for run in runs]):
             break
         logger.debug(f"Run statuses: {[run.conclusion for run in runs]}")
         print([run.conclusion == "failure" for run in runs])
