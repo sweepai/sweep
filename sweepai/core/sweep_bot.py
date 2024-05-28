@@ -356,7 +356,7 @@ def get_error_message(
                                         error_message += f" Your <original_code> has {original_code.count(left)} opening and {original_code.count(right)} closing parentheses:\n```\n{original_code}\n```\n"
                                     if new_parentheses_diff != 0:
                                         error_message += f" Your <new_code> has {new_code.count(left)} opening and {new_code.count(right)} closing parentheses:\n```\n{new_code}\n```\n"
-                                    error_message += f"Make sure the number of opening and closing parentheses match in both <original_code> and <new_code>, otherwise the changes will cause a syntax error.\n</error>\n\n"
+                                    error_message += "Make sure the number of opening and closing parentheses match in both <original_code> and <new_code>, otherwise the changes will cause a syntax error.\n</error>\n\n"
                                 error_indices.append(i)
                                 break
         elif file_change_request.change_type == "create":
