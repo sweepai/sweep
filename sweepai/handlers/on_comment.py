@@ -18,6 +18,7 @@ from sweepai.config.server import (
     MONGODB_URI,
 )
 from sweepai.core.entities import MockPR, NoFilesException, Snippet
+from sweepai.core.pull_request_bot import PRSummaryBot
 from sweepai.core.sweep_bot import get_files_to_change, validate_file_change_requests
 from sweepai.handlers.create_pr import handle_file_change_requests
 from sweepai.core.review_utils import get_pr_changes
@@ -332,7 +333,8 @@ def on_comment(
                 renames_dict=renames_dict,
             )
             logger.info("\n".join(generate_diff(file_data["original_contents"], file_data["contents"]) for file_data in modify_files_dict.values()))
-            commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]
+            pull_request_bot = PRSummaryBot()
+            commit_message = pull_request_bot.get_commit_message(modify_files_dict, chat_logger=chat_logger)[:50]
             new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
             previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
             new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, file_change_requests)

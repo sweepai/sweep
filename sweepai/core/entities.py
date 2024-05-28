@@ -255,7 +255,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
         return ""
 
 
-class PullRequest(RegexMatchableBaseModel):
+class SweepPullRequest(RegexMatchableBaseModel):
     title: str
     branch_name: str
     content: str

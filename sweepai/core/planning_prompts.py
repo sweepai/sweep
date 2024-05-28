@@ -56,6 +56,7 @@ You will analyze the provided code files, repository, and GitHub issue to unders
 - Prioritize using existing code and utility methods to minimize writing new code and specify all necessary imports.
 - Break the task into small steps, with each <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file, such as for imports.
 - To remove code, replace it with empty <new_code> tags.
+- Never leave todo or placeholder comments like "# rest of code" in the code. Always fully implement the changes.
 
 ## Instructions
 
@@ -88,34 +89,41 @@ If imports are needed, they should be in a separate <modify> block. Use multiple
 You will complete the above instructions by following this XML format:
 
 ### 1. Issue Analysis:
+# 1. Issue Analysis:
 <issue_analysis>
-a. [Root cause analysis]
+a. Identify potential root causes of the issue by referencing specific code entities in the relevant files. Then, select which of the root causes will most likely resolve the issue based on the current state of the codebase. (write at least 1 paragraph)
 
-b. All changes required to resolve the issue. Follow this format:
-    1. Extremely detailed proposed changes for each relevant suggested change from the user, with references to entities from the codebase. Pinpoint exactly which sections of code this refers to. If multiple changes are needed, list out each occurrence.
-    [additional changes as needed]
+b. Detail ALL of the changes that need to be made to the codebase (excluding tests) to resolve the issue. For each of the sub requests here write a detailed set of code changes spanning at least one change, possibly more. Be specific and direct, using the phrases "add", "replace", and "remove". Be complete and precise. You must cover ALL changes that are required per sub request.
+{issue_sub_requests}
 
-c. [Additional changes (optional)]
+Reference the provided code files, summaries, entity names, and necessary files/directories. The format should be:
+<issue_and_proposed_changes>
+<issue_sub_request>
+...
+</issue_sub_request>
+<proposed_changes>
+1. For each of the sub requests here, pinpoint the exact places to make changes. Describe exactly what to do, referencing specific code entities in the relevant files.
+2. If you find yourself listing out multiple changes in this section that means this subrequest should be further broken down into smaller subrequests.
+...
+</proposed_changes>
+</issue_and_proposed_changes>
+
+c. Detail ALL changes that do not correspond to an sub request from the user's issue. These changes should be necessary to resolve the issue but are not explicitly mentioned in the user's request. This code change should describe exactly what to do, referencing specific code entities in the relevant files. (optional)
+
+d. Sort the proposed changes topologically. This means that each proposed change should only depend on proposed changes that come before it.
 </issue_analysis>
 
-### 2. Plan:
+# 2. Plan:
 <plan>  
 <modify file="file_path"> 
-a. [The detailed description of the changes you are going to make.]
+Describe ALL changes to be made.
 
-b. [Exactly where to start the original code block from.]
+1. If you are creating a file, you may skip this step. Otherwise, copy the original code into <original_code></original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. The referenced original code span should be just enough to cover the change, with 10 extra lines above and below for context.
 
-c.
-
-<original_code>
-The original code that needs to be modified, copied verbatim from the original file, starting from the header specified in section b. Placeholder comments like "# existing code" are NEVER permitted, you must copy the code out in FULL.
-</original_code>
-
-<new_code>
-The new updated code with the desired changes incorporated.
-</new_code>
+2. Write the new code in <new_code></new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code></original_code>. Paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED.
 </modify>
-[additional modifies as needed, for the same file or different files, for different code sections]
+
+[additional modifies as needed until all proposed changes are handled, for the same file or different files]
 </plan>"""
 
 anthropic_files_to_change_system_prompt = """You are a diligent, meticulous AI assistant and will write COMPLETE code changes to resolve a GitHub issue. Being complete means that there will be absolutely NO paraphrasing, abbreviating, or placeholder comments like "# rest of code here" or "# rest of test cases", since that is lazy. We want to do our best to write a pull request to get merged. Code files, a description of the issue, and relevant parts of the codebase will be provided.
@@ -147,6 +155,7 @@ Guidelines:
 - A <modify> block must contain exactly one change in one <new_code> tag.
 - To remove code, replace it with empty <new_code> tags.
 - If imports are necessary, place them in a separate <modify> block. Use multiple <modify> blocks for the same file to separate distinct changes.
+- Never leave todo or placeholder comments like "# rest of code" in the code. Always fully implement the changes.
 <guidelines>
 
 Please use the following XML format for your response, replacing the placeholders with the appropriate information:
@@ -165,6 +174,7 @@ Reference the provided code files, summaries, entity names, and necessary files/
 </issue_sub_request>
 <proposed_changes>
 1. For each of the sub requests here, pinpoint the exact places to make changes. Describe exactly what to do, referencing specific code entities in the relevant files.
+2. If you find yourself listing out multiple changes in this section that means this subrequest should be further broken down into smaller subrequests.
 ...
 </proposed_changes>
 </issue_and_proposed_changes>
@@ -177,14 +187,14 @@ d. Sort the proposed changes topologically. This means that each proposed change
 # 2. Plan:
 <plan>  
 <modify file="file_path"> 
-Describe the changes to be made.
+Describe ALL changes to be made.
 
 1. If you are creating a file, you may skip this step. Otherwise, copy the original code into <original_code></original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. The referenced original code span should be just enough to cover the change, with 10 extra lines above and below for context. Start from the last header like a function or class definition and include the entire block of code that needs to be modified.
 
 2. Write the new code in <new_code></new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE COMPLETE as this code will replace the mentioned <original_code></original_code>. Paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED.
 </modify>
 
-[additional modifies as needed, for the same file or different files]
+[additional modifies as needed until all proposed changes are handled, for the same file or different files]
 </plan>"""
 
 anthropic_rename_prompt = """Your job is to handle all renames and deletions in the codebase to resolve a user's issue. Renames will be needed for any form of file or directory movement, translations or migrations.
