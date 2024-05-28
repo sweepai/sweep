@@ -438,7 +438,7 @@ Instructions for modifying one section of the file. Each block must have exactly
 
 a. Describe the section of code that needs to be modified, i.e. the test case that checks if `foo` == `bar`.
 <original_code>
-Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. Start with the closest header several lines before the target code and end with the closest end of the block or several lines after the code.
+Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. Start with the closest header several lines before the target code and end with the closest end of the block or several lines after the code. (Max 10 lines of code, you do not need more)
 </original_code>
 
 b. Describe the changes that need to be made to the code, i.e. the test case should instead check if `foo` != `baz`.
