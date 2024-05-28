@@ -111,7 +111,6 @@ def on_failing_github_actions(
         if all([run.conclusion in ["success", None] and run.status not in ["in_progress", "waiting", "pending", "requested", "queued"] for run in runs]):
             break
         logger.debug(f"Run statuses: {[run.conclusion for run in runs]}")
-        print([run.conclusion == "failure" for run in runs])
         # if any of them have failed we retry
         if any([run.conclusion == "failure" for run in runs]):
             failed_runs = [run for run in suite_runs if run.conclusion == "failure"]
