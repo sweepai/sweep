@@ -323,7 +323,7 @@ def get_error_message(
                         continue
 
                     if best_score != 100:
-                        if not check_valid_parentheses(best_match) and check_valid_parentheses_for_patch(original_code, new_code)[-1]:
+                        if not check_valid_parentheses(best_match):
                             extended_match = find_smallest_valid_superspan(best_match, file_contents)
                             if extended_match and extended_match.count("\n") - best_match.count('\n') < 20:
                                 best_match = extended_match
