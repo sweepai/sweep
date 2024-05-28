@@ -330,6 +330,17 @@ d. Indicate the minimum amount of changes required to resolve the linter warning
 
 Then, call the make_change function to fix the linter warnings. If the warning absolutely cannot or should not be resolved, call submit_task with an explanation of the issue."""
 
+fix_parentheses_prompt = """It seems that you have added or removed {diff_parentheses} extra {parenthesis} parentheses. Your <original_code> has {old_left_parentheses} opening and {old_right_parentheses} closing parentheses, while your <new_code> has {new_left_parentheses} opening and {new_right_parentheses} closing parentheses. You MUST resolve the issue by following these steps:
+
+# 1. Thinking
+<thinking>
+First, identify which of original_code and new_code has a mismatched number of parentheses and the correct number of parentheses it's supposed to have.
+Second, decide whether to expand or shrink the original_code so that it encompasses an entire block of syntactically valid code that still surrounds the targetted change.
+</thinking>
+
+# 2. Function call
+Then, call the make_change function again with the corrected parameters."""
+
 fix_syntax_prompt = """You MUST resolve the issue by following these steps:
 
 # 1. Thinking
@@ -555,6 +566,32 @@ def find_max_indentation(needle: str):
             continue
         max_indent = max(max_indent, len(line) - len(line.lstrip()))
     return max_indent
+
+def find_smallest_valid_superspan(needle: str, haystack: str):
+    # assumption: needle is a contiguous block of code in the haystack
+    # we want to find the smallest subspan of the haystack that contains the needle that has valid parentheses
+    # can generalize to nodes of a tree instead, could be more language agnostic
+    if needle not in haystack:
+        return ""
+    stack = []
+    opposite_parentheses = {")": "(", "}": "{", "]": "[", "(": ")", "{": "}", "[": "]"}
+    for char in needle:
+        if char in opposite_parentheses:
+            if stack and stack[-1] == opposite_parentheses[char]:
+                stack.pop()
+            else:
+                stack.append(char)
+    starting_index = haystack.index(needle)
+    ending_index = starting_index + len(needle)
+    for i, char in enumerate(haystack[ending_index:]):
+        if char in opposite_parentheses:
+            if stack and stack[-1] == opposite_parentheses[char]:
+                stack.pop()
+            else:
+                stack.append(char)
+        if not stack:
+            return haystack[starting_index:ending_index + i + 1]
+    return ""
 
 def contains_ignoring_whitespace(needle: str, haystack: str):
     needle = "\n".join([line.rstrip() for line in needle.splitlines()])
@@ -1120,7 +1157,24 @@ def handle_function_call(
                         file_contents, new_file_contents, n=10
                     )
                     if failing_parse:
-                        error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n```\n{failing_parse}\n```\n\n" + fix_syntax_prompt
+                        parentheses_message = ""
+                        for parentheses in ["()", "{}", "[]"]:
+                            left, right = parentheses
+                            old_parentheses_diff = original_code.count(left) - original_code.count(right)
+                            new_parentheses_diff = new_code.count(left) - new_code.count(right)
+                            if old_parentheses_diff != new_parentheses_diff:
+                                # handle this logic more precisely
+                                diff_parentheses = abs(old_parentheses_diff - new_parentheses_diff)
+                                parentheses_message = fix_parentheses_prompt.format(
+                                    diff_parentheses=diff_parentheses,
+                                    parenthesis=left if old_parentheses_diff < new_parentheses_diff else right,
+                                    old_left_parentheses=original_code.count(left),
+                                    old_right_parentheses=original_code.count(right),
+                                    new_left_parentheses=new_code.count(left),
+                                    new_right_parentheses=new_code.count(right),
+                                )
+                                break
+                        error_message = f"Error: Invalid code changes have been applied. You requested the following changes:\n\n```diff\n{current_diff}\n```\n\nBut it produces invalid code with the following error logs:\n```\n{failing_parse}\n```\n\n" + parentheses_message or fix_syntax_prompt
                         # print(error_message)
                         break
                     elif check_results_message:

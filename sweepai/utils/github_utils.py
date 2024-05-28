@@ -358,13 +358,6 @@ class ClonedRepo:
         )
 
     @cached_property
-    def zip_path(self):
-        logger.info("Zipping repository...")
-        shutil.make_archive(self.repo_dir, "zip", self.repo_dir)
-        logger.info("Done zipping")
-        return f"{self.repo_dir}.zip"
-
-    @cached_property
     def repo_dir(self):
         self.repo = (
             Github(self.token).get_repo(self.repo_full_name)
@@ -442,7 +435,6 @@ class ClonedRepo:
     def __del__(self):
         try:
             shutil.rmtree(self.repo_dir)
-            os.remove(self.zip_path)
             return True
         except Exception:
             return False
