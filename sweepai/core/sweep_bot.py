@@ -12,7 +12,7 @@ from networkx import Graph
 from tqdm import tqdm
 from rapidfuzz import fuzz
 
-from sweepai.agents.modify_utils import contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, parse_fcr, indent
+from sweepai.agents.modify_utils import contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, find_smallest_valid_superspan, parse_fcr, indent
 from sweepai.core.annotate_code_openai import get_annotated_source_code
 from sweepai.core.chat import ChatGPT, continuous_llm_calls
 from sweepai.core.entities import (
@@ -321,19 +321,44 @@ def get_error_message(
                         error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nBut the code is no where to be found in the file. There are also no similar code snippets in this file.{too_long_message}{ellipses_message}\n</error>\n\n"
                         continue
 
-                    if best_score == 100:
-                        continue
-                    if best_score > 80:
-                        error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}\n</error>\n\n"
-                    else:
-                        best_matches = find_best_matches(original_code, file_contents, threshold=threshold, tokenized=True)
-                        if len(best_matches) > 1:
-                            best_matches_string = "\n\n".join([f"Code match {i}:\n```\n{match_}\n```" for i, (match_, score) in enumerate(best_matches)])
-                            error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify one of the following pieces of code instead?\n{best_matches_string}{too_long_message}{ellipses_message}\n</error>\n\n"
-                        else:
-                            # Same as case > 80
+                    if best_score != 100:
+                        if best_score > 80:
                             error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}\n</error>\n\n"
-                    error_indices.append(i)
+                        else:
+                            best_matches = find_best_matches(original_code, file_contents, threshold=threshold, tokenized=True)
+                            if len(best_matches) > 1:
+                                best_matches_string = "\n\n".join([f"Code match {i}:\n```\n{match_}\n```" for i, (match_, score) in enumerate(best_matches)])
+                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify one of the following pieces of code instead?\n{best_matches_string}{too_long_message}{ellipses_message}\n</error>\n\n"
+                            else:
+                                # Same as case > 80
+                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}\n</error>\n\n"
+                        error_indices.append(i)
+                else:
+                    # Check for parentheses mismatch, helps catch downstream syntax errors
+                    new_code = parsed_fcr["new_code"][0].strip("\n")
+                    file_path, ext = os.path.splitext(file_change_request.filename)
+                    if ext.removeprefix(".") in ["java", "c", "cpp", "h", "hpp", "js", "ts", "jsx", "tsx", "go", "rs"]:
+                        for parentheses in ["()", "{}", "[]"]:
+                            left, right = parentheses
+                            old_parentheses_diff = original_code.count(left) - original_code.count(right)
+                            new_parentheses_diff = new_code.count(left) - new_code.count(right)
+                            if old_parentheses_diff != new_parentheses_diff:
+                                # check for smallest surrounding span with corrected parentheses
+                                best_superspan = ""
+                                if new_parentheses_diff == 0:
+                                    best_superspan = find_smallest_valid_superspan(original_code, file_contents)
+                                    if best_superspan:
+                                        error_message += f"<error index=\"{len(error_indices)}\">\nYou have a mismatch in parentheses in <original_code>. Your <original_code> has {original_code.count(left)} opening and {original_code.count(right)} closing parentheses:\n```\n{original_code}\n```\nYou can correct this by extending the code to the following:\n```\n{best_superspan}\n```\n</error>\n\n"
+                                if not best_superspan:
+                                    # use naive error message otherwise
+                                    error_message += f"<error index=\"{len(error_indices)}\">\nYou have a mismatch in parentheses in <original_code> and <new_code>."
+                                    if old_parentheses_diff != 0:
+                                        error_message += f" Your <original_code> has {original_code.count(left)} opening and {original_code.count(right)} closing parentheses:\n```\n{original_code}\n```\n"
+                                    if new_parentheses_diff != 0:
+                                        error_message += f" Your <new_code> has {new_code.count(left)} opening and {new_code.count(right)} closing parentheses:\n```\n{new_code}\n```\n"
+                                    error_message += f"Make sure the number of opening and closing parentheses match in both <original_code> and <new_code>, otherwise the changes will cause a syntax error.\n</error>\n\n"
+                                error_indices.append(i)
+                                break
         elif file_change_request.change_type == "create":
             file_name = file_change_request.filename
 
@@ -346,8 +371,8 @@ def get_error_message(
             if current_error_message:
                 error_message += f"<error index=\"{len(error_indices)}\">\n{current_error_message}\n</error>\n\n"
                 error_indices.append(i)
-    # if error_message:
-    #     breakpoint()
+    if error_message:
+        breakpoint()
     return error_message.strip('\n\n'), error_indices
 
 def validate_file_path(cloned_repo: ClonedRepo, file_name: str, file_dir: str, full_file_dir: str, full_file_name: str, i):
@@ -542,7 +567,7 @@ def get_files_to_change(
             ),
         ],
     )
-    chat_gpt = ChatGPT(
+    renames_chat_gpt = ChatGPT(
         messages=[
             Message(
                 role="system",
@@ -552,7 +577,7 @@ def get_files_to_change(
     )
     MODEL = "claude-3-opus-20240229"
 
-    renames_response = chat_gpt.chat_anthropic(
+    renames_response = renames_chat_gpt.chat_anthropic(
         content=joint_message + "\n\n" + anthropic_rename_prompt,
         temperature=0.1,
         images=images,
@@ -627,6 +652,14 @@ def get_files_to_change(
 
     open("msg.txt", "w").write(joint_message + "\n\n" + files_to_change_prompt.format(issue_sub_requests=issue_sub_requests))
     
+    chat_gpt = ChatGPT(
+        messages=[
+            Message(
+                role="system",
+                content=openai_files_to_change_system_prompt if use_openai else anthropic_files_to_change_system_prompt,
+            ),
+        ],
+    )
     # handle stop sequences better for multiple chained calls
     files_to_change_response: str = continuous_llm_calls(
         chat_gpt,
@@ -671,7 +704,7 @@ def get_files_to_change(
             renames_dict=renames_dict,
         )
 
-        for _ in range(3):
+        for error_resolution_count in range(3):
             if not error_message:
                 break
             # todo: segment these into smaller calls to handle different edge cases
@@ -692,7 +725,7 @@ def get_files_to_change(
                 seed=seed,
                 stop_sequences=["</error_resolutions>"],
                 response_cleanup=cleanup_fcrs,
-                use_openai=use_openai,
+                use_openai=error_resolution_count < 2,
             )
             drops, matches = parse_patch_fcrs(fix_attempt)
             for index, new_fcr in matches:
@@ -712,8 +745,8 @@ def get_files_to_change(
             logger.debug("Old indices", error_indices)
             error_message, error_indices = get_error_message(file_change_requests, cloned_repo, renames_dict=renames_dict)
             logger.debug("New indices", error_indices)
-            # breakpoint()
-        # breakpoint()
+            breakpoint()
+        breakpoint()
 
         validate_file_change_requests(file_change_requests, cloned_repo, renames_dict=renames_dict)
         return renames_dict, file_change_requests, files_to_change_response
@@ -833,6 +866,7 @@ def context_get_files_to_change(
         ],
     )
     MODEL = "claude-3-opus-20240229"
+    open("msg.txt", "w").write(joint_message + "\n\n" + context_files_to_change_prompt)
     files_to_change_response = chat_gpt.chat_anthropic(
         content=joint_message + "\n\n" + context_files_to_change_prompt,
         model=MODEL,

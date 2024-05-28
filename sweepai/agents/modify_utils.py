@@ -567,6 +567,32 @@ def find_max_indentation(needle: str):
         max_indent = max(max_indent, len(line) - len(line.lstrip()))
     return max_indent
 
+def find_smallest_valid_superspan(needle: str, haystack: str):
+    # assumption: needle is a contiguous block of code in the haystack
+    # we want to find the smallest subspan of the haystack that contains the needle that has valid parentheses
+    # can generalize to nodes of a tree instead, could be more language agnostic
+    if needle not in haystack:
+        return ""
+    stack = []
+    opposite_parentheses = {")": "(", "}": "{", "]": "[", "(": ")", "{": "}", "[": "]"}
+    for char in needle:
+        if char in opposite_parentheses:
+            if stack and stack[-1] == opposite_parentheses[char]:
+                stack.pop()
+            else:
+                stack.append(char)
+    starting_index = haystack.index(needle)
+    ending_index = starting_index + len(needle)
+    for i, char in enumerate(haystack[ending_index:]):
+        if char in opposite_parentheses:
+            if stack and stack[-1] == opposite_parentheses[char]:
+                stack.pop()
+            else:
+                stack.append(char)
+        if not stack:
+            return haystack[starting_index:ending_index + i + 1]
+    return ""
+
 def contains_ignoring_whitespace(needle: str, haystack: str):
     needle = "\n".join([line.rstrip() for line in needle.splitlines()])
     haystack = "\n".join([line.rstrip() for line in haystack.splitlines()])
