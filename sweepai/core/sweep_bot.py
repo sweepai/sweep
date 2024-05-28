@@ -139,6 +139,11 @@ def continuous_llm_calls(
     while not any(token in response for token in stop_sequences) \
         and num_calls < MAX_CALLS:
         last_line_index = response.rfind("\n")
+        if use_openai:
+            last_block = response.rfind("<original_code>")
+            last_block = response.rfind("<new_code>", last_block)
+            if last_line_index - last_block < 2500:
+                last_line_index = last_block
         response = response[:last_line_index].rstrip()
         chat_gpt.messages[-1].content = cleanup_fcrs(response)
         # ask for a second response
