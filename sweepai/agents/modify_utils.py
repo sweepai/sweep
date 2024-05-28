@@ -494,6 +494,9 @@ def check_valid_parentheses(code: str):
             if stack and stack[-1] == parentheses_mapping[char]:
                 stack.pop()
             else:
+                return False
+        elif char in parentheses_mapping.values():
+            if char in parentheses_mapping:
                 stack.append(char)
     return not stack
 

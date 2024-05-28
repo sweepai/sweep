@@ -443,7 +443,7 @@ Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbrevi
 
 b. Describe the changes that need to be made to the code, i.e. the test case should instead check if `foo` != `baz`.
 <new_code>
-Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>.
+Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>. This code MUST be different from the original_code.
 </new_code>
 
 Use multiple <modify> blocks for the same file to separate distinct changes, such as for imports.
