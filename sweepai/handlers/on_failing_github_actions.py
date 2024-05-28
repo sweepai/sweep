@@ -14,7 +14,7 @@ from sweepai.core.entities import Message
 from sweepai.core.sweep_bot import GHA_PROMPT, GHA_PROMPT_WITH_HISTORY, get_files_to_change_for_gha, validate_file_change_requests
 from sweepai.handlers.create_pr import handle_file_change_requests
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, validate_and_sanitize_multi_file_changes
+from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, get_github_client, validate_and_sanitize_multi_file_changes
 from sweepai.utils.prompt_constructor import get_issue_request
 from sweepai.utils.ticket_rendering_utils import get_branch_diff_text, get_failing_gha_logs
 from sweepai.utils.ticket_utils import prep_snippets
@@ -168,6 +168,9 @@ def on_failing_github_actions(
                                 "new_keys": ",".join(new_file_contents_to_commit.keys()) 
                             },
                         )
+                    # refresh access token
+                    _token, g = get_github_client(installation_id)
+                    cloned_repo.repo = g.get_repo(repo_full_name)
                     _commit = commit_multi_file_changes(cloned_repo, new_file_contents_to_commit, commit_message, cloned_repo.branch)
                 except Exception as e:
                     logger.info(f"Error in updating file{e}")

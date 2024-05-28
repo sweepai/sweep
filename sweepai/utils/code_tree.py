@@ -1,9 +1,12 @@
 import ast
 import re
+import warnings
 
 import tree_sitter_languages
 from pydantic import BaseModel
 from tree_sitter import Node, Parser, Tree
+
+warnings.simplefilter("ignore", category=FutureWarning)
 
 
 class CodeTree(BaseModel):
