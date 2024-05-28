@@ -383,19 +383,24 @@ def check_syntax(file_path: str, code: str) -> tuple[bool, str]:
 
     error_location = find_deepest_error(tree.root_node)
     if error_location:
-        start = error_location.start_point
-        end = error_location.end_point
-        if start[0] == end[0]:
-            error_code_lines = [code.split("\n")[start[0]]]
+        start_line, start_col = error_location.start_point
+        end_line, end_col = error_location.end_point
+        code_lines = code.split("\n")
+        surrounding_lines = 3
+        error_code_lines = code_lines[max(0, start_line - surrounding_lines):start_line]
+        if start_line == end_line:
+            error_code_lines += [code_lines[start_line]]
+            error_code_lines += [" " * start_col + "^" * max(end_col - start_col, 1)]
         else:
-            error_code_lines = code.split("\n")[start[0]:end[0] + 1]
-        error_code_lines[0] = error_code_lines[0][start[1]:]
-        error_code_lines[-1] = error_code_lines[-1][:end[1]]
+            error_code_lines += ["=== ERROR START ==="]
+            error_code_lines += code_lines[start_line:end_line + 1]
+            error_code_lines += ["=== ERROR END ==="]
+        error_code_lines += code_lines[end_line + 1:min(len(code_lines) - 1, end_line + surrounding_lines)]
         error_span = "\n".join(error_code_lines)
-        if start[0] == end[0]:
-            error_message = f"Invalid syntax found at line {start[0]}, displayed below:\n{error_span}"
+        if start_line == end_line:
+            error_message = f"Invalid syntax found at line {start_line}, displayed below:\n{error_span}"
         else:
-            error_message = f"Invalid syntax found from {start}-{end}, displayed below:\n{error_span}"
+            error_message = f"Invalid syntax found from {start_line}-{end_line}, displayed below:\n{error_span}"
         return (False, error_message)
     return True, ""
 
