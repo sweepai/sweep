@@ -778,7 +778,7 @@ class PRReviewBot(ChatGPT):
                     raise e
                 # get the top five snippets and then pass those into sweep to ask if there are any repeated function definitions
                 ranked_snippets, _, _ = get_top_k_snippets(
-                    cloned_repo, function.function_code, None, k=5, include_docs=True, include_tests=False, do_not_use_file_cache=True
+                    cloned_repo, function.function_code, None, k=3, include_docs=False, include_tests=False, do_not_use_file_cache=True
                 )
                 formatted_code_snippets = "\n\n".join(
                     [f"<code_snippet file_name='{snippet.file_path}' snippet_index='{idx}'>\n{snippet.get_snippet()}\n</code_snippet>" for idx, snippet in enumerate(ranked_snippets)]
