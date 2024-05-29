@@ -46,6 +46,6 @@ if __name__ == "__main__":
     try:
         typer.run(test_issue_url)
     except Exception:
-        import pdb;
+        import pdb
         pdb.post_mortem()
         raise
