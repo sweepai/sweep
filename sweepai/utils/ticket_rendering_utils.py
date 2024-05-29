@@ -5,7 +5,6 @@ It is only called by the webhook handler in sweepai/api.py.
 
 import difflib
 import io
-import os
 import re
 import zipfile
 
@@ -19,7 +18,6 @@ from tqdm import tqdm
 import hashlib
 
 
-from sweepai.utils.str_utils import parse_fcr
 from sweepai.agents.pr_description_bot import PRDescriptionBot
 from sweepai.chat.api import posthog_trace
 from sweepai.config.client import (
@@ -27,7 +25,6 @@ from sweepai.config.client import (
     SweepConfig,
 )
 from sweepai.core.entities import (
-    FileChangeRequest,
     SandboxResponse,
 )
 from sweepai.core.entities import create_error_logs as entities_create_error_logs
@@ -38,7 +35,6 @@ from sweepai.handlers.create_pr import (
 from sweepai.handlers.on_check_suite import clean_gh_logs
 from sweepai.utils.buttons import create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import (
     CURRENT_USERNAME,
     get_github_client,
@@ -52,7 +48,6 @@ from sweepai.utils.str_utils import (
     create_collapsible,
     discord_suffix,
     format_sandbox_success,
-    rstrip_lines,
     sep,
     stars_suffix,
 )

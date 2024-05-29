@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typing import Literal
 
-from sweepai.core.entities import FileChangeRequest
 
 
 @dataclass
@@ -28,4 +27,4 @@ class GHAFix:
         elif self.status == "skipped":
             return f"The GitHub Actions have completed successfully. You can view the logs [here]({self.suite_url})."
         elif self.status == "pending":
-            return f"I'm currently waiting for the GitHub Actions to complete running, so that I can address any errors."
+            return "I'm currently waiting for the GitHub Actions to complete running, so that I can address any errors."
