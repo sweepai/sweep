@@ -492,9 +492,6 @@ Below are a series of code snippets retrieved from the codebase via vector searc
 <justification>
 {{A very brief justification of the decision made. When justifying why make sure to reference relevant functions. Max 1-2 sentences.}}
 </justification>
-<solution>
-{{Provide a brief description of how you would fix the issue of having this redundant function. Include code snippets as examples. Do not include this section if the answer was 'false'}}
-</solution>
 </redundant_new_function>"""
 
 user_prompt_pr_summary = """Below are all the patches associated with this pull request along with each of their file names
@@ -805,7 +802,7 @@ class PRReviewBot(ChatGPT):
                             "messages": [{"role": message.role, "content": message.content} for message in self.messages],
                             "output": "END OF MESSAGES",
                         })
-                repeated_function_params = ['answer', 'justification', 'solution']
+                repeated_function_params = ['answer', 'justification']
                 repeated_function, _, failed_param = extract_object_fields_from_string(repeated_functions_response, repeated_function_params)
                 # if extraction fails
                 if failed_param == "answer":
