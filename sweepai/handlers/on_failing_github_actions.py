@@ -76,7 +76,7 @@ def get_error_locations_from_error_logs(error_logs: str, cloned_repo: ClonedRepo
                 error_message += f"...\n"
             error_message += str(i + 1).ljust(width) + f" | {lines[i + 1]}"
             if i + 1 in errors_dict:
-                error_message += f"    // FIXME {errors_dict[i + 1].strip()}"
+                error_message += f"     FIXME {errors_dict[i + 1].strip()}"
             error_message += "\n"
         if len(lines) not in erroring_lines:
             error_message += "...\n"
