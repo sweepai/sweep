@@ -26,8 +26,8 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, get_github_client, sanitize_string_for_github, validate_and_sanitize_multi_file_changes
-from sweepai.utils.str_utils import BOT_SUFFIX, FASTER_MODEL_MESSAGE, blockquote
-from sweepai.utils.ticket_rendering_utils import render_fcrs, sweeping_gif
+from sweepai.utils.str_utils import BOT_SUFFIX, FASTER_MODEL_MESSAGE, blockquote, render_fcrs
+from sweepai.utils.ticket_rendering_utils import sweeping_gif
 from sweepai.utils.ticket_utils import center, fire_and_forget_wrapper, prep_snippets
 
 num_of_snippets_to_query = 30

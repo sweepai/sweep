@@ -7,13 +7,14 @@ from github.Repository import Repository
 from github.PullRequest import PullRequest
 from loguru import logger
 
+from sweepai.dataclasses.gha_fix import GHAFix
 from sweepai.utils.str_utils import strip_triple_quotes
 from sweepai.config.client import get_gha_enabled
 from sweepai.config.server import DEPLOYMENT_GHA_ENABLED
 from sweepai.core.chat import ChatGPT
 from sweepai.core.context_pruning import RepoContextManager
 from sweepai.core.entities import Message
-from sweepai.core.pull_request_bot import PRSummaryBot
+from sweepai.core.pull_request_bot import GHA_SUMMARY_END, GHA_SUMMARY_START, PRSummaryBot
 from sweepai.core.sweep_bot import GHA_PROMPT, GHA_PROMPT_WITH_HISTORY, get_files_to_change_for_gha, validate_file_change_requests
 from sweepai.handlers.create_pr import handle_file_change_requests
 from sweepai.utils.chat_logger import ChatLogger
@@ -95,6 +96,25 @@ def on_failing_github_actions(
 
     _main_runs: list[WorkflowRun.WorkflowRun] = list(repo.get_workflow_runs(branch=repo.default_branch, head_sha=pull_request.base.sha))
     main_passing = True
+
+    gha_fixes: list[GHAFix] = [
+        GHAFix(
+            suite_url=run.html_url,
+            status="done",
+            fix_commit_hash="",
+            fix_diff="",
+        )
+        for run in _main_runs
+        if run.conclusion == "success"
+    ]
+
+    def update_pr_status():
+        # currently this will work very jankily with the script
+        before_gha_summary, after_gha_summary = pull_request.body.split(GHA_SUMMARY_START)
+        _, after_gha_summary = after_gha_summary.split(GHA_SUMMARY_END)
+        new_gha_summary = GHA_SUMMARY_START + "\n".join([fix.to_markdown() for fix in gha_fixes]) + GHA_SUMMARY_END
+        pull_request.edit(body=before_gha_summary + new_gha_summary + after_gha_summary)
+
 
     while GITHUB_ACTIONS_ENABLED and main_passing:
         logger.info(

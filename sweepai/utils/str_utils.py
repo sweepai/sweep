@@ -6,6 +6,7 @@ import time
 
 from loguru import logger
 
+from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
 
 
@@ -244,3 +245,26 @@ def parse_fcr(fcr: "FileChangeRequest"):
         "new_code": [strip_triple_quotes(new_code_match.group(1)) for new_code_match in new_code_matches],
         "replace_all": bool(replace_all_matches),
     }
+
+
+def render_fcrs(file_change_requests: list["FileChangeRequest"]):
+    # Render plan start
+    planning_markdown = ""
+    for fcr in file_change_requests:
+        parsed_fcr = parse_fcr(fcr)
+        if parsed_fcr and parsed_fcr["new_code"]:
+            planning_markdown += f"#### `{fcr.filename}`\n"
+            planning_markdown += f"{blockquote(parsed_fcr['justification'])}\n\n"
+            if parsed_fcr["original_code"] and parsed_fcr["original_code"][0].strip():
+                planning_markdown += f"""```diff\n{generate_diff(
+                    parsed_fcr["original_code"][0],
+                    rstrip_lines(parsed_fcr["new_code"][0]),
+                )}\n```\n"""
+            else:
+                _file_base_name, ext = os.path.splitext(fcr.filename)
+                planning_markdown += f"```{ext}\n{parsed_fcr['new_code'][0]}\n```\n"
+        else:
+            planning_markdown += (
+                f"#### `{fcr.filename}`\n{blockquote(fcr.instructions)}\n"
+            )
+    return planning_markdown
