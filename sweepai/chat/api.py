@@ -107,8 +107,11 @@ def get_authenticated_github_client(
         return g
     except Exception as e:
         org_name, _ = repo_name.split("/")
-        installation_id = get_installation_id(org_name)
-        _token, g = get_github_client(installation_id)
+        try:
+            installation_id = get_installation_id(org_name)
+            _token, g = get_github_client(installation_id)
+        except Exception as e:
+            raise Exception(f"Error getting installation for {repo_name}: {e}. Double-check if the app is installed for this repo.")
         try:
             repo = g.get_repo(repo_name)
         except Exception as e:
