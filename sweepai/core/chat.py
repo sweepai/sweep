@@ -677,7 +677,7 @@ def continuous_llm_calls(
             last_block_original_code = response.rfind("<original_code>\n") + len("<original_code>\n")
             last_block_new_code = response.rfind("<new_code>\n") + len("<new_code>\n")
             last_block = max(last_block_original_code, last_block_new_code)
-            if last_line_index - last_block < 500:
+            if last_line_index - last_block < 2500:
                 last_line_index = last_block
         response = response[:last_line_index].rstrip()
         last_k_lines = response.split("\n")[-10:]

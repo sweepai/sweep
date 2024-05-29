@@ -422,8 +422,8 @@ b. List out all previous error logs that are still present or only partially sol
 c. List out ALL the new Github Action error logs that you must now solve and potential root causes and solutions.
 
 There are a total of n errors. Here is EACH error, and their corresponding root cause:
-1. The error logs, the root cause of the error, and the name of entity that needs to be updated.
-2. The error logs, the root cause of the error, and the name of entity that needs to be updated.
+- Error 1/n: the error logs, the root cause of the error, and the name of entity that needs to be updated.
+- Error 2/n: the error logs, the root cause of the error, and the name of entity that needs to be updated.
 [repeat for ALL errors]
 
 Here is each entity that needs to be updated and the corresponding error log that it resolves:
