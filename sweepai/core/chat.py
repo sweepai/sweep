@@ -26,6 +26,7 @@ from sweepai.config.server import (
 )
 from sweepai.core.entities import Message
 from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
+from sweepai.core.viz_utils import save_messages_for_visualization
 from sweepai.logn.cache import file_cache
 from sweepai.utils.anthropic_client import sanitize_anthropic_messages
 from sweepai.utils.chat_logger import ChatLogger
@@ -617,6 +618,10 @@ class ChatGPT(MessageList):
         )
         if verbose:
             logger.debug(f'{"Openai" if use_openai else "Anthropic"} response: {self.messages[-1].content}')
+        try:
+            save_messages_for_visualization(messages=self.messages, use_openai=use_openai)
+        except Exception as e:
+            logger.exception(f"Failed to save messages for visualization due to {e}")
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
 

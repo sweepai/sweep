@@ -67,7 +67,7 @@ class CustomIndex:
 variable_pattern = re.compile(r"([A-Z][a-z]+|[a-z]+|[A-Z]+(?=[A-Z]|$))")
 
 
-def tokenize_code(code: str) -> list[str]:
+def tokenize_code(code: str) -> str:
     matches = re.finditer(r"\b\w{2,}\b", code)
     tokens = []
     for m in matches:
@@ -152,7 +152,7 @@ def prepare_index_from_snippets(
     return index
 
 
-def search_index(query, index: CustomIndex):
+def search_index(query: str, index: CustomIndex):
     """Search the index based on a query.
 
     This function takes a query and an index as input and returns a dictionary of document IDs
