@@ -460,7 +460,6 @@ function App() {
                             "Authorization": `Bearer ${session?.accessToken}`
                           }
                         });
-                        console.error(snippetsResponse)
                         const responseObj = await snippetsResponse.json()
                         if (responseObj.success == false) {
                           console.error(responseObj)
