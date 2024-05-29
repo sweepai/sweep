@@ -1252,8 +1252,10 @@ def get_files_to_change_for_gha(
             stop_sequences=["</plan>"],
             response_cleanup=cleanup_fcrs,
             MAX_CALLS=10,
-            use_openai=False,
+            use_openai=use_openai,
         ) + "\n</plan>"
+
+        breakpoint()
 
         if chat_logger:
             chat_logger.add_chat(
@@ -1277,44 +1279,44 @@ def get_files_to_change_for_gha(
             file_change_request.raw_relevant_files = " ".join(relevant_modules)
             file_change_requests.append(file_change_request)
 
-        error_message, error_indices = get_error_message(file_change_requests, cloned_repo, updated_files)
+        # error_message, error_indices = get_error_message(file_change_requests, cloned_repo, updated_files)
 
-        for _ in range(3):
-            if not error_message:
-                break
-            chat_gpt.messages = [message for message in chat_gpt.messages if message.key != "system"]
-            fix_attempt = continuous_llm_calls(
-                chat_gpt,
-                content=fix_files_to_change_prompt.format(
-                    error_message=error_message,
-                    allowed_indices=english_join([str(index) for index in range(len(error_indices))]),
-                ),
-                model=MODEL,
-                temperature=0.1,
-                stop_sequences=["</error_resolutions"],
-                response_cleanup=cleanup_fcrs,
-                MAX_CALLS=10,
-                use_openai=use_openai,
-            )
-            drops, matches = parse_patch_fcrs(fix_attempt)
-            for index, new_fcr in matches:
-                if index >= len(error_indices):
-                    logger.warning(f"Index {index} not in error indices")
-                    continue
-                if new_fcr.change_type == "create" and "COPIED_FROM_PREVIOUS_CREATE" in new_fcr.instructions:
-                    # if COPIED_FROM_PREVIOUS_CREATE, we just need to override the filename
-                    file_change_requests[error_indices[index]].filename = new_fcr.filename
-                    continue
-                file_change_requests[error_indices[index]] = new_fcr
+        # for _ in range(3):
+        #     if not error_message:
+        #         break
+        #     chat_gpt.messages = [message for message in chat_gpt.messages if message.key != "system"]
+        #     fix_attempt = continuous_llm_calls(
+        #         chat_gpt,
+        #         content=fix_files_to_change_prompt.format(
+        #             error_message=error_message,
+        #             allowed_indices=english_join([str(index) for index in range(len(error_indices))]),
+        #         ),
+        #         model=MODEL,
+        #         temperature=0.1,
+        #         stop_sequences=["</error_resolutions"],
+        #         response_cleanup=cleanup_fcrs,
+        #         MAX_CALLS=10,
+        #         use_openai=use_openai,
+        #     )
+        #     drops, matches = parse_patch_fcrs(fix_attempt)
+        #     for index, new_fcr in matches:
+        #         if index >= len(error_indices):
+        #             logger.warning(f"Index {index} not in error indices")
+        #             continue
+        #         if new_fcr.change_type == "create" and "COPIED_FROM_PREVIOUS_CREATE" in new_fcr.instructions:
+        #             # if COPIED_FROM_PREVIOUS_CREATE, we just need to override the filename
+        #             file_change_requests[error_indices[index]].filename = new_fcr.filename
+        #             continue
+        #         file_change_requests[error_indices[index]] = new_fcr
 
-            for drop in sorted(drops, reverse=True):
-                if drop >= len(error_indices):
-                    logger.warning(f"Index {drop} not in error indices")
-                    continue
-                file_change_requests.pop(error_indices[drop])
-            logger.debug("Old indices", error_indices)
-            error_message, error_indices = get_error_message(file_change_requests, cloned_repo, updated_files)
-            logger.debug("New indices", error_indices)
+        #     for drop in sorted(drops, reverse=True):
+        #         if drop >= len(error_indices):
+        #             logger.warning(f"Index {drop} not in error indices")
+        #             continue
+        #         file_change_requests.pop(error_indices[drop])
+        #     logger.debug("Old indices", error_indices)
+        #     error_message, error_indices = get_error_message(file_change_requests, cloned_repo, updated_files)
+        #     logger.debug("New indices", error_indices)
 
         # breakpoint()
         validate_file_change_requests(file_change_requests, cloned_repo)

@@ -377,14 +377,7 @@ Your role is to analyze the issue and codebase, then write out code changes to f
 Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.
 
 Take these steps:
-Create a set of code to remove and code to add, including all necessary changes to resolve the issue, in the following format:
-Step 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file, with correct indentation and whitespace.
-    - Do NOT paraphrase or abbreviate the source code.
-    - Placeholder comments like "# existing code" are not permitted.
-    - Start with the closest header several lines before the target code and end with the closest end of the block or several lines after the code.
-Step 2. Write the new code in <new_code> tags, specifying necessary imports and including relevant type definitions, interfaces, and schemas.
-    - BE EXACT as this code will replace the mentioned <original_code>.
-Step 3. Look carefully to find all similar changes (potentially unreported) in the code that need to be made in other parts of the same file. Address those as well."""
+Create a set of code to remove and code to add, including all necessary changes to resolve the issue, with a diff in every modify block."""
 
 gha_files_to_change_prompt = """Your job is to analyze the provided issue, error log, relevant parts of the codebase, and changes he's made to understand the requested change.
 
@@ -460,6 +453,44 @@ c. Describe the changes that need to be made to the code.
 <new_code>
 Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>. This code MUST be different from the original_code.
 </new_code>
+
+Use multiple <modify> blocks for the same file to separate distinct changes, such as for imports.
+</modify>
+
+Then, determine if there are similar issues that we should also resolve. Make as many additional modify blocks as needed until ALL similar issues are resolved.
+Any issue that doesn't have a corresponding modify block will not be fixed, you must make modify blocks for every single issue identified.
+Do not attempt to fix multiple issues with a single modify block, each issue must have its own modify block.
+</error_analysis>
+[additional <error_analysis> blocks as needed, for ALL error messages in the error logs
+</plan>"""
+
+gha_files_to_change_prompt_2 = """Now that you've analyzed the issue and error logs, your job is to write code changes to help resolve the errors in his code while also resolving the GitHub issue.
+
+Guidelines:
+<guidelines>
+- Always include the full file path and reference the provided files 
+- Prioritize using existing code and utility methods to minimize writing new code
+- Break the task into small steps, with each <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file, such as for imports.
+- If imports are necessary, place them in a separate <modify> block. Use multiple <modify> blocks for the same file to separate distinct changes.
+- Do not make a change that has already been made by the developer.
+<guidelines>
+
+Please use the following XML format for your response:
+
+<plan>
+There are a total of n errors. List ALL the types of error messages in the current error logs and their root causes. Follow this format:
+
+<error_analysis index="1">
+Error message 1/n: Identify the error message.
+1. Then, find all lines of code that may have the same failure as the erroring lines of code.
+2. Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code. Most of the time, the test case has yet to be updated.
+3. Explain how to resolve the error in the test case. Be complete and precise. Remember that to resolve the error in a way such that the test case is still valid. Do not simply apply a band-aid solution to make the error go away.
+4. Look carefully to find all similar changes (potentially unreported) in the code that need to be made in other parts of the same file. Address those as well.
+
+Then, based on the analysis, propose a fix by following the format below. If the error has already been fixed, you can skip this step.
+
+<modify file="file_path"> 
+Write instructions for modifying one section of the file. Then, write the fix in a diff.
 
 Use multiple <modify> blocks for the same file to separate distinct changes, such as for imports.
 </modify>
