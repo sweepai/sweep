@@ -335,7 +335,8 @@ def multi_prep_snippets(
         # only do this for source files
         if not all_snippets:
             for type_name, snippets_subset in separated_snippets:
-                if type_name != "source":
+                # only use source files unless there are none in which case use all snippets
+                if type_name != "source" and separated_snippets.source:
                     continue
                 max_results = type_to_result_count[type_name]
                 all_snippets.extend(snippets_subset[:max_results])
