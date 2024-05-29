@@ -582,7 +582,7 @@ def get_payment_messages(chat_logger: ChatLogger):
     return payment_message, payment_message_start
 
 
-def parse_issues_from_code_review(issue_string: str):
+def parse_issues_from_code_review(issue_string: str, file_name: str):
     issue_regex = r"<issue>(?P<issue>.*?)<\/issue>"
     issue_matches = list(re.finditer(issue_regex, issue_string, re.DOTALL))
     potential_issues = set()
@@ -600,7 +600,7 @@ def parse_issues_from_code_review(issue_string: str):
                 issue_failed = True
                 break
         if not issue_failed:
-            potential_issues.add(CodeReviewIssue(**issue_args))
+            potential_issues.add(CodeReviewIssue(**{**issue_args, "file_name": file_name}))
     return list(potential_issues)
 
 
@@ -611,7 +611,7 @@ def render_code_review_issues(
     pr: PullRequest,
     code_review: CodeReview,
     issue_type: str = "",
-    metadata: dict = {},
+    sorted_issues: list[CodeReviewIssue] = [], # changes how issues are rendered
 ):
     files_to_blobs = {file.filename: file.blob_url for file in list(pr.get_files())}
     # generate the diff urls
@@ -619,23 +619,29 @@ def render_code_review_issues(
     for file_name, _ in files_to_blobs.items():
         sha_256 = hashlib.sha256(file_name.encode("utf-8")).hexdigest()
         files_to_diffs[file_name] = f"{pr.html_url}/files#diff-{sha_256}"
-    code_issues = code_review.issues
+    if sorted_issues:
+        code_issues = sorted_issues
+    else:
+        code_issues = code_review.issues
     if issue_type == "potential":
         code_issues = code_review.potential_issues
     code_issues_string = ""
     for issue in code_issues:
-        if code_review.file_name in files_to_blobs:
+        if issue.file_name in files_to_blobs:
             if issue.start_line == issue.end_line:
                 issue_blob_url = (
-                    f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}"
+                    f"{files_to_blobs[issue.file_name]}#L{issue.start_line}"
                 )
                 issue_diff_url = (
-                    f"{files_to_diffs[code_review.file_name]}R{issue.start_line}"
+                    f"{files_to_diffs[issue.file_name]}R{issue.start_line}"
                 )
             else:
-                issue_blob_url = f"{files_to_blobs[code_review.file_name]}#L{issue.start_line}-L{issue.end_line}"
-                issue_diff_url = f"{files_to_diffs[code_review.file_name]}R{issue.start_line}-R{issue.end_line}"
-            code_issues_string += f"<li>{issue.issue_description}</li>\n\n{issue_blob_url}\n[View Diff]({issue_diff_url})"
+                issue_blob_url = f"{files_to_blobs[issue.file_name]}#L{issue.start_line}-L{issue.end_line}"
+                issue_diff_url = f"{files_to_diffs[issue.file_name]}R{issue.start_line}-R{issue.end_line}"
+            if sorted_issues:
+                code_issues_string += f"<li>In {issue.file_name}: {issue.issue_description}</li>\n\n{issue_blob_url}\n[View Diff]({issue_diff_url})"
+            else:
+                code_issues_string += f"<li>{issue.issue_description}</li>\n\n{issue_blob_url}\n[View Diff]({issue_diff_url})"
     return code_issues_string
 
 
@@ -685,6 +691,7 @@ def render_pr_review_by_file(
     username: str,
     pr: PullRequest,
     code_review_by_file: dict[str, CodeReview],
+    sorted_issues: list[CodeReviewIssue] = [], # sorted issues by severity, changes how issues are displayed
     pull_request_summary: str = "",
     dropped_files: list[str] = [],
     unsuitable_files: list[tuple[str, Exception]] = [],
@@ -697,15 +704,25 @@ def render_pr_review_by_file(
         body += f"\n{pull_request_summary}\n<hr>\n"
     issues_section = ""
     potential_issues_section = ""
-    # build issues section and potential issues sections
-    for file_name, code_review in code_review_by_file.items():
-        sweep_issues = code_review.issues
-        potential_issues = code_review.potential_issues
-        if sweep_issues:
-            sweep_issues_string = render_code_review_issues(username, pr, code_review)
-            issues_section += f"""<details open>
+    # build issues section
+    if sorted_issues:
+        sweep_issues_string = render_code_review_issues(
+            username, pr, None, sorted_issues=sorted_issues
+        )
+        issues_section += f"""<ul>{format_code_sections(sweep_issues_string)}</ul>"""
+    else:
+        for file_name, code_review in code_review_by_file.items():
+            sweep_issues = code_review.issues
+            if sweep_issues:
+                sweep_issues_string = render_code_review_issues(
+                    username, pr, code_review
+                )
+                issues_section += f"""<details open>
 <summary>{file_name}</summary>
 <ul>{format_code_sections(sweep_issues_string)}</ul></details>"""
+    # build potential issues section
+    for file_name, code_review in code_review_by_file.items():
+        potential_issues = code_review.potential_issues
         if potential_issues:
             potential_issues_string = render_code_review_issues(
                 username, pr, code_review, issue_type="potential"
@@ -747,6 +764,7 @@ def create_update_review_pr_comment(
     username: str,
     pr: PullRequest,
     code_review_by_file: dict[str, CodeReview] | None = None,
+    sorted_issues: list[CodeReviewIssue] = [], # sorted issues by severity, changes how issues are displayed
     pull_request_summary: str = "",
     dropped_files: list[str] = [],
     unsuitable_files: list[tuple[str, Exception]] = [],
@@ -797,6 +815,7 @@ def create_update_review_pr_comment(
             username,
             pr,
             code_review_by_file,
+            sorted_issues=sorted_issues,
             pull_request_summary=pull_request_summary,
             dropped_files=dropped_files,
             unsuitable_files=unsuitable_files,

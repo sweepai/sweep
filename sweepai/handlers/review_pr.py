@@ -14,6 +14,7 @@ from sweepai.core.review_utils import (
     get_pr_summary_from_patches,
     group_vote_review_pr,
     review_pr_detailed_checks,
+    sort_code_issues_by_severity,
 )
 from sweepai.utils.github_utils import ClonedRepo, get_github_client, refresh_token
 from sweepai.utils.ticket_rendering_utils import create_update_review_pr_comment
@@ -134,6 +135,12 @@ def review_pr(
                 code_review_by_file,
                 chat_logger=chat_logger,
             )
+            # sort all issues by severity
+            code_review_by_file, all_issues_sorted = sort_code_issues_by_severity(
+                username,
+                code_review_by_file,
+                chat_logger=chat_logger,
+            )
             # after 50 minutes have passed refresh token to re get pr
             if time() - review_pr_start_time > 50 * 60:
                 _, _ , repository = refresh_token(repository.full_name, installation_id)
@@ -143,6 +150,7 @@ def review_pr(
                 username,
                 pr,
                 code_review_by_file=code_review_by_file,
+                sorted_issues=all_issues_sorted,
                 pull_request_summary=pull_request_summary,
                 dropped_files=dropped_files,
                 unsuitable_files=unsuitable_files,

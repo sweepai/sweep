@@ -3,12 +3,13 @@ from dataclasses import dataclass, field
 
 @dataclass
 class CodeReviewIssue:
+    file_name: str
     issue_description: str
     start_line: int
     end_line: int
 
     def __hash__(self):
-        return hash((self.issue_description, self.start_line, self.end_line))
+        return hash((self.file_name, self.issue_description, self.start_line, self.end_line))
 
 @dataclass
 class CodeReview:

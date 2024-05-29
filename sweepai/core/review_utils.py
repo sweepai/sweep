@@ -310,6 +310,10 @@ You will be given a function definition that was just added to the codebase and 
 system_prompt_pr_summary = """You are a talented software engineer that excels at summarising pull requests for readability and brevity. You will be analysing a series of patches that represent all the changes made in a specific pull request.
 It is your job to write a short and concise but still descriptive summary that describes what the pull request accomplishes."""
 
+system_prompt_sort_issues = """You are a helpful and detail-oriented software engineer who is responsible for sorting a list of identified issues based on their severity and importance. 
+You will be analyzing a list of issues that have been identified by a previous engineer and determing the severity of each issue.
+You will then rank the issues from most severe to least severe based on your analysis."""
+
 user_prompt = """\
 # Code Review
 Here are the changes in the pull request diffs:
@@ -529,6 +533,27 @@ The `loginUser` function in `handlers/auth.js` now calls the new `verifyTwoFacto
 </example_pr_summary>
 """
 
+user_prompt_sort_issues = """Below are all the identified issues for the pull request. You will be sorting these issues based on severity and importance.
+
+# Identified Issues
+
+{all_issues}
+
+# Instructions
+1. Review each issue and determine the severity of the issue.
+    1a. Output your analysis in the following format:
+<thinking>
+{{Analysis of each issue, include the estimated severity and a reason as to why}}
+</thinking>
+2. Rank the issues based on severity and importance.
+    2a. Based on your analysis in step 1, rank the issues from most severe to least severe.
+    2b. You must respond with the the following xml format, returning a list of the issue indices in order of severity:
+
+<sorted_issue_indices_by_severity>
+{{Sorted indices go here, example: 1, 3, 4 ,2}}
+</sorted_issue_indices_by_severity>
+"""
+
 CLAUDE_MODEL = "claude-3-opus-20240229"
 
 class PRReviewBot(ChatGPT):
@@ -589,7 +614,7 @@ class PRReviewBot(ChatGPT):
             issues_matches = re.findall(issues_pattern, code_review_response, re.DOTALL)
             if issues_matches:
                 issues = "\n".join([match.strip() for match in issues_matches])
-            potential_issues = parse_issues_from_code_review(issues)
+            potential_issues = parse_issues_from_code_review(issues, file_name)
             code_reviews_by_file[file_name] = CodeReview(file_name=file_name, diff_summary=diff_summary, issues=potential_issues, potential_issues=[])
             if chat_logger:
                 chat_logger.add_chat(
@@ -644,7 +669,7 @@ class PRReviewBot(ChatGPT):
             issues_matches = re.findall(severe_issues_pattern, code_review_response, re.DOTALL)
             if issues_matches:
                 issues = "\n".join([match.strip() for match in issues_matches])
-                potential_issues = parse_issues_from_code_review(issues)
+                potential_issues = parse_issues_from_code_review(issues, file_name)
             else:
                 potential_issues = []
             
@@ -816,6 +841,7 @@ class PRReviewBot(ChatGPT):
                     if bool(re.search(answer_true, repeated_function['answer'], re.IGNORECASE)):
                         justification = repeated_function.get("justification", "")
                         new_code_issue = CodeReviewIssue(
+                            file_name=file_name,
                             issue_description=f"Sweep has identified a redundant function: {justification}",
                             start_line=function.start_line,
                             end_line=function.end_line
@@ -835,6 +861,72 @@ class PRReviewBot(ChatGPT):
                     )
                     raise e
         return repeated_functions_code_issues
+
+    # sorts issues by severity, potential issues are not sorted
+    # returns modified code_review_by_file and a list of all issues sorted
+    def sort_code_issues_by_severity(
+        self,
+        code_review_by_file: dict[str, CodeReview], 
+        chat_logger: ChatLogger = None,
+    ) -> tuple[dict[str, CodeReview], list[CodeReviewIssue]]:
+        all_issues_formatted = "<all_issues>\n"
+        index_to_issues: dict[int, CodeReviewIssue] = {}
+        issue_index = 1
+        # build all_issues string
+        for file_name, code_review in code_review_by_file.items():
+            all_issues = code_review.issues
+            for issue in all_issues:
+                all_issues_formatted += f"\n<issue index='{issue_index}'>\n{issue.issue_description}\n</issue>\n"
+                index_to_issues[issue_index] = issue
+                issue_index += 1
+        all_issues_formatted += "\n</all_issues>"
+        
+        self.messages = [
+            Message(
+                role="system",
+                content=system_prompt_sort_issues,
+            )
+        ]
+
+        formatted_user_prompt = user_prompt_sort_issues.format(all_issues=all_issues_formatted)
+        sorted_issues_response = self.chat_anthropic(
+            content=formatted_user_prompt,
+            temperature=0.1,
+            model=CLAUDE_MODEL,
+            use_openai=True
+        )
+        if chat_logger:
+            chat_logger.add_chat(
+                {
+                    "model": self.model,
+                    "messages": [{"role": message.role, "content": message.content} for message in self.messages],
+                    "output": "END OF MESSAGES",
+                })
+        
+        sorted_issue_indices, _ , _ = extract_object_fields_from_string(
+            sorted_issues_response, ["sorted_issue_indices_by_severity"]
+        )
+        # parse output to reorder the issues
+        sorted_indices_string = sorted_issue_indices["sorted_issue_indices_by_severity"].split(",")
+        sorted_indices = []
+        for index in sorted_indices_string:
+            try:
+                index = int(index.strip())
+                _issue = index_to_issues[index]
+                sorted_indices.append(index)
+            except Exception as e:
+                logger.error(f"Failure parsing indices in sort_code_issues_by_severity: {e}")
+        # sort the issues within the CodeReview object but also create a global list of all issues
+        all_issues_sorted: list[CodeReviewIssue] = []
+        for index in sorted_indices:
+            all_issues_sorted.append(index_to_issues[index])
+        # now rebuild the issue arrays for each of the code reviews
+        for file_name, code_review in code_review_by_file.items():
+            code_review.issues = []
+            for issue in all_issues_sorted:
+                if issue.file_name == file_name:
+                    code_review.issues.append(issue)
+        return code_review_by_file, all_issues_sorted
         
 
 # get the best issue to return based on group vote
@@ -1026,3 +1118,18 @@ def get_pr_summary_from_patches(pr_changes: list[PRChange], chat_logger: ChatLog
     pr_summary = review_bot.get_pr_summary(formatted_pr_patches, chat_logger=chat_logger)
     return pr_summary
     
+@posthog_trace
+def sort_code_issues_by_severity(
+    username: str, 
+    code_review_by_file: dict[str, CodeReview], 
+    chat_logger: ChatLogger | None = None, 
+) -> dict[str, CodeReview]:
+    review_bot = PRReviewBot()
+    MAX_ISSUE_AMOUNT = 10
+    # sort all the issues by severity
+    code_review_by_file, all_issues_sorted = review_bot.sort_code_issues_by_severity(
+        code_review_by_file, chat_logger=chat_logger
+    )
+    all_issues_sorted = all_issues_sorted[:MAX_ISSUE_AMOUNT]
+    
+    return code_review_by_file, all_issues_sorted
