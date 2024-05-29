@@ -105,7 +105,7 @@ def get_authenticated_github_client(
     try:
         repo = g.get_repo(repo_name)
         return g
-    except Exception as e:
+    except Exception:
         org_name, _ = repo_name.split("/")
         try:
             installation_id = get_installation_id(org_name)
@@ -141,7 +141,7 @@ def check_repo_exists_endpoint(repo_name: str, access_token: str = Depends(get_t
     return check_repo_exists(
         username,
         repo_name,
-        g.token,
+        token,
         metadata={
             "repo_name": repo_name,
         }
