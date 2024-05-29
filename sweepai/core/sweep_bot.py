@@ -1231,7 +1231,7 @@ def get_files_to_change_for_gha(
             ],
         )
         MODEL = "claude-3-opus-20240229" if not use_faster_model else "claude-3-sonnet-20240229"
-        issue_identification = continuous_llm_calls(
+        continuous_llm_calls(
             chat_gpt,
             content=joint_message + "\n\n" + gha_files_to_change_prompt,
             model=MODEL,

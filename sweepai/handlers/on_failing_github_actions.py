@@ -73,7 +73,7 @@ def get_error_locations_from_error_logs(error_logs: str, cloned_repo: ClonedRepo
         width = len(str(len(lines)))
         for i in sorted(list(erroring_lines)):
             if i not in erroring_lines:
-                error_message += f"...\n"
+                error_message += "...\n"
             error_message += str(i + 1).ljust(width) + f" | {lines[i + 1]}"
             if i + 1 in errors_dict:
                 error_message += f"     FIXME {errors_dict[i + 1].strip()}"
