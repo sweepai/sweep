@@ -16,7 +16,7 @@ from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snip
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
-from sweepai.utils.github_utils import MockClonedRepo, get_github_client, get_installation_id
+from sweepai.utils.github_utils import CustomGithub, MockClonedRepo, get_github_client, get_installation_id
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.str_utils import get_hash
 from sweepai.utils.ticket_utils import prep_snippets
@@ -100,19 +100,24 @@ def get_authenticated_github_client(
 ):
     # Returns read access, write access, or none
     g = Github(access_token)
+    user = g.get_user()
+    user = g.get_user(user.login)
     try:
         repo = g.get_repo(repo_name)
         return g
     except Exception as e:
+        org_name, _ = repo_name.split("/")
+        installation_id = get_installation_id(org_name)
+        _token, g = get_github_client(installation_id)
         try:
-            org_name, _ = repo_name.split("/")
-            installation_id = get_installation_id(org_name)
-            _token, g = get_github_client(installation_id)
             repo = g.get_repo(repo_name)
-            return g
         except Exception as e:
-            print(e)
-            return None
+            raise Exception(f"Error getting repo {repo_name}: {e}")
+        if repo.has_in_collaborators(user):
+            print(g)
+            return g
+        else:
+            raise Exception(f"User {user.login} does not have the necessary permissions for the repository {repo_name}.")
 
 async def get_token_header(authorization: str = Header(...)):
     if not authorization.startswith("Bearer "):
@@ -121,13 +126,14 @@ async def get_token_header(authorization: str = Header(...)):
 
 @app.get("/backend/repo")
 def check_repo_exists_endpoint(repo_name: str, access_token: str = Depends(get_token_header)):
-    g = get_authenticated_github_client(repo_name, access_token)
-    if not g:
-        return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
+    try:
+        g = get_authenticated_github_client(repo_name, access_token)
+    except Exception as e:
+        return {"success": False, "error": f"{str(e)}"}
 
     username = Github(access_token).get_user().login
 
-    token = g.token if isinstance(g, token) else access_token
+    token = g.token if isinstance(g, CustomGithub) else access_token
 
     return check_repo_exists(
         username,
