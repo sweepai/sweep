@@ -417,21 +417,28 @@ b. List ALL the changes made so far in extreme detail. Be absolutely complete. F
 <reflection>
 a. List out all the previous error logs that were solved.
 b. List out all previous error logs that are still present or only partially solved.
-c. List out the new Github Action error logs that you must now solve and potential root causes and solutions.
+c. List out ALL the new Github Action error logs that you must now solve and potential root causes and solutions.
+
+Then, for EACH error log, identify the root cause -- the entity that is faulty:
+    - Error log 1: root cause of the error, and the name of entity that needs to be updated.
+    - Error log 2: root cause of the error, and the name of entity that needs to be updated.
+    [repeat for ALL error logs]
+
+Then, work backwards to identify each entity that needs to be updated and the corresponding error log that it solves:
+    - Entity 1:
+        - First specific error log that it solves and a brief description of the change.
+        - Second specific error log that it solves and a brief description of the change.
+        [repeat for ALL error logs]
+    - Entity 2:
+        - First specific error log that it solves and a brief description of the change.
+        - Second specific error log that it solves and a brief description of the change.
+        [repeat for ALL error logs]
+    [repeat for ALL entities]
 </reflction>
 
 # 3. Plan:
 <plan>
 List ALL the types of error messages in the current error logs and their root causes. Follow this format:
-
-<error_analysis index="1">
-Error message 1: Identify the error message.
-1. Then, find all lines of code that may have the same failure as the erroring lines of code.
-2. Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code. Most of the time, the test case has yet to be updated.
-3. Explain how to resolve the error in the test case. Be complete and precise. Remember that to resolve the error in a way such that the test case is still valid. Do not simply apply a band-aid solution to make the error go away.
-4. Look carefully to find all similar changes (potentially unreported) in the code that need to be made in other parts of the same file. Address those as well.
-
-Then, based on the analysis, propose a fix by following the format below. If the error has already been fixed, you can skip this step.
 
 <modify file="file_path"> 
 Instructions for modifying one section of the file. Each block must have exactly one original_code and one new_code block. Do not make a change that has already been made by the developer.
@@ -451,10 +458,9 @@ Use multiple <modify> blocks for the same file to separate distinct changes, suc
 
 Then, determine if there are similar issues that we should also resolve. Make as many additional modify blocks as needed until ALL similar issues are resolved.
 Any issue that doesn't have a corresponding modify block will not be fixed, you must make modify blocks for every single issue identified.
-Do not attempt to fix multiple issues with a single modify block, each issue must have its own modify block.
-</error_analysis>
-[additional <error_analysis> blocks as needed, for ALL error messages in the error logs
-</plan>""" # + files_to_change_example TODO: test separately
+
+[additional <modify> blocks as needed, for ALL faulty entities
+</plan>"""
 
 plan_selection_prompt = """Critique the pros and cons of each plan based on the following guidelines, prioritizing thoroughness and correctness over potential performance overhead: 
 - Correctness: The code change should fully address the original issue or requirement without introducing new bugs, security vulnerabilities, or performance problems. Follow defensive programming practices, such as avoiding implicit assumptions, validating inputs, and handling edge cases. Consider the potential impact on all relevant data structures and ensure the solution maintains data integrity and consistency. Thoroughness is a top priority. 

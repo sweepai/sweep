@@ -62,7 +62,7 @@ def get_error_locations_from_error_logs(error_logs: str, cloned_repo: ClonedRepo
         errors[actual_file_path][int(line_number)] = current_error_message # assume one error per line for now
     
     for file_path, errors_dict in errors.items():
-        error_message += f"Here are the errors in {file_path}, each denotated by FIXME:\n```\n"
+        error_message += f"Here are the {len(errors_dict)} errors in {file_path}, each denotated by FIXME:\n```\n"
         file_contents = cloned_repo.get_file_contents(file_path)
         lines = file_contents.splitlines()
         erroring_lines = set()
@@ -143,7 +143,8 @@ def on_failing_github_actions(
             # wait one minute between check attempts
             total_poll_attempts += 1
 
-            sleep(SLEEP_DURATION_SECONDS)
+            if total_poll_attempts > 1:
+                sleep(SLEEP_DURATION_SECONDS)
         # refresh the pr
         pull_request = repo.get_pull(pull_request.number)
         current_commit = repo.get_pull(pull_request.number).head.sha # IMPORTANT: resync PR otherwise you'll fetch old GHA runs
