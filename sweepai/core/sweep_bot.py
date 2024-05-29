@@ -1237,8 +1237,7 @@ def get_files_to_change_for_gha(
             stop_sequences=["</plan>"],
             response_cleanup=cleanup_fcrs,
             MAX_CALLS=10,
-            # use_openai=use_openai,
-            use_openai=False,
+            use_openai=use_openai,
         ) + "\n</plan>"
         if chat_logger:
             chat_logger.add_chat(
