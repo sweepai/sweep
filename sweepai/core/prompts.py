@@ -424,10 +424,10 @@ c. List out ALL the new Github Action error logs that you must now solve and pot
 
 # 3. Plan:
 <plan>
-List ALL the types of error messages in the current error logs and their root causes. Follow this format:
+There are a total of n errors. List ALL the types of error messages in the current error logs and their root causes. Follow this format:
 
 <error_analysis index="1">
-Error message 1: Identify the error message.
+Error message 1/n: Identify the error message.
 1. Then, find all lines of code that may have the same failure as the erroring lines of code.
 2. Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code. Most of the time, the test case has yet to be updated.
 3. Explain how to resolve the error in the test case. Be complete and precise. Remember that to resolve the error in a way such that the test case is still valid. Do not simply apply a band-aid solution to make the error go away.
@@ -440,7 +440,11 @@ Instructions for modifying one section of the file. Each block must have exactly
 
 a. Describe the section of code that needs to be modified, i.e. the test case that checks if `foo` == `bar`.
 <original_code>
-Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. Start with the closest header several lines before the target code and end with the closest end of the block or several lines after the code. (Max 10 lines of code, you do not need more)
+Copy the original_code here VERBATIM from the file.
+Do NOT paraphrase or abbreviate the source code.
+Placeholder comments like "# existing code" are not permitted.
+Start several lines before the target code to change and end with several lines after.
+Do not edit the same area of code more than once to avoid merge conflicts with other modifies.
 </original_code>
 
 b. Describe the changes that need to be made to the code, i.e. the test case should instead check if `foo` != `baz`.
