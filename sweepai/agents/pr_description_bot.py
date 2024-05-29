@@ -21,6 +21,7 @@ Short description of the pull request.
 Concise bulleted description of the pull request. Markdown format `variables`, `files`, and `directories` like this.
 </pr_description>"""
 
+CLAUDE_MODEL = "claude-3-haiku-20240307"
 
 class PRDescriptionBot(ChatGPT):
     def describe_diffs(
@@ -32,11 +33,12 @@ class PRDescriptionBot(ChatGPT):
         # attempt to generate description 3 times
         pr_desc_pattern = r"<pr_description>\n(.*?)\n</pr_description>"
         for attempt in [0, 1, 2]:
-            pr_desc_response = self.chat(
+            pr_desc_response = self.chat_anthropic(
                 content=prompt.format(
                     diffs=diffs,
                     pr_title=pr_title,
                 ),
+                model=CLAUDE_MODEL,
             )
             pr_desc_matches = re.search(pr_desc_pattern, pr_desc_response, re.DOTALL)
             if pr_desc_matches is None:
@@ -48,3 +50,17 @@ class PRDescriptionBot(ChatGPT):
         pr_desc = pr_desc_matches.group(1)
         pr_desc = pr_desc.strip()
         return pr_desc
+
+if __name__ == "__main__":
+    bot = PRDescriptionBot()
+    diffs = """\
+- `variables` changed in `files`
+- `variables` changed in `directories`
+- `variables` changed in `files`
+- `variables` changed in `directories`
++ `variables` added in `files`
++ `variables` added in `directories`
+"""
+    pr_title = "PR Title"
+    pr_desc = bot.describe_diffs(diffs, pr_title)
+    print(pr_desc)
