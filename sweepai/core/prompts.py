@@ -370,7 +370,7 @@ Prioritize using existing code and functions to make efficient and maintainable 
 Take these steps:
 1. Analyze the issue, codebase and existing changes to understand the problem.
 
-2. List all new errors that have appeared in the GitHub Action logs and their corresponding root causes. Identify the entities that need to be updated to resolve these errors.
+2. List ALL new errors that have appeared in the GitHub Action logs and their corresponding root causes. Identify ALL the entities that need to be updated to resolve these errors. You are diligent and won't miss any errors or entities.
 
 3. Create a set of code to remove and code to add, including all necessary changes to resolve the issue, in the following format:
     - When modifying code you MUST take the following approach:
@@ -421,21 +421,22 @@ a. List out all the previous error logs that were solved.
 b. List out all previous error logs that are still present or only partially solved.
 c. List out ALL the new Github Action error logs that you must now solve and potential root causes and solutions.
 
-There are a total of n errors. Here is EACH error, and their corresponding root cause:
+There are a total of n errors. Here is EACH and EVERY error, and their corresponding root cause:
 - Error 1/n: the error logs, the root cause of the error, and the name of entity that needs to be updated.
 - Error 2/n: the error logs, the root cause of the error, and the name of entity that needs to be updated.
-[repeat for ALL errors]
+... [list for ALL errors]
+- Error n/n: the error logs, the root cause of the error, and the name of entity that needs to be updated.
 
-Here is each entity that needs to be updated and the corresponding error log that it resolves:
+Here are all the faulty entities and their corresponding errors:
 - Entity 1:
     - First specific error log that it solves and a brief description of the change.
     - Second specific error log that it solves and a brief description of the change.
-    [repeat for ALL error logs]
+    [list for ALL error logs]
 - Entity 2:
     - First specific error log that it solves and a brief description of the change.
     - Second specific error log that it solves and a brief description of the change.
-    [repeat for ALL error logs]
-[repeat for ALL entities]
+    [list for ALL error logs]
+[list for ALL entities]
 </reflction>
 
 # 3. Plan:

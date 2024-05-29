@@ -682,7 +682,7 @@ def continuous_llm_calls(
         response = response[:last_line_index].rstrip()
         last_k_lines = response.split("\n")[-10:]
         if use_openai:
-            content = "Continue generating starting here:\n\n" + "\n".join(last_k_lines)
+            content = "Continue generating starting here, DO NOT restart:\n\n" + "\n".join(last_k_lines)
         chat_gpt.messages[-1].content = response_cleanup(response)
         # ask for a second response
         try:
