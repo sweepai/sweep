@@ -479,7 +479,7 @@ Below are a series of code snippets retrieved from the codebase via vector searc
 # Instructions
 1. Analyze each of the code snippets above and determine whether or not the new function is really necessary or not. Specifically, compare the new function with the existing methods in the code snippets by answering ALL the following questions:
    1a. Purpose: What is the primary purpose of the new function? Is this purpose already served by existing methods?
-   1b. Intention: What was the intention behind adding this new function? Is this function meant to be a wrapper or a helper function for existing methods? If the answer is yes, then this new function is important and should not be removed.
+   1b. Intention: What was the intention behind adding this new function? Is this function meant to be a wrapper or an interface function? If the answer is yes, then this new function is important and should not be removed.
    1c. Functionality: What specific tasks or operations does the new function perform? Are these tasks or operations already handled by existing methods?
    1d. Initialization: What data structures or variables are initialized in the new function? Are similar initializations present in existing methods?
    1e. Data Processing: How does the new function process data (e.g., formatting, extracting, or transforming data)? Are these data processing steps already implemented in existing methods?
