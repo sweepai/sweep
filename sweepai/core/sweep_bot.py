@@ -25,7 +25,9 @@ from sweepai.core.prompts import (
     context_files_to_change_prompt,
     context_files_to_change_system_prompt,
     gha_files_to_change_system_prompt,
+    gha_files_to_change_system_prompt_2,
     gha_files_to_change_prompt,
+    gha_files_to_change_prompt_2,
     test_files_to_change_system_prompt,
     test_files_to_change_prompt,
     fix_files_to_change_prompt,
@@ -1229,16 +1231,30 @@ def get_files_to_change_for_gha(
             ],
         )
         MODEL = "claude-3-opus-20240229" if not use_faster_model else "claude-3-sonnet-20240229"
-        files_to_change_response = continuous_llm_calls(
+        issue_identification = continuous_llm_calls(
             chat_gpt,
             content=joint_message + "\n\n" + gha_files_to_change_prompt,
+            model=MODEL,
+            temperature=0.1,
+            stop_sequences=["</reflection>"],
+            response_cleanup=cleanup_fcrs,
+            MAX_CALLS=10,
+            use_openai=use_openai,
+        )
+        chat_gpt.messages[-1].content += "</reflection>\n"
+        chat_gpt.messages[0].content = gha_files_to_change_system_prompt_2
+
+        files_to_change_response = continuous_llm_calls(
+            chat_gpt,
+            content=gha_files_to_change_prompt_2,
             model=MODEL,
             temperature=0.1,
             stop_sequences=["</plan>"],
             response_cleanup=cleanup_fcrs,
             MAX_CALLS=10,
-            use_openai=use_openai,
+            use_openai=False,
         ) + "\n</plan>"
+
         if chat_logger:
             chat_logger.add_chat(
                 {
