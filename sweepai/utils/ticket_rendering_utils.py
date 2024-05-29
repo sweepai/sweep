@@ -19,7 +19,7 @@ from tqdm import tqdm
 import hashlib
 
 
-from sweepai.agents.modify_utils import parse_fcr, rstrip_lines
+from sweepai.utils.str_utils import parse_fcr
 from sweepai.agents.pr_description_bot import PRDescriptionBot
 from sweepai.chat.api import posthog_trace
 from sweepai.config.client import (
@@ -52,6 +52,7 @@ from sweepai.utils.str_utils import (
     create_collapsible,
     discord_suffix,
     format_sandbox_success,
+    rstrip_lines,
     sep,
     stars_suffix,
 )
@@ -806,25 +807,3 @@ def create_update_review_pr_comment(
     comment_id = sweep_comment.id
     return comment_id
 
-
-def render_fcrs(file_change_requests: list[FileChangeRequest]):
-    # Render plan start
-    planning_markdown = ""
-    for fcr in file_change_requests:
-        parsed_fcr = parse_fcr(fcr)
-        if parsed_fcr and parsed_fcr["new_code"]:
-            planning_markdown += f"#### `{fcr.filename}`\n"
-            planning_markdown += f"{blockquote(parsed_fcr['justification'])}\n\n"
-            if parsed_fcr["original_code"] and parsed_fcr["original_code"][0].strip():
-                planning_markdown += f"""```diff\n{generate_diff(
-                    parsed_fcr["original_code"][0],
-                    rstrip_lines(parsed_fcr["new_code"][0]),
-                )}\n```\n"""
-            else:
-                _file_base_name, ext = os.path.splitext(fcr.filename)
-                planning_markdown += f"```{ext}\n{parsed_fcr['new_code'][0]}\n```\n"
-        else:
-            planning_markdown += (
-                f"#### `{fcr.filename}`\n{blockquote(fcr.instructions)}\n"
-            )
-    return planning_markdown

@@ -16,6 +16,8 @@ from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.ripgrep_utils import manual_code_check
 from sweepai.utils.code_validators import get_check_results
+from sweepai.utils.str_utils import rstrip_lines
+from sweepai.utils.str_utils import parse_fcr
 
 modify_tools = """
 # make_change - Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments, and style. Changes should be minimal, self-contained, and address only one specific modification. If a change affects multiple separate code sections, use multiple calls to this tool, one for each section.
@@ -445,13 +447,6 @@ SUBMIT_TASK_MOCK_FUNCTION_CALL = """<function_call>
 </submit_task>
 </function_call>"""
 
-def strip_triple_quotes(text: str) -> str:
-    stripped_text = text.strip("\n").rstrip()
-    if text.startswith('```'):
-        lines = stripped_text.splitlines()
-        return "\n".join(lines[1:-1]).strip("\n")
-    return text
-
 def english_join(items: list[str]) -> str:
     if len(items) == 0:
         return ""
@@ -460,10 +455,6 @@ def english_join(items: list[str]) -> str:
     if len(items) == 2:
         return f"{items[0]} and {items[1]}"
     return ", ".join(items[:-1]) + f", and {items[-1]}"
-
-def rstrip_lines(text: str) -> str:
-    """Claude likes to put trailing spaces at the end of lines. This function removes them."""
-    return "\n".join([line.rstrip() for line in text.split("\n")])
 
 def indent(text: str, spaces: int) -> str:
     return "\n".join([f"{' ' * spaces}{line}" if line.strip() else "" for line in text.split("\n")])
@@ -797,24 +788,6 @@ def get_replaces_per_fcr(fcr: FileChangeRequest) -> int:
         logger.error(f"Mismatched old/new code sections in fcr! {len(original_code_matches)} to {len(new_code_matches)}")
         return -1
     return len(original_code_matches)
-
-def parse_fcr(fcr: FileChangeRequest):
-    justification, *_ = fcr.instructions.split("<original_code>", 1)
-    justification, *_ = justification.split("<new_code>", 1)
-    justification = justification.rstrip().removesuffix("1.").removesuffix("2.").rstrip() # sometimes Claude puts 1. <original_code> which is weird
-    original_code_pattern = r"<original_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>\s*\n(.*?)</original_code>"
-    new_code_pattern = r"<new_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>\s*\n(.*?)</new_code>"
-    original_code_matches = list(re.finditer(original_code_pattern, fcr.instructions, re.DOTALL))
-    new_code_matches = list(re.finditer(new_code_pattern, fcr.instructions, re.DOTALL))
-    replace_all_pattern = r"<replace_all>true</replace_all>"
-    replace_all_matches = list(re.finditer(replace_all_pattern, fcr.instructions, re.DOTALL))
-    return {
-        "justification": justification.strip(),
-        "file_path": fcr.filename,
-        "original_code": [strip_triple_quotes(original_code_match.group(1)) for original_code_match in original_code_matches],
-        "new_code": [strip_triple_quotes(new_code_match.group(1)) for new_code_match in new_code_matches],
-        "replace_all": bool(replace_all_matches),
-    }
 
 # returns the old/new code change as a function call
 def compile_fcr(fcr: FileChangeRequest, index: int) -> str:

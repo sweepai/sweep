@@ -7,7 +7,7 @@ from github.Repository import Repository
 from github.PullRequest import PullRequest
 from loguru import logger
 
-from sweepai.agents.modify_utils import strip_triple_quotes
+from sweepai.utils.str_utils import strip_triple_quotes
 from sweepai.config.client import get_gha_enabled
 from sweepai.config.server import DEPLOYMENT_GHA_ENABLED
 from sweepai.core.chat import ChatGPT

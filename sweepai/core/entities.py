@@ -8,6 +8,7 @@ from urllib.parse import quote
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from sweepai.utils.diff import generate_diff
 from sweepai.utils.str_utils import (
     blockquote,
     clean_logs,
@@ -253,6 +254,29 @@ class FileChangeRequest(RegexMatchableBaseModel):
             diff_text = "".join(diff)
             return f"<pre>{diff_text}</pre>"
         return ""
+
+
+def render_fcrs(file_change_requests: list[FileChangeRequest]):
+    # Render plan start
+    planning_markdown = ""
+    for fcr in file_change_requests:
+        parsed_fcr = parse_fcr(fcr)
+        if parsed_fcr and parsed_fcr["new_code"]:
+            planning_markdown += f"#### `{fcr.filename}`\n"
+            planning_markdown += f"{blockquote(parsed_fcr['justification'])}\n\n"
+            if parsed_fcr["original_code"] and parsed_fcr["original_code"][0].strip():
+                planning_markdown += f"""```diff\n{generate_diff(
+                    parsed_fcr["original_code"][0],
+                    rstrip_lines(parsed_fcr["new_code"][0]),
+                )}\n```\n"""
+            else:
+                _file_base_name, ext = os.path.splitext(fcr.filename)
+                planning_markdown += f"```{ext}\n{parsed_fcr['new_code'][0]}\n```\n"
+        else:
+            planning_markdown += (
+                f"#### `{fcr.filename}`\n{blockquote(fcr.instructions)}\n"
+            )
+    return planning_markdown
 
 
 class SweepPullRequest(RegexMatchableBaseModel):

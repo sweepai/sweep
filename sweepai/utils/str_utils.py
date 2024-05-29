@@ -213,3 +213,34 @@ def extract_objects_from_string(text: str, object_tag: str, object_params: list[
             logger.warning(f"Failure occured during extraction on the following param: {failed_param}\ntext:\n{text}")
             posthog.capture("extract_objects_from_string", "extract_objects_from_string failed", properties={"failed_param": failed_param, "text": text, "object_tag": object_tag})
     return extracted_objects, failed_extraction
+
+
+def rstrip_lines(text: str) -> str:
+    """Claude likes to put trailing spaces at the end of lines. This function removes them."""
+    return "\n".join([line.rstrip() for line in text.split("\n")])
+
+
+def strip_triple_quotes(text: str) -> str:
+    stripped_text = text.strip("\n").rstrip()
+    if text.startswith('```'):
+        lines = stripped_text.splitlines()
+        return "\n".join(lines[1:-1]).strip("\n")
+    return text
+
+def parse_fcr(fcr: "FileChangeRequest"):
+    justification, *_ = fcr.instructions.split("<original_code>", 1)
+    justification, *_ = justification.split("<new_code>", 1)
+    justification = justification.rstrip().removesuffix("1.").removesuffix("2.").rstrip() # sometimes Claude puts 1. <original_code> which is weird
+    original_code_pattern = r"<original_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>\s*\n(.*?)</original_code>"
+    new_code_pattern = r"<new_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>\s*\n(.*?)</new_code>"
+    original_code_matches = list(re.finditer(original_code_pattern, fcr.instructions, re.DOTALL))
+    new_code_matches = list(re.finditer(new_code_pattern, fcr.instructions, re.DOTALL))
+    replace_all_pattern = r"<replace_all>true</replace_all>"
+    replace_all_matches = list(re.finditer(replace_all_pattern, fcr.instructions, re.DOTALL))
+    return {
+        "justification": justification.strip(),
+        "file_path": fcr.filename,
+        "original_code": [strip_triple_quotes(original_code_match.group(1)) for original_code_match in original_code_matches],
+        "new_code": [strip_triple_quotes(new_code_match.group(1)) for new_code_match in new_code_matches],
+        "replace_all": bool(replace_all_matches),
+    }

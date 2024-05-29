@@ -9,7 +9,7 @@ import traceback
 from time import time
 
 from github import BadCredentialsException
-from github.PullRequest import PullRequest
+from github.PullRequest import PullRequest as GithubPullRequest
 from loguru import logger
 
 
@@ -608,7 +608,14 @@ def on_ticket(
                 ).commit,
                 head=cloned_repo.repo.get_branch(pull_request.branch_name).commit,
             )
-            pr_changes = rewrite_pr_description(issue_number, repo, overrided_branch_name, pull_request, pr_changes)
+            pr_changes = PRSummaryBot.get_pull_request_summary(
+                title + "\n" + internal_message_summary,
+                issue_number,
+                repo,
+                overrided_branch_name,
+                pull_request,
+                pr_changes
+            )
 
             change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
             review_message = (
@@ -618,7 +625,7 @@ def on_ticket(
             fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
 
             # create draft pr, then convert to regular pr later
-            pr: PullRequest = repo.create_pull(
+            pr: GithubPullRequest = repo.create_pull(
                 title=pr_changes.title,
                 body=pr_changes.body,
                 head=pr_changes.pr_head,
