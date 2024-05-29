@@ -17,7 +17,7 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.ripgrep_utils import manual_code_check
 from sweepai.utils.code_validators import get_check_results
 from sweepai.utils.str_utils import rstrip_lines, strip_triple_quotes
-from sweepai.utils.str_utils import parse_fcr
+from sweepai.core.entities import parse_fcr
 
 modify_tools = """
 # make_change - Make a SINGLE, TARGETED code change in a file. Preserve whitespace, comments, and style. Changes should be minimal, self-contained, and address only one specific modification. If a change affects multiple separate code sections, use multiple calls to this tool, one for each section.

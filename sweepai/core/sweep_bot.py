@@ -44,7 +44,7 @@ from sweepai.utils.chat_logger import ChatLogger
 # from sweepai.utils.previous_diff_utils import get_relevant_commits
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo
-from sweepai.utils.str_utils import parse_fcr
+from sweepai.core.entities import parse_fcr
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 SNIPPET_TOKEN_BUDGET = int(150_000 * 3.5)  # 140k tokens

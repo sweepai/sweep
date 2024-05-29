@@ -6,7 +6,6 @@ import time
 
 from loguru import logger
 
-from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
 
 
@@ -228,43 +227,3 @@ def strip_triple_quotes(text: str) -> str:
         return "\n".join(lines[1:-1]).strip("\n")
     return text
 
-def parse_fcr(fcr: "FileChangeRequest"):
-    justification, *_ = fcr.instructions.split("<original_code>", 1)
-    justification, *_ = justification.split("<new_code>", 1)
-    justification = justification.rstrip().removesuffix("1.").removesuffix("2.").rstrip() # sometimes Claude puts 1. <original_code> which is weird
-    original_code_pattern = r"<original_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>\s*\n(.*?)</original_code>"
-    new_code_pattern = r"<new_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>\s*\n(.*?)</new_code>"
-    original_code_matches = list(re.finditer(original_code_pattern, fcr.instructions, re.DOTALL))
-    new_code_matches = list(re.finditer(new_code_pattern, fcr.instructions, re.DOTALL))
-    replace_all_pattern = r"<replace_all>true</replace_all>"
-    replace_all_matches = list(re.finditer(replace_all_pattern, fcr.instructions, re.DOTALL))
-    return {
-        "justification": justification.strip(),
-        "file_path": fcr.filename,
-        "original_code": [strip_triple_quotes(original_code_match.group(1)) for original_code_match in original_code_matches],
-        "new_code": [strip_triple_quotes(new_code_match.group(1)) for new_code_match in new_code_matches],
-        "replace_all": bool(replace_all_matches),
-    }
-
-
-def render_fcrs(file_change_requests: list["FileChangeRequest"]):
-    # Render plan start
-    planning_markdown = ""
-    for fcr in file_change_requests:
-        parsed_fcr = parse_fcr(fcr)
-        if parsed_fcr and parsed_fcr["new_code"]:
-            planning_markdown += f"#### `{fcr.filename}`\n"
-            planning_markdown += f"{blockquote(parsed_fcr['justification'])}\n\n"
-            if parsed_fcr["original_code"] and parsed_fcr["original_code"][0].strip():
-                planning_markdown += f"""```diff\n{generate_diff(
-                    parsed_fcr["original_code"][0],
-                    rstrip_lines(parsed_fcr["new_code"][0]),
-                )}\n```\n"""
-            else:
-                _file_base_name, ext = os.path.splitext(fcr.filename)
-                planning_markdown += f"```{ext}\n{parsed_fcr['new_code'][0]}\n```\n"
-        else:
-            planning_markdown += (
-                f"#### `{fcr.filename}`\n{blockquote(fcr.instructions)}\n"
-            )
-    return planning_markdown

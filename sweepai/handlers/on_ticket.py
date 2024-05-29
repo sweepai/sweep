@@ -30,6 +30,7 @@ from sweepai.core.entities import (
     MockPR,
     NoFilesException,
     SweepPullRequest,
+    render_fcrs,
 )
 from sweepai.core.pr_reader import PRReader
 from sweepai.core.pull_request_bot import PRSummaryBot
@@ -69,8 +70,7 @@ from sweepai.utils.str_utils import (
     discord_suffix,
     get_hash,
     strip_sweep,
-    to_branch_name,
-    render_fcrs
+    to_branch_name
 )
 from sweepai.utils.ticket_utils import (
     center,
