@@ -117,7 +117,6 @@ def get_authenticated_github_client(
         except Exception as e:
             raise Exception(f"Error getting repo {repo_name}: {e}")
         if repo.has_in_collaborators(user):
-            print(g)
             return g
         else:
             raise Exception(f"User {user.login} does not have the necessary permissions for the repository {repo_name}.")
@@ -175,11 +174,12 @@ def search_codebase_endpoint(
     if not g:
         return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
     username = Github(access_token).get_user().login
+    token = g.token if isinstance(g, CustomGithub) else access_token
     return [snippet.model_dump() for snippet in wrapped_search_codebase(
         username,
         repo_name,
         query,
-        access_token,
+        token,
         metadata={
             "repo_name": repo_name,
             "query": query,
@@ -234,14 +234,15 @@ def chat_codebase(
     g = get_authenticated_github_client(repo_name, access_token)
     assert g
 
-    username = g.get_user().login
+    username = Github(access_token).get_user().login
+    token = g.token if isinstance(g, CustomGithub) else access_token
 
     return chat_codebase_stream(
         username,
         repo_name,
         messages,
         snippets,
-        access_token,
+        token,
         metadata={
             "repo_name": repo_name,
             "message": messages[-1].content,
