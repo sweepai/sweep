@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 from difflib import unified_diff
 from typing import Any, ClassVar, Literal, Type, TypeVar
