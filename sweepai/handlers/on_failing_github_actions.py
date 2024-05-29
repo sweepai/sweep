@@ -78,6 +78,8 @@ def get_error_locations_from_error_logs(error_logs: str, cloned_repo: ClonedRepo
             if i + 1 in errors_dict:
                 error_message += f"    // FIXME {errors_dict[i + 1].strip()}"
             error_message += "\n"
+        if len(lines) not in erroring_lines:
+            error_message += "...\n"
         error_message += "```\n"
     deduped_matched_files = []
     for file_path in matched_files:
