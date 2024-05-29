@@ -368,9 +368,11 @@ Your role is to analyze the issue and codebase, then write out code changes to f
 Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.
 
 Take these steps:
-1. Analyze the issue, errors, codebase and existing changes to understand the problem.
+1. Analyze the issue, codebase and existing changes to understand the problem.
 
-2. Create a set of code to remove and code to add, including all necessary changes to resolve the issue, in the following format:
+2. List all new errors that have appeared in the GitHub Action logs and their corresponding root causes. Identify the entities that need to be updated to resolve these errors.
+
+3. Create a set of code to remove and code to add, including all necessary changes to resolve the issue, in the following format:
     - When modifying code you MUST take the following approach:
         Step 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file, with correct indentation and whitespace.
             - Do NOT paraphrase or abbreviate the source code.
@@ -419,21 +421,21 @@ a. List out all the previous error logs that were solved.
 b. List out all previous error logs that are still present or only partially solved.
 c. List out ALL the new Github Action error logs that you must now solve and potential root causes and solutions.
 
-Then, for EACH error log, identify the root cause -- the entity that is faulty:
-    - Error log 1: root cause of the error, and the name of entity that needs to be updated.
-    - Error log 2: root cause of the error, and the name of entity that needs to be updated.
-    [repeat for ALL error logs]
+There are a total of n errors. Here is EACH error, and their corresponding root cause:
+1. The error logs, the root cause of the error, and the name of entity that needs to be updated.
+2. The error logs, the root cause of the error, and the name of entity that needs to be updated.
+[repeat for ALL errors]
 
-Then, work backwards to identify each entity that needs to be updated and the corresponding error log that it solves:
-    - Entity 1:
-        - First specific error log that it solves and a brief description of the change.
-        - Second specific error log that it solves and a brief description of the change.
-        [repeat for ALL error logs]
-    - Entity 2:
-        - First specific error log that it solves and a brief description of the change.
-        - Second specific error log that it solves and a brief description of the change.
-        [repeat for ALL error logs]
-    [repeat for ALL entities]
+Here is each entity that needs to be updated and the corresponding error log that it resolves:
+- Entity 1:
+    - First specific error log that it solves and a brief description of the change.
+    - Second specific error log that it solves and a brief description of the change.
+    [repeat for ALL error logs]
+- Entity 2:
+    - First specific error log that it solves and a brief description of the change.
+    - Second specific error log that it solves and a brief description of the change.
+    [repeat for ALL error logs]
+[repeat for ALL entities]
 </reflction>
 
 # 3. Plan:
