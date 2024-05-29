@@ -120,7 +120,8 @@ class PRSummaryBot(ChatGPT):
                     "output": "END OF MESSAGES",
                 })
         return commit_message
-    
+
+    # pylint: disable=E0213
     def get_pull_request_summary(
         problem_statement,
         issue_number,
