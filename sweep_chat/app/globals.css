@@ -107,16 +107,21 @@
 
     ol {
       list-style-type: decimal;
-      margin-top: 1rem;
-      margin-bottom: 1rem;
-      margin-left: 1.5rem;
     }
 
     ul {
       list-style-type: disc;
+    }
+
+    ol,ul {
       margin-top: 1rem;
       margin-bottom: 1rem;
       margin-left: 1.5rem;
+
+      ol,ul {
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;
+      }
     }
 
     a {
@@ -125,8 +130,8 @@
     }
     
     p {
-      margin-top: 0.25rem;
-      margin-bottom: 0.25rem;
+      margin-top: 0.75rem;
+      margin-bottom: 0.75rem;
     }
   }
 

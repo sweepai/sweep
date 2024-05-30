@@ -25,6 +25,7 @@ import { PostHogProvider, usePostHog } from "posthog-js/react";
 import posthog from "posthog-js";
 import Survey from "./Survey";
 import * as jsonpatch from 'fast-json-patch';
+import { ReadableStreamDefaultReadResult } from "stream/web";
 
 
 if (typeof window !== 'undefined') {
@@ -37,6 +38,7 @@ interface Snippet {
   start: number;
   end: number;
   file_path: string;
+  type_name: "source" | "tests" | "dependencies" | "tools" | "docs";
 }
 
 interface Message {
@@ -54,6 +56,14 @@ const sliceLines = (content: string, start: number, end: number) => {
   return content.split("\n").slice(Math.max(start - 1, 0), end).join("\n");
 }
 
+const typeNameToColor = {
+  "source": "bg-slate-700",
+  "tests": "bg-zinc-600",
+  "dependencies": "bg-zinc-800",
+  "tools": "bg-zinc-900",
+  "docs": "bg-green-900",
+}
+
 const SnippetBadge = ({
   snippet,
   className,
@@ -64,7 +74,7 @@ const SnippetBadge = ({
   button?: JSX.Element;
 }) => {
   return (
-    <div className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 bg-zinc-700 ${className || ""}`}>
+    <div className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 ${typeNameToColor[snippet.type_name]} ${className || ""} `}>
       <HoverCard openDelay={300} closeDelay={200}>
         <HoverCardTrigger asChild>
           <Button variant="link" className="text-sm py-0 px-1 h-6 leading-4">
@@ -73,6 +83,11 @@ const SnippetBadge = ({
                 snippet.file_path : `${snippet.file_path}:${snippet.start}-${snippet.end}`
               }
             </span>
+            {
+              snippet.type_name !== "source" && (
+                <code className="ml-2 bg-opacity-20 bg-black text-white rounded p-1 px-2 text-xs">{snippet.type_name}</code>
+              )
+            }
           </Button>
         </HoverCardTrigger>
         <HoverCardContent className="w-[500px] mr-2">
@@ -103,7 +118,7 @@ const getFunctionCallHeaderString = (functionCall: Message["function_call"]) => 
       return functionCall.is_complete ? "Self critique" : "Self critiquing..."
     case "search_codebase":
       if (functionCall!.function_parameters?.query) {
-        return functionCall.is_complete ? `Search codebase for "${functionCall.function_parameters.query}"` : `Searching codebase for "${functionCall.function_parameters.query}"...`
+        return functionCall.is_complete ? `Search codebase for "${functionCall.function_parameters.query.trim()}"` : `Searching codebase for "${functionCall.function_parameters.query.trim()}"...`
       } else {
         return functionCall.is_complete ? "Search codebase" : "Searching codebase..."
       }
@@ -118,15 +133,52 @@ const roleToColor = {
   "function": "bg-zinc-800",
 }
 
+const UserMessageDisplay = ({ message }: { message: Message }) => {
+  // TODO: finish this implementation
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(message.content);
+
+  const handleClick = () => {
+    // setIsEditing(true);
+  };
+
+  const handleBlur = () => {
+    setIsEditing(false);
+  };
+
+  return (
+    <>
+      <div className="text-sm text-gray-400 text-white " onClick={handleClick}>
+        {isEditing ? (
+          <textarea
+            className="w-full bg-transparent text-white max-w-[500px]"
+            value={editedContent}
+            onChange={(e) => setEditedContent(e.target.value)}
+            onBlur={handleBlur}
+            autoFocus
+          />
+        ) : (
+          <span className="hover:bg-slate-700">{message.content}</span>
+        )}
+    </div>
+    {isEditing && (
+      <Button onClick={handleBlur} variant="default" className="bg-slate-600 text-white hover:bg-slate-500">
+        Generate
+      </Button>
+    )}
+  </>
+  );
+}
+
 const MessageDisplay = ({ message, className }: { message: Message, className?: string }) => {
   return (
     <div className={`flex ${message.role !== "user" ? "justify-start" : "justify-end"}`}>
       <div
-        className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] ${message.role !== "user" ? "text-left w-[80%]" : "text-right"
-          } ${className || roleToColor[message.role]}`}
+        className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] ${message.role !== "user" ? "text-left w-[80%]" : "hover:cursor-pointer hover:bg-zinc-700 text-right"
+          } ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
       >
         {message.role === "function" ? (
-          <Accordion type="single" collapsible className="w-full" defaultValue={Boolean(message.function_call?.snippets?.length) ? "function" : undefined}>
+          <Accordion type="single" collapsible className="w-full" defaultValue={(message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0) ? "function" : undefined}>
             <AccordionItem value="function" className="border-none">
               <AccordionTrigger className="border-none py-0 text-left">
                 <div className="text-xs text-gray-400 flex align-center">
@@ -151,7 +203,7 @@ const MessageDisplay = ({ message, className }: { message: Message, className?: 
                       />
                     ))}
                   </div>
-                ) : (message.function_call!.function_name === "self_critique" ? (
+                ) : (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
                   <Markdown
                     className="reactMarkdown mt-4 mb-0"
                     remarkPlugins={[remarkGfm]}
@@ -203,7 +255,7 @@ const MessageDisplay = ({ message, className }: { message: Message, className?: 
               </AccordionContent>
             </AccordionItem>
           </Accordion>
-        ) : (
+        ) : message.role === "assistant" ? (
           <Markdown
             className="reactMarkdown"
             remarkPlugins={[remarkGfm]}
@@ -237,6 +289,8 @@ const MessageDisplay = ({ message, className }: { message: Message, className?: 
           >
             {message.content}
           </Markdown>
+        ) : (
+          <UserMessageDisplay message={message} />
         )}
       </div>
     </div>
@@ -282,7 +336,7 @@ function App() {
     }
   }, [messages]);
 
-  const lastAssistantMessageIndex = messages.findLastIndex((message) => message.role === "assistant")
+  const lastAssistantMessageIndex = messages.findLastIndex((message) => message.role === "assistant" && message.content.trim().length > 0)
 
   if (!session) {
     return (
@@ -422,7 +476,7 @@ function App() {
           {isStream.current ? (
             <Button
               className="mr-2"
-              variant="secondary"
+              variant="destructive"
               onClick={async () => {
                 isStream.current = false;
                 setIsLoading(false);
@@ -528,7 +582,10 @@ function App() {
                     setMessages(respondedMessages);
                     try {
                       while (!done && isStream.current) {
-                        const { value, done: done_ } = await reader!.read();
+                        const { value, done: done_ } = await Promise.race([
+                          reader!.read() as Promise<ReadableStreamDefaultReadResult<Uint8Array>>,
+                          new Promise<ReadableStreamDefaultReadResult<Uint8Array>>((_, reject) => setTimeout(() => reject(new Error("Stream timeout after 20 seconds. You can try again by editing your last message.")), 20000))
+                        ]);
                         if (value) {
                           const decodedValue = new TextDecoder().decode(value);
                           buffer += decodedValue;

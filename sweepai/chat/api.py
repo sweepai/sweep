@@ -18,7 +18,6 @@ from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snip
 from sweepai.config.server import CACHE_DIRECTORY
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
-from sweepai.logn.cache import file_cache
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import CustomGithub, MockClonedRepo, get_github_client, get_installation_id
 from sweepai.utils.event_logger import posthog
@@ -226,8 +225,8 @@ def search_codebase(
             print(f"Cloning {repo_name} to /tmp/{repo}")
             git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"/tmp/{repo}")
             print(f"Cloned {repo_name} to /tmp/{repo}")
-        cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name)
-        # cloned_repo.pull()
+        cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name, token=access_token)
+        cloned_repo.pull()
         repo_context_manager = prep_snippets(
             cloned_repo, query, 
             use_multi_query=False,

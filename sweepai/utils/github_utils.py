@@ -396,18 +396,20 @@ class ClonedRepo:
             logger.info("Done cloning")
         else:
             # Pulling with pat doesn't work, have to reclone
-            # try:
-            #     repo = git.Repo(self.cached_dir)
-            #     repo.git.pull(self.clone_url)
-            # except Exception:
-            logger.warning("Could not pull repo, cloning instead")
-            shutil.rmtree(self.cached_dir, ignore_errors=True)
-            if self.branch:
-                repo = git.Repo.clone_from(
-                    self.clone_url, self.cached_dir, branch=self.branch
-                )
-            else:
-                repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
+            try:
+                repo = git.Repo(self.cached_dir)
+                repo.git.remote('set-url', 'origin', self.clone_url)
+                repo.git.pull()
+                logger.info("Pull repo succeeded")
+            except Exception as e:
+                logger.warning(f"Could not pull repo, cloning instead: {str(e)}")
+                shutil.rmtree(self.cached_dir, ignore_errors=True)
+                if self.branch:
+                    repo = git.Repo.clone_from(
+                        self.clone_url, self.cached_dir, branch=self.branch
+                    )
+                else:
+                    repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
         logger.info("Copying repo...")
         shutil.copytree(
             self.cached_dir, self.repo_dir, symlinks=True, copy_function=shutil.copy
@@ -441,7 +443,9 @@ class ClonedRepo:
     
     def pull(self):
         if self.git_repo:
-            self.git_repo.git.pull(self.clone_url)
+            breakpoint()
+            self.git_repo.git.remote('set-url', 'origin', self.clone_url)
+            self.git_repo.git.pull()
 
     def list_directory_tree(
         self,
