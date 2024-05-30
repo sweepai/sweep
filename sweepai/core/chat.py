@@ -670,12 +670,14 @@ def continuous_llm_calls(
         *args,
         **kwargs
     )
+    next_response = response
     num_calls = 0
     # pylint: disable=E1101
     while not any(token in response for token in stop_sequences) \
-        and len(response) > 3.5 * 4096 * 0.8 \
+        and len(next_response) > 3.5 * 4096 * 0.8 \
         and num_calls < MAX_CALLS: # 80% of max tokens
         last_line_index = response.rfind("\n")
+        content = ""
         if use_openai:
             last_block_original_code = response.rfind("<original_code>\n") + len("<original_code>\n")
             last_block_new_code = response.rfind("<new_code>\n") + len("<new_code>\n")
@@ -683,6 +685,9 @@ def continuous_llm_calls(
             if last_line_index - last_block < 2500:
                 last_line_index = last_block
         response = response[:last_line_index].rstrip()
+        last_k_lines = response.split("\n")[-10:]
+        if use_openai:
+            content = "Continue generating starting here, DO NOT restart:\n\n" + "\n".join(last_k_lines)
         chat_gpt.messages[-1].content = response_cleanup(response)
         # ask for a second response
         try:
@@ -692,7 +697,7 @@ def continuous_llm_calls(
                 use_openai=use_openai,
                 *args,
                 **kwargs,
-                content=""
+                content=content
             )
             next_response = response_cleanup(next_response)
             # we can simply concatenate the responses

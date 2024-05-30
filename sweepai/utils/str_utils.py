@@ -213,3 +213,17 @@ def extract_objects_from_string(text: str, object_tag: str, object_params: list[
             logger.warning(f"Failure occured during extraction on the following param: {failed_param}\ntext:\n{text}")
             posthog.capture("extract_objects_from_string", "extract_objects_from_string failed", properties={"failed_param": failed_param, "text": text, "object_tag": object_tag})
     return extracted_objects, failed_extraction
+
+
+def rstrip_lines(text: str) -> str:
+    """Claude likes to put trailing spaces at the end of lines. This function removes them."""
+    return "\n".join([line.rstrip() for line in text.split("\n")])
+
+
+def strip_triple_quotes(text: str) -> str:
+    stripped_text = text.strip("\n").rstrip()
+    if text.startswith('```'):
+        lines = stripped_text.splitlines()
+        return "\n".join(lines[1:-1]).strip("\n")
+    return text
+

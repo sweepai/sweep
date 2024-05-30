@@ -17,7 +17,7 @@ from sweepai.config.server import (
     GITHUB_BOT_USERNAME,
     MONGODB_URI,
 )
-from sweepai.core.entities import MockPR, NoFilesException, Snippet
+from sweepai.core.entities import MockPR, NoFilesException, Snippet, render_fcrs
 from sweepai.core.pull_request_bot import PRSummaryBot
 from sweepai.core.sweep_bot import get_files_to_change, validate_file_change_requests
 from sweepai.handlers.create_pr import handle_file_change_requests
@@ -27,7 +27,7 @@ from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, get_github_client, sanitize_string_for_github, validate_and_sanitize_multi_file_changes
 from sweepai.utils.str_utils import BOT_SUFFIX, FASTER_MODEL_MESSAGE, blockquote
-from sweepai.utils.ticket_rendering_utils import render_fcrs, sweeping_gif
+from sweepai.utils.ticket_rendering_utils import sweeping_gif
 from sweepai.utils.ticket_utils import center, fire_and_forget_wrapper, prep_snippets
 
 num_of_snippets_to_query = 30
