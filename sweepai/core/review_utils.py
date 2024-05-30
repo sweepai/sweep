@@ -6,6 +6,7 @@ import multiprocessing
 import os
 import re
 
+import git
 import numpy as np
 from sklearn.cluster import DBSCAN
 from tqdm import tqdm
@@ -24,7 +25,7 @@ from github.Repository import Repository
 from github.PullRequest import PullRequest
 
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
-from sweepai.utils.github_utils import ClonedRepo, update_file
+from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo, update_file
 from sweepai.utils.str_utils import add_line_numbers, extract_object_fields_from_string, extract_objects_from_string, object_to_xml, objects_to_xml, remove_lines_from_text
 from sweepai.utils.ticket_rendering_utils import parse_issues_from_code_review
 from sweepai.utils.ticket_utils import get_top_k_snippets
@@ -1079,8 +1080,20 @@ def group_vote_review_pr(
     if multiprocess:
         chat_logger = None
         pool = multiprocessing.Pool(processes=5)
+        # we have to create copies of the ClonedRepo or else the repo_dir will get cleaned up when the processes terminate
+        cloned_repos = [
+            MockClonedRepo(
+                _repo_dir=cloned_repo.repo_dir,
+                repo_full_name=cloned_repo.repo_full_name,
+                installation_id=cloned_repo.installation_id,
+                branch=cloned_repo.branch,
+                token=cloned_repo.token,
+                repo=cloned_repo.repo,
+                git_repo=git.Repo(cloned_repo.repo_dir),
+            ) for _ in range(GROUP_SIZE)
+        ]
         results = [
-            pool.apply_async(get_code_reviews_for_file, args=(pr_changes, formatted_pr_changes_by_file, cloned_repo, chat_logger, i))
+            pool.apply_async(get_code_reviews_for_file, args=(pr_changes, formatted_pr_changes_by_file, cloned_repos[i], chat_logger, i))
             for i in range(GROUP_SIZE)
         ]
         pool.close()
@@ -1098,8 +1111,8 @@ def group_vote_review_pr(
                 )
     else:
         for i in range(GROUP_SIZE):
-            code_reviews_by_file.append(get_code_reviews_for_file(pr_changes, formatted_pr_changes_by_file, cloned_repo, chat_logger=chat_logger, seed=i))
-    
+            review = get_code_reviews_for_file(pr_changes, formatted_pr_changes_by_file, cloned_repo, chat_logger=chat_logger, seed=i)
+            code_reviews_by_file.append(review)
     # embed each issue and then cluster them
     # extract code issues for each file and prepare them for embedding
     code_reviews_ready_for_embedding = [] 
