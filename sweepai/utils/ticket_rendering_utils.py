@@ -635,7 +635,7 @@ def render_code_review_issues(
                 issue_blob_url = f"{files_to_blobs[issue.file_name]}#L{issue.start_line}-L{issue.end_line}"
                 issue_diff_url = f"{files_to_diffs[issue.file_name]}R{issue.start_line}-R{issue.end_line}"
             if sorted_issues:
-                code_issues_string += f"<li>In {issue.file_name}: {issue.issue_description}</li>\n\n{issue_blob_url}\n[View Diff]({issue_diff_url})"
+                code_issues_string += f"<li>In `{issue.file_name}`: {issue.issue_description}</li>\n\n{issue_blob_url}\n[View Diff]({issue_diff_url})"
             else:
                 code_issues_string += f"<li>{issue.issue_description}</li>\n\n{issue_blob_url}\n[View Diff]({issue_diff_url})"
     return code_issues_string
@@ -735,10 +735,10 @@ def render_pr_review_by_file(
     # add footer describing dropped files
     footer = ""
     if len(dropped_files) == 1:
-        footer += f"<p>{dropped_files[0]} was not reviewed because our filter identified it as typically a non-human-readable or less important file (e.g., dist files, package.json, images). If this is an error, please let us know.</p>"
+        footer += f"<p>{dropped_files[0]} was not reviewed because our filter identified it as typically a non-human-readable (auto-generated) or less important file (e.g., dist files, package.json, images). If this is an error, please let us know.</p>"
     elif len(dropped_files) > 1:
         dropped_files_string = "".join([f"<li>{file}</li>" for file in dropped_files])
-        footer += f"<p>The following files were not reviewed because our filter identified them as typically non-human-readable or less important files (e.g., dist files, package.json, images). If this is an error, please let us know.</p><ul>{dropped_files_string}</ul>"
+        footer += f"<p>The following files were not reviewed because our filter identified them as typically non-human-readable (auto-generated) or less important files (e.g., dist files, package.json, images). If this is an error, please let us know.</p><ul>{dropped_files_string}</ul>"
     if len(unsuitable_files) == 1:
         footer += f"<p>The following file {unsuitable_files[0][0]} were not reviewed as they were deemed unsuitable for the following reason: {str(unsuitable_files[0][1])}. If this is an error please let us know.</p>"
     elif len(unsuitable_files) > 1:
@@ -779,6 +779,10 @@ def create_update_review_pr_comment(
             break
     commits = list(pr.get_commits())
     pr_authors = set()
+    try:
+        pr_authors.add(f"{pr.user.login}")
+    except Exception as e:
+        logger.error(f"Failed to retrieve {pr.user}: {str(e)}")
     for commit in commits:
         author = commit.author
         try:
