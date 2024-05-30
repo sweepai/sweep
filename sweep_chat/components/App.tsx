@@ -38,6 +38,7 @@ interface Snippet {
   start: number;
   end: number;
   file_path: string;
+  type_name: "source" | "tests" | "dependencies" | "tools" | "docs";
 }
 
 interface Message {
@@ -55,6 +56,14 @@ const sliceLines = (content: string, start: number, end: number) => {
   return content.split("\n").slice(Math.max(start - 1, 0), end).join("\n");
 }
 
+const typeNameToColor = {
+  "source": "bg-slate-700",
+  "tests": "bg-zinc-600",
+  "dependencies": "bg-zinc-800",
+  "tools": "bg-zinc-900",
+  "docs": "bg-green-900",
+}
+
 const SnippetBadge = ({
   snippet,
   className,
@@ -65,7 +74,7 @@ const SnippetBadge = ({
   button?: JSX.Element;
 }) => {
   return (
-    <div className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 bg-zinc-700 ${className || ""}`}>
+    <div className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 ${typeNameToColor[snippet.type_name]} ${className || ""} `}>
       <HoverCard openDelay={300} closeDelay={200}>
         <HoverCardTrigger asChild>
           <Button variant="link" className="text-sm py-0 px-1 h-6 leading-4">
