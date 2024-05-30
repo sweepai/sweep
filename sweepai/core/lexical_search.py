@@ -4,6 +4,7 @@ import os
 import re
 from collections import Counter
 import subprocess
+import time
 
 import tantivy
 from diskcache import Cache
@@ -59,7 +60,15 @@ class CustomIndex:
     def search_index(self, query: str) -> list[tuple[str, float, dict]]:
         query = tokenize_code(query)
         query = self.index.parse_query(query)
-        searcher = self.index.searcher()
+        searcher = self.index.searcher() # for some reason, the first searcher is empty
+        for i in range(100):
+            searcher = self.index.searcher()
+            if searcher.num_docs > 0:
+                break
+            print(f"Index is empty, sleeping for {0.01 * i} seconds")
+            time.sleep(0.01)
+        else:
+            raise Exception("Index is empty")
         results = searcher.search(query, limit=200).hits
         return [(searcher.doc(doc_id)["title"][0], score, searcher.doc(doc_id)) for score, doc_id in results]
 
@@ -161,28 +170,22 @@ def search_index(query: str, index: CustomIndex):
     This function takes a query and an index as input and returns a dictionary of document IDs
     and their corresponding scores.
     """
-    if index is None:
-        return {}
-    try:
-        # Create a query parser for the "content" field of the index
-        results_with_metadata = index.search_index(query)
-        # Search the index
-        res = {}
-        for doc_id, score, _ in results_with_metadata:
-            if doc_id not in res:
-                res[doc_id] = score
-        # min max normalize scores from 0.5 to 1
-        if len(res) == 0:
-            max_score = 1
-            min_score = 0
-        else:
-            max_score = max(res.values())
-            min_score = min(res.values()) if min(res.values()) < max_score else 0
-        res = {k: (v - min_score) / (max_score - min_score) for k, v in res.items()}
-        return res
-    except Exception as e:
-        logger.exception(e)
-        return {}
+    # Create a query parser for the "content" field of the index
+    results_with_metadata = index.search_index(query)
+    # Search the index
+    res = {}
+    for doc_id, score, _ in results_with_metadata:
+        if doc_id not in res:
+            res[doc_id] = score
+    # min max normalize scores from 0.5 to 1
+    if len(res) == 0:
+        max_score = 1
+        min_score = 0
+    else:
+        max_score = max(res.values())
+        min_score = min(res.values()) if min(res.values()) < max_score else 0
+    res = {k: (v - min_score) / (max_score - min_score) for k, v in res.items()}
+    return res
 
 SNIPPET_FORMAT = """File path: {file_path}
 

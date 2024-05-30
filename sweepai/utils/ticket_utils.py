@@ -94,7 +94,7 @@ rerank_count = {
     "dependencies": 10,
     "docs": 30,
     "tests": 30,
-    "source": 100,
+    "source": 50,
 }
 
 def separate_snippets_by_type(snippets: list[Snippet]) -> SeparatedSnippets:
@@ -129,7 +129,7 @@ def apply_adjustment_score(
     return snippet_score
 
 NUM_SNIPPETS_TO_RERANK = 100
-VECTOR_SEARCH_WEIGHT = 1.5
+VECTOR_SEARCH_WEIGHT = 2
 
 # @file_cache()
 def multi_get_top_k_snippets(
@@ -162,6 +162,7 @@ def multi_get_top_k_snippets(
     with Timer() as timer:
         content_to_lexical_score_list = [search_index(query, lexical_index) for query in queries]
     logger.info(f"Lexical search took {timer.time_elapsed} seconds")
+    assert content_to_lexical_score_list[0]
 
     with Timer() as timer:
         files_to_scores_list = compute_vector_search_scores(queries, snippets)
