@@ -310,7 +310,7 @@ def multi_prep_snippets(
     if not skip_pointwise_reranking:
         all_snippets = []
         if "junk" in separated_snippets:
-            separated_snippets.junk = []
+            separated_snippets.override_list("junk", [])
         for type_name, snippets_subset in separated_snippets:
             if len(snippets_subset) == 0:
                 continue

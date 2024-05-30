@@ -225,8 +225,8 @@ def search_codebase(
             print(f"Cloning {repo_name} to /tmp/{repo}")
             git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"/tmp/{repo}")
             print(f"Cloned {repo_name} to /tmp/{repo}")
-        cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name)
-        # cloned_repo.pull()
+        cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name, token=access_token)
+        cloned_repo.pull()
         repo_context_manager = prep_snippets(
             cloned_repo, query, 
             use_multi_query=False,
