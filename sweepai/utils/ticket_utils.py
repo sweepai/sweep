@@ -89,6 +89,14 @@ type_to_result_count = {
     "source": 30,
 }
 
+rerank_count = {
+    "tools": 10,
+    "dependencies": 10,
+    "docs": 30,
+    "tests": 30,
+    "source": 100,
+}
+
 def separate_snippets_by_type(snippets: list[Snippet]) -> SeparatedSnippets:
     separated_snippets = SeparatedSnippets()
     for snippet in snippets:
@@ -216,9 +224,11 @@ def get_pointwise_reranked_snippet_scores(
     if not COHERE_API_KEY:
         return snippet_scores
 
+    rerank_scores = copy.deepcopy(snippet_scores)
+
     sorted_snippets = sorted(
         snippets,
-        key=lambda snippet: snippet_scores[snippet.denotation],
+        key=lambda snippet: rerank_scores[snippet.denotation],
         reverse=True,
     )
 
@@ -242,7 +252,7 @@ def get_pointwise_reranked_snippet_scores(
     )
     # this needs to happen before we update the scores with the (higher) Cohere scores
     snippet_denotations = set(snippet.denotation for snippet in sorted_snippets)
-    new_snippet_scores = {snippet_denotation: v / 1_000_000 for snippet_denotation, v in snippet_scores.items() if snippet_denotation in snippet_denotations}
+    new_snippet_scores = {snippet_denotation: v / 1_000_000_000_000 for snippet_denotation, v in rerank_scores.items() if snippet_denotation in snippet_denotations}
 
     for document in response.results:
         new_snippet_scores[sorted_snippets[document.index].denotation] = apply_adjustment_score(
@@ -251,7 +261,7 @@ def get_pointwise_reranked_snippet_scores(
         )
 
     for snippet in sorted_snippets[:NUM_SNIPPETS_TO_KEEP]:
-        new_snippet_scores[snippet.denotation] = snippet_scores[snippet.denotation] * 1_000
+        new_snippet_scores[snippet.denotation] = rerank_scores[snippet.denotation] * 1_000
     
     # override score with Cohere score
     for snippet in sorted_snippets[:NUM_SNIPPETS_TO_RERANK]:
@@ -298,9 +308,13 @@ def multi_prep_snippets(
                 continue
             if len(snippets_subset) == 0:
                 continue
-            directory_summaries = {} # recursively_summarize_directory(snippets, cloned_repo)
+            snippets_subset = sorted(
+                snippets_subset,
+                key=lambda snippet: content_to_lexical_score[snippet.denotation],
+                reverse=True,
+            )[:rerank_count[type_name]]
             new_content_to_lexical_scores = get_pointwise_reranked_snippet_scores(
-                queries[0], snippets_subset, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, NUM_SNIPPETS_TO_RERANK, directory_summaries
+                queries[0], snippets_subset[:rerank_count[type_name]], content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, rerank_count[type_name], {}
             )
             # set all keys of new_content_to_lexical_scores to content_to_lexical_score
             for key in new_content_to_lexical_scores:
