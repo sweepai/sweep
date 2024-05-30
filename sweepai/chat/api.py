@@ -9,6 +9,7 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Header
 from fastapi.responses import StreamingResponse
 import git
 from github import Github
+from loguru import logger
 
 from sweepai.agents.modify_utils import validate_and_parse_function_call
 from sweepai.agents.search_agent import extract_xml_tag
@@ -20,6 +21,7 @@ from sweepai.utils.github_utils import CustomGithub, MockClonedRepo, get_github_
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.str_utils import get_hash
 from sweepai.utils.ticket_utils import prep_snippets
+from sweepai.utils.timer import Timer
 
 app = FastAPI()
 
@@ -205,19 +207,21 @@ def search_codebase(
     query: str,
     access_token: str,
 ):
-    org_name, repo = repo_name.split("/")
-    if not os.path.exists(f"/tmp/{repo}"):
-        print(f"Cloning {repo_name} to /tmp/{repo}")
-        git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"/tmp/{repo}")
-        print(f"Cloned {repo_name} to /tmp/{repo}")
-    cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name)
-    # cloned_repo.pull()
-    repo_context_manager = prep_snippets(
-        cloned_repo, query, 
-        use_multi_query=False,
-        NUM_SNIPPETS_TO_KEEP=0,
-        skip_analyze_agent=True
-    )
+    with Timer() as timer:
+        org_name, repo = repo_name.split("/")
+        if not os.path.exists(f"/tmp/{repo}"):
+            print(f"Cloning {repo_name} to /tmp/{repo}")
+            git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"/tmp/{repo}")
+            print(f"Cloned {repo_name} to /tmp/{repo}")
+        cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name)
+        # cloned_repo.pull()
+        repo_context_manager = prep_snippets(
+            cloned_repo, query, 
+            use_multi_query=False,
+            NUM_SNIPPETS_TO_KEEP=0,
+            skip_analyze_agent=True
+        )
+    logger.debug(f"Preparing snippets took {timer.time_elapsed} seconds")
     return repo_context_manager.current_top_snippets
 
 @app.post("/backend/chat")

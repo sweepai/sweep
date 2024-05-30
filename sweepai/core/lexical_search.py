@@ -94,7 +94,7 @@ def compute_document_tokens(
     if results is not None:
         return results
     tokens = tokenize_code(content)
-    token_cache[content] = tokens
+    token_cache[content + CACHE_VERSION] = tokens
     return tokens
 
 def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
@@ -124,28 +124,31 @@ def prepare_index_from_snippets(
     all_tokens = []
     workers = multiprocessing.cpu_count() // 2
     try:
-        if workers > 1:
-            with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 2) as p:
-                all_tokens = p.map(
-                    compute_document_tokens,
-                    tqdm(
-                        [doc.content for doc in all_docs],
-                        total=len(all_docs),
-                        desc="Tokenizing documents"
+        with Timer() as timer:
+            if workers > 1:
+                with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 2) as p:
+                    all_tokens = p.map(
+                        compute_document_tokens,
+                        tqdm(
+                            [doc.content for doc in all_docs],
+                            total=len(all_docs),
+                            desc="Tokenizing documents"
+                        )
                     )
+            else:
+                all_tokens = zip(
+                    *[
+                        compute_document_tokens(doc.content)
+                        for doc in tqdm(all_docs, desc="Tokenizing documents")
+                    ]
                 )
-        else:
-            all_tokens = zip(
-                *[
-                    compute_document_tokens(doc.content)
-                    for doc in tqdm(all_docs, desc="Tokenizing documents")
-                ]
-            )
+        logger.debug(f"Tokenizing documents took {timer.time_elapsed} seconds")
         all_titles = [doc.title for doc in all_docs]
-        with Timer():
+        with Timer() as timer:
             index.add_documents(
                 tqdm(zip(all_titles, all_tokens), total=len(all_docs), desc="Indexing")
             )
+        logger.debug(f"Indexing took {timer.time_elapsed} seconds")
     except FileNotFoundError as e:
         logger.exception(e)
 
