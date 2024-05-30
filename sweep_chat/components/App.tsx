@@ -25,6 +25,7 @@ import { PostHogProvider, usePostHog } from "posthog-js/react";
 import posthog from "posthog-js";
 import Survey from "./Survey";
 import * as jsonpatch from 'fast-json-patch';
+import { ReadableStreamDefaultReadResult } from "stream/web";
 
 
 if (typeof window !== 'undefined') {
@@ -103,7 +104,7 @@ const getFunctionCallHeaderString = (functionCall: Message["function_call"]) => 
       return functionCall.is_complete ? "Self critique" : "Self critiquing..."
     case "search_codebase":
       if (functionCall!.function_parameters?.query) {
-        return functionCall.is_complete ? `Search codebase for "${functionCall.function_parameters.query}"` : `Searching codebase for "${functionCall.function_parameters.query}"...`
+        return functionCall.is_complete ? `Search codebase for "${functionCall.function_parameters.query.trim()}"` : `Searching codebase for "${functionCall.function_parameters.query.trim()}"...`
       } else {
         return functionCall.is_complete ? "Search codebase" : "Searching codebase..."
       }
@@ -123,10 +124,10 @@ const MessageDisplay = ({ message, className }: { message: Message, className?: 
     <div className={`flex ${message.role !== "user" ? "justify-start" : "justify-end"}`}>
       <div
         className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] ${message.role !== "user" ? "text-left w-[80%]" : "text-right"
-          } ${className || roleToColor[message.role]}`}
+          } ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
       >
         {message.role === "function" ? (
-          <Accordion type="single" collapsible className="w-full" defaultValue={Boolean(message.function_call?.snippets?.length) ? "function" : undefined}>
+          <Accordion type="single" collapsible className="w-full" defaultValue={message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0 ? "function" : undefined}>
             <AccordionItem value="function" className="border-none">
               <AccordionTrigger className="border-none py-0 text-left">
                 <div className="text-xs text-gray-400 flex align-center">
@@ -151,7 +152,7 @@ const MessageDisplay = ({ message, className }: { message: Message, className?: 
                       />
                     ))}
                   </div>
-                ) : (message.function_call!.function_name === "self_critique" ? (
+                ) : (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
                   <Markdown
                     className="reactMarkdown mt-4 mb-0"
                     remarkPlugins={[remarkGfm]}
@@ -205,7 +206,7 @@ const MessageDisplay = ({ message, className }: { message: Message, className?: 
           </Accordion>
         ) : (
           <Markdown
-            className="reactMarkdown"
+            className={`${message.role !== "user" ? "reactMarkdown" : ""}`}
             remarkPlugins={[remarkGfm]}
             components={{
               code(props) {
@@ -422,7 +423,7 @@ function App() {
           {isStream.current ? (
             <Button
               className="mr-2"
-              variant="secondary"
+              variant="destructive"
               onClick={async () => {
                 isStream.current = false;
                 setIsLoading(false);
@@ -528,7 +529,10 @@ function App() {
                     setMessages(respondedMessages);
                     try {
                       while (!done && isStream.current) {
-                        const { value, done: done_ } = await reader!.read();
+                        const { value, done: done_ } = await Promise.race([
+                          reader!.read() as Promise<ReadableStreamDefaultReadResult<Uint8Array>>,
+                          new Promise<ReadableStreamDefaultReadResult<Uint8Array>>((_, reject) => setTimeout(() => reject(new Error("Stream timeout after 20 seconds. You can try again by editing your last message.")), 20000))
+                        ]);
                         if (value) {
                           const decodedValue = new TextDecoder().decode(value);
                           buffer += decodedValue;
