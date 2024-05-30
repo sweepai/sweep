@@ -12,7 +12,7 @@ from networkx import Graph
 from tqdm import tqdm
 from rapidfuzz import fuzz
 
-from sweepai.agents.modify_utils import check_valid_parentheses, contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, find_smallest_valid_superspan, parse_fcr, indent
+from sweepai.agents.modify_utils import check_valid_parentheses, contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, find_smallest_valid_superspan, indent
 from sweepai.core.annotate_code_openai import get_annotated_source_code
 from sweepai.core.chat import ChatGPT, continuous_llm_calls
 from sweepai.core.entities import (
@@ -25,7 +25,9 @@ from sweepai.core.prompts import (
     context_files_to_change_prompt,
     context_files_to_change_system_prompt,
     gha_files_to_change_system_prompt,
+    gha_files_to_change_system_prompt_2,
     gha_files_to_change_prompt,
+    gha_files_to_change_prompt_2,
     test_files_to_change_system_prompt,
     test_files_to_change_prompt,
     fix_files_to_change_prompt,
@@ -44,6 +46,7 @@ from sweepai.utils.chat_logger import ChatLogger
 # from sweepai.utils.previous_diff_utils import get_relevant_commits
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo
+from sweepai.core.entities import parse_fcr
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 SNIPPET_TOKEN_BUDGET = int(150_000 * 3.5)  # 140k tokens
@@ -707,6 +710,7 @@ def get_files_to_change(
             cloned_repo,
             renames_dict=renames_dict,
         )
+        # breakpoint()
 
         for error_resolution_count in range(3):
             if not error_message:
@@ -1227,16 +1231,30 @@ def get_files_to_change_for_gha(
             ],
         )
         MODEL = "claude-3-opus-20240229" if not use_faster_model else "claude-3-sonnet-20240229"
-        files_to_change_response = continuous_llm_calls(
+        continuous_llm_calls(
             chat_gpt,
             content=joint_message + "\n\n" + gha_files_to_change_prompt,
+            model=MODEL,
+            temperature=0.1,
+            stop_sequences=["</reflection>"],
+            response_cleanup=cleanup_fcrs,
+            MAX_CALLS=10,
+            use_openai=use_openai,
+        )
+        chat_gpt.messages[-1].content += "</reflection>\n"
+        chat_gpt.messages[0].content = gha_files_to_change_system_prompt_2
+
+        files_to_change_response = continuous_llm_calls(
+            chat_gpt,
+            content=gha_files_to_change_prompt_2,
             model=MODEL,
             temperature=0.1,
             stop_sequences=["</plan>"],
             response_cleanup=cleanup_fcrs,
             MAX_CALLS=10,
-            use_openai=use_openai,
+            use_openai=False,
         ) + "\n</plan>"
+
         if chat_logger:
             chat_logger.add_chat(
                 {

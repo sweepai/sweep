@@ -9,7 +9,7 @@ import traceback
 from time import time
 
 from github import BadCredentialsException
-from github.PullRequest import PullRequest
+from github.PullRequest import PullRequest as GithubPullRequest
 from loguru import logger
 
 
@@ -30,6 +30,7 @@ from sweepai.core.entities import (
     MockPR,
     NoFilesException,
     SweepPullRequest,
+    render_fcrs,
 )
 from sweepai.core.pr_reader import PRReader
 from sweepai.core.pull_request_bot import PRSummaryBot
@@ -41,7 +42,7 @@ from sweepai.handlers.create_pr import (
 from sweepai.utils.image_utils import get_image_contents_from_urls, get_image_urls_from_issue
 from sweepai.utils.issue_validator import validate_issue
 from sweepai.utils.prompt_constructor import get_issue_request
-from sweepai.utils.ticket_rendering_utils import add_emoji, process_summary, remove_emoji, get_payment_messages, get_comment_header, render_fcrs, send_email_to_user, rewrite_pr_description, raise_on_no_file_change_requests, handle_empty_repository, delete_old_prs
+from sweepai.utils.ticket_rendering_utils import add_emoji, process_summary, remove_emoji, get_payment_messages, get_comment_header, send_email_to_user, raise_on_no_file_change_requests, handle_empty_repository, delete_old_prs
 from sweepai.utils.validate_license import validate_license
 from sweepai.utils.buttons import Button, ButtonList
 from sweepai.utils.chat_logger import ChatLogger
@@ -69,7 +70,7 @@ from sweepai.utils.str_utils import (
     discord_suffix,
     get_hash,
     strip_sweep,
-    to_branch_name,
+    to_branch_name
 )
 from sweepai.utils.ticket_utils import (
     center,
@@ -608,7 +609,14 @@ def on_ticket(
                 ).commit,
                 head=cloned_repo.repo.get_branch(pull_request.branch_name).commit,
             )
-            pr_changes = rewrite_pr_description(issue_number, repo, overrided_branch_name, pull_request, pr_changes)
+            pr_changes = PRSummaryBot.get_pull_request_summary(
+                title + "\n" + internal_message_summary,
+                issue_number,
+                repo,
+                overrided_branch_name,
+                pull_request,
+                pr_changes
+            )
 
             change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
             review_message = (
@@ -618,7 +626,7 @@ def on_ticket(
             fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
 
             # create draft pr, then convert to regular pr later
-            pr: PullRequest = repo.create_pull(
+            pr: GithubPullRequest = repo.create_pull(
                 title=pr_changes.title,
                 body=pr_changes.body,
                 head=pr_changes.pr_head,
@@ -662,8 +670,6 @@ def on_ticket(
                 done=True,
             )
 
-            send_email_to_user(title, issue_number, username, repo_full_name, tracking_id, repo_name, g, file_change_requests, pr_changes, pr)
-
             on_failing_github_actions(
                 f"{title}\n{internal_message_summary}\n{replies_text}",
                 repo,
@@ -673,6 +679,8 @@ def on_ticket(
                 installation_id,
                 chat_logger=chat_logger
             )
+
+            send_email_to_user(title, issue_number, username, repo_full_name, tracking_id, repo_name, g, file_change_requests, pr_changes, pr)
 
             # break from main for loop
             convert_pr_draft_field(pr, is_draft=False, installation_id=installation_id)

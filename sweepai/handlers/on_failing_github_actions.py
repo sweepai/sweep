@@ -1,3 +1,4 @@
+from collections import defaultdict
 import copy
 import re
 from time import sleep
@@ -7,13 +8,14 @@ from github.Repository import Repository
 from github.PullRequest import PullRequest
 from loguru import logger
 
-from sweepai.agents.modify_utils import strip_triple_quotes
+from sweepai.dataclasses.gha_fix import GHAFix
+from sweepai.utils.str_utils import strip_triple_quotes
 from sweepai.config.client import get_gha_enabled
 from sweepai.config.server import DEPLOYMENT_GHA_ENABLED
 from sweepai.core.chat import ChatGPT
 from sweepai.core.context_pruning import RepoContextManager
 from sweepai.core.entities import Message
-from sweepai.core.pull_request_bot import PRSummaryBot
+from sweepai.core.pull_request_bot import GHA_SUMMARY_END, GHA_SUMMARY_START, PRSummaryBot
 from sweepai.core.sweep_bot import GHA_PROMPT, GHA_PROMPT_WITH_HISTORY, get_files_to_change_for_gha, validate_file_change_requests
 from sweepai.handlers.create_pr import handle_file_change_requests
 from sweepai.utils.chat_logger import ChatLogger
@@ -35,15 +37,18 @@ ONLY RETURN THE USEFUL PARTS OF THE LOGS THAT WILL HELP A DEVELOPER RESOLVE THE 
 """
 
 def get_error_locations_from_error_logs(error_logs: str, cloned_repo: ClonedRepo):
-    annotated_error_logs = error_logs
-    pattern = re.compile(r"^(?P<file_path>.*?)(?P<dummy_match>\b)(?P<line_num>\d+)(?P<error_message>.*?)$", re.MULTILINE)
-    matches = pattern.findall(error_logs)
+    pattern = re.compile(r"^(?P<file_path>.*?)[^a-zA-Z\d]+(?P<line_num>\d+)[^a-zA-Z\d]+(?P<col_num>\d+)[^a-zA-Z\d]+(?P<error_message>.*?)$", re.MULTILINE)
+    matches = list(pattern.finditer(error_logs))
+
     matched_files = []
+    errors = defaultdict(dict)
+    error_message = ""
 
     file_paths = cloned_repo.get_file_list()
     for match in matches:
-        formatted_error_message = ""
-        potential_file_path, _, line_number, error_message = match
+        potential_file_path = match.group("file_path")
+        line_number = match.group("line_num")
+        current_error_message = match.group("error_message")
         if not any(file_path in potential_file_path
                    for file_path in file_paths):
             continue
@@ -54,22 +59,33 @@ def get_error_locations_from_error_logs(error_logs: str, cloned_repo: ClonedRepo
         ][0]
         matched_files.append(actual_file_path)
         
-        # get matching line of code
-        file_contents = cloned_repo.get_file_contents(actual_file_path)
+        errors[actual_file_path][int(line_number)] = current_error_message # assume one error per line for now
+    
+    for file_path, errors_dict in errors.items():
+        error_message += f"Here are the {len(errors_dict)} errors in {file_path}, each denotated by FIXME:\n```\n"
+        file_contents = cloned_repo.get_file_contents(file_path)
         lines = file_contents.splitlines()
-        matched_line = int(line_number) - 1
-        if matched_line >= len(lines):
-            continue
-        joined_match = "".join(match)
-        formatted_error_message = f"{joined_match}\n    <code>{lines[matched_line]}</code>"
-        annotated_error_logs = annotated_error_logs.replace(
-            joined_match, formatted_error_message
-        )
+        erroring_lines = set()
+        surrounding_lines = 5
+        for line_number in errors_dict.keys():
+            erroring_lines |= set(range(line_number - surrounding_lines, line_number + surrounding_lines))
+        erroring_lines &= set(range(len(lines)))
+        width = len(str(len(lines)))
+        for i in sorted(list(erroring_lines)):
+            if i not in erroring_lines:
+                error_message += "...\n"
+            error_message += str(i + 1).ljust(width) + f" | {lines[i + 1]}"
+            if i + 1 in errors_dict:
+                error_message += f"     FIXME {errors_dict[i + 1].strip()}"
+            error_message += "\n"
+        if len(lines) not in erroring_lines:
+            error_message += "...\n"
+        error_message += "```\n"
     deduped_matched_files = []
     for file_path in matched_files:
         if file_path not in deduped_matched_files:
             deduped_matched_files.append(file_path)
-    return annotated_error_logs, matched_files
+    return error_message, deduped_matched_files
 
 
 def on_failing_github_actions(
@@ -96,6 +112,25 @@ def on_failing_github_actions(
     _main_runs: list[WorkflowRun.WorkflowRun] = list(repo.get_workflow_runs(branch=repo.default_branch, head_sha=pull_request.base.sha))
     main_passing = True
 
+    gha_fixes: list[GHAFix] = [
+        GHAFix(
+            suite_url=run.html_url,
+            status="done",
+            fix_commit_hash="",
+            fix_diff="",
+        )
+        for run in _main_runs
+        if run.conclusion == "success"
+    ]
+
+    def update_pr_status():
+        # currently this will work very jankily with the script
+        before_gha_summary, after_gha_summary = pull_request.body.split(GHA_SUMMARY_START)
+        _, after_gha_summary = after_gha_summary.split(GHA_SUMMARY_END)
+        new_gha_summary = GHA_SUMMARY_START + "\n".join([fix.to_markdown() for fix in gha_fixes]) + GHA_SUMMARY_END
+        pull_request.edit(body=before_gha_summary + new_gha_summary + after_gha_summary)
+
+
     while GITHUB_ACTIONS_ENABLED and main_passing:
         logger.info(
             f"Polling to see if Github Actions have finished... {total_poll_attempts}"
@@ -108,7 +143,8 @@ def on_failing_github_actions(
             # wait one minute between check attempts
             total_poll_attempts += 1
 
-            sleep(SLEEP_DURATION_SECONDS)
+            if total_poll_attempts > 1:
+                sleep(SLEEP_DURATION_SECONDS)
         # refresh the pr
         pull_request = repo.get_pull(pull_request.number)
         current_commit = repo.get_pull(pull_request.number).head.sha # IMPORTANT: resync PR otherwise you'll fetch old GHA runs

@@ -362,40 +362,33 @@ Use multiple <modify> blocks for the same file to separate distinct changes.
 [List of all relevant files to reference while making changes, one per line] 
 </relevant_modules>""" # + files_to_change_example TODO: test separately
 
-gha_files_to_change_system_prompt = """You are an AI assistant for writing code to fix failing errors in a developer's code. You will be provided code files, a description of the issue, the error log, relevant parts of the codebase, and the changes he's made. You may only modify edit files to resolve the issue.
+gha_files_to_change_system_prompt = """You are an AI assistant for analyzing failing errors in a developer's code. You will be provided code files, a description of the issue, the error log, relevant parts of the codebase, and the changes he's made.
 
-Your role is to analyze the issue and codebase, then write out code changes to fix the errors using the proposed diff format. Reference specific files, functions, variables and code files in your plan. Organize the steps logically and break them into small, manageable tasks.
+Your role is to analyze the issue and codebase. Reference specific files, functions, variables and code files in your analysis.
+
+Take these steps:
+1. Analyze the issue, codebase and existing changes to understand the problem.
+
+2. List ALL new errors that have appeared in the GitHub Action logs and their corresponding root causes. Identify ALL the entities that need to be updated to resolve these errors. You are diligent and won't miss any errors or entities."""
+
+gha_files_to_change_system_prompt_2 = """You are an AI assistant for writing code to fix failing errors in a developer's code. You will be provided code files, a description of the issue, the error log, relevant parts of the codebase, and the changes he's made. You may only modify edit files to resolve the issue.
+
+Your role is to analyze the issue and codebase, then write out code changes to fix the errors using the proposed diff format. Reference specific files, functions, variables and code files in your plan.
 Prioritize using existing code and functions to make efficient and maintainable changes. Ensure your suggestions fully resolve the issue.
 
 Take these steps:
-1. Analyze the issue, errors, codebase and existing changes to understand the problem.
+Create a set of code to remove and code to add, including all necessary changes to resolve the issue, in the following format:
+Step 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file, with correct indentation and whitespace.
+    - Do NOT paraphrase or abbreviate the source code.
+    - Placeholder comments like "# existing code" are not permitted.
+    - Start with the closest header several lines before the target code and end with the closest end of the block or several lines after the code.
+Step 2. Write the new code in <new_code> tags, specifying necessary imports and including relevant type definitions, interfaces, and schemas.
+    - BE EXACT as this code will replace the mentioned <original_code>.
+Step 3. Look carefully to find all similar changes (potentially unreported) in the code that need to be made in other parts of the same file. Address those as well."""
 
-2. Create a set of code to remove and code to add, including all necessary changes to resolve the issue, in the following format:
-    - When modifying code you MUST take the following approach:
-        Step 1. Reference the original code in <original_code> tags, copying them VERBATIM from the file, with correct indentation and whitespace.
-            - Do NOT paraphrase or abbreviate the source code.
-            - Placeholder comments like "# existing code" are not permitted.
-            - Start with the closest header several lines before the target code and end with the closest end of the block or several lines after the code.
-        Step 2. Write the new code in <new_code> tags, specifying necessary imports and including relevant type definitions, interfaces, and schemas.
-            - BE EXACT as this code will replace the mentioned <original_code>.
-        Step 3. Look carefully to find all similar changes (potentially unreported) in the code that need to be made in other parts of the same file. Address those as well."""
+gha_files_to_change_prompt = """Your job is to analyze the provided issue, error log, relevant parts of the codebase, and changes he's made to understand the requested change.
 
-gha_files_to_change_prompt = """Your job is to write code changes to help resolve the errors in his code while also resolving the GitHub issue.
-
-You will analyze the provided issue, error log, relevant parts of the codebase, and changes he's made to understand the requested change. Create a step-by-step plan for the developer to fully resolve the user's GitHub issue. The plan should utilize the relevant code files and utility modules provided.
-
-Guidelines:
-<guidelines>
-- Always include the full file path and reference the provided files 
-- Prioritize using existing code and utility methods to minimize writing new code
-- Break the task into small steps, with each <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file, such as for imports.
-- A <modify> block must contain exactly one change in one <new_code> tag.
-- To remove code, replace it with empty <new_code> tags.
-- If imports are necessary, place them in a separate <modify> block. Use multiple <modify> blocks for the same file to separate distinct changes.
-- Do not make a change that has already been made by the developer.
-<guidelines>
-
-Please use the following XML format for your response:
+Follow the following XML format:
 
 # 1. Thinking:
 <thinking>
@@ -417,15 +410,31 @@ b. List ALL the changes made so far in extreme detail. Be absolutely complete. F
 <reflection>
 a. List out all the previous error logs that were solved.
 b. List out all previous error logs that are still present or only partially solved.
-c. List out the new Github Action error logs that you must now solve and potential root causes and solutions.
-</reflction>
+c. Identify the number of errors, and list out the indices of all the new Github Action error logs that you must now solve and potential root causes and solutions.
+- Error 1/n: Identify the error message, root cause, and fix.
+[repeat for all errors]
+</reflction>"""
 
-# 3. Plan:
+gha_files_to_change_prompt_2 = """Now that you've analyzed the issue and error logs, your job is to write code changes to help resolve the errors in his code while also resolving the GitHub issue.
+
+Guidelines:
+<guidelines>
+- Always include the full file path and reference the provided files 
+- Prioritize using existing code and utility methods to minimize writing new code
+- Break the task into small steps, with each <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file, such as for imports.
+- A <modify> block must contain exactly one change in one <new_code> tag.
+- To remove code, replace it with empty <new_code> tags.
+- If imports are necessary, place them in a separate <modify> block. Use multiple <modify> blocks for the same file to separate distinct changes.
+- Do not make a change that has already been made by the developer.
+<guidelines>
+
+Please use the following XML format for your response:
+
 <plan>
-List ALL the types of error messages in the current error logs and their root causes. Follow this format:
+There are a total of n errors. List ALL the types of error messages in the current error logs and their root causes. Follow this format:
 
 <error_analysis index="1">
-Error message 1: Identify the error message.
+Error message 1/n: Identify the error message.
 1. Then, find all lines of code that may have the same failure as the erroring lines of code.
 2. Identify the root cause of the error, i.e. whether the error is due to a missing change in the tests or the source code. Most of the time, the test case has yet to be updated.
 3. Explain how to resolve the error in the test case. Be complete and precise. Remember that to resolve the error in a way such that the test case is still valid. Do not simply apply a band-aid solution to make the error go away.
@@ -434,14 +443,20 @@ Error message 1: Identify the error message.
 Then, based on the analysis, propose a fix by following the format below. If the error has already been fixed, you can skip this step.
 
 <modify file="file_path"> 
-Instructions for modifying one section of the file. Each block must have exactly one original_code and one new_code block. Do not make a change that has already been made by the developer.
+Instructions for modifying one section of the file. Each block must have exactly one original_code and one new_code block.
 
-a. Describe the section of code that needs to be modified, i.e. the test case that checks if `foo` == `bar`.
+a. Identify whether the change involves appending to a list, such as a list of imports, arguments or properties. If so, we should add an <append>true</append> tag to the <modify> block. In the <original_code></original_code> block, we should place the code we want to append to.
+
+b. Describe the section of code that needs to be modified.
 <original_code>
-Copy the original_code here VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. Start with the closest header several lines before the target code and end with the closest end of the block or several lines after the code. (Max 10 lines of code, you do not need more)
+Copy the original_code here VERBATIM from the file.
+Do NOT paraphrase or abbreviate the source code.
+Placeholder comments like "# existing code" are not permitted.
+Start a few lines before the target code to change and end a few lines after.
+Do not edit the same area of code more than once to avoid merge conflicts with other modifies.
 </original_code>
 
-b. Describe the changes that need to be made to the code, i.e. the test case should instead check if `foo` != `baz`.
+c. Describe the changes that need to be made to the code.
 <new_code>
 Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>. This code MUST be different from the original_code.
 </new_code>
@@ -454,7 +469,7 @@ Any issue that doesn't have a corresponding modify block will not be fixed, you 
 Do not attempt to fix multiple issues with a single modify block, each issue must have its own modify block.
 </error_analysis>
 [additional <error_analysis> blocks as needed, for ALL error messages in the error logs
-</plan>""" # + files_to_change_example TODO: test separately
+</plan>"""
 
 plan_selection_prompt = """Critique the pros and cons of each plan based on the following guidelines, prioritizing thoroughness and correctness over potential performance overhead: 
 - Correctness: The code change should fully address the original issue or requirement without introducing new bugs, security vulnerabilities, or performance problems. Follow defensive programming practices, such as avoiding implicit assumptions, validating inputs, and handling edge cases. Consider the potential impact on all relevant data structures and ensure the solution maintains data integrity and consistency. Thoroughness is a top priority. 
