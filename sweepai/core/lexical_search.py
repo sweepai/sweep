@@ -2,7 +2,6 @@ from collections.abc import Iterable
 import multiprocessing
 import os
 import re
-from collections import Counter
 import subprocess
 import time
 

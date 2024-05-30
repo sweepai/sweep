@@ -18,7 +18,6 @@ from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snip
 from sweepai.config.server import CACHE_DIRECTORY
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
-from sweepai.logn.cache import file_cache
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import CustomGithub, MockClonedRepo, get_github_client, get_installation_id
 from sweepai.utils.event_logger import posthog
