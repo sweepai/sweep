@@ -318,16 +318,22 @@ def multi_prep_snippets(
         for type_name, snippets_subset in separated_snippets:
             if len(snippets_subset) == 0:
                 continue
-            snippets_subset = sorted(
+            separated_snippets.override_list(type_name, sorted(
                 snippets_subset,
                 key=lambda snippet: content_to_lexical_score[snippet.denotation],
                 reverse=True,
-            )[:rerank_count[type_name]]
-            if content_to_lexical_score[snippets_subset[0].denotation] / max_snippet_score < rerank_skip_threshold[type_name]:
-                continue
-            new_content_to_lexical_scores = get_pointwise_reranked_snippet_scores(
+            )[:rerank_count[type_name]])
+        new_content_to_lexical_score_by_type = {}
+        for type_name, snippets_subset in separated_snippets:
+            new_content_to_lexical_score_by_type[type_name] = get_pointwise_reranked_snippet_scores(
                 queries[0], snippets_subset[:rerank_count[type_name]], content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, rerank_count[type_name], {}
             )
+        for type_name, snippets_subset in separated_snippets:
+            new_content_to_lexical_scores = new_content_to_lexical_score_by_type[type_name]
+            for snippet in snippets_subset:
+                snippet.score = new_content_to_lexical_scores[snippet.denotation]
+        for type_name, snippets_subset in separated_snippets:
+            new_content_to_lexical_scores = new_content_to_lexical_score_by_type[type_name]
             # set all keys of new_content_to_lexical_scores to content_to_lexical_score
             for key in new_content_to_lexical_scores:
                 content_to_lexical_score[key] = new_content_to_lexical_scores[key]
