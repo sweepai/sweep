@@ -83,6 +83,11 @@ const SnippetBadge = ({
                 snippet.file_path : `${snippet.file_path}:${snippet.start}-${snippet.end}`
               }
             </span>
+            {
+              snippet.type_name !== "source" && (
+                <code className="ml-2 bg-opacity-20 bg-black text-white rounded p-1 px-2 text-xs">{snippet.type_name}</code>
+              )
+            }
           </Button>
         </HoverCardTrigger>
         <HoverCardContent className="w-[500px] mr-2">
@@ -128,11 +133,48 @@ const roleToColor = {
   "function": "bg-zinc-800",
 }
 
+const UserMessageDisplay = ({ message }: { message: Message }) => {
+  // TODO: finish this implementation
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(message.content);
+
+  const handleClick = () => {
+    // setIsEditing(true);
+  };
+
+  const handleBlur = () => {
+    setIsEditing(false);
+  };
+
+  return (
+    <>
+      <div className="text-sm text-gray-400 text-white " onClick={handleClick}>
+        {isEditing ? (
+          <textarea
+            className="w-full bg-transparent text-white max-w-[500px]"
+            value={editedContent}
+            onChange={(e) => setEditedContent(e.target.value)}
+            onBlur={handleBlur}
+            autoFocus
+          />
+        ) : (
+          <span className="hover:bg-slate-700">{message.content}</span>
+        )}
+    </div>
+    {isEditing && (
+      <Button onClick={handleBlur} variant="default" className="bg-slate-600 text-white hover:bg-slate-500">
+        Generate
+      </Button>
+    )}
+  </>
+  );
+}
+
 const MessageDisplay = ({ message, className }: { message: Message, className?: string }) => {
   return (
     <div className={`flex ${message.role !== "user" ? "justify-start" : "justify-end"}`}>
       <div
-        className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] ${message.role !== "user" ? "text-left w-[80%]" : "text-right"
+        className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] ${message.role !== "user" ? "text-left w-[80%]" : "hover:cursor-pointer hover:bg-zinc-700 text-right"
           } ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
       >
         {message.role === "function" ? (
@@ -213,9 +255,9 @@ const MessageDisplay = ({ message, className }: { message: Message, className?: 
               </AccordionContent>
             </AccordionItem>
           </Accordion>
-        ) : (
+        ) : message.role === "assistant" ? (
           <Markdown
-            className={`${message.role !== "user" ? "reactMarkdown" : ""}`}
+            className="reactMarkdown"
             remarkPlugins={[remarkGfm]}
             components={{
               code(props) {
@@ -247,6 +289,8 @@ const MessageDisplay = ({ message, className }: { message: Message, className?: 
           >
             {message.content}
           </Markdown>
+        ) : (
+          <UserMessageDisplay message={message} />
         )}
       </div>
     </div>
