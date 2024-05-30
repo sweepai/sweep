@@ -24,7 +24,7 @@ from sweepai.config.client import SweepConfig
 token_cache = Cache(f'{CACHE_DIRECTORY}/token_cache') # we instantiate a singleton, diskcache will handle concurrency
 lexical_index_cache = Cache(f'{CACHE_DIRECTORY}/lexical_index_cache')
 snippets_cache = Cache(f'{CACHE_DIRECTORY}/snippets_cache')
-CACHE_VERSION = "v1.0.15"
+CACHE_VERSION = "v1.0.16"
 
 if FILE_CACHE_DISABLED:
     redis_client = None
@@ -96,16 +96,6 @@ def tokenize_code(code: str) -> str:
     
     return " ".join(tokens)
 
-def compute_document_tokens(
-    content: str,
-) -> tuple[Counter, int]:  # method that offloads the computation to a separate process
-    results = token_cache.get(content + CACHE_VERSION)
-    if results is not None:
-        return results
-    tokens = tokenize_code(content)
-    token_cache[content + CACHE_VERSION] = tokens
-    return tokens
-
 def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
     docs = []
     for snippet in snippets:
@@ -131,26 +121,29 @@ def prepare_index_from_snippets(
         cache_path=cache_path
     )
     all_tokens = []
-    workers = multiprocessing.cpu_count() // 2
     try:
         with Timer() as timer:
+            for doc in all_docs:
+                all_tokens.append(token_cache.get(doc.content + CACHE_VERSION))
+            misses = [i for i, token in enumerate(all_tokens) if token is None]
+            workers = multiprocessing.cpu_count() // 2
             if workers > 1:
                 with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 2) as p:
-                    all_tokens = p.map(
-                        compute_document_tokens,
+                    missed_tokens = p.map(
+                        tokenize_code,
                         tqdm(
-                            [doc.content for doc in all_docs],
-                            total=len(all_docs),
+                            [all_docs[i].content for i in misses],
+                            total=len(misses),
                             desc="Tokenizing documents"
                         )
                     )
             else:
-                all_tokens = zip(
-                    *[
-                        compute_document_tokens(doc.content)
-                        for doc in tqdm(all_docs, desc="Tokenizing documents")
-                    ]
-                )
+                missed_tokens = [
+                    tokenize_code(all_docs[i].content) for i in misses
+                ]
+            for i, token in enumerate(missed_tokens):
+                all_tokens[misses[i]] = token
+                token_cache[all_docs[misses[i]].content + CACHE_VERSION] = token
         logger.debug(f"Tokenizing documents took {timer.time_elapsed} seconds")
         all_titles = [doc.title for doc in all_docs]
         with Timer() as timer:

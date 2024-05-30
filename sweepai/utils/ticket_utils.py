@@ -91,14 +91,6 @@ type_to_result_count = {
     "source": 30,
 }
 
-rerank_skip_threshold = {
-    "tools": 0.4,
-    "dependencies": 0.4,
-    "docs": 0.5,
-    "tests": 0.5,
-    "source": 0.0,
-}
-
 rerank_count = {
     "tools": 10,
     "dependencies": 10,
