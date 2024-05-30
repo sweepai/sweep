@@ -420,8 +420,7 @@ DEFAULT_FUNCTION_CALL = """<function_call>
 </original_code>
 <new_code>
 {new_code}
-</new_code>
-{flags}
+</new_code>{flags}
 </make_change>
 </function_call>"""
 

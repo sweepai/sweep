@@ -11,33 +11,30 @@ from sweepai.utils.str_utils import BOT_SUFFIX
 from sweepai.utils.ticket_rendering_utils import get_branch_diff_text
 
 
-commit_message_system_prompt = """[TASK]
-Create a concise, imperative commit message for GitHub from file operation descriptions (e.g., added, modified, deleted). The output must:
-1. Reflect all relevant file operations clearly.
-2. Use an imperative tone, such as "Add", "Update", "Remove".
-3. Be under 50 characters to adhere to GitHub's message length restrictions.
-4. Group similar operations where applicable, and use plural forms to avoid redundancy.
-Examples of operations include adding, modifying, and deleting specific files or sets of files. Keep your messages focused and directly related to the file changes stated, avoiding any additional interpretation or detail not present in the input.
+commit_message_system_prompt = """Create a concise, informative commit message for GitHub from the code changes.
 
----
+The output must:
+1. Use an imperative tone, such as "Add", "Update", "Remove".
+2. Your commit message MUST BE <50 characters long to adhere to GitHub's message length restrictions.
+3. Group similar operations where applicable to avoid redundancy.
+Your message must be directly related to the file changes stated. Avoid additional interpretation or detail not present in the input.
 
-[INPUT]
-You will recieve a series of file diffs that need to be described.
+You will recieve a series of file diffs that need to be described in a short commit message.
 
-[OUTPUT]
-You are expected to out the the resulting commit message in the following xml format:
+Return your commit message in the following xml format:
+
+<thinking>
+1. Explain what happened in the file diffs, focusing on the lines added and removed. 
+2. Try to identify the ideal commit message that reflects the changes made, whether the changes are substantial or minor. Remember to keep the message concise and clear, focusing on the file operations performed. Again, the commit message must be less than 50 characters long.
+</thinking>
+
 <commit_message>
 short and concise description of the file diffs for a GitHub commit, not exceeding 50 characters
-</commit_message>
-"""
-commit_message_user_prompt = """[INPUT]
-Below are a series of file diffs that you need to create a github commit message for:
+</commit_message>"""
 
-{file_diffs}
+commit_message_user_prompt = """Below are a series of file diffs to create a github commit message for:
 
-[OUTPUT]
-
-<commit_message>"""
+{file_diffs}"""
 
 pr_summary_system_prompt = """You are a helpful, excellent developer who is creating a pull request for a feature or bug fix. You need to write a pull request description that the changes in this pull request. You will always describe changes from higher to lower level, describing the purpose and value and then the details of the changes."""
 
@@ -103,10 +100,26 @@ class PRSummaryBot(ChatGPT):
         commit_message_response = self.chat_anthropic(
             content=formatted_user_prompt,
             temperature=0.1,
+            model="claude-3-haiku-20240307",
         )
+        commit_message = self.extract_commit_message(commit_message_response)
+        if len(commit_message) > 50:
+            shorter_commit_prompt = f'Your commit message is too long and was truncated to "{commit_message[:50]}".\nWrite a shorter commit message than "{commit_message}" that is still coherent.\n<commit_message>'
+            shorter_commit_message_response = self.chat_anthropic(
+                content=shorter_commit_prompt,
+                temperature=0.1,
+                model="claude-3-haiku-20240307",
+            )
+            commit_message = self.extract_commit_message(shorter_commit_message_response)
+        if not commit_message:
+            logger.error("Failed to extract commit message from response.")
+            commit_message = f"feat: Updated {len(modify_files_dict or [])} files"[:50]
+        return commit_message
+    
+    def extract_commit_message(self, response: str):
         commit_message = ""
         commit_message_pattern = r"<commit_message>(?P<commit_message>.*?)</commit_message>"
-        commit_message_match = re.search(commit_message_pattern, commit_message_response, re.DOTALL)
+        commit_message_match = re.search(commit_message_pattern, response, re.DOTALL)
         if commit_message_match:
             commit_message = commit_message_match.group("commit_message").strip()
         else:
@@ -159,4 +172,3 @@ class PRSummaryBot(ChatGPT):
                     f" #{issue_number}.\n\n---\n{GHA_SUMMARY_START}{GHA_SUMMARY_END}\n\n{INSTRUCTIONS_FOR_REVIEW}{BOT_SUFFIX}"
                 )
         return pr_changes
-        

@@ -478,12 +478,13 @@ Below are a series of code snippets retrieved from the codebase via vector searc
 
 # Instructions
 1. Analyze each of the code snippets above and determine whether or not the new function is really necessary or not. Specifically, compare the new function with the existing methods in the code snippets by answering ALL the following questions:
-   1a. Purpose: What is the primary purpose of the new function? Is this purpose already served by existing methods? Is the purpose of this function to solely call other functions which allows for cleaner code? If the answer the the last question of 1a is yes, the new function should not be removed.
-   1b. Functionality: What specific tasks or operations does the new function perform? Are these tasks or operations already handled by existing methods?
-   1c. Initialization: What data structures or variables are initialized in the new function? Are similar initializations present in existing methods?
-   1d. Data Processing: How does the new function process data (e.g., formatting, extracting, or transforming data)? Are these data processing steps already implemented in existing methods?
-   1e. Unique Contributions: Does the new function provide any unique contributions or improvements that are not covered by existing methods? If it does then it should be considered as not redundant and should be kept.
-   1f. Impact of Removal: Would removing this function require a significant refactor of existing functions? Would the use cases of the existing functions change at all? If the answer is yes to any of these questions the new function should be kept.
+   1a. Purpose: What is the primary purpose of the new function? Is this purpose already served by existing methods?
+   1b. Intention: What was the intention behind adding this new function? Is this function meant to be a wrapper or an interface function? If the answer is yes, then this new function is important and should not be removed.
+   1c. Functionality: What specific tasks or operations does the new function perform? Are these tasks or operations already handled by existing methods?
+   1d. Initialization: What data structures or variables are initialized in the new function? Are similar initializations present in existing methods?
+   1e. Data Processing: How does the new function process data (e.g., formatting, extracting, or transforming data)? Are these data processing steps already implemented in existing methods?
+   1f. Unique Contributions: Does the new function provide any unique contributions or improvements that are not covered by existing methods? If it does then it should be considered as not redundant and should be kept.
+   1g. Impact of Removal: Would removing this function require a significant refactor of existing functions? Would the use cases of the existing functions change at all? If the answer is yes to any of these questions the new function should be kept.
 
 2. Return your answer in the following xml format:
 <redundant_new_function>
@@ -880,6 +881,10 @@ class PRReviewBot(ChatGPT):
                 index_to_issues[issue_index] = issue
                 issue_index += 1
         all_issues_formatted += "\n</all_issues>"
+
+        # if there was only one issue there is no need to sort anything
+        if issue_index == 1:
+            return code_review_by_file, []
         
         self.messages = [
             Message(

@@ -64,7 +64,7 @@ const SnippetBadge = ({
   button?: JSX.Element;
 }) => {
   return (
-    <div className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 bg-zinc-800 ${className || ""}`}>
+    <div className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 bg-zinc-700 ${className || ""}`}>
       <HoverCard openDelay={300} closeDelay={200}>
         <HoverCardTrigger asChild>
           <Button variant="link" className="text-sm py-0 px-1 h-6 leading-4">
@@ -112,12 +112,18 @@ const getFunctionCallHeaderString = (functionCall: Message["function_call"]) => 
   }
 }
 
-const MessageDisplay = ({ message }: { message: Message }) => {
+const roleToColor = {
+  "user": "bg-zinc-600",
+  "assistant": "bg-zinc-700",
+  "function": "bg-zinc-800",
+}
+
+const MessageDisplay = ({ message, className }: { message: Message, className?: string }) => {
   return (
     <div className={`flex ${message.role !== "user" ? "justify-start" : "justify-end"}`}>
       <div
-        className={`text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] ${message.role !== "user" ? "text-left bg-zinc-700 w-[80%]" : "text-right bg-zinc-800"
-          }`}
+        className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] ${message.role !== "user" ? "text-left bg-zinc-700 w-[80%]" : "text-right bg-zinc-800"
+          } ${className || roleToColor[message.role]}`}
       >
         {message.role === "function" ? (
           <Accordion type="single" collapsible className="w-full" defaultValue={Boolean(message.function_call?.snippets?.length) ? "function" : undefined}>
@@ -276,6 +282,8 @@ function App() {
     }
   }, [messages]);
 
+  const lastAssistantMessageIndex = messages.findLastIndex((message) => message.role === "assistant")
+
   if (!session) {
     return (
       <main className="flex h-screen items-center justify-center p-12">
@@ -397,7 +405,7 @@ function App() {
         hidden={!repoNameValid}
       >
         {messages.map((message, index) => (
-          <MessageDisplay key={index} message={message} />
+          <MessageDisplay key={index} message={message} className={index == lastAssistantMessageIndex ? "bg-slate-700" : ""} />
         ))}
         {isLoading && (
           <div className="flex justify-around w-full py-2">

@@ -251,9 +251,13 @@ def modify(
         logger.error("Max iterations reached")
 
     for file_path, file_data in modify_files_dict.items():
-        file_data["contents"] = format_file(
+        formatted_contents = format_file(
             file_path, file_data["contents"], cloned_repo.repo_dir
         )
+        # formatted_contents can invalidate changes when prettier/formatter is out of sync
+        # only accept the changes if the formatted contents would not reveert all changes
+        if file_data["original_contents"] != formatted_contents:
+            file_data["contents"] = formatted_contents
 
     diff_string = ""
     for file_name, file_data in modify_files_dict.items():
