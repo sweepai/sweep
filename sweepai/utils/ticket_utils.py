@@ -2,6 +2,8 @@ from collections import defaultdict
 import copy
 import traceback
 from time import time
+from concurrent.futures import ThreadPoolExecutor
+import concurrent.futures
 
 from loguru import logger
 from tqdm import tqdm
@@ -270,6 +272,9 @@ def get_pointwise_reranked_snippet_scores(
             snippet.score = new_snippet_scores[snippet.denotation]
     return new_snippet_scores
 
+def process_snippets(type_name, *args, **kwargs):
+    return type_name, get_pointwise_reranked_snippet_scores(*args, **kwargs)
+
 def multi_prep_snippets(
     cloned_repo: ClonedRepo,
     queries: list[str],
@@ -304,19 +309,30 @@ def multi_prep_snippets(
     separated_snippets = separate_snippets_by_type(snippets)
     if not skip_pointwise_reranking:
         all_snippets = []
+        if "junk" in separated_snippets:
+            separated_snippets.pop("junk")
         for type_name, snippets_subset in separated_snippets:
-            if type_name == "junk":
-                continue
             if len(snippets_subset) == 0:
                 continue
-            snippets_subset = sorted(
+            separated_snippets.override_list(type_name, sorted(
                 snippets_subset,
                 key=lambda snippet: content_to_lexical_score[snippet.denotation],
                 reverse=True,
-            )[:rerank_count[type_name]]
-            new_content_to_lexical_scores = get_pointwise_reranked_snippet_scores(
-                queries[0], snippets_subset[:rerank_count[type_name]], content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, rerank_count[type_name], {}
-            )
+            )[:rerank_count[type_name]])
+        new_content_to_lexical_score_by_type = {}
+
+        with Timer() as timer:
+            with ThreadPoolExecutor() as executor:
+                future_to_type = {executor.submit(process_snippets, type_name, queries[0], snippets_subset, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, rerank_count[type_name], {}): type_name for type_name, snippets_subset in separated_snippets}
+                for future in concurrent.futures.as_completed(future_to_type):
+                    type_name = future_to_type[future]
+                    new_content_to_lexical_score_by_type[type_name] = future.result()[1]
+        logger.info(f"Reranked snippets took {timer.time_elapsed} seconds")
+
+        for type_name, snippets_subset in separated_snippets:
+            new_content_to_lexical_scores = new_content_to_lexical_score_by_type[type_name]
+            for snippet in snippets_subset:
+                snippet.score = new_content_to_lexical_scores[snippet.denotation]
             # set all keys of new_content_to_lexical_scores to content_to_lexical_score
             for key in new_content_to_lexical_scores:
                 content_to_lexical_score[key] = new_content_to_lexical_scores[key]
