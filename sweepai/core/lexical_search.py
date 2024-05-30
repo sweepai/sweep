@@ -4,6 +4,7 @@ import os
 import re
 from collections import Counter
 import subprocess
+import time
 
 import tantivy
 from diskcache import Cache
@@ -59,7 +60,15 @@ class CustomIndex:
     def search_index(self, query: str) -> list[tuple[str, float, dict]]:
         query = tokenize_code(query)
         query = self.index.parse_query(query)
-        searcher = self.index.searcher()
+        searcher = self.index.searcher() # for some reason, the first searcher is empty
+        for i in range(100):
+            searcher = self.index.searcher()
+            if searcher.num_docs > 0:
+                break
+            print(f"Index is empty, sleeping for {0.01 * i} seconds")
+            time.sleep(0.01)
+        else:
+            raise Exception("Index is empty")
         results = searcher.search(query, limit=200).hits
         return [(searcher.doc(doc_id)["title"][0], score, searcher.doc(doc_id)) for score, doc_id in results]
 
@@ -94,7 +103,7 @@ def compute_document_tokens(
     if results is not None:
         return results
     tokens = tokenize_code(content)
-    token_cache[content] = tokens
+    token_cache[content + CACHE_VERSION] = tokens
     return tokens
 
 def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
@@ -124,28 +133,31 @@ def prepare_index_from_snippets(
     all_tokens = []
     workers = multiprocessing.cpu_count() // 2
     try:
-        if workers > 1:
-            with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 2) as p:
-                all_tokens = p.map(
-                    compute_document_tokens,
-                    tqdm(
-                        [doc.content for doc in all_docs],
-                        total=len(all_docs),
-                        desc="Tokenizing documents"
+        with Timer() as timer:
+            if workers > 1:
+                with multiprocessing.Pool(processes=multiprocessing.cpu_count() // 2) as p:
+                    all_tokens = p.map(
+                        compute_document_tokens,
+                        tqdm(
+                            [doc.content for doc in all_docs],
+                            total=len(all_docs),
+                            desc="Tokenizing documents"
+                        )
                     )
+            else:
+                all_tokens = zip(
+                    *[
+                        compute_document_tokens(doc.content)
+                        for doc in tqdm(all_docs, desc="Tokenizing documents")
+                    ]
                 )
-        else:
-            all_tokens = zip(
-                *[
-                    compute_document_tokens(doc.content)
-                    for doc in tqdm(all_docs, desc="Tokenizing documents")
-                ]
-            )
+        logger.debug(f"Tokenizing documents took {timer.time_elapsed} seconds")
         all_titles = [doc.title for doc in all_docs]
-        with Timer():
+        with Timer() as timer:
             index.add_documents(
                 tqdm(zip(all_titles, all_tokens), total=len(all_docs), desc="Indexing")
             )
+        logger.debug(f"Indexing took {timer.time_elapsed} seconds")
     except FileNotFoundError as e:
         logger.exception(e)
 
@@ -158,28 +170,22 @@ def search_index(query: str, index: CustomIndex):
     This function takes a query and an index as input and returns a dictionary of document IDs
     and their corresponding scores.
     """
-    if index is None:
-        return {}
-    try:
-        # Create a query parser for the "content" field of the index
-        results_with_metadata = index.search_index(query)
-        # Search the index
-        res = {}
-        for doc_id, score, _ in results_with_metadata:
-            if doc_id not in res:
-                res[doc_id] = score
-        # min max normalize scores from 0.5 to 1
-        if len(res) == 0:
-            max_score = 1
-            min_score = 0
-        else:
-            max_score = max(res.values())
-            min_score = min(res.values()) if min(res.values()) < max_score else 0
-        res = {k: (v - min_score) / (max_score - min_score) for k, v in res.items()}
-        return res
-    except Exception as e:
-        logger.exception(e)
-        return {}
+    # Create a query parser for the "content" field of the index
+    results_with_metadata = index.search_index(query)
+    # Search the index
+    res = {}
+    for doc_id, score, _ in results_with_metadata:
+        if doc_id not in res:
+            res[doc_id] = score
+    # min max normalize scores from 0.5 to 1
+    if len(res) == 0:
+        max_score = 1
+        min_score = 0
+    else:
+        max_score = max(res.values())
+        min_score = min(res.values()) if min(res.values()) < max_score else 0
+    res = {k: (v - min_score) / (max_score - min_score) for k, v in res.items()}
+    return res
 
 SNIPPET_FORMAT = """File path: {file_path}
 
