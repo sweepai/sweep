@@ -101,7 +101,6 @@ def review_pr(
             except Exception as e:
                 logger.error(f"Failure cloning repo in review_pr: {e}")
                 error = e
-
             # try and update the user to let them know why we can not review the pr.
             # if the error is due to credential issues, this will probably not work
             if error:

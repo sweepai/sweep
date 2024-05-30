@@ -353,17 +353,46 @@ Added a new categorization system for snippets in `multi_prep_snippets` and upda
     2b. Determine whether there are any security vulnerabilities or potential security issues introduced by the code changes. (1 paragraph) 
     2c. Identify any other potential issues that the code changes may introduce that were not captured by 2a or 2b. This could include accidental changes such as commented out code. (1 paragraph)
     2d. Only include issues that you are very confident will cause serious issues that prevent the pull request from being merged. For example, focus only on functional code changes and ignore changes to strings and comments that are purely descriptive.
+
+Answer each of the above questions in step 2 in the following format:
+<issue_identification>
+{{Include all answers to the question posed in 2a, 2b, 2c and 2d}}
+</issue_identification>
 """
 user_prompt_special_rules_format = """
-In addition to all the above rules in step 2, the following rules also apply to this file as defined by the user themselves:
-<special_rules>
-{special_rules}
-</special_rules>
+# Code Review
+Here are the changes in the pull request changes given in diff format:
+<changes>
+{diff}
+</changes>
 
-Use the special user defined rules as further criteria to determine if there are any issues with the code changes along with the initial rules provided in 2a, 2b, 2c and 2d.
-<special_rules_analysis>
-{{Analysis for each patch, answer all the rules defined in the special_rules section}}
-</special_rules_analysis>
+# Rules
+Here are list of rules that are specific to this code review:
+<rules>
+{special_rules}
+</rules>
+
+# Instructions
+Along with the rules provided, there may be examples given for each rule. These examples are important to consider when analyzing the code changes.
+1. Analyze the rules and examples provided.
+    For each rule provided, answer the following:
+    Rule #n:
+        a. Are there any examples relating to this rule? If no, you may stop here.
+        b. If there are examples, for each example, explain how the example relates to the rule and give an example code change that would violate the rule.
+Output the questions and answers for each rule in step 1 in the following format:
+<examples_analysis>
+{{Question and answers for each example in the special_rules section.}}
+</examples_analysis> 
+
+2. Analzye the code changes.
+    For each rule provided, answer the following questions:
+    Rule #n:
+        a. Are there code changes in violation of the rule? If yes, then this is an issue that should be raised.
+        b. Are there any examples for this rule? If yes, then for each example provided explicitly list out the example and check if the rule applies. Remember that the examples are there for a reason!
+Output the questions and answers for each rule in step 2 in the following format:
+<rules_analysis>
+{{Question and answers for each rule in the special_rules section.}}
+</rules_analysis>
 """
 
 user_prompt_issue_output_format = """
@@ -429,7 +458,9 @@ In addition to all the above questions you must answer in step 1, the following 
 {special_rules}
 </special_rules>
 
-For each rule defined in the special_rules section, ask if the issue is in violation of the rule. If the issue is in violation of the rule, then it is severe and should be included in the final list of issues.
+For each rule defined in the special_rules section, ask if the issue is in violation of the rule. 
+You may be given relevant context for a rule in which case extra attention is required to make sure that the change in the pull request does not violate the rule.
+If the issue is in violation of the rule, then it is severe and should be included in the final list of issues.
 """
 
 user_prompt_review_analysis_format = """    
@@ -595,13 +626,13 @@ class PRReviewBot(ChatGPT):
         self, 
         cloned_repo: ClonedRepo, 
         file_name: str, 
-        special_rule_file: str = "GPT.md"
+        special_rule_file: str = "SWEEP.md"
     ):
         special_rules = ""
         # ensure file exists and this is not a GPT.md file
         full_path = os.path.join(cloned_repo.repo_dir, file_name)
         base_file = os.path.basename(file_name)
-        if not os.path.exists(full_path) or base_file == special_rule_file or base_file == "SWEEP.md":
+        if not os.path.exists(full_path) or base_file == special_rule_file:
             logger.error(f"Failure fetching special rules file for {file_name} as it does not exist.")
             return special_rules
         
@@ -648,6 +679,7 @@ class PRReviewBot(ChatGPT):
                     "output": "END OF MESSAGES",
                 })
         return pr_summary
+    
     # fetch all potential issues for each file based on the diffs of that file
     def review_code_changes_by_file(
         self, 
@@ -665,10 +697,6 @@ class PRReviewBot(ChatGPT):
                 )
             ]
             formatted_user_prompt = user_prompt.format(diff=pr_changes)
-            # check if there are special rules we need to follow for this file by seeing if the files "gpt.md" exists
-            special_rules = self.get_special_rules(cloned_repo, file_name)
-            if special_rules:
-                formatted_user_prompt += user_prompt_special_rules_format.format(special_rules=special_rules)
             formatted_user_prompt += user_prompt_issue_output_format
             code_review_response = self.chat_anthropic(
                 content=formatted_user_prompt,
@@ -677,6 +705,19 @@ class PRReviewBot(ChatGPT):
                 use_openai=True,
                 seed=seed
             )
+            # make a seperate call for the special rules
+            # check if there are special rules we need to follow for this file by seeing if the files "SWEEP.md" exists
+            special_rules = self.get_special_rules(cloned_repo, file_name)
+            if special_rules:
+                formatted_user_prompt_special_rules = user_prompt_special_rules_format.format(diff=pr_changes, special_rules=special_rules)
+                formatted_user_prompt_special_rules += user_prompt_issue_output_format
+                special_rules_response = self.chat_anthropic(
+                    content=formatted_user_prompt_special_rules,
+                    temperature=0,
+                    model=CLAUDE_MODEL,
+                    seed=seed
+                )
+                code_review_response += special_rules_response
             diff_summary = ""
             diff_summary_pattern = r"<diff_summary>(.*?)</diff_summary>"
             diff_summary_matches = re.findall(diff_summary_pattern, code_review_response, re.DOTALL)
@@ -787,6 +828,8 @@ class PRReviewBot(ChatGPT):
             files_to_pr_change[pr_change.file_name] = pr_change
         # go file by file
         for file_name, patches in files_to_patches.items():
+            if "SWEEP.md" in file_name: # jank but temporary
+                continue
             pr_change = files_to_pr_change[file_name]
             self.messages = [
                 Message(
@@ -862,6 +905,8 @@ class PRReviewBot(ChatGPT):
     ) -> dict[str, list[CodeReviewIssue]]:
         repeated_functions_code_issues: dict[str, list[CodeReviewIssue]] = {}
         for file_name, newly_created_functions in newly_created_functions_dict.items():
+            if "SWEEP.md" in file_name: # jank but temporary
+                continue
             # keep copy of edited files to revert later
             modified_files_dict: dict[str, dict[str, str]] = {}
             modified_files_dict[file_name] = {"original": cloned_repo.get_file_contents(file_name)}
