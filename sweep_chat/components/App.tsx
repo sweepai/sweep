@@ -282,7 +282,7 @@ function App() {
     }
   }, [messages]);
 
-  const lastAssistantMessageIndex = messages.findLastIndex((message) => message.role === "assistant")
+  const lastAssistantMessageIndex = messages.findLastIndex((message) => message.role === "assistant" && message.content.trim().length > 0)
 
   if (!session) {
     return (

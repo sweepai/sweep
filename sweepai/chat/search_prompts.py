@@ -28,7 +28,7 @@ You MUST follow the following XML-based format:
 
 ### Format
 
-Use GitHub-styled markdown for your responses. You must respond with the following three distinct sections:
+Use GitHub-styled markdown for your responses, using lists where applicable to improve clarity. You must respond with the following three distinct sections:
 
 # 1. Summary and analysis
 <user_response>
@@ -68,7 +68,7 @@ format_message = """You MUST follow the following XML-based format:
 
 ### Format
 
-Use GitHub-styled markdown for your responses. You must respond with the following three distinct sections:
+Use GitHub-styled markdown for your responses, using lists where applicable to improve clarity. You must respond with the following three distinct sections:
 
 # 1. Summary and analysis
 <analysis>
