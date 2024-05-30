@@ -122,18 +122,7 @@ class PRSummaryBot(ChatGPT):
         commit_message_match = re.search(commit_message_pattern, response, re.DOTALL)
         if commit_message_match:
             commit_message = commit_message_match.group("commit_message").strip()
-        else:
-            logger.error("Failed to extract commit message from response.")
-            commit_message =f"feat: Updated {len(modify_files_dict or [])} files"[:50]
-        if chat_logger:
-            chat_logger.add_chat(
-                {
-                    "model": self.model,
-                    "messages": [{"role": message.role, "content": message.content} for message in self.messages],
-                    "output": "END OF MESSAGES",
-                })
         return commit_message
-
     # pylint: disable=E0213
     def get_pull_request_summary(
         problem_statement,
