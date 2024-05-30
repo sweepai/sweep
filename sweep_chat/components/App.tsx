@@ -122,7 +122,7 @@ const MessageDisplay = ({ message, className }: { message: Message, className?: 
   return (
     <div className={`flex ${message.role !== "user" ? "justify-start" : "justify-end"}`}>
       <div
-        className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] ${message.role !== "user" ? "text-left bg-zinc-700 w-[80%]" : "text-right bg-zinc-800"
+        className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] ${message.role !== "user" ? "text-left w-[80%]" : "text-right"
           } ${className || roleToColor[message.role]}`}
       >
         {message.role === "function" ? (
@@ -405,7 +405,11 @@ function App() {
         hidden={!repoNameValid}
       >
         {messages.map((message, index) => (
-          <MessageDisplay key={index} message={message} className={index == lastAssistantMessageIndex ? "bg-slate-700" : ""} />
+          <MessageDisplay
+            key={index}
+            message={message}
+            className={index == lastAssistantMessageIndex ? "bg-slate-700" : ""}
+          />
         ))}
         {isLoading && (
           <div className="flex justify-around w-full py-2">
@@ -461,6 +465,7 @@ function App() {
                     var currentSnippets = snippets;
                     if (currentSnippets.length == 0) {
                       try {
+                        const startTime = Date.now()
                         const snippetsResponse = await fetch(`/backend/search?repo_name=${repoName}&query=${encodeURIComponent(currentMessage)}`, {
                           headers: {
                             "Content-Type": "application/json",
@@ -468,6 +473,7 @@ function App() {
                             "Authorization": `Bearer ${session?.accessToken}`
                           }
                         });
+                        console.log(`Time taken for search: ${(Date.now() - startTime) / 1000}s`)
                         const responseObj = await snippetsResponse.json()
                         if (responseObj.success == false) {
                           console.error(responseObj)
@@ -578,6 +584,8 @@ function App() {
                       });
                       throw e;
                     }
+
+                    isStream.current = false;
 
                     var lastMessage = streamedMessages[streamedMessages.length - 1]
                     if (lastMessage.role == "function" && lastMessage.function_call?.is_complete == false) {

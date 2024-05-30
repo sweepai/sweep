@@ -16,6 +16,7 @@ from sweepai.agents.search_agent import extract_xml_tag
 from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, system_message, function_response, format_message
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
+from sweepai.logn.cache import file_cache
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import CustomGithub, MockClonedRepo, get_github_client, get_installation_id
 from sweepai.utils.event_logger import posthog
@@ -96,6 +97,10 @@ def posthog_trace(
             return result
     return wrapper
 
+@file_cache()
+def get_github_client_from_org(org_name: str) -> tuple[str, CustomGithub]:
+    return get_github_client(get_installation_id(org_name))
+
 def get_authenticated_github_client(
     repo_name: str,
     access_token: str
@@ -103,22 +108,20 @@ def get_authenticated_github_client(
     # Returns read access, write access, or none
     g = Github(access_token)
     user = g.get_user()
-    user = g.get_user(user.login)
     try:
         repo = g.get_repo(repo_name)
         return g
     except Exception:
         org_name, _ = repo_name.split("/")
         try:
-            installation_id = get_installation_id(org_name)
-            _token, g = get_github_client(installation_id)
+            _token, g = get_github_client_from_org(org_name)
         except Exception as e:
             raise Exception(f"Error getting installation for {repo_name}: {e}. Double-check if the app is installed for this repo.")
         try:
             repo = g.get_repo(repo_name)
         except Exception as e:
             raise Exception(f"Error getting repo {repo_name}: {e}")
-        if repo.has_in_collaborators(user):
+        if repo.has_in_collaborators(user.login):
             return g
         else:
             raise Exception(f"User {user.login} does not have the necessary permissions for the repository {repo_name}.")
@@ -172,7 +175,9 @@ def search_codebase_endpoint(
     query: str,
     access_token: str = Depends(get_token_header)
 ):
-    g = get_authenticated_github_client(repo_name, access_token)
+    with Timer() as timer:
+        g = get_authenticated_github_client(repo_name, access_token)
+    logger.debug(f"Getting authenticated GitHub client took {timer.time_elapsed} seconds")
     if not g:
         return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
     username = Github(access_token).get_user().login
