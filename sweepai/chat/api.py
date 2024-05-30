@@ -1,6 +1,7 @@
 from functools import wraps
 import traceback
 from typing import Any, Callable
+from diskcache import Cache
 import jsonpatch
 from copy import deepcopy
 import json
@@ -14,6 +15,7 @@ from loguru import logger
 from sweepai.agents.modify_utils import validate_and_parse_function_call
 from sweepai.agents.search_agent import extract_xml_tag
 from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, system_message, function_response, format_message
+from sweepai.config.server import CACHE_DIRECTORY
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
 from sweepai.logn.cache import file_cache
@@ -25,6 +27,8 @@ from sweepai.utils.ticket_utils import prep_snippets
 from sweepai.utils.timer import Timer
 
 app = FastAPI()
+
+auth_cache = Cache(f'{CACHE_DIRECTORY}/auth_cache') 
 
 # function to iterate through a dictionary and ensure all values are json serializable
 # truncates strings at 500 for sake of readability
@@ -97,9 +101,13 @@ def posthog_trace(
             return result
     return wrapper
 
-@file_cache()
+@auth_cache.memoize(expire=None)
+def get_cached_installation_id(org_name: str) -> str:
+    return get_installation_id(org_name)
+
+@auth_cache.memoize(expire=60 * 10)
 def get_github_client_from_org(org_name: str) -> tuple[str, CustomGithub]:
-    return get_github_client(get_installation_id(org_name))
+    return get_github_client(get_cached_installation_id(org_name))
 
 def get_authenticated_github_client(
     repo_name: str,
