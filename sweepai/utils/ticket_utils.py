@@ -308,7 +308,11 @@ def multi_prep_snippets(
                 continue
             if len(snippets_subset) == 0:
                 continue
-            snippets_subset = snippets_subset[:rerank_count[type_name]]
+            snippets_subset = sorted(
+                snippets_subset,
+                key=lambda snippet: content_to_lexical_score[snippet.denotation],
+                reverse=True,
+            )[:rerank_count[type_name]]
             new_content_to_lexical_scores = get_pointwise_reranked_snippet_scores(
                 queries[0], snippets_subset[:rerank_count[type_name]], content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, rerank_count[type_name], {}
             )
