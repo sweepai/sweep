@@ -89,6 +89,14 @@ type_to_result_count = {
     "source": 30,
 }
 
+rerank_skip_threshold = {
+    "tools": 0.4,
+    "dependencies": 0.4,
+    "docs": 0.5,
+    "tests": 0.5,
+    "source": 0.0,
+}
+
 rerank_count = {
     "tools": 10,
     "dependencies": 10,
@@ -304,9 +312,10 @@ def multi_prep_snippets(
     separated_snippets = separate_snippets_by_type(snippets)
     if not skip_pointwise_reranking:
         all_snippets = []
+        max_snippet_score = max(content_to_lexical_score.values())
+        if "junk" in separated_snippets:
+            separated_snippets.pop("junk")
         for type_name, snippets_subset in separated_snippets:
-            if type_name == "junk":
-                continue
             if len(snippets_subset) == 0:
                 continue
             snippets_subset = sorted(
@@ -314,6 +323,8 @@ def multi_prep_snippets(
                 key=lambda snippet: content_to_lexical_score[snippet.denotation],
                 reverse=True,
             )[:rerank_count[type_name]]
+            if content_to_lexical_score[snippets_subset[0].denotation] / max_snippet_score < rerank_skip_threshold[type_name]:
+                continue
             new_content_to_lexical_scores = get_pointwise_reranked_snippet_scores(
                 queries[0], snippets_subset[:rerank_count[type_name]], content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, rerank_count[type_name], {}
             )
