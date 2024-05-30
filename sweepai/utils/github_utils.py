@@ -443,7 +443,6 @@ class ClonedRepo:
     
     def pull(self):
         if self.git_repo:
-            breakpoint()
             self.git_repo.git.remote('set-url', 'origin', self.clone_url)
             self.git_repo.git.pull()
 
