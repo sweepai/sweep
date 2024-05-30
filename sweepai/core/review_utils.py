@@ -3,6 +3,7 @@ Take a PR and provide an AI generated review of the PR.
 """
 import copy
 import multiprocessing
+import os
 import re
 
 import numpy as np
@@ -22,6 +23,7 @@ from sweepai.utils.chat_logger import ChatLogger
 from github.Repository import Repository
 from github.PullRequest import PullRequest
 
+from sweepai.utils.file_utils import read_file_with_fallback_encodings
 from sweepai.utils.github_utils import ClonedRepo, update_file
 from sweepai.utils.str_utils import add_line_numbers, extract_object_fields_from_string, extract_objects_from_string, object_to_xml, objects_to_xml, remove_lines_from_text
 from sweepai.utils.ticket_rendering_utils import parse_issues_from_code_review
@@ -316,14 +318,14 @@ You will then rank the issues from most severe to least severe based on your ana
 
 user_prompt = """\
 # Code Review
-Here are the changes in the pull request diffs:
-<diffs>
+Here are the changes in the pull request changes given in diff format:
+<changes>
 {diff}
-</diffs>
+</changes>
 
 # Instructions
 1. Analyze the code changes.
-    1a. Review each diff/patch individually, examining the code changes line-by-line.
+    1a. Review each change individually, examining the code changes line-by-line.
     1b. For each line of code changed, consider:
         - What is the purpose of this line of code?
         - How does this line of code interact with or impact the rest of the codebase?
@@ -332,25 +334,41 @@ Here are the changes in the pull request diffs:
     1c. Describe all changes that were made in the diffs. Respond in the following format. (1 paragraph)
 <thoughts>
 <thinking>
-{{Analysis of diff/patch 1}}
+{{Analysis of change 1, include all questions and answers}}
 </thinking>
 ...
 </thoughts>
-    1d. Provide a final summary for this file that should be a single sentence and formatted within a <diff_summary> tag.
+    1d. Provide a final summary for this file that should be a single sentence and formatted within a <change_summary> tag.
 Here is an example, make sure the summary sounds natural and keep it brief and easy to skim over:
-<example_diff_summary>
+<example_change_summary>
 Added a new categorization system for snippets in `multi_prep_snippets` and updated the snippet score calculation in `get_pointwise_reranked_snippet_scores`. 
-</example_diff_summary>
-<diff_summary>
+</example_change_summary>
+<change_summary>
 {{Final summary of the major changes}}
-</diff_summary>
+</change_summary>
 
 2. Identify all issues.
     2a. Determine whether there are any functional issues, bugs, edge cases, or error conditions that the code changes introduce or fail to properly handle. Consider the line-by-line analysis from step 1b. (1 paragraph)
     2b. Determine whether there are any security vulnerabilities or potential security issues introduced by the code changes. (1 paragraph) 
     2c. Identify any other potential issues that the code changes may introduce that were not captured by 2a or 2b. This could include accidental changes such as commented out code. (1 paragraph)
     2d. Only include issues that you are very confident will cause serious issues that prevent the pull request from being merged. For example, focus only on functional code changes and ignore changes to strings and comments that are purely descriptive.
-    2e. Format the found issues and root causes using the following XML tags. Each issue description should be a single sentence. Include the corresponding start and end line numbers of the patch, these line numbers should be at most 50 apart. DO NOT reference the patch or patch number in the description. Format these fields in an <issue> tag in the following manner:
+"""
+user_prompt_special_rules_format = """
+In addition to all the above rules in step 2, the following rules also apply to this file as defined by the user themselves:
+<special_rules>
+{special_rules}
+</special_rules>
+
+Use the special user defined rules as further criteria to determine if there are any issues with the code changes along with the initial rules provided in 2a, 2b, 2c and 2d.
+<special_rules_analysis>
+{{Analysis for each patch, answer all the rules defined in the special_rules section}}
+</special_rules_analysis>
+"""
+
+user_prompt_issue_output_format = """
+[FORMAT]
+Finally, format the found issues and root causes using the following XML tags. Each issue description should be a single sentence. Include the corresponding start and end line numbers of the change, these line numbers should be at most 50 apart. DO NOT reference the patch or patch number in the description. Format these fields in an <issue> tag in the following manner:
+
 <issues>
 <issue>
 <issue_description>
@@ -369,7 +387,7 @@ If there are no issues found do not include the corresponding <issue> tag.
 
 Focus your analysis solely on potential functional issues with the code changes. Do not comment on stylistic, formatting, or other more subjective aspects of the code."""
 
-user_prompt_review = """
+user_prompt_review_questions = """
 Below are a series of identified issues for the file {file_name} formatted in the following way:
 <potential_issues>
 <issue>
@@ -402,14 +420,26 @@ Below are the changes made in the pull request as context
     1c. Answer the following questions in addition to the ones you generated in steps 1a. Is this reported issue accurate (double check that the previous reviewer was not mistaken, YOU MUST include the corresponding patch for proof)? If the answer to this question is no, then the issue is not severe. 
     1d. Determine whether or not this issue is severe enough to prevent the pull request from being merged or not. For example, any potential logical error is considered severe.
     1e. Take note of some common issues: Accidently removing or commenting out lines of code that has functional utility. In this case double check if this change was intentional or accidental.
-    1f. Deliver your analysis in the following format:
+"""
+user_prompt_review_special_rules = """
+In addition to all the above questions you must answer in step 1, the following rules also apply to this file as defined by the user themselves:
+
+<special_rules>
+{special_rules}
+</special_rules>
+
+For each rule defined in the special_rules section, ask if the issue is in violation of the rule. If the issue is in violation of the rule, then it is severe and should be included in the final list of issues.
+"""
+
+user_prompt_review_analysis_format = """    
+Deliver your analysis including all questions and answers in the following format:
 <thoughts>
 <thinking>
 {{Analysis of the issue, include ALL the questions and answers}}
 </thinking>
 ...
-</thoughts>
-
+</thoughts>"""
+user_prompt_review_decisions = """
 2. Decide which issues to keep
     2a. Based on your analysis in step 1, now decide which issues to keep and drop. Only include severe issues.
     2b. After choosing to keep an issue you are to respond in the following format:
@@ -558,6 +588,37 @@ user_prompt_sort_issues = """Below are all the identified issues for the pull re
 CLAUDE_MODEL = "claude-3-opus-20240229"
 
 class PRReviewBot(ChatGPT):
+    # check if there are special .md rules to see if there are additional rules to check for
+    # assumes by default the file name is gpt.md
+    def get_special_rules(
+        self, 
+        cloned_repo: ClonedRepo, 
+        file_name: str, 
+        special_rule_file: str = "GPT.md"
+    ):
+        special_rules = ""
+        # ensure file exists and this is not a GPT.md file
+        full_path = os.path.join(cloned_repo.repo_dir, file_name)
+        base_file = os.path.basename(file_name)
+        if not os.path.exists(full_path) or base_file == special_rule_file or base_file == "SWEEP.md":
+            logger.error(f"Failure fetching special rules file for {file_name} as it does not exist.")
+            return special_rules
+        
+        subdirectories = file_name.split(os.path.sep)
+        directories_to_check = []
+        # Loop from the end to the beginning, excluding the file itself
+        for i in range(len(subdirectories) - 1, 0, -1):
+            directories_to_check.append(
+                os.path.join(cloned_repo.repo_dir, os.path.join(*subdirectories[:i]))
+            )
+        # append the base directory
+        directories_to_check.append(cloned_repo.repo_dir)
+        # now check all directories for the special rule file, we add on to special rules if we find it
+        for directory in directories_to_check:
+            special_rule_path = os.path.join(directory, special_rule_file)
+            if os.path.exists(special_rule_path):
+                special_rules += read_file_with_fallback_encodings(special_rule_path)
+        return special_rules
     # get a comprehensive pr summary
     def get_pr_summary(self, formatted_patches: str, chat_logger: ChatLogger = None):
         self.messages = [
@@ -587,7 +648,13 @@ class PRReviewBot(ChatGPT):
                 })
         return pr_summary
     # fetch all potential issues for each file based on the diffs of that file
-    def review_code_changes_by_file(self, pr_changes_by_file: dict[str, str], chat_logger: ChatLogger = None, seed: int | None = None):
+    def review_code_changes_by_file(
+        self, 
+        pr_changes_by_file: dict[str, str], 
+        cloned_repo: ClonedRepo, 
+        chat_logger: ChatLogger = None, 
+        seed: int | None = None
+    ):
         code_reviews_by_file = {}
         for file_name, pr_changes in pr_changes_by_file.items():
             self.messages = [
@@ -597,6 +664,11 @@ class PRReviewBot(ChatGPT):
                 )
             ]
             formatted_user_prompt = user_prompt.format(diff=pr_changes)
+            # check if there are special rules we need to follow for this file by seeing if the files "gpt.md" exists
+            special_rules = self.get_special_rules(cloned_repo, file_name)
+            if special_rules:
+                formatted_user_prompt += user_prompt_special_rules_format.format(special_rules=special_rules)
+            formatted_user_prompt += user_prompt_issue_output_format
             code_review_response = self.chat_anthropic(
                 content=formatted_user_prompt,
                 temperature=0,
@@ -632,6 +704,7 @@ class PRReviewBot(ChatGPT):
         pr_changes: list[PRChange], 
         formatted_pr_changes_by_file: dict[str, str], 
         code_reviews_by_file: dict[str, CodeReview], 
+        cloned_repo: ClonedRepo,
         chat_logger: ChatLogger = None,
         seed: int | None = None
     ):
@@ -657,7 +730,18 @@ class PRReviewBot(ChatGPT):
             # now prepend all other pr changes to the current pr change
             all_other_pr_changes = "\n\n".join([pr_change_unformatted.format(file_name=file, patches=patches) for file, patches in files_to_patches.items() if file != file_name])
             
-            formatted_user_prompt = user_prompt_review.format(file_name=file_name, potential_issues=potential_issues_string, pr_changes=f"{all_other_pr_changes}\n{formatted_pr_changes_by_file[file_name]}")
+            # create user prompt
+            formatted_user_prompt = user_prompt_review_questions.format(
+                file_name=file_name, 
+                potential_issues=potential_issues_string, 
+                pr_changes=f"{all_other_pr_changes}\n{formatted_pr_changes_by_file[file_name]}"
+            )
+            special_rules = self.get_special_rules(cloned_repo, file_name)
+            if special_rules:
+                formatted_user_prompt += user_prompt_review_special_rules.format(special_rules=special_rules)
+            formatted_user_prompt += user_prompt_review_analysis_format
+            formatted_user_prompt += user_prompt_review_decisions
+            # get response
             code_review_response = self.chat_anthropic(
                 content=formatted_user_prompt,
                 temperature=0,
@@ -958,12 +1042,25 @@ def get_group_voted_best_issue_index(
 def get_code_reviews_for_file(
     pr_changes: list[PRChange], 
     formatted_pr_changes_by_file: dict[str, str], 
+    cloned_repo: ClonedRepo,
     chat_logger: ChatLogger | None = None,
     seed: int | None = None
 ):
     review_bot = PRReviewBot()
-    code_review_by_file = review_bot.review_code_changes_by_file(formatted_pr_changes_by_file, chat_logger=chat_logger, seed=seed)
-    code_review_by_file = review_bot.review_code_issues_by_file(pr_changes, formatted_pr_changes_by_file, code_review_by_file, chat_logger=chat_logger, seed=seed)
+    code_review_by_file = review_bot.review_code_changes_by_file(
+        formatted_pr_changes_by_file, 
+        cloned_repo, 
+        chat_logger=chat_logger, 
+        seed=seed
+    )
+    code_review_by_file = review_bot.review_code_issues_by_file(
+        pr_changes, 
+        formatted_pr_changes_by_file, 
+        code_review_by_file, 
+        cloned_repo, 
+        chat_logger=chat_logger, 
+        seed=seed
+    )
     return code_review_by_file
 
 # run 5 seperate instances of review_pr and then group the resulting issues and only take the issues that appear the majority of the time (> 3)
@@ -972,6 +1069,7 @@ def group_vote_review_pr(
     username: str, 
     pr_changes: list[PRChange], 
     formatted_pr_changes_by_file: dict[str, str], 
+    cloned_repo: ClonedRepo,
     multiprocess: bool = True, 
     chat_logger: ChatLogger | None = None, 
 ) -> dict[str, CodeReview]:
@@ -982,7 +1080,7 @@ def group_vote_review_pr(
         chat_logger = None
         pool = multiprocessing.Pool(processes=5)
         results = [
-            pool.apply_async(get_code_reviews_for_file, args=(pr_changes, formatted_pr_changes_by_file, chat_logger, i))
+            pool.apply_async(get_code_reviews_for_file, args=(pr_changes, formatted_pr_changes_by_file, cloned_repo, chat_logger, i))
             for i in range(GROUP_SIZE)
         ]
         pool.close()
@@ -1000,7 +1098,7 @@ def group_vote_review_pr(
                 )
     else:
         for i in range(GROUP_SIZE):
-            code_reviews_by_file.append(get_code_reviews_for_file(pr_changes, formatted_pr_changes_by_file, chat_logger=chat_logger, seed=i))
+            code_reviews_by_file.append(get_code_reviews_for_file(pr_changes, formatted_pr_changes_by_file, cloned_repo, chat_logger=chat_logger, seed=i))
     
     # embed each issue and then cluster them
     # extract code issues for each file and prepare them for embedding

@@ -25,8 +25,15 @@ class SweepConfig(BaseModel):
         "patch",
         "packages/blobs",
         "dist",
+        "oa3gen"
     ]
-    exclude_path_dirs: list[str] = ["node_modules", "build", ".venv", "venv", ".git", "dist"]
+    exclude_path_dirs: list[str] = [
+        "node_modules", 
+        "build", 
+        ".venv", 
+        "venv", 
+        ".git", 
+        "dist"]
     exclude_substrings_aggressive: list[str] = [ # aggressively filter out file paths, may drop some relevant files
         "integration",
         ".spec",
@@ -288,7 +295,7 @@ class SweepConfig(BaseModel):
     # returns False if the file is bad
     def is_file_suitable(self, file_contents: str) -> tuple[bool, str]:
         if file_contents is None:
-            return False, "The file contents were a None Type object, this is most likely an issue on our end!"
+            return False, "The file contents were a None Type object, this is most likely an issue on our end."
         try:
             encoded_file = encode_file_with_fallback_encodings(file_contents)
         except UnicodeEncodeError as e:
@@ -297,14 +304,14 @@ class SweepConfig(BaseModel):
         # file is too large or too small
         file_length = len(encoded_file)
         if file_length > 240000:
-            return False, "The size of this file is too large to work with!"
+            return False, "The size of this file means it is likely auto generated."
         lines = file_contents.split("\n")
         line_count = len(lines)
         # if average line length is greater than 200, then it is likely not human readable
         if line_count == 0:
             return False, "Line count for this file was 0!"
         if len(file_contents)/line_count > 200:
-            return False, "This file was determined to be non human readable due to the average line length!"
+            return False, "This file was determined to be non human readable due to the average line length."
         return True, ""
         
 

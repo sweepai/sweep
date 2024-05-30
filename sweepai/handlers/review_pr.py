@@ -124,6 +124,7 @@ def review_pr(
                 username,
                 pr_changes,
                 formatted_pr_changes_by_file,
+                cloned_repo,
                 multiprocess=True,
                 chat_logger=chat_logger,
             )
