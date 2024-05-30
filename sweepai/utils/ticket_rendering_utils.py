@@ -635,7 +635,7 @@ def render_code_review_issues(
                 issue_blob_url = f"{files_to_blobs[issue.file_name]}#L{issue.start_line}-L{issue.end_line}"
                 issue_diff_url = f"{files_to_diffs[issue.file_name]}R{issue.start_line}-R{issue.end_line}"
             if sorted_issues:
-                code_issues_string += f"<li>In {issue.file_name}: {issue.issue_description}</li>\n\n{issue_blob_url}\n[View Diff]({issue_diff_url})"
+                code_issues_string += f"<li>In `{issue.file_name}`: {issue.issue_description}</li>\n\n{issue_blob_url}\n[View Diff]({issue_diff_url})"
             else:
                 code_issues_string += f"<li>{issue.issue_description}</li>\n\n{issue_blob_url}\n[View Diff]({issue_diff_url})"
     return code_issues_string
@@ -779,6 +779,10 @@ def create_update_review_pr_comment(
             break
     commits = list(pr.get_commits())
     pr_authors = set()
+    try:
+        pr_authors.add(f"{pr.user.login}")
+    except Exception as e:
+        logger.error(f"Failed to retrieve {pr.user}: {str(e)}")
     for commit in commits:
         author = commit.author
         try:
