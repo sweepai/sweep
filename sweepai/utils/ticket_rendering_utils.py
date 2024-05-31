@@ -694,10 +694,12 @@ def render_pr_review_by_file(
     pr_authors: str = "",
 ) -> str:
     body = f"{SWEEP_PR_REVIEW_HEADER}\n"
+    pr_summary = ""
     if pr_authors:
         body += f"Authors: {pr_authors}\n" if ", " in pr_authors else f"Author: {pr_authors}\n" 
+    # pull request summary goes to the bottom
     if pull_request_summary:
-        body += f"\n{pull_request_summary}\n<hr>\n"
+        pr_summary += f"\n<h3>Summary</h3>\n{pull_request_summary}\n<hr>\n"
     issues_section = ""
     potential_issues_section = ""
     # build issues section
@@ -731,7 +733,6 @@ def render_pr_review_by_file(
         issues_section = f"<details open><summary><h3>Sweep Found These Issues</h3></summary>\n\n{issues_section}</details><hr>"
     if potential_issues_section:
         potential_issues_section = f"<details><summary><h3>Potential Issues</h3></summary><p><strong>Sweep is unsure if these are issues, but they might be worth checking out.</strong></p>\n\n{potential_issues_section}</details><hr>"
-
     # add footer describing dropped files
     footer = ""
     if len(dropped_files) == 1:
@@ -750,7 +751,7 @@ def render_pr_review_by_file(
         )
         footer += f"<p>The following files were not reviewed as they were deemed unsuitable for a variety of reasons. If this is an error please let us know.</p><ul>{unsuitable_files_string}</ul>"
 
-    return body + issues_section + potential_issues_section + footer
+    return body + issues_section + potential_issues_section + pr_summary + footer
 
 
 # handles the creation or update of the Sweep comment letting the user know that Sweep is reviewing a pr

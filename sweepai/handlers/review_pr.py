@@ -10,6 +10,7 @@ from loguru import logger
 from sweepai.chat.api import posthog_trace
 from sweepai.core.review_utils import (
     format_pr_changes_by_file,
+    format_pr_info,
     get_pr_changes,
     get_pr_summary_from_patches,
     group_vote_review_pr,
@@ -115,15 +116,21 @@ def review_pr(
             # _comment_id = create_update_review_pr_comment(username, pr)
             pr_changes, dropped_files, unsuitable_files = get_pr_changes(repository, pr)
             formatted_pr_changes_by_file = format_pr_changes_by_file(pr_changes)
-            pull_request_summary = get_pr_summary_from_patches(
-                pr_changes, chat_logger=chat_logger
-            )
+            pull_request_info = format_pr_info(pr)
+            # only get sweep to generate a summary if the pr doesnt have a description
+            pull_request_summary = ""
+            if "pr_description" not in pull_request_info:
+                pull_request_summary = get_pr_summary_from_patches(
+                    pr_changes, chat_logger=chat_logger
+                )
+            
             # get initial code review by group vote
             code_review_by_file = group_vote_review_pr(
                 username,
                 pr_changes,
                 formatted_pr_changes_by_file,
                 cloned_repo,
+                pull_request_info,
                 multiprocess=True,
                 chat_logger=chat_logger,
             )
@@ -133,6 +140,7 @@ def review_pr(
                 cloned_repo,
                 pr_changes,
                 code_review_by_file,
+                pull_request_info,
                 chat_logger=chat_logger,
             )
             # sort all issues by severity
