@@ -58,7 +58,7 @@ const sliceLines = (content: string, start: number, end: number) => {
 }
 
 const typeNameToColor = {
-  "source": "bg-slate-700",
+  "source": "bg-blue-800",
   "tests": "bg-green-900",
   "dependencies": "bg-zinc-600",
   "tools": "bg-purple-900",
@@ -374,6 +374,7 @@ function App() {
             "Authorization": `Bearer ${session?.accessToken}`
           }
         });
+        console.log(message)
         console.log(`Time taken for search: ${(Date.now() - startTime) / 1000}s`)
         const responseObj = await snippetsResponse.json()
         if (responseObj.success == false) {
@@ -431,7 +432,7 @@ function App() {
       while (!done && isStream.current) {
         const { value, done: done_ } = await Promise.race([
           reader!.read() as Promise<ReadableStreamDefaultReadResult<Uint8Array>>,
-          new Promise<ReadableStreamDefaultReadResult<Uint8Array>>((_, reject) => setTimeout(() => reject(new Error("Stream timeout after 20 seconds. You can try again by editing your last message.")), 20000))
+          new Promise<ReadableStreamDefaultReadResult<Uint8Array>>((_, reject) => setTimeout(() => reject(new Error("Stream timeout after 90 seconds. You can try again by editing your last message.")), 90000))
         ]);
         if (value) {
           const decodedValue = new TextDecoder().decode(value);
@@ -663,8 +664,8 @@ function App() {
               className="mr-2"
               variant="destructive"
               onClick={async () => {
-                isStream.current = false;
                 setIsLoading(false);
+                isStream.current = false;
               }}
             >
               <FaStop />
