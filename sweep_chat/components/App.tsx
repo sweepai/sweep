@@ -665,14 +665,14 @@ function App() {
                 <DropdownMenuSeparator />
                 <DropdownMenuRadioGroup value={model} onValueChange={(value) => setModel(value as keyof typeof modelMap)}>
                   {Object.keys(modelMap).map((model) => (
-                    model.includes("claude") ? (<DropdownMenuRadioItem value={model}>{modelMap[model]}</DropdownMenuRadioItem>) : null
+                    model.includes("claude") ? (<DropdownMenuRadioItem value={model} key={model}>{modelMap[model]}</DropdownMenuRadioItem>) : null
                   ))}
                 </DropdownMenuRadioGroup>
                 <DropdownMenuLabel>OpenAI</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuRadioGroup value={model} onValueChange={(value) => setModel(value as keyof typeof modelMap)}>
                   {Object.keys(modelMap).map((model) => (
-                    model.includes("gpt") ? (<DropdownMenuRadioItem value={model}>{modelMap[model]}</DropdownMenuRadioItem>) : null
+                    model.includes("gpt") ? (<DropdownMenuRadioItem value={model} key={model}>{modelMap[model]}</DropdownMenuRadioItem>) : null
                   ))}
                 </DropdownMenuRadioGroup>
               </DropdownMenuContent>
