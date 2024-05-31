@@ -72,6 +72,7 @@ from sweepai.web.events import (
     IssueCommentRequest,
     IssueRequest,
     PREdited,
+    PRLabeledRequest,
     PRRequest,
 )
 from sweepai.web.health import health_check
@@ -474,6 +475,8 @@ def handle_event(request_dict, event):
                     allowed_repos_set = set(allowed_repos.split(',')) if allowed_repos else set()
                     allowed_usernames = os.environ.get("PR_REVIEW_USERNAMES", "")
                     allowed_usernames_set = set(allowed_usernames.split(',')) if allowed_usernames else set()
+                    # only call review pr if user names are allowed
+                    # defaults to all users/repos if not set
                     if (not allowed_repos or repo.name in allowed_repos_set) and (not allowed_usernames or pr.user.login in allowed_usernames_set):
                         # run pr review
                         call_review_pr(
@@ -482,6 +485,30 @@ def handle_event(request_dict, event):
                             repository=repo,
                             installation_id=pr_request.installation.id,
                         )
+                except Exception as e:
+                    logger.exception(f"Failed to review PR: {e}")
+                    raise e
+            case "pull_request", "labeled":
+                try:
+                    pr_request = PRLabeledRequest(**request_dict)
+                    # run only if sweep label is added to the pull request
+                    if (
+                        GITHUB_LABEL_NAME in [label.name.lower() for label in pr_request.pull_request.labels] 
+                    ):
+                        _, g = get_github_client(request_dict["installation"]["id"])
+                        repo = g.get_repo(request_dict["repository"]["full_name"])
+                        pr = repo.get_pull(request_dict["pull_request"]["number"])
+
+                        # run pr review - no need to check for allowed users/repos if they are adding sweep label
+                        call_review_pr(
+                            username=pr.user.login,
+                            pr=pr,
+                            repository=repo,
+                            installation_id=pr_request.installation.id,
+                        )
+                    else:
+                        logger.info("sweep label not in pull request labels")
+
                 except Exception as e:
                     logger.exception(f"Failed to review PR: {e}")
                     raise e
