@@ -20,7 +20,7 @@ export default function Feedback({
         posthog.capture("survey shown", {
             $survey_id: surveyID // required
         })
-    }, [posthog])
+    }, [posthog, surveyID])
 
 
     const handleSurveyDismissed = (e: any) => {
