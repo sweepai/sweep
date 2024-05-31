@@ -297,7 +297,7 @@ def chat_codebase_stream(
     )
     for message in messages:
         if message.role == "function":
-            message.role = "user"
+            message.role = "assistant"
     chat_gpt.messages = [
         Message(
             content=snippets_message,
@@ -338,9 +338,10 @@ def chat_codebase_stream(
             current_messages = []
             for token in stream:
                 result_string += token
-                analysis = extract_xml_tag(result_string, "analysis", include_closing_tag=False) or ""
-                user_response = extract_xml_tag(result_string, "user_response", include_closing_tag=False) or ""
-                self_critique = extract_xml_tag(result_string, "self_critique", include_closing_tag=False)
+                current_string, _ = result_string.split("<function_call>")
+                analysis = extract_xml_tag(current_string, "analysis", include_closing_tag=False) or ""
+                user_response = extract_xml_tag(current_string, "user_response", include_closing_tag=False) or ""
+                self_critique = extract_xml_tag(current_string, "self_critique", include_closing_tag=False)
 
                 current_messages = []
                 
