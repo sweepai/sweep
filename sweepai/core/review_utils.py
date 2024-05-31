@@ -299,7 +299,8 @@ def format_pr_changes_by_file(pr_changes: list[PRChange]) -> dict[str, str]:
         formatted_pr_changes_by_file[pr_change.file_name] = format_pr_change(pr_change, idx)
     return formatted_pr_changes_by_file
 
-system_prompt = """You are a careful and smart tech lead that wants to avoid production issues. You will be analyzing a set of diffs representing a pull request made to a piece of source code. Be very concise."""
+system_prompt = """You are a careful and smart tech lead that wants to avoid production issues. You will be analyzing a set of diffs representing a pull request made to a piece of source code. 
+You will also be given the pull request title and description which you will use to determine the intentions of the pull request. Be very concise."""
 
 system_prompt_review = """You are a busy tech manager who is responsible for reviewing prs and identifying any possible production issues. 
 You will be analyzing a list of potential issues that have been identified by a previous engineer and determing which issues are severe enough to bring up to the original engineer."""
@@ -318,6 +319,11 @@ You will be analyzing a list of issues that have been identified by a previous e
 You will then rank the issues from most severe to least severe based on your analysis."""
 
 user_prompt = """\
+# Pull Request Title and Description
+Here is the title and description of the pull request, use this to determine the intentions of the pull request:
+
+{pull_request_info}
+
 # Code Review
 Here are the changes in the pull request changes given in diff format:
 <changes>
@@ -325,7 +331,7 @@ Here are the changes in the pull request changes given in diff format:
 </changes>
 
 # Instructions
-1. Analyze the code changes.
+1. Analyze the code changes. Keep in mind what the intentions of the pull request are.
     1a. Review each change individually, examining the code changes line-by-line.
     1b. For each line of code changed, consider:
         - What is the purpose of this line of code?
@@ -350,9 +356,8 @@ Added a new categorization system for snippets in `multi_prep_snippets` and upda
 
 2. Identify all issues.
     2a. Determine whether there are any functional issues, bugs, edge cases, or error conditions that the code changes introduce or fail to properly handle. Consider the line-by-line analysis from step 1b. (1 paragraph)
-    2b. Determine whether there are any security vulnerabilities or potential security issues introduced by the code changes. (1 paragraph) 
-    2c. Identify any other potential issues that the code changes may introduce that were not captured by 2a or 2b. This could include accidental changes such as commented out code. (1 paragraph)
-    2d. Only include issues that you are very confident will cause serious issues that prevent the pull request from being merged. For example, focus only on functional code changes and ignore changes to strings and comments that are purely descriptive.
+    2b. Identify any other potential issues that the code changes may introduce that were not captured by 2a. This could include accidental changes such as commented out code. (1 paragraph)
+    2c. Only include issues that you are very confident will cause serious issues that prevent the pull request from being merged. For example, focus only on functional code changes and ignore changes to strings and comments that are purely descriptive.
 
 Answer each of the above questions in step 2 in the following format:
 <issue_identification>
@@ -443,6 +448,11 @@ Below are the changes made in the pull request as context
 
 {pr_changes}
 
+Below is the title and description of the pull request. Use this information to determine the intentions of the pull request and then further scrutinize the potential issues.
+# Pull Request Title and Description
+
+{pull_request_info}
+
 # Instructions
 1. Analyze each identified potential issue for the file {file_name}
     1a. Review each identified issue individually, formulate 3-5 questions to answer in order to determine the severity of the issue.
@@ -528,6 +538,11 @@ Below is the file {file_name} with all the above patches applied along with the 
 """
 
 user_prompt_identify_repeats = """
+Below is the pull request title and description. Use this to determine the intention of the pull request to help determine if the new function is useless or not.
+# Pull Request Title and Description
+
+{pull_request_info}
+
 Below is the function definition that was just added to the code base.
 # New Function
 
@@ -686,6 +701,7 @@ class PRReviewBot(ChatGPT):
         pr_changes: list[PRChange],
         pr_changes_by_file: dict[str, str], 
         cloned_repo: ClonedRepo, 
+        pull_request_info: str,
         chat_logger: ChatLogger = None, 
         seed: int | None = None
     ):
@@ -700,7 +716,9 @@ class PRReviewBot(ChatGPT):
                     content=system_prompt,
                 )
             ]
-            formatted_user_prompt = user_prompt.format(diff=pr_changes)
+            formatted_user_prompt = user_prompt.format(
+                diff=pr_changes, pull_request_info=pull_request_info
+            )
             formatted_user_prompt += user_prompt_issue_output_format
             if len(formatted_user_prompt) > MAX_CHAR_BUDGET:
                 # if we exceed the budget we need to prune the file
@@ -758,6 +776,7 @@ class PRReviewBot(ChatGPT):
         formatted_pr_changes_by_file: dict[str, str], 
         code_reviews_by_file: dict[str, CodeReview], 
         cloned_repo: ClonedRepo,
+        pull_request_info: str,
         chat_logger: ChatLogger = None,
         seed: int | None = None
     ):
@@ -787,6 +806,7 @@ class PRReviewBot(ChatGPT):
             formatted_user_prompt = user_prompt_review_questions.format(
                 file_name=file_name, 
                 potential_issues=potential_issues_string, 
+                pull_request_info=pull_request_info,
                 pr_changes=f"{all_other_pr_changes}\n{formatted_pr_changes_by_file[file_name]}"
             )
             special_rules = self.get_special_rules(cloned_repo, file_name)
@@ -920,6 +940,7 @@ class PRReviewBot(ChatGPT):
         self, 
         cloned_repo: ClonedRepo, 
         newly_created_functions_dict: dict[str, list[FunctionDef]],
+        pull_request_info: str,
         chat_logger: ChatLogger | None = None
     ) -> dict[str, list[CodeReviewIssue]]:
         repeated_functions_code_issues: dict[str, list[CodeReviewIssue]] = {}
@@ -956,7 +977,9 @@ class PRReviewBot(ChatGPT):
                     [f"<code_snippet file_name='{snippet.file_path}' snippet_index='{idx}'>\n{snippet.get_snippet()}\n</code_snippet>" for idx, snippet in enumerate(ranked_snippets)]
                 )
                 formatted_user_prompt = user_prompt_identify_repeats.format(
-                    function=f"<new_function>\n{function.function_code}\n</new_function>", formatted_code_snippets=formatted_code_snippets
+                    function=f"<new_function>\n{function.function_code}\n</new_function>", 
+                    formatted_code_snippets=formatted_code_snippets,
+                    pull_request_info=pull_request_info,
                 )
                 self.messages = [
                     Message(
@@ -1108,6 +1131,7 @@ def get_code_reviews_for_file(
     pr_changes: list[PRChange], 
     formatted_pr_changes_by_file: dict[str, str], 
     cloned_repo: ClonedRepo,
+    pull_request_info: str,
     chat_logger: ChatLogger | None = None,
     seed: int | None = None
 ):
@@ -1116,6 +1140,7 @@ def get_code_reviews_for_file(
         pr_changes,
         formatted_pr_changes_by_file, 
         cloned_repo, 
+        pull_request_info,
         chat_logger=chat_logger, 
         seed=seed
     )
@@ -1124,6 +1149,7 @@ def get_code_reviews_for_file(
         formatted_pr_changes_by_file, 
         code_review_by_file, 
         cloned_repo, 
+        pull_request_info,
         chat_logger=chat_logger, 
         seed=seed
     )
@@ -1136,6 +1162,7 @@ def group_vote_review_pr(
     pr_changes: list[PRChange], 
     formatted_pr_changes_by_file: dict[str, str], 
     cloned_repo: ClonedRepo,
+    pull_request_info: str,
     multiprocess: bool = True, 
     chat_logger: ChatLogger | None = None, 
 ) -> dict[str, CodeReview]:
@@ -1158,7 +1185,14 @@ def group_vote_review_pr(
             ) for _ in range(GROUP_SIZE)
         ]
         results = [
-            pool.apply_async(get_code_reviews_for_file, args=(pr_changes, formatted_pr_changes_by_file, cloned_repos[i], chat_logger, i))
+            pool.apply_async(get_code_reviews_for_file, args=(
+                pr_changes, 
+                formatted_pr_changes_by_file, 
+                cloned_repos[i], 
+                pull_request_info, 
+                chat_logger, 
+                i
+            ))
             for i in range(GROUP_SIZE)
         ]
         pool.close()
@@ -1176,7 +1210,14 @@ def group_vote_review_pr(
                 )
     else:
         for i in range(GROUP_SIZE):
-            review = get_code_reviews_for_file(pr_changes, formatted_pr_changes_by_file, cloned_repo, chat_logger=chat_logger, seed=i)
+            review = get_code_reviews_for_file(
+                pr_changes, 
+                formatted_pr_changes_by_file, 
+                cloned_repo, 
+                pull_request_info,
+                chat_logger=chat_logger, 
+                seed=i
+            )
             code_reviews_by_file.append(review)
     # embed each issue and then cluster them
     # extract code issues for each file and prepare them for embedding
@@ -1273,13 +1314,16 @@ def review_pr_detailed_checks(
     cloned_repo: ClonedRepo,
     pr_changes: list[PRChange], 
     code_review_by_file: dict[str, CodeReview], 
+    pull_request_info: str,
     chat_logger: ChatLogger | None = None, 
 ) -> dict[str, CodeReview]:
     review_bot = PRReviewBot()
     # get a list of newly created functions
-    newly_created_functions_dict: dict[str, list[FunctionDef]] = review_bot.identify_functions_in_patches(pr_changes, chat_logger=chat_logger)
+    newly_created_functions_dict: dict[str, list[FunctionDef]] = review_bot.identify_functions_in_patches(
+        pr_changes, chat_logger=chat_logger
+    )
     new_code_issues: dict[str, list[CodeReviewIssue]] = review_bot.identify_repeated_functions(
-        cloned_repo, newly_created_functions_dict, chat_logger=chat_logger
+        cloned_repo, newly_created_functions_dict, pull_request_info, chat_logger=chat_logger
     )
     # now append these code issues to the existing ones
     for file_name, new_code_issues in new_code_issues.items():
@@ -1314,3 +1358,17 @@ def sort_code_issues_by_severity(
     all_issues_sorted = all_issues_sorted[:MAX_ISSUE_AMOUNT]
     
     return code_review_by_file, all_issues_sorted
+
+def format_pr_info(pr: PullRequest):
+    info = ""
+    try:
+        title = pr.title
+        info += f"<pr_title>\n{title}\n<\pr_title>\n\n"
+    except Exception as e:
+        logger.warning(f"Couldn't fetch title for pr: {pr}")
+    try:
+        description = pr.body
+        info += f"<pr_description>\n{description}\n</pr_description>\n\n"
+    except Exception as e:
+        logger.warning(f"Couldn't fetch body for pr: {pr}")
+    return info

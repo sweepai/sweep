@@ -10,6 +10,7 @@ from loguru import logger
 from sweepai.chat.api import posthog_trace
 from sweepai.core.review_utils import (
     format_pr_changes_by_file,
+    format_pr_info,
     get_pr_changes,
     get_pr_summary_from_patches,
     group_vote_review_pr,
@@ -118,12 +119,14 @@ def review_pr(
             pull_request_summary = get_pr_summary_from_patches(
                 pr_changes, chat_logger=chat_logger
             )
+            pull_request_info = format_pr_info(pr)
             # get initial code review by group vote
             code_review_by_file = group_vote_review_pr(
                 username,
                 pr_changes,
                 formatted_pr_changes_by_file,
                 cloned_repo,
+                pull_request_info,
                 multiprocess=True,
                 chat_logger=chat_logger,
             )
@@ -133,6 +136,7 @@ def review_pr(
                 cloned_repo,
                 pr_changes,
                 code_review_by_file,
+                pull_request_info,
                 chat_logger=chat_logger,
             )
             # sort all issues by severity
