@@ -1270,7 +1270,7 @@ def group_vote_review_pr(
         except ValueError as e:
             logger.error(f"Error with dbscan {e}")
         
-    LABEL_THRESHOLD = 4
+    LABEL_THRESHOLD = 5
     # get the labels that have a count greater than the threshold
     # format: {file_name: {label: [index, ...]}}
     files_to_labels_indexes = {}
