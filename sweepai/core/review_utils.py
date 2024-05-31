@@ -989,7 +989,7 @@ class PRReviewBot(ChatGPT):
                 ]
                 repeated_functions_response = self.chat_anthropic(
                     content=formatted_user_prompt,
-                    temperature=0,
+                    temperature=0.1,
                     model=CLAUDE_MODEL,
                 )
                 if chat_logger:
