@@ -322,11 +322,17 @@ def multi_prep_snippets(
         new_content_to_lexical_score_by_type = {}
 
         with Timer() as timer:
-            with ThreadPoolExecutor() as executor:
-                future_to_type = {executor.submit(process_snippets, type_name, queries[0], snippets_subset, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, rerank_count[type_name], {}): type_name for type_name, snippets_subset in separated_snippets}
-                for future in concurrent.futures.as_completed(future_to_type):
-                    type_name = future_to_type[future]
-                    new_content_to_lexical_score_by_type[type_name] = future.result()[1]
+            try:
+                with ThreadPoolExecutor() as executor:
+                    future_to_type = {executor.submit(process_snippets, type_name, queries[0], snippets_subset, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, rerank_count[type_name], {}): type_name for type_name, snippets_subset in separated_snippets}
+                    for future in concurrent.futures.as_completed(future_to_type):
+                        type_name = future_to_type[future]
+                        new_content_to_lexical_score_by_type[type_name] = future.result()[1]
+            except RuntimeError as e:
+                # Fallback to sequential processing
+                logger.warning(e)
+                for type_name, snippets_subset in separated_snippets:
+                    new_content_to_lexical_score_by_type[type_name] = process_snippets(type_name, queries[0], snippets_subset, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, rerank_count[type_name], {})[1]
         logger.info(f"Reranked snippets took {timer.time_elapsed} seconds")
 
         for type_name, snippets_subset in separated_snippets:
