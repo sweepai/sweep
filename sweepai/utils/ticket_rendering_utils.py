@@ -750,6 +750,9 @@ def render_pr_review_by_file(
             ]
         )
         footer += f"<p>The following files were not reviewed as they were deemed unsuitable for a variety of reasons. If this is an error please let us know.</p><ul>{unsuitable_files_string}</ul>"
+    # if there were no issues or potential issues
+    if not issues_section and not potential_issues_section:
+        issues_section = "The Pull Request looks good! Sweep did not find any issues."
 
     return body + issues_section + potential_issues_section + pr_summary + footer
 
