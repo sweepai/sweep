@@ -30,7 +30,7 @@ from sweepai.utils.str_utils import add_line_numbers, extract_object_fields_from
 from sweepai.utils.ticket_rendering_utils import parse_issues_from_code_review
 from sweepai.utils.ticket_utils import get_top_k_snippets
 
-# approximately 120k tokens
+# approximately 120k tokens - this is an underestimate which is intentional, even if we can use 128k context we dont want to use all of it
 MAX_CHAR_BUDGET = 120000 * 3.5
 
 def get_pr_diffs(repo: Repository, pr: PullRequest):
@@ -683,13 +683,17 @@ class PRReviewBot(ChatGPT):
     # fetch all potential issues for each file based on the diffs of that file
     def review_code_changes_by_file(
         self, 
+        pr_changes: list[PRChange],
         pr_changes_by_file: dict[str, str], 
         cloned_repo: ClonedRepo, 
         chat_logger: ChatLogger = None, 
         seed: int | None = None
     ):
         code_reviews_by_file = {}
-        for file_name, pr_changes in pr_changes_by_file.items():
+        # loop through all pr changes
+        for pr_change in pr_changes:
+            file_name = pr_change.file_name
+            pr_changes = pr_changes_by_file[file_name]
             self.messages = [
                 Message(
                     role="system",
@@ -698,6 +702,13 @@ class PRReviewBot(ChatGPT):
             ]
             formatted_user_prompt = user_prompt.format(diff=pr_changes)
             formatted_user_prompt += user_prompt_issue_output_format
+            if len(formatted_user_prompt) > MAX_CHAR_BUDGET:
+                # if we exceed the budget we need to prune the file
+                posthog.capture(
+                    "review_code_changes_by_file", 
+                    "review_code_changes_by_file budget exceeded", 
+                    properties={"file_name": file_name, "body": formatted_user_prompt}
+                )
             code_review_response = self.chat_anthropic(
                 content=formatted_user_prompt,
                 temperature=0,
@@ -837,9 +848,17 @@ class PRReviewBot(ChatGPT):
                     content=system_prompt_identify_new_functions,
                 )
             ]
+            numbered_code_file = add_line_numbers(files_to_pr_change[file_name].new_code, start=1)
+            # only need code related to patches
+            numbered_code_file = smart_prune_file_based_on_patches(
+                numbered_code_file, 
+                files_to_pr_change[file_name].patches,
+                context_lines=5
+            )
 
             formatted_user_prompt = user_prompt_identify_new_functions.format(
-                file_name=file_name, patches=patches, numbered_code_file=add_line_numbers(files_to_pr_change[file_name].new_code, start=1))
+                file_name=file_name, patches=patches, numbered_code_file=numbered_code_file
+            )
             new_functions_response = self.chat_anthropic(
                 content=formatted_user_prompt,
                 temperature=0,
@@ -1094,6 +1113,7 @@ def get_code_reviews_for_file(
 ):
     review_bot = PRReviewBot()
     code_review_by_file = review_bot.review_code_changes_by_file(
+        pr_changes,
         formatted_pr_changes_by_file, 
         cloned_repo, 
         chat_logger=chat_logger, 
