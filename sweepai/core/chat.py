@@ -442,63 +442,78 @@ class ChatGPT(MessageList):
         hit_content_filtering = False
         if stream:
             def llm_stream():
-                client = Anthropic(api_key=ANTHROPIC_API_KEY)
-                start_time = time.time()
-                message_dicts = [
-                    {
-                        "role": message.role,
-                        "content": message.content,
-                    } for message in self.messages if message.role != "system"
-                ]
-                message_dicts = sanitize_anthropic_messages(message_dicts)
-                # pylint: disable=E1129
-                with client.messages.stream(
-                    model=model,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    messages=message_dicts,
-                    system=system_message,  
-                    stop_sequences=stop_sequences,
-                    timeout=60,
-                ) as stream_:
-                    try:
-                        if verbose:
-                            print(f"Connected to {model}...")
+                if use_openai:
+                    client = OpenAI()
+                    response = client.chat.completions.create(
+                        model=model,
+                        messages=self.messages_dicts,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        stop=stop_sequences,
+                        stream=True,
+                    )
+                    for chunk in response:
+                        yield chunk.choices[0].delta.content
+                        if chunk.choices[0].finish_reason == "stop":
+                            break
+                else:
+                    client = Anthropic(api_key=ANTHROPIC_API_KEY)
+                    start_time = time.time()
+                    message_dicts = [
+                        {
+                            "role": message.role,
+                            "content": message.content,
+                        } for message in self.messages if message.role != "system"
+                    ]
+                    message_dicts = sanitize_anthropic_messages(message_dicts)
+                    # pylint: disable=E1129
+                    with client.messages.stream(
+                        model=model,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        messages=message_dicts,
+                        system=system_message,  
+                        stop_sequences=stop_sequences,
+                        timeout=60,
+                    ) as stream_:
+                        try:
+                            if verbose:
+                                print(f"Connected to {model}...")
 
-                        token_queue = queue.Queue()
-                        token_thread = threading.Thread(target=get_next_token, args=(stream_, token_queue))
-                        token_thread.daemon = True
-                        token_thread.start()
+                            token_queue = queue.Queue()
+                            token_thread = threading.Thread(target=get_next_token, args=(stream_, token_queue))
+                            token_thread.daemon = True
+                            token_thread.start()
 
-                        token_timeout = 5  # Timeout threshold in seconds
+                            token_timeout = 5  # Timeout threshold in seconds
 
-                        while token_thread.is_alive():
-                            try:
-                                item = token_queue.get(timeout=token_timeout)
+                            while token_thread.is_alive():
+                                try:
+                                    item = token_queue.get(timeout=token_timeout)
 
-                                if item is None:
-                                    break
+                                    if item is None:
+                                        break
 
-                                i, text = item
+                                    i, text = item
 
-                                if verbose:
-                                    if i == 0:
-                                        print(f"Time to first token: {time.time() - start_time:.2f}s")
-                                    print(text, end="", flush=True)
+                                    if verbose:
+                                        if i == 0:
+                                            print(f"Time to first token: {time.time() - start_time:.2f}s")
+                                        print(text, end="", flush=True)
 
-                                yield text
+                                    yield text
 
-                            except queue.Empty:
-                                if not token_thread.is_alive():
-                                    break
-                                raise TimeoutError(f"Time between tokens exceeded {token_timeout} seconds.")
+                                except queue.Empty:
+                                    if not token_thread.is_alive():
+                                        break
+                                    raise TimeoutError(f"Time between tokens exceeded {token_timeout} seconds.")
 
-                    except TimeoutError as te:
-                        logger.exception(te)
-                        raise te
-                    except Exception as e_:
-                        logger.exception(e_)
-                        raise e_
+                        except TimeoutError as te:
+                            logger.exception(te)
+                            raise te
+                        except Exception as e_:
+                            logger.exception(e_)
+                            raise e_
                 return
             return llm_stream()
         for i in range(NUM_ANTHROPIC_RETRIES):
