@@ -6,7 +6,7 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { FaCheck, FaGithub, FaPencilAlt, FaStop } from "react-icons/fa";
+import { FaCheck, FaCog, FaGithub, FaPencilAlt, FaStop } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -28,6 +28,8 @@ import * as jsonpatch from 'fast-json-patch';
 import { ReadableStreamDefaultReadResult } from "stream/web";
 import { Textarea } from "./ui/textarea";
 import { Slider } from "./ui/slider";
+import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
 
 if (typeof window !== 'undefined') {
@@ -52,6 +54,13 @@ interface Message {
     is_complete: boolean;
     snippets?: Snippet[];
   }; // This is the function input
+}
+
+const modelMap: Record<string, string> = {
+  "claude-3-opus-20240229": "Opus",
+  "claude-3-sonnet-20240229": "Sonnet",
+  "claude-3-haiku-20240307": "Haiku",
+  "gpt-4o": "GPT-4o",
 }
 
 const DEFAULT_K: number = 8
@@ -328,8 +337,9 @@ function App() {
   const [repoNameValid, setRepoNameValid] = useLocalStorage<boolean>("repoNameValid", false)
 
   const [repoNameDisabled, setRepoNameDisabled] = useState<boolean>(false)
-  const [k, setK] = useState<number>(DEFAULT_K)
 
+  const [k, setK] = useLocalStorage<number>("k", DEFAULT_K)
+  const [model, setModel] = useLocalStorage<keyof typeof modelMap>("model", "claude-3-opus-20240229")
   const [snippets, setSnippets] = useLocalStorage<Snippet[]>("snippets", [])
   const [messages, setMessages] = useLocalStorage<Message[]>("messages", [])
   const [currentMessage, setCurrentMessage] = useLocalStorage<string>("currentMessage", "")
@@ -408,6 +418,7 @@ function App() {
         throw e;
       }
     }
+    console.log(model)
     const chatResponse = await fetch("/backend/chat", {
       method: "POST",
       headers: {
@@ -419,6 +430,7 @@ function App() {
         repo_name: repoName,
         messages: newMessages,
         snippets: currentSnippets,
+        model: model,
         use_patch: true
       })
     });
@@ -633,10 +645,44 @@ function App() {
           placeholder="Repository name"
           disabled={repoNameDisabled}
         />
-        <div className="flex ml-4 items-center">
-          <span className="mr-4 whitespace-nowrap">Number of snippets: {k}</span>
-          <Slider defaultValue={[DEFAULT_K]} max={20} min={1} step={1} onValueChange={(value) => setK(value[0])} value={[k]} className="w-[200px]" />
-        </div>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" className="ml-4">
+              <FaCog className="mr-2"/>
+              Settings
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="w-120 p-16">
+            <h2 className="text-2xl font-bold mb-4 text-center">
+              Settings
+            </h2>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="text-left">Model: {modelMap[model]}</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56">
+                <DropdownMenuLabel>Anthropic</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuRadioGroup value={model} onValueChange={(value) => setModel(value as keyof typeof modelMap)}>
+                  {Object.keys(modelMap).map((model) => (
+                    model.includes("claude") ? (<DropdownMenuRadioItem value={model}>{modelMap[model]}</DropdownMenuRadioItem>) : null
+                  ))}
+                </DropdownMenuRadioGroup>
+                <DropdownMenuLabel>OpenAI</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuRadioGroup value={model} onValueChange={(value) => setModel(value as keyof typeof modelMap)}>
+                  {Object.keys(modelMap).map((model) => (
+                    model.includes("gpt") ? (<DropdownMenuRadioItem value={model}>{modelMap[model]}</DropdownMenuRadioItem>) : null
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <div className="flex items-center">
+              <span className="mr-4 whitespace-nowrap">Number of snippets: {k}</span>
+              <Slider defaultValue={[DEFAULT_K]} max={20} min={1} step={1} onValueChange={(value) => setK(value[0])} value={[k]} className="w-[200px]" />
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
       <div
         ref={messagesContainerRef}

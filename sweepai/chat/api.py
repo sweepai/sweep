@@ -243,6 +243,7 @@ def chat_codebase(
     repo_name: str = Body(...),
     messages: list[Message] = Body(...),
     snippets: list[Snippet] = Body(...),
+    model: str = Body(...),
     use_patch: bool = Body(False),
     access_token: str = Depends(get_token_header)
 ):
@@ -267,6 +268,7 @@ def chat_codebase(
             "messages": [message.model_dump() for message in messages],
             "snippets": [snippet.model_dump() for snippet in snippets],
         },
+        model=model,
         use_patch=use_patch
     )
 
@@ -278,8 +280,10 @@ def chat_codebase_stream(
     snippets: list[Snippet],
     access_token: str,
     metadata: dict = {},
+    model: str = "claude-3-opus-20240229",
     use_patch: bool = False,
 ):
+    use_openai = model.startswith("gpt")
     # Stream
     chat_gpt = ChatGPT.from_system_message_string(
         prompt_string=system_message
@@ -306,7 +310,15 @@ def chat_codebase_stream(
         *messages[:-1]
     ]
 
-    def stream_state(initial_user_message: str, snippets: list[Snippet], messages: list[Message], access_token: str, metadata: dict):
+    def stream_state(
+        initial_user_message: str,
+        snippets: list[Snippet],
+        messages: list[Message],
+        access_token: str,
+        metadata: dict,
+        model: str,
+        use_openai: bool
+    ):
         user_message = initial_user_message
         fetched_snippets = snippets
         new_messages = [
@@ -327,9 +339,10 @@ def chat_codebase_stream(
         for _ in range(5):
             stream = chat_gpt.chat_anthropic(
                 content=user_message,
-                model="claude-3-opus-20240229",
+                model=model,
                 stop_sequences=["</function_call>", "</function_calls>"],
-                stream=True
+                stream=True,
+                use_openai=use_openai
             )
             
             result_string = ""
@@ -338,7 +351,7 @@ def chat_codebase_stream(
             current_messages = []
             for token in stream:
                 result_string += token
-                current_string, _ = result_string.split("<function_call>")
+                current_string, *_ = result_string.split("<function_call>")
                 analysis = extract_xml_tag(current_string, "analysis", include_closing_tag=False) or ""
                 user_response = extract_xml_tag(current_string, "user_response", include_closing_tag=False) or ""
                 self_critique = extract_xml_tag(current_string, "self_critique", include_closing_tag=False)
@@ -479,6 +492,8 @@ def chat_codebase_stream(
             messages,
             access_token,
             metadata,
+            model,
+            use_openai=use_openai,
             use_patch=use_patch
         )
     )
