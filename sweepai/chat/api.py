@@ -302,6 +302,8 @@ def chat_codebase_stream(
     for message in messages:
         if message.role == "function":
             message.role = "assistant"
+        if message.function_call:
+            message.function_call = None
     chat_gpt.messages = [
         Message(
             content=snippets_message,
@@ -350,6 +352,8 @@ def chat_codebase_stream(
             self_critique = ""
             current_messages = []
             for token in stream:
+                if not token:
+                    continue
                 result_string += token
                 current_string, *_ = result_string.split("<function_call>")
                 analysis = extract_xml_tag(current_string, "analysis", include_closing_tag=False) or ""
