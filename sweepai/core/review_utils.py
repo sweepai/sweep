@@ -991,7 +991,6 @@ class PRReviewBot(ChatGPT):
                     content=formatted_user_prompt,
                     temperature=0,
                     model=CLAUDE_MODEL,
-                    use_openai=True
                 )
                 if chat_logger:
                     chat_logger.add_chat(
