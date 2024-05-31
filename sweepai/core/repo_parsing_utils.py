@@ -1,5 +1,4 @@
 from hashlib import md5
-import logging
 import multiprocessing
 
 import os
@@ -57,7 +56,7 @@ def _filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
         if size > 240000 or size < 10:
             return False
     except FileNotFoundError as e:
-        logging.error(f"File not found: {file}. Error: {e}")
+        logger.info(f"File not found: {file}. {e}")
         return False
     if not os.path.isfile(file):
         return False
