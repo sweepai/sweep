@@ -23,7 +23,10 @@ def fetch_pr_review_request(issue_url: str, __version__: str = "0"):
     print("Fetching access token...")
     _token, g = get_github_client(installation_id)
     print("Fetching repo...")
-    org = g.get_organization(org_name)
+    try:
+        org = g.get_organization(org_name)
+    except Exception:
+        org = g.get_user(org_name)
     repo = g.get_repo(f"{org_name}/{repo_name}")
     pr = repo.get_pull(int(pr_number))
     comments = pr.get_review_comments()
