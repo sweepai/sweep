@@ -358,6 +358,7 @@ Added a new categorization system for snippets in `multi_prep_snippets` and upda
     2a. Determine whether there are any functional issues, bugs, edge cases, or error conditions that the code changes introduce or fail to properly handle. Consider the line-by-line analysis from step 1b. (1 paragraph)
     2b. Identify any other potential issues that the code changes may introduce that were not captured by 2a. This could include accidental changes such as commented out code. (1 paragraph)
     2c. Only include issues that you are very confident will cause serious issues that prevent the pull request from being merged. For example, focus only on functional code changes and ignore changes to strings and comments that are purely descriptive.
+    2d. Do not make assumptions about existing functions or code.
 
 Answer each of the above questions in step 2 in the following format:
 <issue_identification>
@@ -989,7 +990,7 @@ class PRReviewBot(ChatGPT):
                 ]
                 repeated_functions_response = self.chat_anthropic(
                     content=formatted_user_prompt,
-                    temperature=0,
+                    temperature=0.1,
                     model=CLAUDE_MODEL,
                 )
                 if chat_logger:
@@ -1053,8 +1054,8 @@ class PRReviewBot(ChatGPT):
                 issue_index += 1
         all_issues_formatted += "\n</all_issues>"
 
-        # if there was only one issue there is no need to sort anything
-        if issue_index == 2:
+        # if there was only one minus issue there is no need to sort anything
+        if issue_index <= 2:
             return code_review_by_file, []
         
         self.messages = [
@@ -1270,7 +1271,7 @@ def group_vote_review_pr(
         except ValueError as e:
             logger.error(f"Error with dbscan {e}")
         
-    LABEL_THRESHOLD = 4
+    LABEL_THRESHOLD = 5
     # get the labels that have a count greater than the threshold
     # format: {file_name: {label: [index, ...]}}
     files_to_labels_indexes = {}
