@@ -33,7 +33,7 @@ done
 echo "Found open port: $PORT"
 
 # Start new docker container on the next available port
-docker run --env-file env -p $PORT:8080 -v ./caches:/mnt/caches -d sweepai/sweep:latest
+docker run --env-file .env -p $PORT:8080 -v ./caches:/mnt/caches -d sweepai/sweep:latest
 
 # Wait until webhook is available before rerouting traffic to it
 echo "Waiting for server to start..."
