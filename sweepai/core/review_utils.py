@@ -989,7 +989,7 @@ class PRReviewBot(ChatGPT):
                 ]
                 repeated_functions_response = self.chat_anthropic(
                     content=formatted_user_prompt,
-                    temperature=0,
+                    temperature=0.1,
                     model=CLAUDE_MODEL,
                 )
                 if chat_logger:
@@ -1053,8 +1053,8 @@ class PRReviewBot(ChatGPT):
                 issue_index += 1
         all_issues_formatted += "\n</all_issues>"
 
-        # if there was only one issue there is no need to sort anything
-        if issue_index == 2:
+        # if there was only one minus issue there is no need to sort anything
+        if issue_index <= 2:
             return code_review_by_file, []
         
         self.messages = [
@@ -1270,7 +1270,7 @@ def group_vote_review_pr(
         except ValueError as e:
             logger.error(f"Error with dbscan {e}")
         
-    LABEL_THRESHOLD = 4
+    LABEL_THRESHOLD = 5
     # get the labels that have a count greater than the threshold
     # format: {file_name: {label: [index, ...]}}
     files_to_labels_indexes = {}
