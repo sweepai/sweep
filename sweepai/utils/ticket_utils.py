@@ -51,7 +51,7 @@ code_snippet_separation_features = {
     "docs": {
         "prefix": ["doc", "example", "README", "CHANGELOG"],
         "suffix": [".txt", ".rst", ".md", ".html", ".1", ".adoc", ".rdoc"],
-        "substring": [],
+        "substring": ["docs/", "documentation/"],
     },
     "tests": {
         "prefix": ["tests/", "test/", "spec/"],

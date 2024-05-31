@@ -6,7 +6,7 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { FaCheck, FaGithub, FaStop } from "react-icons/fa";
+import { FaCheck, FaGithub, FaPencilAlt, FaStop } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -26,6 +26,7 @@ import posthog from "posthog-js";
 import Survey from "./Survey";
 import * as jsonpatch from 'fast-json-patch';
 import { ReadableStreamDefaultReadResult } from "stream/web";
+import { Textarea } from "./ui/textarea";
 
 
 if (typeof window !== 'undefined') {
@@ -58,10 +59,10 @@ const sliceLines = (content: string, start: number, end: number) => {
 
 const typeNameToColor = {
   "source": "bg-slate-700",
-  "tests": "bg-zinc-600",
-  "dependencies": "bg-zinc-800",
-  "tools": "bg-zinc-900",
-  "docs": "bg-green-900",
+  "tests": "bg-green-900",
+  "dependencies": "bg-zinc-600",
+  "tools": "bg-purple-900",
+  "docs": "bg-yellow-900",
 }
 
 const SnippetBadge = ({
@@ -133,48 +134,69 @@ const roleToColor = {
   "function": "bg-zinc-800",
 }
 
-const UserMessageDisplay = ({ message }: { message: Message }) => {
+const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (content: string) => void }) => {
   // TODO: finish this implementation
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(message.content);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleClick = () => {
-    // setIsEditing(true);
+    setIsEditing(true);
   };
 
   const handleBlur = () => {
     setIsEditing(false);
   };
 
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [editedContent]);
+
   return (
     <>
-      <div className="text-sm text-gray-400 text-white " onClick={handleClick}>
+      <div className={`text-sm text-white`} onClick={handleClick}>
         {isEditing ? (
-          <textarea
-            className="w-full bg-transparent text-white max-w-[500px]"
+          <Textarea
+            className="w-full mb-4 bg-transparent text-white max-w-[500px] hover:bg-initial"
+            ref={textareaRef}
             value={editedContent}
             onChange={(e) => setEditedContent(e.target.value)}
-            onBlur={handleBlur}
             autoFocus
           />
         ) : (
-          <span className="hover:bg-slate-700">{message.content}</span>
+          <>
+            <span className="bg-initial pl-1">
+              <FaPencilAlt className="inline-block mr-2" />&nbsp;
+              {message.content}
+            </span>
+          </>
         )}
-    </div>
-    {isEditing && (
-      <Button onClick={handleBlur} variant="default" className="bg-slate-600 text-white hover:bg-slate-500">
-        Generate
-      </Button>
-    )}
+      </div>
+      {isEditing && (
+        <>
+          <Button onClick={() => handleBlur()} variant="secondary" className="bg-zinc-800 text-white">
+            Cancel
+          </Button>
+          <Button onClick={() => {
+            onEdit(editedContent)
+            handleBlur()
+          }} variant="default" className="ml-2 bg-slate-600 text-white hover:bg-slate-700">
+            Generate
+          </Button>
+        </>
+      )}
   </>
   );
 }
 
-const MessageDisplay = ({ message, className }: { message: Message, className?: string }) => {
+const MessageDisplay = ({ message, className, onEdit }: { message: Message, className?: string, onEdit: (content: string) => void }) => {
   return (
     <div className={`flex ${message.role !== "user" ? "justify-start" : "justify-end"}`}>
       <div
-        className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] ${message.role !== "user" ? "text-left w-[80%]" : "hover:cursor-pointer hover:bg-zinc-700 text-right"
+        className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] ${message.role !== "user" ? "text-left w-[80%]" : "hover:bg-zinc-700 hover:cursor-pointer text-right"
           } ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
       >
         {message.role === "function" ? (
@@ -290,7 +312,7 @@ const MessageDisplay = ({ message, className }: { message: Message, className?: 
             {message.content}
           </Markdown>
         ) : (
-          <UserMessageDisplay message={message} />
+          <UserMessageDisplay message={message} onEdit={onEdit} />
         )}
       </div>
     </div>
@@ -337,6 +359,160 @@ function App() {
   }, [messages]);
 
   const lastAssistantMessageIndex = messages.findLastIndex((message) => message.role === "assistant" && message.content.trim().length > 0)
+
+  const startStream = async (message: string, newMessages: Message[]) => {
+    setIsLoading(true);
+
+    var currentSnippets = snippets;
+    if (currentSnippets.length == 0) {
+      try {
+        const startTime = Date.now()
+        const snippetsResponse = await fetch(`/backend/search?repo_name=${repoName}&query=${encodeURIComponent(message)}`, {
+          headers: {
+            "Content-Type": "application/json",
+            // @ts-ignore
+            "Authorization": `Bearer ${session?.accessToken}`
+          }
+        });
+        console.log(`Time taken for search: ${(Date.now() - startTime) / 1000}s`)
+        const responseObj = await snippetsResponse.json()
+        if (responseObj.success == false) {
+          console.error(responseObj)
+          throw new Error(responseObj.error)
+        }
+        currentSnippets = (responseObj as Snippet[]).slice(0, 5);
+        if (!currentSnippets.length) {
+          throw new Error("No snippets found. Are you sure you have the right codebase?");
+        }
+        setSnippets(currentSnippets);
+      } catch (e: any) {
+        console.log(e)
+        toast({
+          title: "Failed to search codebase",
+          description: `The following error has occurred: ${e.message}. Sometimes, logging out and logging back in can resolve this issue.`,
+          variant: "destructive"
+        });
+        setIsLoading(false);
+        posthog.capture("chat errored", {
+          repoName,
+          snippets,
+          newMessages,
+          message,
+          error: e.message
+        });
+        throw e;
+      }
+    }
+    const chatResponse = await fetch("/backend/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        // @ts-ignore
+        "Authorization": `Bearer ${session?.accessToken}`
+      },
+      body: JSON.stringify({
+        repo_name: repoName,
+        messages: newMessages,
+        snippets: currentSnippets,
+        use_patch: true
+      })
+    });
+
+    isStream.current = true;
+
+    // Stream
+    const reader = chatResponse.body?.getReader();
+    let done = false;
+    let buffer = "";
+    var streamedMessages: Message[] = []
+    var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" }]
+    setMessages(respondedMessages);
+    try {
+      while (!done && isStream.current) {
+        const { value, done: done_ } = await Promise.race([
+          reader!.read() as Promise<ReadableStreamDefaultReadResult<Uint8Array>>,
+          new Promise<ReadableStreamDefaultReadResult<Uint8Array>>((_, reject) => setTimeout(() => reject(new Error("Stream timeout after 20 seconds. You can try again by editing your last message.")), 20000))
+        ]);
+        if (value) {
+          const decodedValue = new TextDecoder().decode(value);
+          buffer += decodedValue;
+          buffer = buffer.replace("][{", "]\n[{")
+          var newBuffer = "";
+          const bufferLines = buffer.trim().split("\n")
+
+          for (var i = 0; i < bufferLines.length; i += 1) {
+            const line = bufferLines[i];
+            if (line !== "") {
+              try {
+                const patch = JSON.parse(line)
+                streamedMessages = jsonpatch.applyPatch(streamedMessages, patch).newDocument
+              } catch (e: any) {
+                if (i == bufferLines.length - 1) {
+                  newBuffer = line
+                } else {
+                  console.log(e.message)
+                  console.log(buffer)
+                }
+              }
+            }
+          }
+          setMessages([...newMessages, ...streamedMessages])
+
+          buffer = newBuffer
+        }
+        done = done_;
+      }
+      if (!isStream.current) {
+        reader!.cancel()
+        posthog.capture("chat stopped", {
+          repoName,
+          snippets,
+          newMessages,
+          message,
+        });
+      }
+    } catch (e: any) {
+      toast({
+        title: "Chat stream failed",
+        description: e.message,
+        variant: "destructive"
+      });
+      console.log(buffer)
+      setIsLoading(false);
+      posthog.capture("chat errored", {
+        repoName,
+        snippets,
+        newMessages,
+        message,
+        error: e.message
+      });
+      throw e;
+    }
+
+    isStream.current = false;
+
+    var lastMessage = streamedMessages[streamedMessages.length - 1]
+    if (lastMessage.role == "function" && lastMessage.function_call?.is_complete == false) {
+      lastMessage.function_call.is_complete = true;
+      setMessages([
+        ...newMessages,
+        ...streamedMessages.slice(0, streamedMessages.length - 1),
+        lastMessage
+      ])
+    }
+
+    const surveyID = process.env.NEXT_PUBLIC_SURVEY_ID
+    if (surveyID && !localStorage.getItem(`hasInteractedWithSurvey_${surveyID}`)) {
+      setShowSurvey(true);
+    }
+    setIsLoading(false);
+    posthog.capture("chat succeeded", {
+      repoName,
+      snippets,
+      newMessages,
+      message,
+    });
+  }
 
   if (!session) {
     return (
@@ -463,6 +639,15 @@ function App() {
             key={index}
             message={message}
             className={index == lastAssistantMessageIndex ? "bg-slate-700" : ""}
+            onEdit={(content) => {
+              console.log(index)
+              const newMessages = [
+                ...messages.slice(0, index),
+                { ...message, content },
+              ]
+              setMessages(newMessages)
+              startStream(content, newMessages)
+            }}
           />
         ))}
         {isLoading && (
@@ -509,164 +694,10 @@ function App() {
                   messages,
                   currentMessage,
                 });
-                (async () => {
-                  if (currentMessage !== "") {
-                    const newMessages: Message[] = [...messages, { content: currentMessage, role: "user" }];
-                    setMessages(newMessages);
-                    setCurrentMessage("");
-                    setIsLoading(true);
-
-                    var currentSnippets = snippets;
-                    if (currentSnippets.length == 0) {
-                      try {
-                        const startTime = Date.now()
-                        const snippetsResponse = await fetch(`/backend/search?repo_name=${repoName}&query=${encodeURIComponent(currentMessage)}`, {
-                          headers: {
-                            "Content-Type": "application/json",
-                            // @ts-ignore
-                            "Authorization": `Bearer ${session?.accessToken}`
-                          }
-                        });
-                        console.log(`Time taken for search: ${(Date.now() - startTime) / 1000}s`)
-                        const responseObj = await snippetsResponse.json()
-                        if (responseObj.success == false) {
-                          console.error(responseObj)
-                          throw new Error(responseObj.error)
-                        }
-                        currentSnippets = (responseObj as Snippet[]).slice(0, 5);
-                        if (!currentSnippets.length) {
-                          throw new Error("No snippets found. Are you sure you have the right codebase?");
-                        }
-                        setSnippets(currentSnippets);
-                      } catch (e: any) {
-                        console.log(e)
-                        toast({
-                          title: "Failed to search codebase",
-                          description: `The following error has occurred: ${e.message}. Sometimes, logging out and logging back in can resolve this issue.`,
-                          variant: "destructive"
-                        });
-                        setIsLoading(false);
-                        posthog.capture("chat errored", {
-                          repoName,
-                          snippets,
-                          messages,
-                          currentMessage,
-                          error: e.message
-                        });
-                        throw e;
-                      }
-                    }
-                    const chatResponse = await fetch("/backend/chat", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        // @ts-ignore
-                        "Authorization": `Bearer ${session?.accessToken}`
-                      },
-                      body: JSON.stringify({
-                        repo_name: repoName,
-                        messages: newMessages,
-                        snippets: currentSnippets,
-                        use_patch: true
-                      })
-                    });
-
-                    isStream.current = true;
-
-                    // Stream
-                    const reader = chatResponse.body?.getReader();
-                    let done = false;
-                    let buffer = "";
-                    var streamedMessages: Message[] = []
-                    var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" }]
-                    setMessages(respondedMessages);
-                    try {
-                      while (!done && isStream.current) {
-                        const { value, done: done_ } = await Promise.race([
-                          reader!.read() as Promise<ReadableStreamDefaultReadResult<Uint8Array>>,
-                          new Promise<ReadableStreamDefaultReadResult<Uint8Array>>((_, reject) => setTimeout(() => reject(new Error("Stream timeout after 20 seconds. You can try again by editing your last message.")), 20000))
-                        ]);
-                        if (value) {
-                          const decodedValue = new TextDecoder().decode(value);
-                          buffer += decodedValue;
-                          buffer = buffer.replace("][{", "]\n[{")
-                          var newBuffer = "";
-                          const bufferLines = buffer.trim().split("\n")
-
-                          for (var i = 0; i < bufferLines.length; i += 1) {
-                            const line = bufferLines[i];
-                            if (line !== "") {
-                              try {
-                                const patch = JSON.parse(line)
-                                streamedMessages = jsonpatch.applyPatch(streamedMessages, patch).newDocument
-                              } catch (e: any) {
-                                if (i == bufferLines.length - 1) {
-                                  newBuffer = line
-                                } else {
-                                  console.log(e.message)
-                                  console.log(buffer)
-                                }
-                              }
-                            }
-                          }
-                          setMessages([...newMessages, ...streamedMessages])
-
-                          buffer = newBuffer
-                        }
-                        done = done_;
-                      }
-                      if (!isStream.current) {
-                        reader!.cancel()
-                        posthog.capture("chat stopped", {
-                          repoName,
-                          snippets,
-                          messages,
-                          currentMessage,
-                        });
-                      }
-                    } catch (e: any) {
-                      toast({
-                        title: "Chat stream failed",
-                        description: e.message,
-                        variant: "destructive"
-                      });
-                      console.log(buffer)
-                      setIsLoading(false);
-                      posthog.capture("chat errored", {
-                        repoName,
-                        snippets,
-                        messages,
-                        currentMessage,
-                        error: e.message
-                      });
-                      throw e;
-                    }
-
-                    isStream.current = false;
-
-                    var lastMessage = streamedMessages[streamedMessages.length - 1]
-                    if (lastMessage.role == "function" && lastMessage.function_call?.is_complete == false) {
-                      lastMessage.function_call.is_complete = true;
-                      setMessages([
-                        ...newMessages,
-                        ...streamedMessages.slice(0, streamedMessages.length - 1),
-                        lastMessage
-                      ])
-                    }
-
-                    const surveyID = process.env.NEXT_PUBLIC_SURVEY_ID
-                    if (surveyID && !localStorage.getItem(`hasInteractedWithSurvey_${surveyID}`)) {
-                      setShowSurvey(true);
-                    }
-                    setIsLoading(false);
-                    posthog.capture("chat succeeded", {
-                      repoName,
-                      snippets,
-                      messages,
-                      currentMessage,
-                    });
-                  }
-                })()
+                const newMessages: Message[] = [...messages, { content: currentMessage, role: "user" }];
+                setMessages(newMessages);
+                setCurrentMessage("");
+                startStream(currentMessage, newMessages)
               }
             }}
             onChange={(e) => setCurrentMessage(e.target.value)}
