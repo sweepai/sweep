@@ -70,4 +70,5 @@ def save_messages_for_visualization(messages: list[Message], use_openai: bool):
             message_header = f"{llm_type} {message.role} - {message_tokens} tokens - {int(total_length // token_estimate_factor)} total tokens"
             f_raw.write(f"{message_header}\n{content_raw}\n\n")
             f_md.write(f"## {message_header}\n\n{content_md}\n\n")
-    logger.info(f"Messages saved to {raw_file} and {md_file}")
+    cwd = os.getcwd()
+    logger.info(f"Messages saved to {os.path.join(cwd, raw_file)} and {os.path.join(cwd, md_file)}")
