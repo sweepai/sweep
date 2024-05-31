@@ -58,7 +58,7 @@ const sliceLines = (content: string, start: number, end: number) => {
 }
 
 const typeNameToColor = {
-  "source": "bg-blue-800",
+  "source": "bg-blue-900",
   "tests": "bg-green-900",
   "dependencies": "bg-zinc-600",
   "tools": "bg-purple-900",
