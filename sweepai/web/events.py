@@ -162,7 +162,32 @@ class PRRequest(BaseModel):
         class User(BaseModel):
             login: str
 
+        class MergedBy(BaseModel):
+            login: str
+
+        user: User
+        merged_by: MergedBy | None
+        additions: int = 0
+        deletions: int = 0
+
+    class Repository(BaseModel):
+        full_name: str
+
+    pull_request: PullRequest
+    repository: Repository
+    number: int
+
+    installation: Installation
+
+class PRLabeledRequest(BaseModel):
+    class PullRequest(BaseModel):
+        class User(BaseModel):
+            login: str
+        class Label(BaseModel):
+            name: str
+
         title: str
+        labels: list[Label]
 
         class MergedBy(BaseModel):
             login: str
