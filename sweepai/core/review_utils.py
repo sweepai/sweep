@@ -1054,7 +1054,7 @@ class PRReviewBot(ChatGPT):
         all_issues_formatted += "\n</all_issues>"
 
         # if there was only one issue there is no need to sort anything
-        if issue_index == 1:
+        if issue_index == 2:
             return code_review_by_file, []
         
         self.messages = [
