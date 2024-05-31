@@ -1362,12 +1362,14 @@ def format_pr_info(pr: PullRequest):
     info = ""
     try:
         title = pr.title
-        info += f"<pr_title>\n{title}\n<\pr_title>\n\n"
+        if title:
+            info += f"<pr_title>\n{title}\n<\pr_title>\n\n"
     except Exception as e:
         logger.warning(f"Couldn't fetch title for pr: {pr}\nError: {e}")
     try:
         description = pr.body
-        info += f"<pr_description>\n{description}\n</pr_description>\n\n"
+        if description:
+            info += f"<pr_description>\n{description}\n</pr_description>\n\n"
     except Exception as e:
         logger.warning(f"Couldn't fetch body for pr: {pr}\nError: {e}")
     return info
