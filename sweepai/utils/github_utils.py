@@ -228,14 +228,14 @@ def validate_and_sanitize_multi_file_changes(repo: Repository, file_changes: dic
     return sanitized_file_changes, file_removed
 
 # commits multiple files in a single commit, returns the commit object
-def commit_multi_file_changes(cloned_repo: "ClonedRepo", file_changes: dict[str, str], commit_message: str, branch: str, renames_dict: dict[str, str] = {}):
+def commit_multi_file_changes(cloned_repo: Repository, file_changes: dict[str, str], commit_message: str, branch: str, renames_dict: dict[str, str] = {}):
     assert file_changes
-    repo = cloned_repo.repo
+    repo = cloned_repo
     if renames_dict:
         blobs_to_commit = []
         # make a separate commit with just the renames
         for old_name, new_name in renames_dict.items():
-            file_contents = cloned_repo.get_file_contents(new_name)
+            file_contents = repo.get_contents(new_name).decoded_content.decode("utf-8")
             blob = repo.create_git_blob(file_contents, "utf-8")
             blobs_to_commit.append(InputGitTreeElement(path=os.path.normpath(old_name), mode="100644", type="blob", sha=None))
             blobs_to_commit.append(InputGitTreeElement(path=os.path.normpath(new_name), mode="100644", type="blob", sha=blob.sha))
