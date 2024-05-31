@@ -66,6 +66,7 @@ from sweepai.utils.hash import verify_signature
 from sweepai.utils.progress import TicketProgress
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 from sweepai.utils.str_utils import BOT_SUFFIX, get_hash
+from sweepai.utils.validate_license import validate_license
 from sweepai.web.events import (
     CheckRunCompleted,
     CommentCreatedRequest,
@@ -100,13 +101,6 @@ review_pr_events = {}
 security = HTTPBearer()
 
 templates = Jinja2Templates(directory="sweepai/web")
-# version_command = r"""git config --global --add safe.directory /app
-# timestamp=$(git log -1 --format="%at")
-# date -d "@$timestamp" +%y.%m.%d.%H 2>/dev/null || date -r "$timestamp" +%y.%m.%d.%H"""
-# try:
-#    version = subprocess.check_output(version_command, shell=True, text=True).strip()
-# except Exception:
-
 logger.bind(application="webhook")
 
 def run_on_ticket(*args, **kwargs):
@@ -239,8 +233,14 @@ def redirect_to_health():
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
+    try:
+        validate_license()
+        license_expired = False
+    except Exception as e:
+        logger.warning(e)
+        license_expired = True
     return templates.TemplateResponse(
-        name="index.html", context={"version": version, "request": request}
+        name="index.html", context={"version": version, "request": request, "license_expired": license_expired}
     )
 
 
