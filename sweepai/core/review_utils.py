@@ -548,7 +548,7 @@ Below is the function definition that was just added to the code base.
 
 {function}
 
-Below are a series of code snippets retrieved from the codebase via vector search. Analyze these code snippets to see if there are any similar functions that render the new function obselete and redundant.
+Below are a series of code snippets retrieved from the codebase via vector search. Analyze these code snippets to see if there are any functions that fulfill the exact same purpose and has the same input and output which would render the new function useless.
 # Relevant code snippets
 
 {formatted_code_snippets}
