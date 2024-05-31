@@ -27,6 +27,7 @@ import Survey from "./Survey";
 import * as jsonpatch from 'fast-json-patch';
 import { ReadableStreamDefaultReadResult } from "stream/web";
 import { Textarea } from "./ui/textarea";
+import { Slider } from "./ui/slider";
 
 
 if (typeof window !== 'undefined') {
@@ -52,6 +53,8 @@ interface Message {
     snippets?: Snippet[];
   }; // This is the function input
 }
+
+const DEFAULT_K: number = 8
 
 const sliceLines = (content: string, start: number, end: number) => {
   return content.split("\n").slice(Math.max(start - 1, 0), end).join("\n");
@@ -325,6 +328,7 @@ function App() {
   const [repoNameValid, setRepoNameValid] = useLocalStorage<boolean>("repoNameValid", false)
 
   const [repoNameDisabled, setRepoNameDisabled] = useState<boolean>(false)
+  const [k, setK] = useState<number>(DEFAULT_K)
 
   const [snippets, setSnippets] = useLocalStorage<Snippet[]>("snippets", [])
   const [messages, setMessages] = useLocalStorage<Message[]>("messages", [])
@@ -381,7 +385,7 @@ function App() {
           console.error(responseObj)
           throw new Error(responseObj.error)
         }
-        currentSnippets = (responseObj as Snippet[]).slice(0, 5);
+        currentSnippets = (responseObj as Snippet[]).slice(0, k);
         if (!currentSnippets.length) {
           throw new Error("No snippets found. Are you sure you have the right codebase?");
         }
@@ -563,10 +567,10 @@ function App() {
           </Button>
         </div>
       </div>
-      <div className={`w-full flex items-center ${repoNameValid ? "" : "grow"}`}>
+      <div className={`mb-4 w-full flex items-center ${repoNameValid ? "" : "grow"}`}>
         <Input
           data-ph-capture-attribute-repo-name={repoName}
-          className="mb-4"
+          className=""
           value={repoName}
           onChange={(e) => setRepoName(e.target.value)}
           onKeyDown={(e) => {
@@ -629,6 +633,10 @@ function App() {
           placeholder="Repository name"
           disabled={repoNameDisabled}
         />
+        <div className="flex ml-4 items-center">
+          <span className="mr-4 whitespace-nowrap">Number of snippets: {k}</span>
+          <Slider defaultValue={[DEFAULT_K]} max={20} min={1} step={1} onValueChange={(value) => setK(value[0])} value={[k]} className="w-[200px]" />
+        </div>
       </div>
       <div
         ref={messagesContainerRef}
@@ -647,6 +655,9 @@ function App() {
                 { ...message, content },
               ]
               setMessages(newMessages)
+              if (index == 0) {
+                setSnippets([])
+              }
               startStream(content, newMessages)
             }}
           />

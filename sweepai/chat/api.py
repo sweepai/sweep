@@ -29,6 +29,8 @@ app = FastAPI()
 
 auth_cache = Cache(f'{CACHE_DIRECTORY}/auth_cache') 
 
+DEFAULT_K = 8
+
 # function to iterate through a dictionary and ensure all values are json serializable
 # truncates strings at 500 for sake of readability
 def make_serializable(dictionary: dict):
@@ -480,8 +482,7 @@ def chat_codebase_stream(
         )
     )
 
-def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, snippets: list[Snippet], access_token: str):
-    NUM_SNIPPETS = 5
+def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, snippets: list[Snippet], access_token: str, k: int = DEFAULT_K):
     if function_call.function_name == "search_codebase":
         if "query" not in function_call.function_parameters:
             return "ERROR\n\nQuery parameter is required."
@@ -498,10 +499,10 @@ def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, s
                 file_path=snippet.file_path,
                 content=snippet.content
             )
-            for i, snippet in enumerate(new_snippets_to_add[NUM_SNIPPETS::-1])
+            for i, snippet in enumerate(new_snippets_to_add[k::-1])
         ])
-        snippets += new_snippets[:NUM_SNIPPETS]
-        return f"SUCCESS\n\nHere are the relevant files to your search request:\n{new_snippets_string}", new_snippets_to_add[:NUM_SNIPPETS]
+        snippets += new_snippets[:k]
+        return f"SUCCESS\n\nHere are the relevant files to your search request:\n{new_snippets_string}", new_snippets_to_add[:k]
     else:
         return "ERROR\n\nTool not found.", []
 
