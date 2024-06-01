@@ -49,14 +49,14 @@ def save_messages_for_visualization(messages: list[Message], use_openai: bool):
     elif len(function_names) > 3:
         caller_function_name = function_names[3]
 
-    raw_file = os.path.join(subfolder, f'{caller_function_name}.txt')
+    raw_file = os.path.join(subfolder, f'{caller_function_name}.xml')
     md_file = os.path.join(subfolder, f'{caller_function_name}.md')
     # if the md/raw files exist, append _1, _2, etc. to the filename
     for i in range(1, 1000):
         if not os.path.exists(raw_file) and not os.path.exists(md_file):
             break # we can safely use the current filename
         else:
-            raw_file = os.path.join(subfolder, f'{caller_function_name}_{i}.txt')
+            raw_file = os.path.join(subfolder, f'{caller_function_name}_{i}.xml')
             md_file = os.path.join(subfolder, f'{caller_function_name}_{i}.md')
 
     with open(raw_file, 'w') as f_raw, open(md_file, 'w') as f_md:
@@ -70,4 +70,5 @@ def save_messages_for_visualization(messages: list[Message], use_openai: bool):
             message_header = f"{llm_type} {message.role} - {message_tokens} tokens - {int(total_length // token_estimate_factor)} total tokens"
             f_raw.write(f"{message_header}\n{content_raw}\n\n")
             f_md.write(f"## {message_header}\n\n{content_md}\n\n")
-    logger.info(f"Messages saved to {raw_file} and {md_file}")
+    cwd = os.getcwd()
+    logger.info(f"Messages saved to {os.path.join(cwd, raw_file)} and {os.path.join(cwd, md_file)}")

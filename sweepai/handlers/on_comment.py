@@ -347,7 +347,7 @@ def on_comment(
                         "new_keys": ",".join(new_file_contents_to_commit.keys()) 
                     },
                 )
-            commit = commit_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, commit_message, branch_name)
+            commit = commit_multi_file_changes(cloned_repo, new_file_contents_to_commit, commit_message, branch_name)
             logger.info("Done!")
         except Exception as e:
             stack_trace = traceback.format_exc()

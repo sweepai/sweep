@@ -29,6 +29,8 @@ app = FastAPI()
 
 auth_cache = Cache(f'{CACHE_DIRECTORY}/auth_cache') 
 
+DEFAULT_K = 8
+
 # function to iterate through a dictionary and ensure all values are json serializable
 # truncates strings at 500 for sake of readability
 def make_serializable(dictionary: dict):
@@ -241,6 +243,7 @@ def chat_codebase(
     repo_name: str = Body(...),
     messages: list[Message] = Body(...),
     snippets: list[Snippet] = Body(...),
+    model: str = Body(...),
     use_patch: bool = Body(False),
     access_token: str = Depends(get_token_header)
 ):
@@ -265,6 +268,7 @@ def chat_codebase(
             "messages": [message.model_dump() for message in messages],
             "snippets": [snippet.model_dump() for snippet in snippets],
         },
+        model=model,
         use_patch=use_patch
     )
 
@@ -276,8 +280,10 @@ def chat_codebase_stream(
     snippets: list[Snippet],
     access_token: str,
     metadata: dict = {},
+    model: str = "claude-3-opus-20240229",
     use_patch: bool = False,
 ):
+    use_openai = model.startswith("gpt")
     # Stream
     chat_gpt = ChatGPT.from_system_message_string(
         prompt_string=system_message
@@ -295,7 +301,9 @@ def chat_codebase_stream(
     )
     for message in messages:
         if message.role == "function":
-            message.role = "user"
+            message.role = "assistant"
+        if message.function_call:
+            message.function_call = None
     chat_gpt.messages = [
         Message(
             content=snippets_message,
@@ -304,7 +312,15 @@ def chat_codebase_stream(
         *messages[:-1]
     ]
 
-    def stream_state(initial_user_message: str, snippets: list[Snippet], messages: list[Message], access_token: str, metadata: dict):
+    def stream_state(
+        initial_user_message: str,
+        snippets: list[Snippet],
+        messages: list[Message],
+        access_token: str,
+        metadata: dict,
+        model: str,
+        use_openai: bool
+    ):
         user_message = initial_user_message
         fetched_snippets = snippets
         new_messages = [
@@ -325,9 +341,10 @@ def chat_codebase_stream(
         for _ in range(5):
             stream = chat_gpt.chat_anthropic(
                 content=user_message,
-                model="claude-3-opus-20240229",
+                model=model,
                 stop_sequences=["</function_call>", "</function_calls>"],
-                stream=True
+                stream=True,
+                use_openai=use_openai
             )
             
             result_string = ""
@@ -335,10 +352,13 @@ def chat_codebase_stream(
             self_critique = ""
             current_messages = []
             for token in stream:
+                if not token:
+                    continue
                 result_string += token
-                analysis = extract_xml_tag(result_string, "analysis", include_closing_tag=False) or ""
-                user_response = extract_xml_tag(result_string, "user_response", include_closing_tag=False) or ""
-                self_critique = extract_xml_tag(result_string, "self_critique", include_closing_tag=False)
+                current_string, *_ = result_string.split("<function_call>")
+                analysis = extract_xml_tag(current_string, "analysis", include_closing_tag=False) or ""
+                user_response = extract_xml_tag(current_string, "user_response", include_closing_tag=False) or ""
+                self_critique = extract_xml_tag(current_string, "self_critique", include_closing_tag=False)
 
                 current_messages = []
                 
@@ -476,12 +496,13 @@ def chat_codebase_stream(
             messages,
             access_token,
             metadata,
+            model,
+            use_openai=use_openai,
             use_patch=use_patch
         )
     )
 
-def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, snippets: list[Snippet], access_token: str):
-    NUM_SNIPPETS = 5
+def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, snippets: list[Snippet], access_token: str, k: int = DEFAULT_K):
     if function_call.function_name == "search_codebase":
         if "query" not in function_call.function_parameters:
             return "ERROR\n\nQuery parameter is required."
@@ -498,10 +519,10 @@ def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, s
                 file_path=snippet.file_path,
                 content=snippet.content
             )
-            for i, snippet in enumerate(new_snippets_to_add[NUM_SNIPPETS::-1])
+            for i, snippet in enumerate(new_snippets_to_add[k::-1])
         ])
-        snippets += new_snippets[:NUM_SNIPPETS]
-        return f"SUCCESS\n\nHere are the relevant files to your search request:\n{new_snippets_string}", new_snippets_to_add[:NUM_SNIPPETS]
+        snippets += new_snippets[:k]
+        return f"SUCCESS\n\nHere are the relevant files to your search request:\n{new_snippets_string}", new_snippets_to_add[:k]
     else:
         return "ERROR\n\nTool not found.", []
 
