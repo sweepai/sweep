@@ -30,6 +30,7 @@ import { Textarea } from "./ui/textarea";
 import { Slider } from "./ui/slider";
 import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { Label } from "./ui/label";
 
 
 if (typeof window !== 'undefined') {
@@ -103,7 +104,7 @@ const SnippetBadge = ({
             }
           </Button>
         </HoverCardTrigger>
-        <HoverCardContent className="w-[500px] mr-2">
+        <HoverCardContent className="w-[800px] mr-2">
           <SyntaxHighlighter
             PreTag="div"
             language="python"
@@ -172,7 +173,7 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
       <div className={`text-sm text-white`} onClick={handleClick}>
         {isEditing ? (
           <Textarea
-            className="w-full mb-4 bg-transparent text-white max-w-[500px] hover:bg-initial"
+            className="w-full mb-4 bg-transparent text-white max-w-[500px] w-[500px] hover:bg-initial"
             ref={textareaRef}
             value={editedContent}
             onChange={(e) => setEditedContent(e.target.value)}
@@ -656,9 +657,12 @@ function App() {
             <h2 className="text-2xl font-bold mb-4 text-center">
               Settings
             </h2>
+            <Label>
+              Model
+            </Label>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="text-left">Model: {modelMap[model]}</Button>
+                <Button variant="outline" className="text-left">{modelMap[model]}</Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56">
                 <DropdownMenuLabel>Anthropic</DropdownMenuLabel>
@@ -677,9 +681,12 @@ function App() {
                 </DropdownMenuRadioGroup>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Label className="mt-4">
+              Number of snippets
+            </Label>
             <div className="flex items-center">
-              <span className="mr-4 whitespace-nowrap">Number of snippets: {k}</span>
-              <Slider defaultValue={[DEFAULT_K]} max={20} min={1} step={1} onValueChange={(value) => setK(value[0])} value={[k]} className="w-[200px]" />
+              <span className="mr-4 whitespace-nowrap">{k}</span>
+              <Slider defaultValue={[DEFAULT_K]} max={20} min={1} step={1} onValueChange={(value) => setK(value[0])} value={[k]} className="w-[300px] my-0 py-0" />
             </div>
           </DialogContent>
         </Dialog>
