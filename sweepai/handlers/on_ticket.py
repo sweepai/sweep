@@ -440,10 +440,8 @@ def on_ticket(
                     images=image_contents
                 ):
                     edit_sweep_comment(
-                        message
-                        + "\n\n"
-                        + create_collapsible(
-                            "Relevant files (click to expand). Mentioned files will always appear here.",
+                        create_collapsible(
+                            "(Click to expand) " + message,
                             "\n".join(
                                 [
                                     f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{max(min(snippet.end, snippet.content.count(newline) - 1), 1)}\n"
@@ -519,8 +517,9 @@ def on_ticket(
                     chat_logger=chat_logger
                 ):
                     planning_markdown = render_fcrs(file_change_requests)
-                    edit_sweep_comment(user_facing_message + planning_markdown, 2)
+                    edit_sweep_comment(user_facing_message + planning_markdown, 2, step_complete=False)
 
+                edit_sweep_comment(user_facing_message + planning_markdown, 2)
                 raise_on_no_file_change_requests(title, summary, edit_sweep_comment, file_change_requests)
             except Exception as e:
                 logger.exception(e)
