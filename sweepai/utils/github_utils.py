@@ -230,50 +230,50 @@ def validate_and_sanitize_multi_file_changes(repo: Repository, file_changes: dic
 # commits multiple files in a single commit, returns the commit object
 def commit_multi_file_changes(cloned_repo: "ClonedRepo", file_changes: dict[str, str], commit_message: str, branch: str, renames_dict: dict[str, str] = {}):
     assert file_changes
-    repo = cloned_repo
+    repo = cloned_repo.repo
     if renames_dict:
         blobs_to_commit = []
         # make a separate commit with just the renames
         for old_name, new_name in renames_dict.items():
             file_contents = cloned_repo.get_file_contents(new_name)
-            blob = repo.repo.create_git_blob(file_contents, "utf-8")
+            blob = repo.create_git_blob(file_contents, "utf-8")
             blobs_to_commit.append(InputGitTreeElement(path=os.path.normpath(old_name), mode="100644", type="blob", sha=None))
             blobs_to_commit.append(InputGitTreeElement(path=os.path.normpath(new_name), mode="100644", type="blob", sha=blob.sha))
-        head_sha = repo.repo.get_branch(branch).commit.sha
-        base_tree = repo.repo.get_git_tree(sha=head_sha)
+        head_sha = repo.get_branch(branch).commit.sha
+        base_tree = repo.get_git_tree(sha=head_sha)
         # create new git tree
-        new_tree = repo.repo.create_git_tree(blobs_to_commit, base_tree=base_tree)
+        new_tree = repo.create_git_tree(blobs_to_commit, base_tree=base_tree)
         # commit the changes
-        parent = repo.repo.get_git_commit(sha=head_sha)
+        parent = repo.get_git_commit(sha=head_sha)
         commit_message = "Renamed to " + ", ".join(renames_dict.values())
         commit_message = commit_message[:69] + "..." if len(commit_message) > 70 else commit_message
-        commit = repo.repo.create_git_commit(
+        commit = repo.create_git_commit(
             commit_message,
             new_tree,
             [parent],
         )
         # update ref of branch
         ref = f"heads/{branch}"
-        repo.repo.get_git_ref(ref).edit(sha=commit.sha)
+        repo.get_git_ref(ref).edit(sha=commit.sha)
     blobs_to_commit = []
     # convert to blob
     for path, content in file_changes.items():
-        blob = repo.repo.create_git_blob(content, "utf-8")
+        blob = repo.create_git_blob(content, "utf-8")
         blobs_to_commit.append(InputGitTreeElement(path=os.path.normpath(path), mode="100644", type="blob", sha=blob.sha))
-    head_sha = repo.repo.get_branch(branch).commit.sha
-    base_tree = repo.repo.get_git_tree(sha=head_sha)
+    head_sha = repo.get_branch(branch).commit.sha
+    base_tree = repo.get_git_tree(sha=head_sha)
     # create new git tree
-    new_tree = repo.repo.create_git_tree(blobs_to_commit, base_tree=base_tree)
+    new_tree = repo.create_git_tree(blobs_to_commit, base_tree=base_tree)
     # commit the changes
-    parent = repo.repo.get_git_commit(sha=head_sha)
-    commit = repo.repo.create_git_commit(
+    parent = repo.get_git_commit(sha=head_sha)
+    commit = repo.create_git_commit(
         commit_message,
         new_tree,
         [parent],
     )
     # update ref of branch
     ref = f"heads/{branch}"
-    repo.repo.get_git_ref(ref).edit(sha=commit.sha)
+    repo.get_git_ref(ref).edit(sha=commit.sha)
     return commit
 
 def clean_branch_name(branch: str) -> str:
