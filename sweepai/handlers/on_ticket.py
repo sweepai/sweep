@@ -241,7 +241,7 @@ def on_ticket(
                 " time using Sweep, I'm indexing your repository, which will take a few minutes."
             )
             first_comment = (
-                f"{get_comment_header(0, g, repo_full_name, progress_headers, tracking_id, payment_message_start)}\n## "
+                f"{get_comment_header(0, progress_headers, payment_message_start)}\n## "
                 f"{progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
             )
             # Find Sweep's previous comment
@@ -317,16 +317,11 @@ def on_ticket(
                 # Update the issue comment
                 msg = f"""{get_comment_header(
                     current_index, 
-                    g, 
-                    repo_full_name,
                     progress_headers,
-                    tracking_id,
                     payment_message_start,
                     errored=errored,
                     pr_message=pr_message,
                     done=done,
-                    initial_sandbox_response=initial_sandbox_response,
-                    initial_sandbox_response_file=initial_sandbox_response_file,
                     config_pr_url=config_pr_url
                 )}\n{agg_message}{suffix}"""
                 try:
@@ -398,6 +393,10 @@ def on_ticket(
                     },
                 )
                 return {"success": True}
+            edit_sweep_comment(
+                "I've just finished validating the issue. I'm now going to start searching for relevant files.",
+                0
+            )
 
             prs_extracted = PRReader.extract_prs(repo, summary)
             if prs_extracted:
@@ -487,7 +486,7 @@ def on_ticket(
             try:
                 newline = "\n"
                 logger.info("Fetching files to modify/create...")
-                renames_dict, file_change_requests, plan = get_files_to_change(
+                for renames_dict, user_facing_message, file_change_requests in get_files_to_change.stream(
                     relevant_snippets=repo_context_manager.current_top_snippets,
                     read_only_snippets=repo_context_manager.read_only_snippets,
                     problem_statement=f"{title}\n\n{internal_message_summary}",
@@ -495,11 +494,11 @@ def on_ticket(
                     cloned_repo=cloned_repo,
                     images=image_contents,
                     chat_logger=chat_logger
-                )
-                raise_on_no_file_change_requests(title, summary, edit_sweep_comment, file_change_requests)
+                ):
+                    planning_markdown = render_fcrs(file_change_requests)
+                    edit_sweep_comment(user_facing_message + planning_markdown, 2)
 
-                planning_markdown = render_fcrs(file_change_requests)
-                edit_sweep_comment(planning_markdown, 2)
+                raise_on_no_file_change_requests(title, summary, edit_sweep_comment, file_change_requests)
             except Exception as e:
                 logger.exception(e)
                 # title and summary are defined elsewhere

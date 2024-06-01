@@ -1,6 +1,7 @@
 import base64
 import os
 import re
+from typing import Iterator
 
 import chardet
 
@@ -47,6 +48,7 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.core.entities import parse_fcr
+from sweepai.utils.streamable_functions import streamable
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 SNIPPET_TOKEN_BUDGET = int(150_000 * 3.5)  # 140k tokens
@@ -485,6 +487,7 @@ def format_snippets(
     relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
     return relevant_snippets_message
 
+@streamable
 def get_files_to_change(
     relevant_snippets: list[Snippet],
     read_only_snippets: list[Snippet],
@@ -497,12 +500,13 @@ def get_files_to_change(
     chat_logger: ChatLogger = None,
     seed: int = 0,
     images: list[tuple[str, str, str]] | None = None
-) -> tuple[list[FileChangeRequest], str]:
+) -> Iterator[tuple[dict[str, str], list[FileChangeRequest], str]]:
     use_openai = False
     problem_statement = problem_statement.strip("\n")
     files_to_change_prompt = openai_files_to_change_prompt if use_openai else anthropic_files_to_change_prompt
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
+    user_facing_message = ""
     messages.append(
         Message(role="system", content=issue_sub_request_system_prompt, key="system")
     )
@@ -634,6 +638,10 @@ def get_files_to_change(
             )
         )
         joint_message = "\n\n".join(message.content for message in messages[1:])
+        user_facing_message += "We decided to make the following renames to help you solve the GitHub issue:\n"  +"\n".join(
+            f"Rename `{old_name}` to `{new_name}`" for old_name, new_name in renames_dict.items()
+        ) + "\n\n"
+        yield renames_dict, user_facing_message, []
 
     issue_sub_requests = ""
     if not use_openai:
@@ -656,6 +664,13 @@ def get_files_to_change(
         issue_sub_requests = issue_sub_request_match.group(1)
         issue_sub_requests = issue_sub_requests.strip("\n")
         issue_sub_requests = re.sub(r"<justification>\n(.*?)\n</justification>\n*", "\n", issue_sub_requests, flags=re.DOTALL).strip("\n")
+
+        user_facing_message += "I'm going to follow the following steps to help you solve the GitHub issue:\n" 
+        single_issue_sub_request_pattern = re.compile(r"<issue_sub_request>(.*?)</issue_sub_request>", re.DOTALL)
+        for i, single_issue_sub_request_match in enumerate(single_issue_sub_request_pattern.finditer(issue_sub_requests)):
+            user_facing_message += f"{i + 1}. {single_issue_sub_request_match.group(1).strip()}\n"
+        user_facing_message += "\n\n"
+        yield renames_dict, user_facing_message, []
 
     open("msg.txt", "w").write(joint_message + "\n\n" + files_to_change_prompt.format(issue_sub_requests=issue_sub_requests))
     
@@ -705,6 +720,8 @@ def get_files_to_change(
             file_change_request.filename = renames_dict.get(file_change_request.filename, file_change_request.filename)
             file_change_requests.append(file_change_request)
         
+        yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm currently just making some edits:\n", file_change_requests
+        
         error_message, error_indices = get_error_message(
             file_change_requests,
             cloned_repo,
@@ -753,10 +770,12 @@ def get_files_to_change(
             logger.debug("Old indices", error_indices)
             error_message, error_indices = get_error_message(file_change_requests, cloned_repo, renames_dict=renames_dict)
             logger.debug("New indices", error_indices)
+            yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm currently just making some edits:\n", file_change_requests
             # breakpoint()
         # breakpoint()
 
         validate_file_change_requests(file_change_requests, cloned_repo, renames_dict=renames_dict)
+        yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm done with the edits and now just need to validate the changes using a linter to catch any mistakes like undefined variables:\n", file_change_requests
         return renames_dict, file_change_requests, files_to_change_response
     except RegexMatchError as e:
         print("RegexMatchError", e)
