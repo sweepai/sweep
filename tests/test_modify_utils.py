@@ -1,5 +1,6 @@
 import unittest
-from sweepai.agents.modify_utils import english_join, indent, tokenize_code, code_processor, check_valid_parentheses, check_valid_parentheses_for_patch
+from unittest.mock import MagicMock
+from sweepai.agents.modify_utils import english_join, indent, tokenize_code, code_processor, check_valid_parentheses, check_valid_parentheses_for_patch, handle_submit_task
 
 class TestModifyUtils(unittest.TestCase):
     def test_english_join(self):
@@ -40,6 +41,114 @@ class TestModifyUtils(unittest.TestCase):
         self.assertEqual(check_valid_parentheses_for_patch("(())", "()"), (1, 0, "("))
         self.assertEqual(check_valid_parentheses_for_patch("{[]}", "{[]}"), (0, 0, ""))
         self.assertEqual(check_valid_parentheses_for_patch("{[]}", "{[]}}"), (0, 1, "}"))
+
+    def test_handle_submit_task(self):
+        # Test case where changes were made
+        modify_files_dict = {
+            "file1.py": {"contents": "new content", "original_contents": "old content"}
+        }
+        llm_state = {
+            "fcrs": [MagicMock(is_completed=False), MagicMock(is_completed=False)],
+            "completed_changes_per_fcr": [0, 0],
+            "done_counter": 0,
+            "attempt_count": 0,
+            "current_task": "original task",
+        }
+    
+        llm_response, updated_llm_state = handle_submit_task(modify_files_dict, llm_state)
+    
+        assert llm_response == "SUCCESS\n\nThe previous task is now complete. Please move on to the next task. original task"
+        assert updated_llm_state["fcrs"][0].is_completed == True
+        assert updated_llm_state["attempt_count"] == 0
+        assert updated_llm_state["attempt_lazy_change"] == True
+        assert updated_llm_state["visited_set"] == set()
+    
+        # Test case where no changes were made
+        modify_files_dict = {
+            "file1.py": {"contents": "same content", "original_contents": "same content"}
+        }
+        llm_state = {
+            "fcrs": [MagicMock(is_completed=False), MagicMock(is_completed=False)],
+            "completed_changes_per_fcr": [0, 0],
+            "done_counter": 0,
+            "attempt_count": 0,
+            "current_task": "original task",
+        }
+    
+        llm_response, updated_llm_state = handle_submit_task(modify_files_dict, llm_state)
+    
+        assert llm_response == "ERROR\n\nNo changes were made. Please continue working on your task."
+        assert updated_llm_state["done_counter"] == 1
+    
+        # Test case where all tasks are completed
+        modify_files_dict = {
+            "file1.py": {"contents": "new content", "original_contents": "old content"}
+        }
+        llm_state = {
+            "fcrs": [MagicMock(is_completed=True), MagicMock(is_completed=True)],
+            "completed_changes_per_fcr": [0, 0],
+            "done_counter": 0,
+            "attempt_count": 0,
+            "current_task": "original task",
+        }
+    
+        llm_response, updated_llm_state = handle_submit_task(modify_files_dict, llm_state)
+    
+        assert llm_response == "DONE"
+    
+    def test_handle_submit_task():
+        # Test case where changes were made
+        modify_files_dict = {
+            "file1.py": {"contents": "new content", "original_contents": "old content"}
+        }
+        llm_state = {
+            "fcrs": [MagicMock(is_completed=False), MagicMock(is_completed=False)],
+            "completed_changes_per_fcr": [0, 0],
+            "done_counter": 0,
+            "attempt_count": 0,
+            "current_task": "original task",
+        }
+    
+        llm_response, updated_llm_state = handle_submit_task(modify_files_dict, llm_state)
+    
+        assert llm_response == "SUCCESS\n\nThe previous task is now complete. Please move on to the next task. original task"
+        assert updated_llm_state["fcrs"][0].is_completed == True
+        assert updated_llm_state["attempt_count"] == 0
+        assert updated_llm_state["attempt_lazy_change"] == True
+        assert updated_llm_state["visited_set"] == set()
+    
+        # Test case where no changes were made
+        modify_files_dict = {
+            "file1.py": {"contents": "same content", "original_contents": "same content"}
+        }
+        llm_state = {
+            "fcrs": [MagicMock(is_completed=False), MagicMock(is_completed=False)],
+            "completed_changes_per_fcr": [0, 0],
+            "done_counter": 0,
+            "attempt_count": 0,
+            "current_task": "original task",
+        }
+    
+        llm_response, updated_llm_state = handle_submit_task(modify_files_dict, llm_state)
+    
+        assert llm_response == "ERROR\n\nNo changes were made. Please continue working on your task."
+        assert updated_llm_state["done_counter"] == 1
+    
+        # Test case where all tasks are completed
+        modify_files_dict = {
+            "file1.py": {"contents": "new content", "original_contents": "old content"}
+        }
+        llm_state = {
+            "fcrs": [MagicMock(is_completed=True), MagicMock(is_completed=True)],
+            "completed_changes_per_fcr": [0, 0],
+            "done_counter": 0,
+            "attempt_count": 0,
+            "current_task": "original task",
+        }
+    
+        llm_response, updated_llm_state = handle_submit_task(modify_files_dict, llm_state)
+    
+        assert llm_response == "DONE"
 
 if __name__ == "__main__":
     unittest.main()
