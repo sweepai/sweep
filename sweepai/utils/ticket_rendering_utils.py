@@ -251,16 +251,11 @@ def delete_old_prs(repo: Repository, issue_number: int):
 
 def get_comment_header(
     index: int,
-    g: Github,
-    repo_full_name: str,
     progress_headers: list[None | str],
-    tracking_id: str | None,
     payment_message_start: str,
     errored: bool = False,
     pr_message: str = "",
     done: bool = False,
-    initial_sandbox_response: int | SandboxResponse = -1,
-    initial_sandbox_response_file=None,
     config_pr_url: str | None = None,
 ):
     config_pr_message = (
@@ -274,30 +269,6 @@ def get_comment_header(
             RESTART_SWEEP_BUTTON,
         ]
     )
-
-    sandbox_execution_message = "\n\n## GitHub Actions failed\n\nThe sandbox appears to be unavailable or down.\n\n"
-
-    if initial_sandbox_response == -1:
-        sandbox_execution_message = ""
-    elif initial_sandbox_response is not None:
-        repo = g.get_repo(repo_full_name)
-        commit_hash = repo.get_commits()[0].sha
-        success = initial_sandbox_response.outputs and initial_sandbox_response.success
-        status = "✓" if success else "X"
-        sandbox_execution_message = (
-            "\n\n## GitHub Actions"
-            + status
-            + "\n\nHere are the GitHub Actions logs prior to making any changes:\n\n"
-        )
-        sandbox_execution_message += entities_create_error_logs(
-            f'<a href="https://github.com/{repo_full_name}/commit/{commit_hash}"><code>{commit_hash[:7]}</code></a>',
-            initial_sandbox_response,
-            initial_sandbox_response_file,
-        )
-        if success:
-            sandbox_execution_message += f"\n\nSandbox passed on the latest `{repo.default_branch}`, so sandbox checks will be enabled for this issue."
-        else:
-            sandbox_execution_message += "\n\nSandbox failed, so all sandbox checks will be disabled for this issue."
 
     if index < 0:
         index = 0
