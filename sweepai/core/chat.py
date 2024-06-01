@@ -457,7 +457,16 @@ class ChatGPT(MessageList):
                         if chunk.choices[0].finish_reason == "stop":
                             break
                 else:
-                    client = Anthropic(api_key=ANTHROPIC_API_KEY)
+                    if ANTHROPIC_AVAILABLE and use_aws:
+                        if "anthropic" not in model:
+                            model = f"anthropic.{model}-v1:0"
+                        client = AnthropicBedrock(
+                            aws_access_key=AWS_ACCESS_KEY,
+                            aws_secret_key=AWS_SECRET_KEY,
+                            aws_region=AWS_REGION,
+                        )
+                    else:
+                        client = Anthropic(api_key=ANTHROPIC_API_KEY)
                     start_time = time.time()
                     message_dicts = [
                         {
