@@ -158,17 +158,26 @@ def get_all_indices_of_substring(content: str, substring: str):
     return indices
 
 # converts a single arbitrary object to xml string format
-def object_to_xml(object: object, object_name: str):
-    object_fields = [f"<{field.name}>\n{getattr(object, field.name)}\n</{field.name}>" for field in fields(object)]
+def object_to_xml(
+    object: object, 
+    object_name: str, 
+    exclude_fields: list[str] = []
+):
+    object_fields = [f"<{field.name}>\n{getattr(object, field.name)}\n</{field.name}>" for field in fields(object) if field.name not in exclude_fields]
     fields_strings = "\n".join(object_fields)
     object_string = f"<{object_name}>\n{fields_strings}\n</{object_name}>"
     return object_string
 
 # converts a list of objects to xml string format
-def objects_to_xml(objects: list[object], object_name: str, outer_field_name: str = ""):
+def objects_to_xml(
+    objects: list[object], 
+    object_name: str, 
+    outer_field_name: str = "",
+    exclude_fields: list[str] = []
+):
     objects_string = ""
     for object in objects:
-        objects_string += f"{object_to_xml(object, object_name)}\n"
+        objects_string += f"{object_to_xml(object, object_name, exclude_fields=exclude_fields)}\n"
     if outer_field_name:
         objects_string = f"<{outer_field_name}>\n{objects_string}</{outer_field_name}>"
     else:

@@ -578,13 +578,13 @@ def get_payment_messages(chat_logger: ChatLogger):
     return payment_message, payment_message_start
 
 
-def parse_issues_from_code_review(issue_string: str, file_name: str):
+def parse_issues_from_code_review(issue_string: str):
     issue_regex = r"<issue>(?P<issue>.*?)<\/issue>"
     issue_matches = list(re.finditer(issue_regex, issue_string, re.DOTALL))
     potential_issues = set()
     for issue in issue_matches:
         issue_content = issue.group("issue")
-        issue_params = ["issue_description", "start_line", "end_line"]
+        issue_params = ["issue_description", "file_name", "start_line", "end_line"]
         issue_args = {}
         issue_failed = False
         for param in issue_params:
@@ -596,7 +596,7 @@ def parse_issues_from_code_review(issue_string: str, file_name: str):
                 issue_failed = True
                 break
         if not issue_failed:
-            potential_issues.add(CodeReviewIssue(**{**issue_args, "file_name": file_name}))
+            potential_issues.add(CodeReviewIssue(**issue_args))
     return list(potential_issues)
 
 

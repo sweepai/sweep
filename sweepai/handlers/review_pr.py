@@ -9,7 +9,9 @@ from loguru import logger
 
 from sweepai.chat.api import posthog_trace
 from sweepai.core.review_utils import (
-    format_pr_changes_by_file,
+    cluster_patches,
+    decompose_code_review_by_group,
+    format_all_pr_changes_by_groups,
     format_pr_info,
     get_pr_changes,
     get_pr_summary_from_patches,
@@ -115,7 +117,13 @@ def review_pr(
             # handle creating comments on the pr to tell the user we are going to begin reviewing the pr
             # _comment_id = create_update_review_pr_comment(username, pr)
             pr_changes, dropped_files, unsuitable_files = get_pr_changes(repository, pr)
-            formatted_pr_changes_by_file = format_pr_changes_by_file(pr_changes)
+            # -1 group key means review those seperately
+            grouped_files: dict[str, list[str]] = cluster_patches(pr_changes)
+            # render all groups of files
+            formatted_pr_changes_by_group = format_all_pr_changes_by_groups(
+                grouped_files, pr_changes
+            )
+            # formatted_pr_changes_by_file = format_pr_changes_by_file(pr_changes)
             pull_request_info = format_pr_info(pr)
             # only get sweep to generate a summary if the pr doesnt have a description
             pull_request_summary = ""
@@ -125,15 +133,17 @@ def review_pr(
                 )
             
             # get initial code review by group vote
-            code_review_by_file = group_vote_review_pr(
+            code_review_by_group = group_vote_review_pr(
                 username,
                 pr_changes,
-                formatted_pr_changes_by_file,
+                formatted_pr_changes_by_group,
                 cloned_repo,
                 pull_request_info,
-                multiprocess=True,
+                multiprocess=True, 
                 chat_logger=chat_logger,
             )
+            # convert code_review_by_group to be by file for easier rendering
+            code_review_by_file = decompose_code_review_by_group(code_review_by_group)
             # do more specific checks now, i.e. duplicated util functions
             code_review_by_file = review_pr_detailed_checks(
                 username,
