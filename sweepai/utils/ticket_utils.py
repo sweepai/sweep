@@ -8,6 +8,7 @@ import concurrent.futures
 from loguru import logger
 from tqdm import tqdm
 import networkx as nx
+from sweepai.utils.streamable_functions import streamable
 
 from sweepai.utils.timer import Timer
 from sweepai.agents.analyze_snippets import AnalyzeSnippetAgent
@@ -481,6 +482,7 @@ def get_relevant_context(
         repo_context_manager.read_only_snippets = copy.deepcopy(previous_read_only_snippets)
     return repo_context_manager
 
+@streamable
 def fetch_relevant_files(
     cloned_repo,
     title,
@@ -504,10 +506,13 @@ def fetch_relevant_files(
         )
         ticket_progress = None # refactor later
         repo_context_manager = prep_snippets(cloned_repo, search_query, ticket_progress)
+        yield "Here are the initial search results. I'm currently looking for files that you've explicitly mentioned.\n", repo_context_manager
 
         repo_context_manager, import_graph = integrate_graph_retrieval(search_query, repo_context_manager)
 
         parse_query_for_files(search_query, repo_context_manager)
+        yield "Here are the files I've found so far. I'm currently selecting a subset of the files to edit.\n", repo_context_manager
+
         repo_context_manager = get_relevant_context(
             formatted_query,
             repo_context_manager,
@@ -519,6 +524,7 @@ def fetch_relevant_files(
         snippets = repo_context_manager.current_top_snippets
         dir_obj = repo_context_manager.dir_obj
         tree = str(dir_obj)
+        yield "Here are the code search results. I'm now analyzing these search results to write the PR.\n", repo_context_manager
     except Exception as e:
         trace = traceback.format_exc()
         logger.exception(f"{trace} (tracking ID: `{tracking_id}`)")
@@ -532,7 +538,7 @@ def fetch_relevant_files(
             },
         )
         raise e
-    return snippets, tree, dir_obj, repo_context_manager
+    return repo_context_manager
 
 
 SLOW_MODE = False
