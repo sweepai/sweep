@@ -274,8 +274,6 @@ def on_ticket(
                 message = sanitize_string_for_github(message)
                 if pr_message:
                     pr_message = sanitize_string_for_github(pr_message)
-                # -1 = error, -2 = retry
-                # Only update the progress bar if the issue generation errors.
                 errored = index == -1
                 if index >= 0:
                     past_messages[index] = message
@@ -283,7 +281,6 @@ def on_ticket(
 
                 agg_message = ""
                 # Include progress history
-                # index = -2 is reserved for
                 for i in range(
                     current_index + 2
                 ):  # go to next header (for Working on it... text)
@@ -291,11 +288,12 @@ def on_ticket(
                         continue  # skip None header
                     if not step_complete and i >= current_index + 1:
                         continue
-                    else:
-                        header = progress_headers[i]
-                        header = "## " + (header if header is not None else "") + "\n"
-                        msg = header + (past_messages.get(i) or "Working on it...")
-                        agg_message += "\n" + msg
+                    if i == 0 and index != 0:
+                        continue
+                    header = progress_headers[i]
+                    header = "## " + (header if header is not None else "") + "\n"
+                    msg = header + (past_messages.get(i) or "Working on it...")
+                    agg_message += "\n" + msg
 
                 suffix = bot_suffix + discord_suffix
                 if errored:
@@ -462,10 +460,8 @@ def on_ticket(
                     )
 
                 edit_sweep_comment(
-                    message
-                    + "\n\n"
-                    + create_collapsible(
-                        "Relevant files (click to expand). Mentioned files will always appear here.",
+                    create_collapsible(
+                        "(Click to expand) " + message,
                         "\n".join(
                             [
                                 f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{max(min(snippet.end, snippet.content.count(newline) - 1), 1)}\n"
