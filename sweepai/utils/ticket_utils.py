@@ -300,11 +300,16 @@ def multi_prep_snippets(
         for i, ordered_snippets in enumerate(ranked_snippets_list):
             for j, snippet in enumerate(ordered_snippets):
                 content_to_lexical_score[snippet.denotation] += content_to_lexical_score_list[i][snippet.denotation] * (1 / 2 ** (rank_fusion_offset + j))
+        ranked_snippets = sorted(
+            snippets,
+            key=lambda snippet: content_to_lexical_score[snippet.denotation],
+            reverse=True,
+        )[:k]
     else:
         for message, ranked_snippets, snippets, content_to_lexical_score in get_top_k_snippets.stream(
             cloned_repo, queries[0], k
         ):
-            yield message, ranked_snippets, snippets, content_to_lexical_score
+            yield message, ranked_snippets
     separated_snippets = separate_snippets_by_type(snippets)
     yield "Retrieved top snippets, currently reranking:\n", ranked_snippets
     if not skip_pointwise_reranking:
@@ -408,7 +413,7 @@ def prep_snippets(
         yield "Generated multi queries\n", []
     else:
         queries = [query]
-    for message, snippets in multi_prep_snippets(
+    for message, snippets in multi_prep_snippets.stream(
         cloned_repo, queries, ticket_progress, k, skip_reranking, *args, **kwargs
     ):
         yield message, snippets
@@ -501,10 +506,17 @@ def fetch_relevant_files(
             "\n"
         )
         ticket_progress = None # refactor later
-        repo_context_manager = prep_snippets(cloned_repo, search_query, ticket_progress)
-        yield "Here are the initial search results. I'm currently looking for files that you've explicitly mentioned.\n", repo_context_manager
+        
+        for message, ranked_snippets in prep_snippets.stream(cloned_repo, search_query, ticket_progress):
+            repo_context_manager = RepoContextManager(
+                cloned_repo=cloned_repo,
+                current_top_snippets=ranked_snippets,
+                read_only_snippets=[],
+            )
+            yield message, repo_context_manager
+        # yield "Here are the initial search results. I'm currently looking for files that you've explicitly mentioned.\n", repo_context_manager
 
-        repo_context_manager, import_graph = integrate_graph_retrieval(search_query, repo_context_manager)
+        # repo_context_manager, import_graph = integrate_graph_retrieval(search_query, repo_context_manager)
 
         parse_query_for_files(search_query, repo_context_manager)
         yield "Here are the files I've found so far. I'm currently selecting a subset of the files to edit.\n", repo_context_manager
@@ -514,12 +526,9 @@ def fetch_relevant_files(
             repo_context_manager,
             ticket_progress,
             chat_logger=chat_logger,
-            import_graph=import_graph,
+            # import_graph=import_graph,
             images=images
         )
-        snippets = repo_context_manager.current_top_snippets
-        dir_obj = repo_context_manager.dir_obj
-        tree = str(dir_obj)
         yield "Here are the code search results. I'm now analyzing these search results to write the PR.\n", repo_context_manager
     except Exception as e:
         trace = traceback.format_exc()

@@ -199,10 +199,6 @@ def can_add_snippet(snippet: Snippet, current_snippets: list[Snippet]):
 
 @dataclass
 class RepoContextManager:
-    dir_obj: DirectoryTree
-    current_top_tree: str
-    snippets: list[Snippet]
-    snippet_scores: dict[str, float]
     cloned_repo: ClonedRepo
     current_top_snippets: list[Snippet] = field(default_factory=list)
     read_only_snippets: list[Snippet] = field(default_factory=list)
@@ -212,6 +208,11 @@ class RepoContextManager:
     relevant_file_paths: list[str] = field(
         default_factory=list
     )  # a list of file paths that appear in the user query
+    # UNUSED:
+    snippets: list[Snippet] = field(default_factory=list) # This is actually used in benchmarks
+    snippet_scores: dict[str, float] = field(default_factory=dict)
+    current_top_tree: str | None = None
+    dir_obj: DirectoryTree | None = None
 
     @property
     def top_snippet_paths(self):
