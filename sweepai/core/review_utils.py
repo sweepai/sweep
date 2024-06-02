@@ -26,6 +26,7 @@ from github.PullRequest import PullRequest
 
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
 from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo, update_file
+from sweepai.utils.hash import hash_sha256
 from sweepai.utils.str_utils import add_line_numbers, extract_object_fields_from_string, extract_objects_from_string, object_to_xml, objects_to_xml, remove_lines_from_text
 from sweepai.utils.ticket_rendering_utils import parse_issues_from_code_review
 from sweepai.utils.ticket_utils import get_top_k_snippets
@@ -586,7 +587,7 @@ user_prompt_review_decisions = """
 </severe_issues>
 """
 
-user_prompt_identify_new_functions = """Below are all the patches made to the file {file_name} in this pull request. Use these patches to determine if there are any newly created functions.
+user_prompt_identify_new_functions = """Below are all the patches made to the file {file_name} in this pull request. Use these patches to determine if there are any newly created utility functions.
 # PR Patches
 
 {patches}
@@ -597,15 +598,16 @@ Below is the file {file_name} with all the above patches applied along with the 
 {numbered_code_file}
 
 # Instructions
-1. Analyze each of the patches above and identify ALL newly created functions. To determine if a function is newly created, answer the following:
+1. Analyze each of the patches above and identify any newly created utility functions. To determine if a function is newly created, answer the following:
     1a. Note that if a function is renamed such as having of its parameters changed, or if a function has been reworked meaning the contents of the file has changed, this should not be included as a newly created function.
     1b. Is the function created from scratch? If not, the function is not newly created.
     1c. Is there a corresponding patch that shows the creation of the function? If the answer is no, then the function is not newly created. If the answer is yes, give the patch number as proof.
-    1c. Answer these questions in the following xml format:
+    1d. Is this function a utility function? It should be relatively short and simple, and should not be a class method. If it is too long and complex then do not include it in the final list.
+    1e. Answer these questions in the following xml format:
 <thinking>
 {{Questions and answer for each function that you believe is newly created.}}
 </thinking>
-2. Based on the questions and answers above return the list of all newly created functions in the following xml format:
+2. Based on the questions and answers above return the list of all newly created utility functions in the following xml format:
 <newly_created_functions>
 <function>
 <function_code>
@@ -639,27 +641,27 @@ Below are a series of code snippets retrieved from the codebase via vector searc
 {formatted_code_snippets}
 
 # Instructions
-1. Analyze each of the code snippets above and determine whether or not the new function is really necessary or not. Specifically, compare the new function with the existing methods in the code snippets by answering ALL the following questions:
-   1a. Purpose: What is the primary purpose of the new function? Is this purpose already served by existing methods?
+1. Analyze each of the code snippets above and determine whether or not the new function is useless. Specifically, compare the new function with the existing methods in the code snippets by answering ALL the following questions:
+   1a. Purpose: What is the primary purpose of the new function? Is this purpose already served by existing methods? Is this a class method? If so, this function is not useless, even if there are identical functions that exist.
    1b. Intention: What was the intention behind adding this new function? Is this function meant to be a wrapper or an interface function? If the answer is yes, then this new function is important and should not be removed.
    1c. Functionality: What specific tasks or operations does the new function perform? Are these tasks or operations already handled by existing methods?
    1d. Initialization: What data structures or variables are initialized in the new function? Are similar initializations present in existing methods?
    1e. Data Processing: How does the new function process data (e.g., formatting, extracting, or transforming data)? Are these data processing steps already implemented in existing methods?
-   1f. Unique Contributions: Does the new function provide any unique contributions or improvements that are not covered by existing methods? If it does then it should be considered as not redundant and should be kept.
-   1g. Impact of Removal: Would removing this function require a significant refactor of existing functions? Would the use cases of the existing functions change at all? If the answer is yes to any of these questions the new function should be kept.
+   1f. Unique Contributions: Does the new function provide any unique contributions or improvements that are not covered by existing methods? If it does then it should be considered as not useless and should be kept.
+   1g. Impact of Removal: Would removing this function require a significant refactor of existing functions? Would the use cases of the existing functions change at all? If the answer is yes to any of these questions the new function is not useless.
 
 2. Return your answer in the following xml format:
-<redundant_new_function>
+<useless_new_function>
 <thinking>
 {{Any thoughts/analysis you have should go here. This is where you MUST answer each of the questions above.}}
 </thinking>
 <answer>
-{{'true' if the new function is redundant/repeated/obsolete, 'false' if the new function is needed}}
+{{'true' if the new function is useless, 'false' if the new function provides unique contributions.}}
 </answer>
 <justification>
 {{A very brief justification of the decision made. When justifying why make sure to reference relevant functions. Max 1-2 sentences.}}
 </justification>
-</redundant_new_function>"""
+</useless_new_function>"""
 
 user_prompt_pr_summary = """Below are all the patches associated with this pull request along with each of their file names
 
@@ -1042,7 +1044,7 @@ class PRReviewBot(ChatGPT):
             for function in newly_created_functions:
                 # remove the function definition from the file to prevent biased results
                 modified_files_dict[file_name]["modified"] = remove_lines_from_text(
-                    modified_files_dict[file_name]["original"],start=int(function.start_line),end=int(function.end_line)
+                    modified_files_dict[file_name]["original"], start=int(function.start_line),end=int(function.end_line)
                 )
                 # now update the cloned repo file in both repo_dir and cached_dir
                 try:
@@ -1056,9 +1058,17 @@ class PRReviewBot(ChatGPT):
                         properties={"error": str(e), "cloned_repo.repo_dir": cloned_repo.repo_dir, "file_name": function.file_name}
                     )
                     raise e
+                file_hash = hash_sha256(modified_files_dict[file_name]["modified"])
                 # get the top five snippets and then pass those into sweep to ask if there are any repeated function definitions
                 ranked_snippets, _, _ = get_top_k_snippets(
-                    cloned_repo, function.function_code, None, k=3, include_docs=False, include_tests=False, do_not_use_file_cache=True
+                    cloned_repo, 
+                    function.function_code, 
+                    None, 
+                    k=3, 
+                    include_docs=False, 
+                    include_tests=False, 
+                    do_not_use_file_cache=True,
+                    seed=file_hash
                 )
                 formatted_code_snippets = "\n\n".join(
                     [f"<code_snippet file_name='{snippet.file_path}' snippet_index='{idx}'>\n{snippet.get_snippet()}\n</code_snippet>" for idx, snippet in enumerate(ranked_snippets)]

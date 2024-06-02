@@ -142,6 +142,7 @@ def multi_get_top_k_snippets(
     include_docs: bool = False,
     include_tests: bool = False,
     do_not_use_file_cache: bool = False, # added for review_pr
+    seed: str = "", # for caches
     *args,
     **kwargs,
 ):
@@ -155,7 +156,8 @@ def multi_get_top_k_snippets(
         _, snippets, lexical_index = prepare_lexical_search_index(
             cloned_repo.cached_dir,
             sweep_config,
-            do_not_use_file_cache=do_not_use_file_cache
+            do_not_use_file_cache=do_not_use_file_cache,
+            seed=seed
         )
     logger.info(f"Lexical search index took {timer.time_elapsed} seconds")
 
@@ -203,11 +205,19 @@ def get_top_k_snippets(
     ticket_progress: TicketProgress | None = None,
     k: int = 15,
     do_not_use_file_cache: bool = False, # added for review_pr
+    seed: str = "",
     *args,
     **kwargs,
 ):
     ranked_snippets_list, snippets, content_to_lexical_score_list = multi_get_top_k_snippets(
-        cloned_repo, [query], ticket_progress, k, do_not_use_file_cache=do_not_use_file_cache, *args, **kwargs
+        cloned_repo, 
+        [query], 
+        ticket_progress, 
+        k, 
+        do_not_use_file_cache=do_not_use_file_cache, 
+        seed=seed, 
+        *args, 
+        **kwargs
     )
     return ranked_snippets_list[0], snippets, content_to_lexical_score_list[0]
 
