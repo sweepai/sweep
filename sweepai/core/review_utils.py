@@ -17,7 +17,7 @@ from sweepai.core.entities import Message, UnsuitableFileException
 from sweepai.core.review_annotations import get_diff_annotations
 from sweepai.core.sweep_bot import safe_decode
 from sweepai.core.vector_db import cosine_similarity, embed_text_array
-from sweepai.dataclasses.codereview import CodeReview, CodeReviewIssue, FunctionDef, PRChange, Patch
+from sweepai.dataclasses.codereview import CodeReview, CodeReviewByGroup, CodeReviewIssue, FunctionDef, GroupedFilesForReview, PRChange, Patch
 from sweepai.logn.cache import file_cache
 from sweepai.utils.event_logger import logger, posthog
 from sweepai.utils.chat_logger import ChatLogger
@@ -26,6 +26,7 @@ from github.PullRequest import PullRequest
 
 from sweepai.utils.file_utils import read_file_with_fallback_encodings
 from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo, update_file
+from sweepai.utils.hash import hash_sha256
 from sweepai.utils.str_utils import add_line_numbers, extract_object_fields_from_string, extract_objects_from_string, object_to_xml, objects_to_xml, remove_lines_from_text
 from sweepai.utils.ticket_rendering_utils import parse_issues_from_code_review
 from sweepai.utils.ticket_utils import get_top_k_snippets
@@ -70,7 +71,7 @@ def validate_diff(file_name: str, diff: str):
     return "", True
 
 @file_cache()
-def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], list[str]]:
+def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[dict[str, PRChange], list[str], list[str]]:
     sweep_config: SweepConfig = SweepConfig()
     base_sha = pr.base.sha
     head_sha = pr.head.sha
@@ -78,7 +79,7 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
     comparison = repo.compare(base_sha, head_sha)
     file_diffs = comparison.files
 
-    pr_diffs = []
+    pr_diffs = {}
     dropped_files = [] # files that were dropped due them being commonly ignored
     unsuitable_files: list[tuple[str, Exception]] = [] # files dropped for other reasons such as being way to large or not encodable, error objects included
     for file in tqdm(file_diffs, desc="Annotating diffs"):
@@ -150,7 +151,7 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
             old_code=old_code,
             new_code=new_code,
             status=status,
-            patches=split_diff_into_patches(diff)
+            patches=split_diff_into_patches(diff, file_name)
         )
         diff_annotations = get_diff_annotations(
             source_code=pr_change.new_code,
@@ -158,12 +159,10 @@ def get_pr_changes(repo: Repository, pr: PullRequest) -> tuple[list[PRChange], l
             file_name=pr_change.file_name
         )
         pr_change.annotations = diff_annotations
-        pr_diffs.append(
-            pr_change
-        )
+        pr_diffs[file_name] = pr_change
     return pr_diffs, dropped_files, unsuitable_files
 
-def split_diff_into_patches(diff: str) -> list[Patch]:
+def split_diff_into_patches(diff: str, file_name: str) -> list[Patch]:
     patches = []
     hunks = re.findall(r'@@ -\d+,\d+ \+\d+,\d+ @@.*?(?=\n@@ -|\Z)', diff, re.DOTALL)
     for hunk in hunks:
@@ -172,6 +171,7 @@ def split_diff_into_patches(diff: str) -> list[Patch]:
             old_start, old_count, new_start, new_count = map(int, line_numbers[0])
             changes = hunk[hunk.index('@@'):].strip()
             patch = Patch(
+                file_name=file_name,
                 old_start=old_start,
                 old_count=old_count,
                 new_start=new_start,
@@ -183,24 +183,32 @@ def split_diff_into_patches(diff: str) -> list[Patch]:
 
 pr_changes_prefix = "The following changes were made in the PR. Each change contains all of the patches that were applied to a file, as well as the source code after the change.\n"
 
-pr_change_unformatted = """\
-<pr_change file_name="{file_name}">
-<file_patches>
-{patches}
-</file_patches>
-</pr_change>"""
+pr_review_change_group_format = """
+Below are a series of patches for the following files: {file_names}
+# All Patches
 
-pr_change_with_source_code_unformatted = """\
-<pr_change file_name="{file_name}">
-<file_patches>
-{patches}
-</file_patches>
+<all_patches>
+{all_patches}
+</all_patches>
 
-And here is the full source code after applying the pull request changes:
-<source_code>
+# Below are the source code files for the following files {file_names} with the above patches applied
+
+<all_source_code>
+{all_source_code}
+</all_source_code>
+"""
+
+source_code_with_patches_format = """
+Here is the source code for file {file_name} after applying all patches:
+<source_code file_name="{file_name}">
 {file_contents}
-</source_code>
-</pr_change>"""
+</source_code>"""
+
+patches_for_file_format = """
+<file_patches file_name="{file_name}">
+{file_patches}
+</file_patches>
+"""
 
 patch_format = """\
 <patch file_name="{file_name}" index="{index}">
@@ -214,6 +222,7 @@ patch_format_without_annotations = """\
 <patch file_name="{file_name}" index="{index}">
 {diff}
 </patch>"""
+
 
 # format only the patches for the PRChange
 def format_patches_for_pr_change(pr_change: PRChange, include_patch_annotations: bool = True):
@@ -234,7 +243,11 @@ def format_patches_for_pr_change(pr_change: PRChange, include_patch_annotations:
             )
         if idx < len(pr_change.patches) - 1:
             patches += "\n"
-    return patches
+    formatted_patches = patches_for_file_format.format(
+        file_name=pr_change.file_name,
+        file_patches=patches
+    )
+    return formatted_patches
 
 # prunes a file based on the patches for that file, removes long sections in between
 def smart_prune_file_based_on_patches(file_contents: str, patches: list[Patch], context_lines: int = 10):
@@ -278,26 +291,89 @@ def smart_prune_file_based_on_patches(file_contents: str, patches: list[Patch], 
     new_file_contents = "".join(new_lines)
     return new_file_contents
 
-def format_pr_change(pr_change: PRChange, pr_idx: int=0):
-    patches = format_patches_for_pr_change(pr_change)
-    numbered_file_contents = add_line_numbers(pr_change.new_code, start=1)
-    # enforce context length
-    if len(patches + numbered_file_contents) >= MAX_CHAR_BUDGET:
-        numbered_file_contents = smart_prune_file_based_on_patches(numbered_file_contents, pr_change.patches)
-    # if we still exceed the budget, we need to remove patch annotations
-    if len(patches + numbered_file_contents) >= MAX_CHAR_BUDGET:
-        patches = format_patches_for_pr_change(pr_change, include_patch_annotations=False)
-    return pr_change_with_source_code_unformatted.format(
-        file_name=pr_change.file_name,
-        patches=patches,
-        file_contents=numbered_file_contents
+def format_pr_changes(
+    pr_changes: dict[str, PRChange],
+    include_annotations: bool = True,
+    truncate: bool = False
+) -> str:
+    formatted_changes = ""
+    all_formatted_patches = ""
+    all_formatted_source_code = ""
+    for file_name, pr_change in pr_changes.items():
+        # format patches
+        formatted_patches_for_file = format_patches_for_pr_change(
+            pr_change, include_patch_annotations=include_annotations
+        )
+        all_formatted_patches += formatted_patches_for_file
+        # format source code
+        if truncate:
+            formatted_source_code = source_code_with_patches_format.format(
+                file_name=file_name, file_contents=smart_prune_file_based_on_patches(
+                    add_line_numbers(pr_change.new_code), 
+                    pr_change.patches
+                )
+            )
+        else:
+            formatted_source_code = source_code_with_patches_format.format(
+                file_name=file_name, file_contents=add_line_numbers(pr_change.new_code)
+            )
+        all_formatted_source_code += formatted_source_code
+    file_names = ", ".join(pr_changes.keys())
+    formatted_changes = pr_review_change_group_format.format(
+        file_names=file_names,
+        all_patches=all_formatted_patches,
+        all_source_code=all_formatted_source_code
     )
+    return formatted_changes, all_formatted_patches, all_formatted_source_code
 
-def format_pr_changes_by_file(pr_changes: list[PRChange]) -> dict[str, str]:
-    formatted_pr_changes_by_file = {}
-    for idx, pr_change in enumerate(pr_changes):
-        formatted_pr_changes_by_file[pr_change.file_name] = format_pr_change(pr_change, idx)
-    return formatted_pr_changes_by_file
+# render a group of pr changes for review
+def render_pr_changes(pr_changes: dict[str, PRChange]) -> str:
+    formatted_changes, formatted_patches, formatted_source_code = format_pr_changes(pr_changes)
+    if len(formatted_changes) >= MAX_CHAR_BUDGET:
+        # go again with pruned code
+        formatted_changes, formatted_patches, formatted_source_code = format_pr_changes(pr_changes, truncate=True)
+    if len(formatted_changes) >= MAX_CHAR_BUDGET:
+        # go again without annotations and prune code
+        formatted_changes, formatted_patches, formatted_source_code = format_pr_changes(
+            pr_changes, truncate=True, include_annotations=False
+        )
+    if len(formatted_changes) >= MAX_CHAR_BUDGET:
+        # simply too many changes to handle, split them up
+        formatted_changes, formatted_patches, formatted_source_code = "", "", ""
+    return formatted_changes, formatted_patches, formatted_source_code
+
+# render all changes for all groups, handle cases where grouped files are too large
+def format_all_pr_changes_by_groups(
+    grouped_files: dict[str, list[str]],
+    pr_changes: dict[str, PRChange]
+):
+    formatted_pr_changes_by_groups: dict[str, GroupedFilesForReview] = {}
+    for _, files_to_review in grouped_files.items():
+        # get all relevant PRChange objects
+        changes_to_review = {file_name: pr_changes[file_name] for file_name in files_to_review}
+        # build change overview
+        formatted_changes, formatted_patches, formatted_source_code = render_pr_changes(changes_to_review)
+        if formatted_changes:
+            group = GroupedFilesForReview(
+                file_names=files_to_review,
+                rendered_changes=formatted_changes,
+                rendered_patches=formatted_patches,
+                rendered_source_code=formatted_source_code
+            )
+            formatted_pr_changes_by_groups[group.group_name] = group
+        else: # too large break up
+            for file_name in files_to_review:
+                changes_to_review = {file_name: pr_changes[file_name]}
+                formatted_changes, formatted_patches, formatted_source_code = render_pr_changes(changes_to_review)
+                group = GroupedFilesForReview(
+                    file_names=[file_name],
+                    rendered_changes=formatted_changes,
+                    rendered_patches=formatted_patches,
+                    rendered_source_code=formatted_source_code
+                )
+                formatted_pr_changes_by_groups[group.group_name] = group
+    return formatted_pr_changes_by_groups
+
 
 system_prompt = """You are a careful and smart tech lead that wants to avoid production issues. You will be analyzing a set of diffs representing a pull request made to a piece of source code. 
 You will also be given the pull request title and description which you will use to determine the intentions of the pull request. Be very concise."""
@@ -307,8 +383,8 @@ You will be analyzing a list of potential issues that have been identified by a 
 
 system_prompt_identify_new_functions = """You are an expert programmer with a keen eye for detail, assigned to analyze a series of code patches in a pull request. Your primary responsibility is to meticulously identify all newly created functions within the code."""
 
-system_prompt_identify_repeats = """You are a proficient programmer tasked with identifying repeated or unnecessary functions in a codebase. Your job is to find and highlight any duplicated or redundant function definitions.
-You will be given a function definition that was just added to the codebase and your job will be to check whether or not this function was actually necessary or not given a series of code snippets.
+system_prompt_identify_repeats = """You are a proficient programmer tasked with identifying useless utility functions in a codebase. Your job is to identify any useless function definitions.
+You will be given a function definition that was just added to the codebase and your job will be to check whether or not this function was actually necessary or not given a series of related code snippets.
 """
 
 system_prompt_pr_summary = """You are a talented software engineer that excels at summarising pull requests for readability and brevity. You will be analysing a series of patches that represent all the changes made in a specific pull request.
@@ -335,7 +411,7 @@ Here are the changes in the pull request changes given in diff format:
     1a. Review each change individually, examining the code changes line-by-line.
     1b. For each line of code changed, consider:
         - What is the purpose of this line of code?
-        - How does this line of code interact with or impact the rest of the codebase?
+        - How does this line of code interact with or impact the rest of the files in the pull request?
         - Is this line of code functionally correct? Could it introduce any bugs or errors?
         - Is this line of code necessary? Or could it be an accidental change or commented out code?
     1c. Describe all changes that were made in the diffs. Respond in the following format. (1 paragraph)
@@ -345,7 +421,7 @@ Here are the changes in the pull request changes given in diff format:
 </thinking>
 ...
 </thoughts>
-    1d. Provide a final summary for this file that should be a single sentence and formatted within a <change_summary> tag.
+    1d. Provide a final summary for the changes that should be a single sentence and formatted within a <change_summary> tag.
 Here is an example, make sure the summary sounds natural and keep it brief and easy to skim over:
 <example_change_summary>
 Added a new categorization system for snippets in `multi_prep_snippets` and updated the snippet score calculation in `get_pointwise_reranked_snippet_scores`. 
@@ -390,7 +466,7 @@ Output the questions and answers for each rule in step 1 in the following format
 {{Question and answers for each example in the special_rules section.}}
 </examples_analysis> 
 
-2. Analzye the code changes.
+2. Analyze the code changes.
     For each rule provided, answer the following questions:
     Rule #n:
         a. Are there code changes in violation of the rule? If yes, then this is an issue that should be raised.
@@ -410,6 +486,9 @@ Finally, format the found issues and root causes using the following XML tags. E
 <issue_description>
 {{Issue 1 description}}
 </issue_description>
+<file_name>
+{{Corresponding file name that this issue is in}}
+</file_name>
 <start_line>
 {{Corresponding starting line number for Issue 1}}
 </start_line>
@@ -424,12 +503,15 @@ If there are no issues found do not include the corresponding <issue> tag.
 Focus your analysis solely on potential functional issues with the code changes. Do not comment on stylistic, formatting, or other more subjective aspects of the code."""
 
 user_prompt_review_questions = """
-Below are a series of identified issues for the file {file_name} formatted in the following way:
+Below are a series of identified issues for the following files {file_names} formatted in the following way:
 <potential_issues>
 <issue>
 <issue_description>
 {{Issue 1 description}}
 </issue_description>
+<file_name>
+{{Corresponding file name for Issue 1}}
+</file_name>
 <start_line>
 {{Corresponding starting line number for Issue 1}}
 </start_line>
@@ -455,7 +537,7 @@ Below is the title and description of the pull request. Use this information to 
 {pull_request_info}
 
 # Instructions
-1. Analyze each identified potential issue for the file {file_name}
+1. Analyze each identified potential issue for the file {file_names}
     1a. Review each identified issue individually, formulate 3-5 questions to answer in order to determine the severity of the issue.
     1b. Answer the questions formulated in step 1a. In order to accomplish this examine the referenced lines of code in the provided code files above.
     1c. Answer the following questions in addition to the ones you generated in steps 1a. Is this reported issue accurate (double check that the previous reviewer was not mistaken, YOU MUST include the corresponding patch for proof)? If the answer to this question is no, then the issue is not severe. 
@@ -491,6 +573,9 @@ user_prompt_review_decisions = """
 <issue_description>
 {{Issue 1 description}}
 </issue_description>
+<file_name>
+{{Corresponding file name for Issue 1}}
+</file_name>
 <start_line>
 {{Corresponding starting line number for Issue 1}}
 </start_line>
@@ -502,7 +587,7 @@ user_prompt_review_decisions = """
 </severe_issues>
 """
 
-user_prompt_identify_new_functions = """Below are all the patches made to the file {file_name} in this pull request. Use these patches to determine if there are any newly created functions.
+user_prompt_identify_new_functions = """Below are all the patches made to the file {file_name} in this pull request. Use these patches to determine if there are any newly created utility functions.
 # PR Patches
 
 {patches}
@@ -513,15 +598,16 @@ Below is the file {file_name} with all the above patches applied along with the 
 {numbered_code_file}
 
 # Instructions
-1. Analyze each of the patches above and identify ALL newly created functions. To determine if a function is newly created, answer the following:
+1. Analyze each of the patches above and identify any newly created utility functions. To determine if a function is newly created, answer the following:
     1a. Note that if a function is renamed such as having of its parameters changed, or if a function has been reworked meaning the contents of the file has changed, this should not be included as a newly created function.
     1b. Is the function created from scratch? If not, the function is not newly created.
     1c. Is there a corresponding patch that shows the creation of the function? If the answer is no, then the function is not newly created. If the answer is yes, give the patch number as proof.
-    1c. Answer these questions in the following xml format:
+    1d. Is this function a utility function? It should be relatively short and simple, and should not be a class method. If it is too long and complex then do not include it in the final list.
+    1e. Answer these questions in the following xml format:
 <thinking>
 {{Questions and answer for each function that you believe is newly created.}}
 </thinking>
-2. Based on the questions and answers above return the list of all newly created functions in the following xml format:
+2. Based on the questions and answers above return the list of all newly created utility functions in the following xml format:
 <newly_created_functions>
 <function>
 <function_code>
@@ -555,27 +641,27 @@ Below are a series of code snippets retrieved from the codebase via vector searc
 {formatted_code_snippets}
 
 # Instructions
-1. Analyze each of the code snippets above and determine whether or not the new function is really necessary or not. Specifically, compare the new function with the existing methods in the code snippets by answering ALL the following questions:
-   1a. Purpose: What is the primary purpose of the new function? Is this purpose already served by existing methods?
+1. Analyze each of the code snippets above and determine whether or not the new function is useless. Specifically, compare the new function with the existing methods in the code snippets by answering ALL the following questions:
+   1a. Purpose: What is the primary purpose of the new function? Is this purpose already served by an existing method? If its purpose is not perfectly serve by an existing method then this function is not useless. If it takes more than one existing function to replicate the functionality of this new function, than this new funciton is not useless.
    1b. Intention: What was the intention behind adding this new function? Is this function meant to be a wrapper or an interface function? If the answer is yes, then this new function is important and should not be removed.
    1c. Functionality: What specific tasks or operations does the new function perform? Are these tasks or operations already handled by existing methods?
    1d. Initialization: What data structures or variables are initialized in the new function? Are similar initializations present in existing methods?
    1e. Data Processing: How does the new function process data (e.g., formatting, extracting, or transforming data)? Are these data processing steps already implemented in existing methods?
-   1f. Unique Contributions: Does the new function provide any unique contributions or improvements that are not covered by existing methods? If it does then it should be considered as not redundant and should be kept.
-   1g. Impact of Removal: Would removing this function require a significant refactor of existing functions? Would the use cases of the existing functions change at all? If the answer is yes to any of these questions the new function should be kept.
+   1f. Unique Contributions: Does the new function provide any unique contributions or improvements that are not covered by existing methods? If it does then it should be considered as not useless and should be kept.
+   1g. Impact of Removal: Would removing this function require a significant refactor of existing functions? Would the use cases of the existing functions change at all? If the answer is yes to any of these questions the new function is not useless.
 
 2. Return your answer in the following xml format:
-<redundant_new_function>
+<useless_new_function>
 <thinking>
 {{Any thoughts/analysis you have should go here. This is where you MUST answer each of the questions above.}}
 </thinking>
 <answer>
-{{'true' if the new function is redundant/repeated/obsolete, 'false' if the new function is needed}}
+{{'true' if the new function is useless, 'false' if the new function provides unique contributions.}}
 </answer>
 <justification>
 {{A very brief justification of the decision made. When justifying why make sure to reference relevant functions. Max 1-2 sentences.}}
 </justification>
-</redundant_new_function>"""
+</useless_new_function>"""
 
 user_prompt_pr_summary = """Below are all the patches associated with this pull request along with each of their file names
 
@@ -641,31 +727,32 @@ class PRReviewBot(ChatGPT):
     def get_special_rules(
         self, 
         cloned_repo: ClonedRepo, 
-        file_name: str, 
+        file_names: list[str], 
         special_rule_file: str = "SWEEP.md"
     ):
         special_rules = ""
-        # ensure file exists and this is not a GPT.md file
-        full_path = os.path.join(cloned_repo.repo_dir, file_name)
-        base_file = os.path.basename(file_name)
-        if not os.path.exists(full_path) or base_file == special_rule_file:
-            logger.error(f"Failure fetching special rules file for {file_name} as it does not exist.")
-            return special_rules
-        
-        subdirectories = file_name.split(os.path.sep)
-        directories_to_check = []
-        # Loop from the end to the beginning, excluding the file itself
-        for i in range(len(subdirectories) - 1, 0, -1):
-            directories_to_check.append(
-                os.path.join(cloned_repo.repo_dir, os.path.join(*subdirectories[:i]))
-            )
-        # append the base directory
-        directories_to_check.append(cloned_repo.repo_dir)
-        # now check all directories for the special rule file, we add on to special rules if we find it
-        for directory in directories_to_check:
-            special_rule_path = os.path.join(directory, special_rule_file)
-            if os.path.exists(special_rule_path):
-                special_rules += read_file_with_fallback_encodings(special_rule_path)
+        for file_name in file_names:
+            # ensure file exists and this is not a GPT.md file
+            full_path = os.path.join(cloned_repo.repo_dir, file_name)
+            base_file = os.path.basename(file_name)
+            if not os.path.exists(full_path) or base_file == special_rule_file:
+                logger.error(f"Failure fetching special rules file for {file_name} as it does not exist.")
+                return special_rules
+            
+            subdirectories = file_name.split(os.path.sep)
+            directories_to_check = []
+            # Loop from the end to the beginning, excluding the file itself
+            for i in range(len(subdirectories) - 1, 0, -1):
+                directories_to_check.append(
+                    os.path.join(cloned_repo.repo_dir, os.path.join(*subdirectories[:i]))
+                )
+            # append the base directory
+            directories_to_check.append(cloned_repo.repo_dir)
+            # now check all directories for the special rule file, we add on to special rules if we find it
+            for directory in directories_to_check:
+                special_rule_path = os.path.join(directory, special_rule_file)
+                if os.path.exists(special_rule_path):
+                    special_rules += read_file_with_fallback_encodings(special_rule_path)
         return special_rules
     # get a comprehensive pr summary
     def get_pr_summary(self, formatted_patches: str, chat_logger: ChatLogger = None):
@@ -699,18 +786,20 @@ class PRReviewBot(ChatGPT):
     # fetch all potential issues for each file based on the diffs of that file
     def review_code_changes_by_file(
         self, 
-        pr_changes: list[PRChange],
-        pr_changes_by_file: dict[str, str], 
+        pr_changes: dict[str, PRChange],
+        formatted_pr_changes_by_group: dict[str, GroupedFilesForReview], 
         cloned_repo: ClonedRepo, 
         pull_request_info: str,
         chat_logger: ChatLogger = None, 
         seed: int | None = None
     ):
-        code_reviews_by_file = {}
-        # loop through all pr changes
-        for pr_change in pr_changes:
-            file_name = pr_change.file_name
-            pr_changes = pr_changes_by_file[file_name]
+        code_reviews_by_group = {}
+        # loop through all groups
+        for group_name, grouped_files in formatted_pr_changes_by_group.items():
+            file_names = grouped_files.file_names
+            rendered_changes = grouped_files.rendered_changes
+            # get all relevant PRChange objects
+            # build prompt
             self.messages = [
                 Message(
                     role="system",
@@ -718,7 +807,7 @@ class PRReviewBot(ChatGPT):
                 )
             ]
             formatted_user_prompt = user_prompt.format(
-                diff=pr_changes, pull_request_info=pull_request_info
+                diff=rendered_changes, pull_request_info=pull_request_info
             )
             formatted_user_prompt += user_prompt_issue_output_format
             if len(formatted_user_prompt) > MAX_CHAR_BUDGET:
@@ -726,7 +815,7 @@ class PRReviewBot(ChatGPT):
                 posthog.capture(
                     "review_code_changes_by_file", 
                     "review_code_changes_by_file budget exceeded", 
-                    properties={"file_name": file_name, "body": formatted_user_prompt}
+                    properties={"file_names": file_names, "body": formatted_user_prompt}
                 )
             code_review_response = self.chat_anthropic(
                 content=formatted_user_prompt,
@@ -737,9 +826,9 @@ class PRReviewBot(ChatGPT):
             )
             # make a seperate call for the special rules
             # check if there are special rules we need to follow for this file by seeing if the files "SWEEP.md" exists
-            special_rules = self.get_special_rules(cloned_repo, file_name)
+            special_rules = self.get_special_rules(cloned_repo, file_names)
             if special_rules:
-                formatted_user_prompt_special_rules = user_prompt_special_rules_format.format(diff=pr_changes, special_rules=special_rules)
+                formatted_user_prompt_special_rules = user_prompt_special_rules_format.format(diff=rendered_changes, special_rules=special_rules)
                 formatted_user_prompt_special_rules += user_prompt_issue_output_format
                 special_rules_response = self.chat_anthropic(
                     content=formatted_user_prompt_special_rules,
@@ -759,8 +848,13 @@ class PRReviewBot(ChatGPT):
             issues_matches = re.findall(issues_pattern, code_review_response, re.DOTALL)
             if issues_matches:
                 issues = "\n".join([match.strip() for match in issues_matches])
-            potential_issues = parse_issues_from_code_review(issues, file_name)
-            code_reviews_by_file[file_name] = CodeReview(file_name=file_name, diff_summary=diff_summary, issues=potential_issues, potential_issues=[])
+            potential_issues = parse_issues_from_code_review(issues)
+            code_reviews_by_group[group_name] = CodeReviewByGroup(
+                file_names=file_names,
+                diff_summary=diff_summary, 
+                issues=potential_issues, 
+                potential_issues=[]
+            )
             if chat_logger:
                 chat_logger.add_chat(
                     {
@@ -768,27 +862,22 @@ class PRReviewBot(ChatGPT):
                         "messages": [{"role": message.role, "content": message.content} for message in self.messages],
                         "output": "END OF MESSAGES",
                     })
-        return code_reviews_by_file
+        return code_reviews_by_group
 
     # review the generated issues more critically for each file to see if they are actually important or not
     def review_code_issues_by_file(
         self, 
-        pr_changes: list[PRChange], 
-        formatted_pr_changes_by_file: dict[str, str], 
-        code_reviews_by_file: dict[str, CodeReview], 
+        pr_changes: dict[str, PRChange], 
+        formatted_pr_changes_by_group: dict[str, GroupedFilesForReview], 
+        code_reviews_by_group: dict[str, CodeReviewByGroup], 
         cloned_repo: ClonedRepo,
         pull_request_info: str,
         chat_logger: ChatLogger = None,
         seed: int | None = None
     ):
-        files_to_patches: dict[str, str] = {}
-        # format all patches for all files
-        for pr_change in pr_changes:
-            patches = format_patches_for_pr_change(pr_change)
-            files_to_patches[pr_change.file_name] = patches
-
         # go file by file
-        for file_name, code_review in code_reviews_by_file.items():
+        for group_name, code_review_by_group in code_reviews_by_group.items():
+            file_names = code_review_by_group.file_names
             self.messages = [
                 Message(
                     role="system",
@@ -796,21 +885,20 @@ class PRReviewBot(ChatGPT):
                 )
             ]
             # if no issues were identified continue to next file
-            if not code_review.issues:
+            if not code_review_by_group.issues:
                 continue
             # convert our CodeReviewIssue list to an xml string
-            potential_issues_string = objects_to_xml(code_review.issues, "issue", outer_field_name="potential_issues")
+            potential_issues_string = objects_to_xml(code_review_by_group.issues, "issue", outer_field_name="potential_issues")
             # now prepend all other pr changes to the current pr change
-            all_other_pr_changes = "\n\n".join([pr_change_unformatted.format(file_name=file, patches=patches) for file, patches in files_to_patches.items() if file != file_name])
-            
+            all_other_pr_changes = "\n\n".join([file_group.rendered_patches for group, file_group in formatted_pr_changes_by_group.items() if group != group_name])
             # create user prompt
             formatted_user_prompt = user_prompt_review_questions.format(
-                file_name=file_name, 
+                file_names=code_review_by_group.get_all_file_names(), 
                 potential_issues=potential_issues_string, 
                 pull_request_info=pull_request_info,
-                pr_changes=f"{all_other_pr_changes}\n{formatted_pr_changes_by_file[file_name]}"
+                pr_changes=f"{all_other_pr_changes}\n\n{formatted_pr_changes_by_group[group_name]}"
             )
-            special_rules = self.get_special_rules(cloned_repo, file_name)
+            special_rules = self.get_special_rules(cloned_repo, file_names)
             if special_rules:
                 formatted_user_prompt += user_prompt_review_special_rules.format(special_rules=special_rules)
             formatted_user_prompt += user_prompt_review_analysis_format
@@ -828,12 +916,12 @@ class PRReviewBot(ChatGPT):
             issues_matches = re.findall(severe_issues_pattern, code_review_response, re.DOTALL)
             if issues_matches:
                 issues = "\n".join([match.strip() for match in issues_matches])
-                potential_issues = parse_issues_from_code_review(issues, file_name)
+                potential_issues = parse_issues_from_code_review(issues)
             else:
                 potential_issues = []
             
             # update the issues
-            code_reviews_by_file[file_name].issues = potential_issues
+            code_reviews_by_group[group_name].issues = potential_issues
             
             if chat_logger:
                 chat_logger.add_chat(
@@ -842,22 +930,22 @@ class PRReviewBot(ChatGPT):
                         "messages": [{"role": message.role, "content": message.content} for message in self.messages],
                         "output": "END OF MESSAGES",
                     })
-        return code_reviews_by_file
+        return code_reviews_by_group
 
     # given a list of changes identify newly created functions
     def identify_functions_in_patches(
         self,
-        pr_changes: list[PRChange],
+        pr_changes: dict[str, PRChange],
         chat_logger: ChatLogger | None = None
     ):
         newly_created_functions: dict[str, list[FunctionDef]] = {}
         files_to_patches: dict[str, str] = {}
         files_to_pr_change: dict[str, PRChange] = {}
         # format all patches for all files
-        for pr_change in pr_changes:
+        for file_name, pr_change in pr_changes.items():
             patches = format_patches_for_pr_change(pr_change)
-            files_to_patches[pr_change.file_name] = patches
-            files_to_pr_change[pr_change.file_name] = pr_change
+            files_to_patches[file_name] = patches
+            files_to_pr_change[file_name] = pr_change
         # go file by file
         for file_name, patches in files_to_patches.items():
             if "SWEEP.md" in file_name: # jank but temporary
@@ -956,7 +1044,7 @@ class PRReviewBot(ChatGPT):
             for function in newly_created_functions:
                 # remove the function definition from the file to prevent biased results
                 modified_files_dict[file_name]["modified"] = remove_lines_from_text(
-                    modified_files_dict[file_name]["original"],start=int(function.start_line),end=int(function.end_line)
+                    modified_files_dict[file_name]["original"], start=int(function.start_line),end=int(function.end_line)
                 )
                 # now update the cloned repo file in both repo_dir and cached_dir
                 try:
@@ -970,9 +1058,17 @@ class PRReviewBot(ChatGPT):
                         properties={"error": str(e), "cloned_repo.repo_dir": cloned_repo.repo_dir, "file_name": function.file_name}
                     )
                     raise e
+                file_hash = hash_sha256(modified_files_dict[file_name]["modified"])
                 # get the top five snippets and then pass those into sweep to ask if there are any repeated function definitions
                 ranked_snippets, _, _ = get_top_k_snippets(
-                    cloned_repo, function.function_code, None, k=3, include_docs=False, include_tests=False, do_not_use_file_cache=True
+                    cloned_repo, 
+                    function.function_code, 
+                    None, 
+                    k=3, 
+                    include_docs=False, 
+                    include_tests=False, 
+                    do_not_use_file_cache=True,
+                    seed=file_hash
                 )
                 formatted_code_snippets = "\n\n".join(
                     [f"<code_snippet file_name='{snippet.file_path}' snippet_index='{idx}'>\n{snippet.get_snippet()}\n</code_snippet>" for idx, snippet in enumerate(ranked_snippets)]
@@ -1064,7 +1160,6 @@ class PRReviewBot(ChatGPT):
                 content=system_prompt_sort_issues,
             )
         ]
-
         formatted_user_prompt = user_prompt_sort_issues.format(all_issues=all_issues_formatted)
         sorted_issues_response = self.chat_anthropic(
             content=formatted_user_prompt,
@@ -1128,46 +1223,46 @@ def get_group_voted_best_issue_index(
 
 # function that gets the code review for every file in the pr
 def get_code_reviews_for_file(
-    pr_changes: list[PRChange], 
-    formatted_pr_changes_by_file: dict[str, str], 
+    pr_changes: dict[str, PRChange], 
+    formatted_pr_changes_by_group: dict[str, GroupedFilesForReview], 
     cloned_repo: ClonedRepo,
     pull_request_info: str,
     chat_logger: ChatLogger | None = None,
     seed: int | None = None
 ):
     review_bot = PRReviewBot()
-    code_review_by_file = review_bot.review_code_changes_by_file(
+    code_review_by_group = review_bot.review_code_changes_by_file(
         pr_changes,
-        formatted_pr_changes_by_file, 
+        formatted_pr_changes_by_group, 
         cloned_repo, 
         pull_request_info,
         chat_logger=chat_logger, 
         seed=seed
     )
-    code_review_by_file = review_bot.review_code_issues_by_file(
+    code_review_by_group = review_bot.review_code_issues_by_file(
         pr_changes, 
-        formatted_pr_changes_by_file, 
-        code_review_by_file, 
+        formatted_pr_changes_by_group, 
+        code_review_by_group, 
         cloned_repo, 
         pull_request_info,
         chat_logger=chat_logger, 
         seed=seed
     )
-    return code_review_by_file
+    return code_review_by_group
 
 # run 5 seperate instances of review_pr and then group the resulting issues and only take the issues that appear the majority of the time (> 3)
 @posthog_trace
 def group_vote_review_pr(
     username: str, 
-    pr_changes: list[PRChange], 
-    formatted_pr_changes_by_file: dict[str, str], 
+    pr_changes: dict[str, PRChange], 
+    formatted_pr_changes_by_group: dict[str, GroupedFilesForReview],
     cloned_repo: ClonedRepo,
     pull_request_info: str,
     multiprocess: bool = True, 
     chat_logger: ChatLogger | None = None, 
 ) -> dict[str, CodeReview]:
     majority_code_review_by_file = {}
-    code_reviews_by_file = []
+    code_reviews_by_group: list[dict[str, CodeReviewByGroup]] = []
     GROUP_SIZE = 5
     if multiprocess:
         chat_logger = None
@@ -1187,7 +1282,7 @@ def group_vote_review_pr(
         results = [
             pool.apply_async(get_code_reviews_for_file, args=(
                 pr_changes, 
-                formatted_pr_changes_by_file, 
+                formatted_pr_changes_by_group,
                 cloned_repos[i], 
                 pull_request_info, 
                 chat_logger, 
@@ -1200,7 +1295,7 @@ def group_vote_review_pr(
         for result in results:
             try:
                 code_review = result.get()
-                code_reviews_by_file.append(code_review)
+                code_reviews_by_group.append(code_review)
             except Exception as e:
                 logger.error(f"Error fetching result: {e}")
                 posthog.capture(
@@ -1212,82 +1307,81 @@ def group_vote_review_pr(
         for i in range(GROUP_SIZE):
             review = get_code_reviews_for_file(
                 pr_changes, 
-                formatted_pr_changes_by_file, 
+                formatted_pr_changes_by_group,
                 cloned_repo, 
                 pull_request_info,
                 chat_logger=chat_logger, 
                 seed=i
             )
-            code_reviews_by_file.append(review)
+            code_reviews_by_group.append(review)
     # embed each issue and then cluster them
     # extract code issues for each file and prepare them for embedding
     code_reviews_ready_for_embedding = [] 
-    for code_review_by_file in code_reviews_by_file:
-        prepped_code_review = {}
-        for file_name, code_review in code_review_by_file.items():
+    for code_review_by_group in code_reviews_by_group:
+        prepped_code_review: dict[str, list[str]] = {}
+        for group_name, code_review in code_review_by_group.items():
             # using object_to_xml may not be the most optimal as it adds extra xml tags
-            prepped_code_review[file_name] = [object_to_xml(code_issue, 'issue') for code_issue in code_review.issues]
+            prepped_code_review[group_name] = [object_to_xml(code_issue, 'issue') for code_issue in code_review.issues]
         code_reviews_ready_for_embedding.append(prepped_code_review)
     
     # embed all extracted texts
     code_reviews_embeddings = []
     for prepped_code_review in code_reviews_ready_for_embedding:
-        embedded_code_review = {}
-        for file_name, code_issues in prepped_code_review.items():
-            embedded_code_review[file_name] = embed_text_array(code_issues)
+        embedded_code_review: dict[str, list] = {}
+        for group_name, code_issues in prepped_code_review.items():
+            embedded_code_review[group_name] = embed_text_array(code_issues)
         code_reviews_embeddings.append(embedded_code_review)
     # dbscan - density based spatial clustering of app with noise
     # format: {file_name: [label1, label2, ...]}
-    files_to_labels = {}
+    groups_to_labels = {}
     # corresponding issues for each file
     # format: {file_name: [issue1, issue2, ...]}
-    files_to_issues = {}
+    groups_to_issues = {}
     # corresponding embeddings for each file
     # format: {file_name: [embedding1, embedding2, ...]}
-    files_to_embeddings = {}
+    groups_to_embeddings = {}
 
     # for each file combine all the embeddings together while determining the max amount of clusters
-    for file_name in formatted_pr_changes_by_file:
+    for group_name in formatted_pr_changes_by_group:
         all_embeddings = []
         all_issues = []
-        for i in range(len(code_reviews_by_file)):
-            embeddings = code_reviews_embeddings[i][file_name]
-            code_review = code_reviews_by_file[i][file_name]
+        for i in range(len(code_reviews_by_group)):
+            embeddings = code_reviews_embeddings[i][group_name]
+            code_review = code_reviews_by_group[i][group_name]
             if embeddings:
                 embeddings = embeddings[0]
                 for embedding in embeddings:
                     all_embeddings.append(embedding.flatten())
                     all_issues.extend(code_review.issues)
-        files_to_issues[file_name] = all_issues
+        groups_to_issues[group_name] = all_issues
         all_flattened_embeddings = np.array(all_embeddings)
-        files_to_embeddings[file_name] = all_flattened_embeddings
+        groups_to_embeddings[group_name] = all_flattened_embeddings
         # note DBSCAN expects a shape with less than or equal to 2 dimensions
         try:
             if all_flattened_embeddings.size:
-                db = DBSCAN(eps=0.5, min_samples=3).fit(all_flattened_embeddings)
-                files_to_labels[file_name] = db.labels_
+                db = DBSCAN(eps=0.2, min_samples=2).fit(all_flattened_embeddings)
+                groups_to_labels[group_name] = db.labels_
             else:
-                files_to_labels[file_name] = []
+                groups_to_labels[group_name] = []
         except ValueError as e:
             logger.error(f"Error with dbscan {e}")
-        
-    LABEL_THRESHOLD = 5
+    LABEL_THRESHOLD = 4
     # get the labels that have a count greater than the threshold
     # format: {file_name: {label: [index, ...]}}
-    files_to_labels_indexes = {}
-    for file_name, labels in files_to_labels.items():
+    groups_to_labels_indexes = {}
+    for group_name, labels in groups_to_labels.items():
         index_dict: dict[str, list[int]] = {}
         for i, v in enumerate(labels):
             key = str(v)
             if key not in index_dict:
                 index_dict[key] = []
             index_dict[key].append(i)
-        files_to_labels_indexes[file_name] = index_dict
+        groups_to_labels_indexes[group_name] = index_dict
 
     # create the final code_reviews_by_file
-    for file_name, labels_dict in files_to_labels_indexes.items():
+    for group_name, labels_dict in groups_to_labels_indexes.items():
         # pick first one as diff summary doesnt really matter
-        final_code_review: CodeReview = copy.deepcopy(code_reviews_by_file[0][file_name])
+        final_code_review: CodeReview = copy.deepcopy(code_reviews_by_group[0][group_name])
         final_code_review.issues = []
         final_code_review.potential_issues = []
         final_issues = []
@@ -1296,23 +1390,23 @@ def group_vote_review_pr(
             index_length = len(indexes)
             # -1 is considered as noise
             if index_length >= LABEL_THRESHOLD and label != "-1":
-                max_index = get_group_voted_best_issue_index(username, file_name, label, files_to_labels_indexes, files_to_embeddings, index_length)
+                max_index = get_group_voted_best_issue_index(username, group_name, label, groups_to_labels_indexes, groups_to_embeddings, index_length)
                 # add to final issues, first issue - TODO use similarity score of all issues against each other
-                final_issues.append(files_to_issues[file_name][max_index])
+                final_issues.append(groups_to_issues[group_name][max_index])
             # get potential issues which are one below the label_threshold
             if index_length == LABEL_THRESHOLD - 1 and label != "-1":
-                max_index = get_group_voted_best_issue_index(username, file_name, label, files_to_labels_indexes, files_to_embeddings, index_length)
-                potential_issues.append(files_to_issues[file_name][max_index])
+                max_index = get_group_voted_best_issue_index(username, group_name, label, groups_to_labels_indexes, groups_to_embeddings, index_length)
+                potential_issues.append(groups_to_issues[group_name][max_index])
         final_code_review.issues = final_issues
         final_code_review.potential_issues = potential_issues
-        majority_code_review_by_file[file_name] = copy.deepcopy(final_code_review)
+        majority_code_review_by_file[group_name] = copy.deepcopy(final_code_review)
     return majority_code_review_by_file
 
 @posthog_trace
 def review_pr_detailed_checks(
     username: str, 
     cloned_repo: ClonedRepo,
-    pr_changes: list[PRChange], 
+    pr_changes: dict[str, PRChange], 
     code_review_by_file: dict[str, CodeReview], 
     pull_request_info: str,
     chat_logger: ChatLogger | None = None, 
@@ -1333,11 +1427,13 @@ def review_pr_detailed_checks(
     return code_review_by_file
 
 # get the summary for a pr given all the changes
-def get_pr_summary_from_patches(pr_changes: list[PRChange], chat_logger: ChatLogger | None = None):
+def get_pr_summary_from_patches(
+    pr_changes: dict[str, PRChange], 
+    chat_logger: ChatLogger | None = None
+):
     review_bot = PRReviewBot()
     formatted_pr_patches = ""
-    for pr_change in pr_changes:
-        file_name = pr_change.file_name
+    for file_name, pr_change in pr_changes.items():
         patches = format_patches_for_pr_change(pr_change)
         formatted_pr_patches += f'\n\n<patches file_name="{file_name}">\n{patches}\n</patches>\n\n'
     pr_summary = review_bot.get_pr_summary(formatted_pr_patches, chat_logger=chat_logger)
@@ -1374,3 +1470,55 @@ def format_pr_info(pr: PullRequest):
     except Exception as e:
         logger.warning(f"Couldn't fetch body for pr: {pr}\nError: {e}")
     return info
+
+# cluster patches based on similarity and review based off of that
+def cluster_patches(pr_changes: dict[str, PRChange]):
+    all_patches_by_file: dict[str, list[Patch]] = {}
+    all_patch_strings_by_file: dict[str, str] = {}
+    for file_name, pr_change in pr_changes.items():
+        all_patches_by_file[file_name] = pr_change.patches
+        all_patch_strings_by_file[file_name] = objects_to_xml(
+            pr_change.patches, 
+            "patch", 
+            "patches",
+            exclude_fields=['old_start', 'new_start', 'old_count', 'new_count']
+        )
+    # get the order of the files
+    file_order = [file_name for file_name in all_patch_strings_by_file.keys()]
+    files_to_embed = [patches for patches in all_patch_strings_by_file.values()]
+    embedded_patches = embed_text_array(files_to_embed)[0]
+    db = DBSCAN(eps=0.6, min_samples=2).fit(embedded_patches)
+    labels = db.labels_
+    # group key is the label, value is the list of file names to review together
+    groups_to_review_files_in: dict[str, list[str]] = {}
+    # split files into their groups -> -1 means create a seperate group -1x for that group
+    noise_groups = 0
+    for index, group in enumerate(labels):
+        if group != -1:
+            group_key = str(group)
+        else:
+            group_key = str(group) + str(noise_groups)
+            noise_groups += 1
+        if group_key not in groups_to_review_files_in:
+            groups_to_review_files_in[group_key] = []
+        groups_to_review_files_in[group_key].append(file_order[index])
+
+    return groups_to_review_files_in
+
+def decompose_code_review_by_group(
+    code_reviews_by_group: dict[str, CodeReviewByGroup]
+):
+    code_review_by_file: dict[str, CodeReview] = {}
+    for group_name, code_review_by_group in code_reviews_by_group.items():
+        file_names = code_review_by_group.file_names
+        for file_name in file_names:
+            issues = [issue for issue in code_review_by_group.issues if issue.file_name == file_name]
+            potential_issues = [issue for issue in code_review_by_group.potential_issues if issue.file_name == file_name]
+            code_review = CodeReview(
+                file_name=file_name,
+                diff_summary=code_review_by_group.diff_summary,
+                issues=issues,
+                potential_issues=potential_issues
+            )
+            code_review_by_file[file_name] = code_review
+    return code_review_by_file
