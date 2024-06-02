@@ -167,7 +167,6 @@ def review_pr(
             if time() - review_pr_start_time > 50 * 60:
                 _, _ , repository = refresh_token(repository.full_name, installation_id)
                 pr = repository.get_pull(pr.number)
-
             _comment_id = create_update_review_pr_comment(
                 username,
                 pr,

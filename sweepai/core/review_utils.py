@@ -1150,7 +1150,6 @@ class PRReviewBot(ChatGPT):
                 content=system_prompt_sort_issues,
             )
         ]
-
         formatted_user_prompt = user_prompt_sort_issues.format(all_issues=all_issues_formatted)
         sorted_issues_response = self.chat_anthropic(
             content=formatted_user_prompt,
@@ -1350,14 +1349,13 @@ def group_vote_review_pr(
         # note DBSCAN expects a shape with less than or equal to 2 dimensions
         try:
             if all_flattened_embeddings.size:
-                db = DBSCAN(eps=0.25, min_samples=3).fit(all_flattened_embeddings)
+                db = DBSCAN(eps=0.2, min_samples=2).fit(all_flattened_embeddings)
                 groups_to_labels[group_name] = db.labels_
             else:
                 groups_to_labels[group_name] = []
         except ValueError as e:
             logger.error(f"Error with dbscan {e}")
-        
-    LABEL_THRESHOLD = 5
+    LABEL_THRESHOLD = 4
     # get the labels that have a count greater than the threshold
     # format: {file_name: {label: [index, ...]}}
     groups_to_labels_indexes = {}
@@ -1479,7 +1477,7 @@ def cluster_patches(pr_changes: dict[str, PRChange]):
     file_order = [file_name for file_name in all_patch_strings_by_file.keys()]
     files_to_embed = [patches for patches in all_patch_strings_by_file.values()]
     embedded_patches = embed_text_array(files_to_embed)[0]
-    db = DBSCAN(eps=0.7, min_samples=2).fit(embedded_patches)
+    db = DBSCAN(eps=0.6, min_samples=2).fit(embedded_patches)
     labels = db.labels_
     # group key is the label, value is the list of file names to review together
     groups_to_review_files_in: dict[str, list[str]] = {}
