@@ -209,15 +209,15 @@ def on_failing_github_actions(
                         previous_github_actions_logs=previous_gha_logs,
                     )
                 
-                repo_context_manager: RepoContextManager = prep_snippets(cloned_repo=cloned_repo, query=problem_statement.strip("\n"), ticket_progress=None) # need to do this, can use the old query for speed
+                snippets = prep_snippets(cloned_repo=cloned_repo, query=problem_statement.strip("\n"), ticket_progress=None) # need to do this, can use the old query for speed
                 issue_request = get_issue_request(
                     "Fix the following errors to complete the user request.",
                     all_information_prompt,
                 )
                 # only pass in top 3 relevant snippets at this point we dont really need context anymore, we are just modifying the existing files
                 file_change_requests, plan = get_files_to_change_for_gha(
-                    relevant_snippets=repo_context_manager.current_top_snippets[:3],
-                    read_only_snippets=repo_context_manager.read_only_snippets[:3],
+                    relevant_snippets=snippets[:3],
+                    read_only_snippets=[],
                     problem_statement=all_information_prompt,
                     updated_files=modify_files_dict,
                     cloned_repo=cloned_repo,

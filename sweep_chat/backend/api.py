@@ -33,8 +33,7 @@ def search_codebase(
     if not os.path.exists(f"/tmp/{repo}"):
         git.clone(f"https://github.com/{repo_name}", f"/tmp/{repo}")
     cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name)
-    repo_context_manager = prep_snippets(cloned_repo, query, use_multi_query=False, NUM_SNIPPETS_TO_KEEP=0)
-    return repo_context_manager.current_top_snippets
+    return prep_snippets(cloned_repo, query, use_multi_query=False, NUM_SNIPPETS_TO_KEEP=0)
 
 @app.get("/search")
 def search_codebase_endpoint(

@@ -1076,10 +1076,10 @@ if __name__ == "__main__":
         ticket_progress = TicketProgress(
             tracking_id="test",
         )
-        repo_context_manager = prep_snippets(cloned_repo, query, ticket_progress)
+        snippets = prep_snippets(cloned_repo, query, ticket_progress)
         rcm = get_relevant_context(
             query,
-            repo_context_manager,
+            snippets, # THIS SHOULD BE BROKEN
             ticket_progress,
             chat_logger=ChatLogger({"username": "wwzeng1"}),
         )

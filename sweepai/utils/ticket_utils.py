@@ -138,13 +138,8 @@ VECTOR_SEARCH_WEIGHT = 2
 def multi_get_top_k_snippets(
     cloned_repo: ClonedRepo,
     queries: list[str],
-    ticket_progress: TicketProgress | None = None,
     k: int = 15,
-    include_docs: bool = False,
-    include_tests: bool = False,
     do_not_use_file_cache: bool = False, # added for review_pr
-    *args,
-    **kwargs,
 ):
     """
     Handles multiple queries at once now. Makes the vector search faster.
@@ -159,11 +154,13 @@ def multi_get_top_k_snippets(
             do_not_use_file_cache=do_not_use_file_cache
         )
     logger.info(f"Lexical search index took {timer.time_elapsed} seconds")
+    yield "I just finished building the lexical index, I'm currently calculating the lexical scores.", [], snippets, []
 
     for snippet in snippets:
         snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
     with Timer() as timer:
         content_to_lexical_score_list = [search_index(query, lexical_index) for query in queries]
+    yield "I just finished calculating the lexical scores, I'm currently computing the vector scores.", [], snippets, []
     logger.info(f"Lexical search took {timer.time_elapsed} seconds")
     assert content_to_lexical_score_list[0]
 
@@ -187,7 +184,6 @@ def multi_get_top_k_snippets(
             content_to_lexical_score_list[i][snippet.denotation] = apply_adjustment_score(
                 snippet_path=snippet.denotation, old_score=content_to_lexical_score_list[i][snippet.denotation]
             )
-    
     ranked_snippets_list = [
         sorted(
             snippets,
@@ -195,22 +191,22 @@ def multi_get_top_k_snippets(
             reverse=True,
         )[:k] for content_to_lexical_score in content_to_lexical_score_list
     ]
-    return ranked_snippets_list, snippets, content_to_lexical_score_list
+    yield "I just finished ranking the snippets, I'm currently reranking the snippets.", ranked_snippets_list, snippets, content_to_lexical_score_list
 
 # @file_cache()
+@streamable
 def get_top_k_snippets(
     cloned_repo: ClonedRepo,
     query: str,
-    ticket_progress: TicketProgress | None = None,
     k: int = 15,
     do_not_use_file_cache: bool = False, # added for review_pr
     *args,
     **kwargs,
 ):
-    ranked_snippets_list, snippets, content_to_lexical_score_list = multi_get_top_k_snippets(
-        cloned_repo, [query], ticket_progress, k, do_not_use_file_cache=do_not_use_file_cache, *args, **kwargs
-    )
-    return ranked_snippets_list[0], snippets, content_to_lexical_score_list[0]
+    for message, ranked_snippets_list, snippets, content_to_lexical_score_list in multi_get_top_k_snippets(
+        cloned_repo, [query], k, do_not_use_file_cache=do_not_use_file_cache, *args, **kwargs
+    ):
+        yield message, ranked_snippets_list[0], snippets, content_to_lexical_score_list[0]
 
 def get_pointwise_reranked_snippet_scores(
     query: str,
@@ -276,6 +272,7 @@ def get_pointwise_reranked_snippet_scores(
 def process_snippets(type_name, *args, **kwargs):
     return type_name, get_pointwise_reranked_snippet_scores(*args, **kwargs)
 
+@streamable
 def multi_prep_snippets(
     cloned_repo: ClonedRepo,
     queries: list[str],
@@ -288,26 +285,29 @@ def multi_prep_snippets(
     NUM_SNIPPETS_TO_RERANK=100,
     include_docs: bool = False,
     include_tests: bool = False,
-) -> RepoContextManager:
+):
     """
     Assume 0th index is the main query.
     """
     if len(queries) > 1:
-        rank_fusion_offset = 0
         logger.info("Using multi query...")
-        ranked_snippets_list, snippets, content_to_lexical_score_list = multi_get_top_k_snippets(
-            cloned_repo, queries, ticket_progress, k * 3, include_docs, include_tests # k * 3 to have enough snippets to rerank
-        )
+        for message, ranked_snippets, ranked_snippets_list, content_to_lexical_score_list in multi_get_top_k_snippets(
+            cloned_repo, queries, k * 3 # k * 3 to have enough snippets to rerank
+        ):
+            yield message, ranked_snippets
         # Use RRF to rerank snippets
+        rank_fusion_offset = 0
         content_to_lexical_score = defaultdict(float)
         for i, ordered_snippets in enumerate(ranked_snippets_list):
             for j, snippet in enumerate(ordered_snippets):
                 content_to_lexical_score[snippet.denotation] += content_to_lexical_score_list[i][snippet.denotation] * (1 / 2 ** (rank_fusion_offset + j))
     else:
-        ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
-            cloned_repo, queries[0], ticket_progress, k, include_docs, include_tests
-        )
+        for message, ranked_snippets, snippets, content_to_lexical_score in get_top_k_snippets(
+            cloned_repo, queries[0], k
+        ):
+            yield message, ranked_snippets, snippets, content_to_lexical_score
     separated_snippets = separate_snippets_by_type(snippets)
+    yield "Retrieved top snippets, currently reranking:\n", ranked_snippets
     if not skip_pointwise_reranking:
         all_snippets = []
         if "junk" in separated_snippets:
@@ -380,26 +380,20 @@ def multi_prep_snippets(
                 all_snippets.extend(snippets_subset[:max_results])
 
         ranked_snippets = all_snippets[:k]
+        yield "Final snippets:\n", ranked_snippets
     else:
         ranked_snippets = sorted(
             snippets,
             key=lambda snippet: content_to_lexical_score[snippet.denotation],
             reverse=True,
         )[:k]
+        yield "Final snippets:\n", ranked_snippets
     # you can use snippet.denotation and snippet.get_snippet()
     if not skip_reranking and skip_pointwise_reranking:
         ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(queries[0], ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
-    dir_obj = DirectoryTree() # init dummy one for now, this shouldn't be used
-    repo_context_manager = RepoContextManager(
-        dir_obj=dir_obj,
-        current_top_tree=str(dir_obj),
-        current_top_snippets=ranked_snippets,
-        snippets=snippets,
-        snippet_scores=content_to_lexical_score,
-        cloned_repo=cloned_repo,
-    )
-    return repo_context_manager
+    return ranked_snippets
 
+@streamable
 def prep_snippets(
     cloned_repo: ClonedRepo,
     query: str,
@@ -409,14 +403,17 @@ def prep_snippets(
     use_multi_query: bool = True,
     *args,
     **kwargs,
-) -> RepoContextManager:
+) -> list[Snippet]:
     if use_multi_query:
         queries = [query, *generate_multi_queries(query)]
+        yield "Generated multi queries\n", []
     else:
         queries = [query]
-    return multi_prep_snippets(
+    for message, snippets in multi_prep_snippets(
         cloned_repo, queries, ticket_progress, k, skip_reranking, *args, **kwargs
-    )
+    ):
+        yield message, snippets
+    return snippets
 
 def get_relevant_context(
     query: str,

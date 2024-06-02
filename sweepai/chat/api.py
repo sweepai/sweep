@@ -229,14 +229,14 @@ def search_codebase(
             print(f"Cloned {repo_name} to /tmp/{repo}")
         cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name, token=access_token)
         cloned_repo.pull()
-        repo_context_manager = prep_snippets(
+        snippets = prep_snippets(
             cloned_repo, query, 
             use_multi_query=False,
             NUM_SNIPPETS_TO_KEEP=0,
             skip_analyze_agent=True
         )
     logger.debug(f"Preparing snippets took {timer.time_elapsed} seconds")
-    return repo_context_manager.current_top_snippets
+    return snippets
 
 @app.post("/backend/chat")
 def chat_codebase(

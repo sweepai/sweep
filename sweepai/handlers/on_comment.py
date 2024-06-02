@@ -269,10 +269,9 @@ def on_comment(
 
             search_query = comment.strip("\n")
             formatted_query = comment.strip("\n")
-            repo_context_manager = prep_snippets(
+            snippets = prep_snippets(
                 cloned_repo, search_query, use_multi_query=False
             )
-            snippets = repo_context_manager.current_top_snippets
 
             pr_diffs, _dropped_files, _unsuitable_files = get_pr_changes(repo, pr)
             snippets_modified = [Snippet.from_file(
