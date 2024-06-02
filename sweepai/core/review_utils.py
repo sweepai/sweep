@@ -383,8 +383,8 @@ You will be analyzing a list of potential issues that have been identified by a 
 
 system_prompt_identify_new_functions = """You are an expert programmer with a keen eye for detail, assigned to analyze a series of code patches in a pull request. Your primary responsibility is to meticulously identify all newly created functions within the code."""
 
-system_prompt_identify_repeats = """You are a proficient programmer tasked with identifying repeated or unnecessary functions in a codebase. Your job is to find and highlight any duplicated or redundant function definitions.
-You will be given a function definition that was just added to the codebase and your job will be to check whether or not this function was actually necessary or not given a series of code snippets.
+system_prompt_identify_repeats = """You are a proficient programmer tasked with identifying useless utility functions in a codebase. Your job is to identify any useless function definitions.
+You will be given a function definition that was just added to the codebase and your job will be to check whether or not this function was actually necessary or not given a series of related code snippets.
 """
 
 system_prompt_pr_summary = """You are a talented software engineer that excels at summarising pull requests for readability and brevity. You will be analysing a series of patches that represent all the changes made in a specific pull request.
@@ -642,7 +642,7 @@ Below are a series of code snippets retrieved from the codebase via vector searc
 
 # Instructions
 1. Analyze each of the code snippets above and determine whether or not the new function is useless. Specifically, compare the new function with the existing methods in the code snippets by answering ALL the following questions:
-   1a. Purpose: What is the primary purpose of the new function? Is this purpose already served by existing methods? Is this a class method? If so, this function is not useless, even if there are identical functions that exist.
+   1a. Purpose: What is the primary purpose of the new function? Is this purpose already served by an existing method? If its purpose is not perfectly serve by an existing method then this function is not useless. If it takes more than one existing function to replicate the functionality of this new function, than this new funciton is not useless.
    1b. Intention: What was the intention behind adding this new function? Is this function meant to be a wrapper or an interface function? If the answer is yes, then this new function is important and should not be removed.
    1c. Functionality: What specific tasks or operations does the new function perform? Are these tasks or operations already handled by existing methods?
    1d. Initialization: What data structures or variables are initialized in the new function? Are similar initializations present in existing methods?
