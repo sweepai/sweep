@@ -5,6 +5,12 @@ YieldType = TypeVar('YieldType')
 ReturnType = TypeVar('ReturnType')
 
 class StreamableFunction(Generic[InputType, ReturnType, YieldType]):
+    """
+    The purpose of streamable function is to allow for the streaming of a function's intermediate results.
+    This is great because you can call the function normally, and it will return the function's return value,
+    or the last yielded value, if the function has no return.
+    But you can also call .stream() on the function, and it will return a generator that yields the intermediate results.
+    """
     def __init__(self, stream: Callable[InputType, Generator[YieldType, None, ReturnType]]):
         self.stream: Callable[InputType, Generator[YieldType, None, ReturnType]] = stream
     

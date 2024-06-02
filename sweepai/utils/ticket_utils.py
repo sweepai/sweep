@@ -135,6 +135,7 @@ NUM_SNIPPETS_TO_RERANK = 100
 VECTOR_SEARCH_WEIGHT = 2
 
 # @file_cache()
+@streamable
 def multi_get_top_k_snippets(
     cloned_repo: ClonedRepo,
     queries: list[str],
@@ -203,7 +204,7 @@ def get_top_k_snippets(
     *args,
     **kwargs,
 ):
-    for message, ranked_snippets_list, snippets, content_to_lexical_score_list in multi_get_top_k_snippets(
+    for message, ranked_snippets_list, snippets, content_to_lexical_score_list in multi_get_top_k_snippets.stream(
         cloned_repo, [query], k, do_not_use_file_cache=do_not_use_file_cache, *args, **kwargs
     ):
         yield message, ranked_snippets_list[0], snippets, content_to_lexical_score_list[0]
@@ -283,18 +284,16 @@ def multi_prep_snippets(
     skip_analyze_agent: bool = False,
     NUM_SNIPPETS_TO_KEEP=0,
     NUM_SNIPPETS_TO_RERANK=100,
-    include_docs: bool = False,
-    include_tests: bool = False,
 ):
     """
     Assume 0th index is the main query.
     """
     if len(queries) > 1:
         logger.info("Using multi query...")
-        for message, ranked_snippets, ranked_snippets_list, content_to_lexical_score_list in multi_get_top_k_snippets(
+        for message, ranked_snippets_list, snippets, content_to_lexical_score_list in multi_get_top_k_snippets.stream(
             cloned_repo, queries, k * 3 # k * 3 to have enough snippets to rerank
         ):
-            yield message, ranked_snippets
+            yield message, []
         # Use RRF to rerank snippets
         rank_fusion_offset = 0
         content_to_lexical_score = defaultdict(float)
@@ -302,7 +301,7 @@ def multi_prep_snippets(
             for j, snippet in enumerate(ordered_snippets):
                 content_to_lexical_score[snippet.denotation] += content_to_lexical_score_list[i][snippet.denotation] * (1 / 2 ** (rank_fusion_offset + j))
     else:
-        for message, ranked_snippets, snippets, content_to_lexical_score in get_top_k_snippets(
+        for message, ranked_snippets, snippets, content_to_lexical_score in get_top_k_snippets.stream(
             cloned_repo, queries[0], k
         ):
             yield message, ranked_snippets, snippets, content_to_lexical_score
