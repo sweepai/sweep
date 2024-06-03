@@ -139,6 +139,7 @@ def multi_get_top_k_snippets(
     queries: list[str],
     k: int = 15,
     do_not_use_file_cache: bool = False, # added for review_pr
+    use_repo_dir: bool = False,
     seed: str = "", # for caches
 ):
     """
@@ -147,9 +148,12 @@ def multi_get_top_k_snippets(
     sweep_config: SweepConfig = SweepConfig()
     blocked_dirs = get_blocked_dirs(cloned_repo.repo)
     sweep_config.exclude_dirs += blocked_dirs
+    repository_directory = cloned_repo.cached_dir
+    if use_repo_dir:
+        repository_directory = cloned_repo.repo_dir
     with Timer() as timer:
         _, snippets, lexical_index = prepare_lexical_search_index(
-            cloned_repo.cached_dir,
+            repository_directory,
             sweep_config,
             do_not_use_file_cache=do_not_use_file_cache,
             seed=seed
@@ -199,13 +203,14 @@ def get_top_k_snippets(
     query: str,
     k: int = 15,
     do_not_use_file_cache: bool = False, # added for review_pr
+    use_repo_dir: bool = False,
     seed: str = "",
     *args,
     **kwargs,
 ):
     # Kinda cursed, we have to rework this
     for message, ranked_snippets_list, snippets, content_to_lexical_score_list in multi_get_top_k_snippets.stream(
-        cloned_repo, [query], k, do_not_use_file_cache=do_not_use_file_cache, seed=seed, *args, **kwargs
+        cloned_repo, [query], k, do_not_use_file_cache=do_not_use_file_cache, use_repo_dir=use_repo_dir, seed=seed, *args, **kwargs
     ):
         yield message, ranked_snippets_list[0] if ranked_snippets_list else [], snippets, content_to_lexical_score_list[0] if content_to_lexical_score_list else []
 

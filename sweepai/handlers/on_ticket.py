@@ -233,7 +233,7 @@ def on_ticket(
                 branch=overrided_branch_name,
             )
             # check that repo's directory is non-empty
-            if os.listdir(cloned_repo.cached_dir) == []:
+            if os.listdir(cloned_repo.repo_dir) == []:
                 handle_empty_repository(comment_id, current_issue, progress_headers, issue_comment)
                 return {"success": False}
             indexing_message = (

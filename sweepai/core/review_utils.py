@@ -1046,10 +1046,9 @@ class PRReviewBot(ChatGPT):
                 modified_files_dict[file_name]["modified"] = remove_lines_from_text(
                     modified_files_dict[file_name]["original"], start=int(function.start_line),end=int(function.end_line)
                 )
-                # now update the cloned repo file in both repo_dir and cached_dir
+                # now update the cloned repo file in both repo_dir
                 try:
                     update_file(cloned_repo.repo_dir, file_name, modified_files_dict[file_name]["modified"])
-                    update_file(cloned_repo.cached_dir, file_name, modified_files_dict[file_name]["modified"])
                 except Exception as e:
                     logger.error(f"Failure updating file {cloned_repo.repo_dir}{function.file_name}: {e}")
                     posthog.capture(
@@ -1067,6 +1066,7 @@ class PRReviewBot(ChatGPT):
                     include_docs=False, 
                     include_tests=False, 
                     do_not_use_file_cache=True,
+                    use_repo_dir=True,
                     seed=file_hash
                 )
                 formatted_code_snippets = "\n\n".join(
@@ -1119,7 +1119,6 @@ class PRReviewBot(ChatGPT):
                 # now revert the cloned repo file - if this fails this can cause big issues
                 try:
                     update_file(cloned_repo.repo_dir, file_name, modified_files_dict[file_name]["original"])
-                    update_file(cloned_repo.cached_dir, file_name, modified_files_dict[file_name]["original"])
                 except Exception as e:
                     logger.error(f"Failure updating file {cloned_repo.repo_dir}{function.file_name}: {e}")
                     posthog.capture(
