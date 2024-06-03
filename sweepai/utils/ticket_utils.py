@@ -433,9 +433,6 @@ def get_relevant_context(
         import_graph,
     )
     repo_context_manager = add_relevant_files_to_top_snippets(repo_context_manager)
-    repo_context_manager.dir_obj.add_relevant_files(
-        repo_context_manager.relevant_file_paths
-    )
     # Idea: make two passes, one with tests and one without
     # if editing source code only provide source code
     # if editing test provide both source and test code
