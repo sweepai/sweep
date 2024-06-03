@@ -46,6 +46,7 @@ jobs:
       run: |
         echo "${{ secrets.CYPRESS_ENV_LOCAL }}" > .env.local
         echo "${{ secrets.CYPRESS_ENV_JSON }}" > cypress.env.json
+        ls -la
     
     - name: Run Cypress tests
       working-directory: sweep_chat
