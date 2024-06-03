@@ -416,11 +416,13 @@ def on_ticket(
                 # search/context manager
                 logger.info("Searching for relevant snippets...")
                 # fetch images from body of issue
+                # TODO 从issue中提取Image的相关信息，包括文字等信息，image to text
                 image_urls = get_image_urls_from_issue(issue_number, repo_full_name, installation_id)
                 image_contents = get_image_contents_from_urls(image_urls)
                 if image_contents: # doing it here to avoid editing the original issue
                     internal_message_summary += ImageDescriptionBot().describe_images(text=title + internal_message_summary, images=image_contents)
-                
+
+                # TODO 查找相关代码片段
                 snippets, tree, _, repo_context_manager = fetch_relevant_files(
                     cloned_repo,
                     title,
@@ -448,6 +450,8 @@ def on_ticket(
                 )
                 raise e
 
+            # TODO 有趣的事情发生了，他们也用了github的相关sdk client 来获取repo对象，而不是自己clone的那个repo了
+            # TODO from github.objects import Repository
             _user_token, g = get_github_client(installation_id)
             user_token, g, repo = refresh_token(repo_full_name, installation_id)
             cloned_repo.token = user_token
@@ -487,6 +491,7 @@ def on_ticket(
             try:
                 newline = "\n"
                 logger.info("Fetching files to modify/create...")
+                # TODO generate code plan
                 renames_dict, file_change_requests, plan = get_files_to_change(
                     relevant_snippets=repo_context_manager.current_top_snippets,
                     read_only_snippets=repo_context_manager.read_only_snippets,
@@ -498,6 +503,7 @@ def on_ticket(
                 )
                 raise_on_no_file_change_requests(title, summary, edit_sweep_comment, file_change_requests)
 
+                # TODO 把plan格式化为markdown，然后通过comment给用户展示
                 planning_markdown = render_fcrs(file_change_requests)
                 edit_sweep_comment(planning_markdown, 2)
             except Exception as e:
@@ -526,9 +532,11 @@ def on_ticket(
                     content="",
                 )
                 logger.info("Making PR...")
+                # TODO 调用github client 创建branch
                 pull_request.branch_name = create_branch(
                     cloned_repo.repo, pull_request.branch_name, base_branch=overrided_branch_name
                 )
+                # TODO Core Business for Code Gen
                 modify_files_dict, changed_file, file_change_requests = handle_file_change_requests(
                     file_change_requests=file_change_requests,
                     request=issue_request,
@@ -537,11 +545,14 @@ def on_ticket(
                     installation_id=installation_id,
                     renames_dict=renames_dict
                 )
+                # TODO 根据生成结果，进行summary生成提交的comment内容
                 pull_request_bot = PRSummaryBot()
                 commit_message = pull_request_bot.get_commit_message(modify_files_dict, chat_logger=chat_logger)[:50]
                 modify_files_dict_history.append(copy.deepcopy(modify_files_dict))
                 new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
                 previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
+                # TODO 最后把生成结果进行验证和数据消毒清洗, 目前的消毒清洗主要是看filepath是否在fcr和代码库中存在
+                # TODO 只保留那些符合要求的fcr作为要提交的内容
                 new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, file_change_requests)
                 if files_removed and username:
                     posthog.capture(
@@ -552,6 +563,7 @@ def on_ticket(
                             "new_keys": ",".join(new_file_contents_to_commit.keys()) 
                         },
                     )
+                # TODO 将代码提交到github
                 commit = commit_multi_file_changes(cloned_repo, new_file_contents_to_commit, commit_message, pull_request.branch_name, renames_dict=renames_dict)
                 edit_sweep_comment(
                     f"Your changes have been successfully made to the branch [`{pull_request.branch_name}`](https://github.com/{repo_full_name}/tree/{pull_request.branch_name}). I have validated these changes using a syntax checker and a linter.",
@@ -626,6 +638,7 @@ def on_ticket(
             fire_and_forget_wrapper(remove_emoji)(content_to_delete="eyes")
 
             # create draft pr, then convert to regular pr later
+            # TODO 根据sourebranch创建PR
             pr: GithubPullRequest = repo.create_pull(
                 title=pr_changes.title,
                 body=pr_changes.body,
