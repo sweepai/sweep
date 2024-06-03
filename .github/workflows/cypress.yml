@@ -28,7 +28,7 @@ jobs:
       with:
         path: |
           ~/.npm
-          ${{ github.workspace }}/.next/cache
+          sweep_chat/.next/cache
         key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx') }}
         restore-keys: |
           ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
@@ -46,7 +46,7 @@ jobs:
       with:
         path: |
           ~/.npm
-          ${{ github.workspace }}/.next/cache
+          sweep_chat/.next/cache
         key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx') }}
 
     - name: Load .env.local from secrets
