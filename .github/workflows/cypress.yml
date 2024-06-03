@@ -20,6 +20,9 @@ jobs:
   cypress:
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
     - name: Cache node modules
       uses: actions/cache@v4
       with:
@@ -27,6 +30,7 @@ jobs:
         key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
         restore-keys: |
           ${{ runner.os }}-node-
+
     - name: List directory contents
       run: pwd && ls -la
 
