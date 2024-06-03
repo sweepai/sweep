@@ -1,8 +1,6 @@
 from math import inf
 import os
-import queue
 import re
-import threading
 import time
 import traceback
 from typing import Any, Callable, Iterator, Literal
@@ -84,13 +82,6 @@ model_to_max_tokens = {
     "gpt-3.5-turbo-16k-0613": 16000,
 }
 default_temperature = 0.1
-
-def get_next_token(stream_: Iterator[str], token_queue: queue.Queue):
-    try:
-        for i, text in enumerate(stream_.text_stream):
-            token_queue.put((i, text))
-    except Exception as e_:
-        token_queue.put(e_)
 
 class MessageList(BaseModel):
     messages: list[Message] = [
@@ -442,6 +433,7 @@ class ChatGPT(MessageList):
         hit_content_filtering = False
         if stream:
             def llm_stream():
+                model = self.model
                 if use_openai:
                     client = OpenAI()
                     response = client.chat.completions.create(
@@ -457,7 +449,16 @@ class ChatGPT(MessageList):
                         if chunk.choices[0].finish_reason == "stop":
                             break
                 else:
-                    client = Anthropic(api_key=ANTHROPIC_API_KEY)
+                    if ANTHROPIC_AVAILABLE and use_aws:
+                        if "anthropic" not in model:
+                            model = f"anthropic.{model}-v1:0"
+                        client = AnthropicBedrock(
+                            aws_access_key=AWS_ACCESS_KEY,
+                            aws_secret_key=AWS_SECRET_KEY,
+                            aws_region=AWS_REGION,
+                        )
+                    else:
+                        client = Anthropic(api_key=ANTHROPIC_API_KEY)
                     start_time = time.time()
                     message_dicts = [
                         {
@@ -480,34 +481,12 @@ class ChatGPT(MessageList):
                             if verbose:
                                 print(f"Connected to {model}...")
 
-                            token_queue = queue.Queue()
-                            token_thread = threading.Thread(target=get_next_token, args=(stream_, token_queue))
-                            token_thread.daemon = True
-                            token_thread.start()
-
-                            token_timeout = 5  # Timeout threshold in seconds
-
-                            while token_thread.is_alive():
-                                try:
-                                    item = token_queue.get(timeout=token_timeout)
-
-                                    if item is None:
-                                        break
-
-                                    i, text = item
-
-                                    if verbose:
-                                        if i == 0:
-                                            print(f"Time to first token: {time.time() - start_time:.2f}s")
-                                        print(text, end="", flush=True)
-
-                                    yield text
-
-                                except queue.Empty:
-                                    if not token_thread.is_alive():
-                                        break
-                                    raise TimeoutError(f"Time between tokens exceeded {token_timeout} seconds.")
-
+                            for i, token in enumerate(stream_.text_stream):
+                                if verbose:
+                                    if i == 0:
+                                        print(f"Time to first token: {time.time() - start_time:.2f}s")
+                                    print(token, end="", flush=True)
+                                yield token
                         except TimeoutError as te:
                             logger.exception(te)
                             raise te

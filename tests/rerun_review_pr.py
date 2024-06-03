@@ -1,9 +1,13 @@
+import hashlib
+import hmac
 import html
+import json
 
 import typer
 from fastapi.testclient import TestClient
 
 from sweepai.api import app
+from sweepai.config.server import WEBHOOK_SECRET
 from sweepai.utils.github_utils import get_github_client, get_installation_id, get_installation
 
 
@@ -60,8 +64,20 @@ def review_pr(
     print("Sending request...")
 
     client = TestClient(app)
+    sha = ""
+    if WEBHOOK_SECRET:
+        sha = hmac.new(
+            WEBHOOK_SECRET.encode("utf-8"),
+            msg=json.dumps(request).encode("utf-8"),
+            digestmod=hashlib.sha256,
+        ).hexdigest()
     response = client.post(
-        "/", json=request, headers={"X-GitHub-Event": "pull_request"}
+        "/",
+        json=request,
+        headers={
+            "X-GitHub-Event": "pull_request",
+            "X-Hub-Signature-256": f"sha256={sha}"
+        }
     )
     print(response)
 

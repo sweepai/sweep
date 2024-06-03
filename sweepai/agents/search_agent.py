@@ -273,7 +273,7 @@ def search_codebase(
     *args,
     **kwargs,
 ):
-    rcm = prep_snippets(
+    snippets = prep_snippets(
         cloned_repo,
         question,
         use_multi_query=False,
@@ -281,8 +281,8 @@ def search_codebase(
         *args,
         **kwargs
     )
-    rcm.current_top_snippets = [snippet for snippet in rcm.current_top_snippets][:5]
-    return rcm
+    snippets = [snippet for snippet in snippets][:5]
+    return snippets
 
 def search(
     github_issue: str,

@@ -5,9 +5,9 @@ from sweepai.utils.majority_vote import majority_vote_decorator
 from collections import Counter
 
 type_to_explanation = {
-    "source": "This is the source code. The files contain the actual implementation of the software.",
-    "tests": "These the tests. They contain the tests that verify the correctness of the implementation.",
-    "tools": "These are tool configurations and scripts. They are used to build, deploy, or manage the software.",
+    "source": "This is the source code of the software.",
+    "tests": "These are the test files in the repository.",
+    "tools": "These are tool configurations and scripts used to build, deploy, or manage the software.",
     "dependencies": "These are dependency configurations. They specify the external libraries and packages required by the software.",
     "docs": "These are documentation files. They provide information and instructions about the software.",
 }

@@ -8,12 +8,13 @@ import concurrent.futures
 from loguru import logger
 from tqdm import tqdm
 import networkx as nx
+from sweepai.utils.streamable_functions import streamable
 
 from sweepai.utils.timer import Timer
 from sweepai.agents.analyze_snippets import AnalyzeSnippetAgent
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import COHERE_API_KEY
-from sweepai.core.context_pruning import RepoContextManager, add_relevant_files_to_top_snippets, build_import_trees, integrate_graph_retrieval, parse_query_for_files
+from sweepai.core.context_pruning import RepoContextManager, add_relevant_files_to_top_snippets, build_import_trees, parse_query_for_files
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import (
     compute_vector_search_scores,
@@ -28,7 +29,6 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.multi_query import generate_multi_queries
 from sweepai.utils.openai_listwise_reranker import listwise_rerank_snippets
 from sweepai.utils.progress import TicketProgress
-from sweepai.utils.tree_utils import DirectoryTree
 
 
 # the order here matters as the first match is used
@@ -133,19 +133,14 @@ def apply_adjustment_score(
 NUM_SNIPPETS_TO_RERANK = 100
 VECTOR_SEARCH_WEIGHT = 2
 
-# @file_cache()
+@streamable
 def multi_get_top_k_snippets(
     cloned_repo: ClonedRepo,
     queries: list[str],
-    ticket_progress: TicketProgress | None = None,
     k: int = 15,
-    include_docs: bool = False,
-    include_tests: bool = False,
     do_not_use_file_cache: bool = False, # added for review_pr
     use_repo_dir: bool = False,
     seed: str = "", # for caches
-    *args,
-    **kwargs,
 ):
     """
     Handles multiple queries at once now. Makes the vector search faster.
@@ -163,13 +158,14 @@ def multi_get_top_k_snippets(
             do_not_use_file_cache=do_not_use_file_cache,
             seed=seed
         )
-    logger.info(f"Lexical search index took {timer.time_elapsed} seconds")
+        logger.info(f"Lexical indexing took {timer.time_elapsed} seconds")
+        for snippet in snippets:
+            snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
+        with Timer() as timer:
+            content_to_lexical_score_list = [search_index(query, lexical_index) for query in queries]
+        logger.info(f"Lexical search took {timer.time_elapsed} seconds")
 
-    for snippet in snippets:
-        snippet.file_path = snippet.file_path[len(repository_directory) + 1 :]
-    with Timer() as timer:
-        content_to_lexical_score_list = [search_index(query, lexical_index) for query in queries]
-    logger.info(f"Lexical search took {timer.time_elapsed} seconds")
+    yield "Finished lexical search, performing vector search...", [], snippets, []
     assert content_to_lexical_score_list[0]
 
     with Timer() as timer:
@@ -192,7 +188,6 @@ def multi_get_top_k_snippets(
             content_to_lexical_score_list[i][snippet.denotation] = apply_adjustment_score(
                 snippet_path=snippet.denotation, old_score=content_to_lexical_score_list[i][snippet.denotation]
             )
-    
     ranked_snippets_list = [
         sorted(
             snippets,
@@ -200,13 +195,12 @@ def multi_get_top_k_snippets(
             reverse=True,
         )[:k] for content_to_lexical_score in content_to_lexical_score_list
     ]
-    return ranked_snippets_list, snippets, content_to_lexical_score_list
+    yield "Finished hybrid search, currently performing reranking...", ranked_snippets_list, snippets, content_to_lexical_score_list
 
-# @file_cache()
+@streamable
 def get_top_k_snippets(
     cloned_repo: ClonedRepo,
     query: str,
-    ticket_progress: TicketProgress | None = None,
     k: int = 15,
     do_not_use_file_cache: bool = False, # added for review_pr
     use_repo_dir: bool = False,
@@ -214,18 +208,11 @@ def get_top_k_snippets(
     *args,
     **kwargs,
 ):
-    ranked_snippets_list, snippets, content_to_lexical_score_list = multi_get_top_k_snippets(
-        cloned_repo, 
-        [query], 
-        ticket_progress, 
-        k, 
-        do_not_use_file_cache=do_not_use_file_cache, 
-        use_repo_dir=use_repo_dir,
-        seed=seed, 
-        *args, 
-        **kwargs
-    )
-    return ranked_snippets_list[0], snippets, content_to_lexical_score_list[0]
+    # Kinda cursed, we have to rework this
+    for message, ranked_snippets_list, snippets, content_to_lexical_score_list in multi_get_top_k_snippets.stream(
+        cloned_repo, [query], k, do_not_use_file_cache=do_not_use_file_cache, use_repo_dir=use_repo_dir, seed=seed, *args, **kwargs
+    ):
+        yield message, ranked_snippets_list[0] if ranked_snippets_list else [], snippets, content_to_lexical_score_list[0] if content_to_lexical_score_list else []
 
 def get_pointwise_reranked_snippet_scores(
     query: str,
@@ -291,6 +278,7 @@ def get_pointwise_reranked_snippet_scores(
 def process_snippets(type_name, *args, **kwargs):
     return type_name, get_pointwise_reranked_snippet_scores(*args, **kwargs)
 
+@streamable
 def multi_prep_snippets(
     cloned_repo: ClonedRepo,
     queries: list[str],
@@ -301,28 +289,34 @@ def multi_prep_snippets(
     skip_analyze_agent: bool = False,
     NUM_SNIPPETS_TO_KEEP=0,
     NUM_SNIPPETS_TO_RERANK=100,
-    include_docs: bool = False,
-    include_tests: bool = False,
-) -> RepoContextManager:
+):
     """
     Assume 0th index is the main query.
     """
     if len(queries) > 1:
-        rank_fusion_offset = 0
         logger.info("Using multi query...")
-        ranked_snippets_list, snippets, content_to_lexical_score_list = multi_get_top_k_snippets(
-            cloned_repo, queries, ticket_progress, k * 3, include_docs, include_tests # k * 3 to have enough snippets to rerank
-        )
+        for message, ranked_snippets_list, snippets, content_to_lexical_score_list in multi_get_top_k_snippets.stream(
+            cloned_repo, queries, k * 3 # k * 3 to have enough snippets to rerank
+        ):
+            yield message, []
         # Use RRF to rerank snippets
+        rank_fusion_offset = 0
         content_to_lexical_score = defaultdict(float)
         for i, ordered_snippets in enumerate(ranked_snippets_list):
             for j, snippet in enumerate(ordered_snippets):
                 content_to_lexical_score[snippet.denotation] += content_to_lexical_score_list[i][snippet.denotation] * (1 / 2 ** (rank_fusion_offset + j))
+        ranked_snippets = sorted(
+            snippets,
+            key=lambda snippet: content_to_lexical_score[snippet.denotation],
+            reverse=True,
+        )[:k]
     else:
-        ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
-            cloned_repo, queries[0], ticket_progress, k, include_docs, include_tests
-        )
+        for message, ranked_snippets, snippets, content_to_lexical_score in get_top_k_snippets.stream(
+            cloned_repo, queries[0], k
+        ):
+            yield message, ranked_snippets
     separated_snippets = separate_snippets_by_type(snippets)
+    yield f"Retrieved top {k} snippets, currently reranking:\n", ranked_snippets
     if not skip_pointwise_reranking:
         all_snippets = []
         if "junk" in separated_snippets:
@@ -395,26 +389,20 @@ def multi_prep_snippets(
                 all_snippets.extend(snippets_subset[:max_results])
 
         ranked_snippets = all_snippets[:k]
+        yield "Finished reranking, here are the relevant final search results:\n", ranked_snippets
     else:
         ranked_snippets = sorted(
             snippets,
             key=lambda snippet: content_to_lexical_score[snippet.denotation],
             reverse=True,
         )[:k]
+        yield "Finished reranking, here are the relevant final search results:\n", ranked_snippets
     # you can use snippet.denotation and snippet.get_snippet()
     if not skip_reranking and skip_pointwise_reranking:
         ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(queries[0], ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
-    dir_obj = DirectoryTree() # init dummy one for now, this shouldn't be used
-    repo_context_manager = RepoContextManager(
-        dir_obj=dir_obj,
-        current_top_tree=str(dir_obj),
-        current_top_snippets=ranked_snippets,
-        snippets=snippets,
-        snippet_scores=content_to_lexical_score,
-        cloned_repo=cloned_repo,
-    )
-    return repo_context_manager
+    return ranked_snippets
 
+@streamable
 def prep_snippets(
     cloned_repo: ClonedRepo,
     query: str,
@@ -424,14 +412,17 @@ def prep_snippets(
     use_multi_query: bool = True,
     *args,
     **kwargs,
-) -> RepoContextManager:
+) -> list[Snippet]:
     if use_multi_query:
         queries = [query, *generate_multi_queries(query)]
+        yield "Finished generating search queries, performing lexical search...\n", []
     else:
         queries = [query]
-    return multi_prep_snippets(
+    for message, snippets in multi_prep_snippets.stream(
         cloned_repo, queries, ticket_progress, k, skip_reranking, *args, **kwargs
-    )
+    ):
+        yield message, snippets
+    return snippets
 
 def get_relevant_context(
     query: str,
@@ -447,9 +438,6 @@ def get_relevant_context(
         import_graph,
     )
     repo_context_manager = add_relevant_files_to_top_snippets(repo_context_manager)
-    repo_context_manager.dir_obj.add_relevant_files(
-        repo_context_manager.relevant_file_paths
-    )
     # Idea: make two passes, one with tests and one without
     # if editing source code only provide source code
     # if editing test provide both source and test code
@@ -497,6 +485,7 @@ def get_relevant_context(
         repo_context_manager.read_only_snippets = copy.deepcopy(previous_read_only_snippets)
     return repo_context_manager
 
+@streamable
 def fetch_relevant_files(
     cloned_repo,
     title,
@@ -519,22 +508,30 @@ def fetch_relevant_files(
             "\n"
         )
         ticket_progress = None # refactor later
-        repo_context_manager = prep_snippets(cloned_repo, search_query, ticket_progress)
+        
+        for message, ranked_snippets in prep_snippets.stream(cloned_repo, search_query, ticket_progress):
+            repo_context_manager = RepoContextManager(
+                cloned_repo=cloned_repo,
+                current_top_snippets=ranked_snippets,
+                read_only_snippets=[],
+            )
+            yield message, repo_context_manager
+        # yield "Here are the initial search results. I'm currently looking for files that you've explicitly mentioned.\n", repo_context_manager
 
-        repo_context_manager, import_graph = integrate_graph_retrieval(search_query, repo_context_manager)
+        # repo_context_manager, import_graph = integrate_graph_retrieval(search_query, repo_context_manager)
 
         parse_query_for_files(search_query, repo_context_manager)
+        yield "Here are the files I've found so far. I'm currently selecting a subset of the files to edit.\n", repo_context_manager
+
         repo_context_manager = get_relevant_context(
             formatted_query,
             repo_context_manager,
             ticket_progress,
             chat_logger=chat_logger,
-            import_graph=import_graph,
+            # import_graph=import_graph,
             images=images
         )
-        snippets = repo_context_manager.current_top_snippets
-        dir_obj = repo_context_manager.dir_obj
-        tree = str(dir_obj)
+        yield "Here are the code search results. I'm now analyzing these search results to write the PR.\n", repo_context_manager
     except Exception as e:
         trace = traceback.format_exc()
         logger.exception(f"{trace} (tracking ID: `{tracking_id}`)")
@@ -548,7 +545,7 @@ def fetch_relevant_files(
             },
         )
         raise e
-    return snippets, tree, dir_obj, repo_context_manager
+    return repo_context_manager
 
 
 SLOW_MODE = False

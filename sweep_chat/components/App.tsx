@@ -31,7 +31,7 @@ import { Slider } from "./ui/slider";
 import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Label } from "./ui/label";
-
+import PulsingLoader from "./shared/PulsingLoader";
 
 if (typeof window !== 'undefined') {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!)
@@ -44,6 +44,7 @@ interface Snippet {
   end: number;
   file_path: string;
   type_name: "source" | "tests" | "dependencies" | "tools" | "docs";
+  score: number;
 }
 
 interface Message {
@@ -88,7 +89,7 @@ const SnippetBadge = ({
   button?: JSX.Element;
 }) => {
   return (
-    <div className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 ${typeNameToColor[snippet.type_name]} ${className || ""} `}>
+    <div className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 ${typeNameToColor[snippet.type_name]} ${className || ""} `} style={{ opacity: `${Math.max(Math.min(1, snippet.score), 0.2)}` }}>
       <HoverCard openDelay={300} closeDelay={200}>
         <HoverCardTrigger asChild>
           <Button variant="link" className="text-sm py-0 px-1 h-6 leading-4">
@@ -213,12 +214,12 @@ const MessageDisplay = ({ message, className, onEdit }: { message: Message, clas
           } ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
       >
         {message.role === "function" ? (
-          <Accordion type="single" collapsible className="w-full" defaultValue={(message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0) ? "function" : undefined}>
+          <Accordion type="single" collapsible className="w-full" defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}>
             <AccordionItem value="function" className="border-none">
               <AccordionTrigger className="border-none py-0 text-left">
                 <div className="text-xs text-gray-400 flex align-center">
                   {!message.function_call!.is_complete ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-zinc-500 mr-2"></div>
+                    <PulsingLoader size={4} />
                   ) : (
                     <FaCheck
                       className="inline-block mr-2"
@@ -228,7 +229,12 @@ const MessageDisplay = ({ message, className, onEdit }: { message: Message, clas
                   <span>{getFunctionCallHeaderString(message.function_call)}</span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="pb-0">
+              <AccordionContent className={`pb-0 ${message.content && message.function_call?.function_name === "search_codebase" && !message.function_call?.is_complete ? "pt-6" : "pt-0"}`}>
+                {message.function_call?.function_name === "search_codebase" && message.content && !message.function_call.is_complete && (
+                  <span className="p-4 pl-2">
+                    {message.content}
+                  </span>
+                )}
                 {message.function_call!.snippets ? (
                   <div className="pb-0 pt-4">
                     {message.function_call!.snippets.map((snippet, index) => (
@@ -332,6 +338,56 @@ const MessageDisplay = ({ message, className, onEdit }: { message: Message, clas
   );
 };
 
+async function* streamMessages(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  isStream: React.MutableRefObject<boolean>,
+  timeout: number = 90000
+): AsyncGenerator<any, void, unknown> {
+  let done = false;
+  let buffer = "";
+
+  while (!done && isStream.current) {
+    try {
+      const { value, done: streamDone } = await Promise.race([
+        reader.read(),
+        new Promise<ReadableStreamDefaultReadResult<Uint8Array>>((_, reject) => setTimeout(() => reject(new Error("Stream timeout after " + timeout / 1000 + " seconds. You can try again by editing your last message.")), timeout))
+      ]);
+
+      if (streamDone) {
+        done = true;
+        continue;
+      }
+
+      if (value) {
+        const decodedValue = new TextDecoder().decode(value);
+        buffer += decodedValue;
+        buffer = buffer.replace("][{", "]\n[{"); // Ensure proper JSON formatting for split
+        buffer = buffer.replace("][[", "]\n[["); // Ensure proper JSON formatting for split
+        buffer = buffer.replace("]][", "]]\n["); // Ensure proper JSON formatting for split
+        const bufferLines = buffer.split("\n");
+
+        for (let line of bufferLines) { // Process all lines except the potentially incomplete last one
+          if (!line) {
+            continue
+          }
+          try {
+            const parsedLine = JSON.parse(line);
+            if (parsedLine) {
+              yield parsedLine
+            }
+          } catch (error) {
+            console.error("Failed to parse line:", line, error);
+          }
+        }
+
+        buffer = bufferLines[bufferLines.length - 1]; // Keep the last line in the buffer
+      }
+    } catch (error) {
+      console.error("Error during streaming:", error);
+      throw error;
+    }
+  }
+}
 
 function App() {
   const [repoName, setRepoName] = useLocalStorage<string>("repoName", "")
@@ -377,30 +433,59 @@ function App() {
 
   const startStream = async (message: string, newMessages: Message[]) => {
     setIsLoading(true);
+    isStream.current = true;
 
     var currentSnippets = snippets;
     if (currentSnippets.length == 0) {
       try {
-        const startTime = Date.now()
-        const snippetsResponse = await fetch(`/backend/search?repo_name=${repoName}&query=${encodeURIComponent(message)}`, {
+        const snippetsResponse = await fetch(`/backend/search?repo_name=${repoName}&query=${encodeURIComponent(message)}&stream=true`, {
           headers: {
             "Content-Type": "application/json",
             // @ts-ignore
             "Authorization": `Bearer ${session?.accessToken}`
           }
         });
-        console.log(message)
-        console.log(`Time taken for search: ${(Date.now() - startTime) / 1000}s`)
-        const responseObj = await snippetsResponse.json()
-        if (responseObj.success == false) {
-          console.error(responseObj)
-          throw new Error(responseObj.error)
+
+        let streamedMessages: Message[] = [...newMessages]
+        let streamedMessage: string = ""
+        const reader = snippetsResponse.body?.getReader()!;
+        for await (const chunk of streamMessages(reader, isStream)) {
+          // @ts-ignore
+          streamedMessage = chunk[0]
+          // @ts-ignore
+          currentSnippets = chunk[1]
+          currentSnippets = currentSnippets.slice(0, k)
+          streamedMessages = [...newMessages, {
+            content: streamedMessage,
+            role: "function",
+            function_call: {
+              function_name: "search_codebase",
+              function_parameters: {},
+              snippets: currentSnippets,
+              is_complete: false
+            }
+          }]
+          if (currentSnippets) {
+            setSnippets(currentSnippets)
+          }
+          setMessages(streamedMessages)
         }
-        currentSnippets = (responseObj as Snippet[]).slice(0, k);
+        streamedMessages = [
+          ...streamedMessages.slice(0, streamedMessages.length - 1),
+          {
+            ...streamedMessages[streamedMessages.length - 1],
+            function_call: {
+              function_name: "search_codebase",
+              function_parameters: {},
+              snippets: currentSnippets,
+              is_complete: true
+            }
+          }
+        ]
+        setMessages(streamedMessages)
         if (!currentSnippets.length) {
-          throw new Error("No snippets found. Are you sure you have the right codebase?");
+          throw new Error("No snippets found")
         }
-        setSnippets(currentSnippets);
       } catch (e: any) {
         console.log(e)
         toast({
@@ -419,7 +504,6 @@ function App() {
         throw e;
       }
     }
-    console.log(model)
     const chatResponse = await fetch("/backend/chat", {
       method: "POST",
       headers: {
@@ -436,49 +520,15 @@ function App() {
       })
     });
 
-    isStream.current = true;
-
     // Stream
-    const reader = chatResponse.body?.getReader();
-    let done = false;
-    let buffer = "";
+    const reader = chatResponse.body?.getReader()!;
     var streamedMessages: Message[] = []
     var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" }]
     setMessages(respondedMessages);
     try {
-      while (!done && isStream.current) {
-        const { value, done: done_ } = await Promise.race([
-          reader!.read() as Promise<ReadableStreamDefaultReadResult<Uint8Array>>,
-          new Promise<ReadableStreamDefaultReadResult<Uint8Array>>((_, reject) => setTimeout(() => reject(new Error("Stream timeout after 90 seconds. You can try again by editing your last message.")), 90000))
-        ]);
-        if (value) {
-          const decodedValue = new TextDecoder().decode(value);
-          buffer += decodedValue;
-          buffer = buffer.replace("][{", "]\n[{")
-          var newBuffer = "";
-          const bufferLines = buffer.trim().split("\n")
-
-          for (var i = 0; i < bufferLines.length; i += 1) {
-            const line = bufferLines[i];
-            if (line !== "") {
-              try {
-                const patch = JSON.parse(line)
-                streamedMessages = jsonpatch.applyPatch(streamedMessages, patch).newDocument
-              } catch (e: any) {
-                if (i == bufferLines.length - 1) {
-                  newBuffer = line
-                } else {
-                  console.log(e.message)
-                  console.log(buffer)
-                }
-              }
-            }
-          }
-          setMessages([...newMessages, ...streamedMessages])
-
-          buffer = newBuffer
-        }
-        done = done_;
+      for await (const patch of streamMessages(reader, isStream)) {
+        streamedMessages = jsonpatch.applyPatch(streamedMessages, patch).newDocument
+        setMessages([...newMessages, ...streamedMessages])
       }
       if (!isStream.current) {
         reader!.cancel()
@@ -495,7 +545,6 @@ function App() {
         description: e.message,
         variant: "destructive"
       });
-      console.log(buffer)
       setIsLoading(false);
       posthog.capture("chat errored", {
         repoName,
@@ -615,7 +664,6 @@ function App() {
                   "Authorization": `Bearer ${session?.accessToken!}`
                 }
               });
-              console.log(response)
               data = await response.json();
             } catch (e: any) {
               setRepoNameValid(false)
@@ -717,7 +765,7 @@ function App() {
         ))}
         {isLoading && (
           <div className="flex justify-around w-full py-2">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-zinc-500 ml-4 mr-4"></div>
+            <PulsingLoader size={8} />
           </div>
         )}
       </div>

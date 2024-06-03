@@ -22,6 +22,7 @@ from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import CustomGithub, MockClonedRepo, get_github_client, get_installation_id
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.str_utils import get_hash
+from sweepai.utils.streamable_functions import streamable
 from sweepai.utils.ticket_utils import prep_snippets
 from sweepai.utils.timer import Timer
 
@@ -182,6 +183,7 @@ def check_repo_exists(
 def search_codebase_endpoint(
     repo_name: str,
     query: str,
+    stream: bool = False,
     access_token: str = Depends(get_token_header)
 ):
     with Timer() as timer:
@@ -191,17 +193,34 @@ def search_codebase_endpoint(
         return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
     username = Github(access_token).get_user().login
     token = g.token if isinstance(g, CustomGithub) else access_token
-    return [snippet.model_dump() for snippet in wrapped_search_codebase(
-        username,
-        repo_name,
-        query,
-        token,
-        metadata={
-            "repo_name": repo_name,
-            "query": query,
-        }
-    )]
+    if stream:
+        def stream_response():
+            yield json.dumps(["Building lexical index...", []])
+            for message, snippets in wrapped_search_codebase.stream(
+                username,
+                repo_name,
+                query,
+                token,
+                metadata={
+                    "repo_name": repo_name,
+                    "query": query,
+                }
+            ):
+                yield json.dumps((message, [snippet.model_dump() for snippet in snippets]))
+        return StreamingResponse(stream_response())
+    else:
+        return [snippet.model_dump() for snippet in wrapped_search_codebase(
+            username,
+            repo_name,
+            query,
+            token,
+            metadata={
+                "repo_name": repo_name,
+                "query": query,
+            }
+        )]
 
+@streamable
 @posthog_trace
 def wrapped_search_codebase(
     username: str,
@@ -210,12 +229,14 @@ def wrapped_search_codebase(
     access_token: str,
     metadata: dict = {},
 ):
-    return search_codebase(
+    for message, snippets in search_codebase.stream(
         repo_name,
         query,
         access_token
-    )
+    ):
+        yield message, snippets
 
+@streamable
 def search_codebase(
     repo_name: str,
     query: str,
@@ -229,14 +250,15 @@ def search_codebase(
             print(f"Cloned {repo_name} to /tmp/{repo}")
         cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name, token=access_token)
         cloned_repo.pull()
-        repo_context_manager = prep_snippets(
+        for message, snippets in prep_snippets.stream(
             cloned_repo, query, 
             use_multi_query=False,
             NUM_SNIPPETS_TO_KEEP=0,
             skip_analyze_agent=True
-        )
+        ):
+            yield message, snippets
     logger.debug(f"Preparing snippets took {timer.time_elapsed} seconds")
-    return repo_context_manager.current_top_snippets
+    return snippets
 
 @app.post("/backend/chat")
 def chat_codebase(
@@ -283,6 +305,8 @@ def chat_codebase_stream(
     model: str = "claude-3-opus-20240229",
     use_patch: bool = False,
 ):
+    if not snippets:
+        raise ValueError("No snippets were sent.")
     use_openai = model.startswith("gpt")
     # Stream
     chat_gpt = ChatGPT.from_system_message_string(
