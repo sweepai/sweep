@@ -437,27 +437,34 @@ def on_ticket(
                     chat_logger,
                     images=image_contents
                 ):
-                    edit_sweep_comment(
-                        create_collapsible(
-                            "(Click to expand) " + message,
-                            "\n".join(
-                                [
-                                    f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{max(min(snippet.end, snippet.content.count(newline) - 1), 1)}\n"
-                                    for snippet in list(dict.fromkeys(repo_context_manager.current_top_snippets + repo_context_manager.read_only_snippets))
-                                ]
-                            ),
-                        )
-                        + (
+                    if repo_context_manager.current_top_snippets + repo_context_manager.read_only_snippets:
+                        edit_sweep_comment(
                             create_collapsible(
-                                "I also found that you mentioned the following Pull Requests that may be helpful:",
-                                blockquote(prs_extracted),
+                                "(Click to expand) " + message,
+                                "\n".join(
+                                    [
+                                        f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{max(min(snippet.end, snippet.content.count(newline) - 1), 1)}\n"
+                                        for snippet in list(dict.fromkeys(repo_context_manager.current_top_snippets + repo_context_manager.read_only_snippets))
+                                    ]
+                                ),
                             )
-                            if prs_extracted
-                            else ""
-                        ),
-                        1,
-                        step_complete=False
-                    )
+                            + (
+                                create_collapsible(
+                                    "I also found that you mentioned the following Pull Requests that may be helpful:",
+                                    blockquote(prs_extracted),
+                                )
+                                if prs_extracted
+                                else ""
+                            ),
+                            1,
+                            step_complete=False
+                        )
+                    else:
+                        edit_sweep_comment(
+                            message,
+                            1,
+                            step_complete=False
+                        )
 
                 edit_sweep_comment(
                     create_collapsible(

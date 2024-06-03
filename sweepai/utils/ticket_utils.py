@@ -155,15 +155,14 @@ def multi_get_top_k_snippets(
             do_not_use_file_cache=do_not_use_file_cache,
             seed=seed
         )
-    logger.info(f"Lexical search index took {timer.time_elapsed} seconds")
-    yield "I just finished building the lexical index, I'm currently calculating the lexical scores.", [], snippets, []
+        logger.info(f"Lexical indexing took {timer.time_elapsed} seconds")
+        for snippet in snippets:
+            snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
+        with Timer() as timer:
+            content_to_lexical_score_list = [search_index(query, lexical_index) for query in queries]
+        logger.info(f"Lexical search took {timer.time_elapsed} seconds")
 
-    for snippet in snippets:
-        snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
-    with Timer() as timer:
-        content_to_lexical_score_list = [search_index(query, lexical_index) for query in queries]
-    yield "I just finished calculating the lexical scores, I'm currently computing the vector scores.", [], snippets, []
-    logger.info(f"Lexical search took {timer.time_elapsed} seconds")
+    yield "Finished lexical search, performing vector search...", [], snippets, []
     assert content_to_lexical_score_list[0]
 
     with Timer() as timer:
@@ -193,7 +192,7 @@ def multi_get_top_k_snippets(
             reverse=True,
         )[:k] for content_to_lexical_score in content_to_lexical_score_list
     ]
-    yield "I just finished ranking the snippets, I'm currently reranking the snippets.", ranked_snippets_list, snippets, content_to_lexical_score_list
+    yield "Finished hybrid search, currently performing reranking...", ranked_snippets_list, snippets, content_to_lexical_score_list
 
 # @file_cache()
 @streamable
@@ -313,7 +312,7 @@ def multi_prep_snippets(
         ):
             yield message, ranked_snippets
     separated_snippets = separate_snippets_by_type(snippets)
-    yield "Retrieved top snippets, currently reranking:\n", ranked_snippets
+    yield f"Retrieved top {k} snippets, currently reranking:\n", ranked_snippets
     if not skip_pointwise_reranking:
         all_snippets = []
         if "junk" in separated_snippets:
@@ -386,14 +385,14 @@ def multi_prep_snippets(
                 all_snippets.extend(snippets_subset[:max_results])
 
         ranked_snippets = all_snippets[:k]
-        yield "Final snippets:\n", ranked_snippets
+        yield "Finished reranking, here are the relevant final snippets:\n", ranked_snippets
     else:
         ranked_snippets = sorted(
             snippets,
             key=lambda snippet: content_to_lexical_score[snippet.denotation],
             reverse=True,
         )[:k]
-        yield "Final snippets:\n", ranked_snippets
+        yield "Finished reranking, here are the relevant final snippets:\n", ranked_snippets
     # you can use snippet.denotation and snippet.get_snippet()
     if not skip_reranking and skip_pointwise_reranking:
         ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(queries[0], ranked_snippets[:NUM_SNIPPETS_TO_RERANK])
@@ -412,7 +411,7 @@ def prep_snippets(
 ) -> list[Snippet]:
     if use_multi_query:
         queries = [query, *generate_multi_queries(query)]
-        yield "Generated multi queries\n", []
+        yield "Finished generating search queries, performing lexical search...\n", []
     else:
         queries = [query]
     for message, snippets in multi_prep_snippets.stream(
