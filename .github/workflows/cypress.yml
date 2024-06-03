@@ -29,7 +29,7 @@ jobs:
         path: |
           ~/.npm
           sweep_chat/.next/cache
-        key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx') }}
+        key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('sweep_chat/**/*.js', 'sweep_chat/**/*.jsx', 'sweep_chat/**/*.ts', 'sweep_chat/**/*.tsx') }}
         restore-keys: |
           ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
     
@@ -47,7 +47,7 @@ jobs:
         path: |
           ~/.npm
           sweep_chat/.next/cache
-        key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx') }}
+        key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('sweep_chat/**/*.js', 'sweep_chat/**/*.jsx', 'sweep_chat/**/*.ts', 'sweep_chat/**/*.tsx') }}
 
     - name: Load .env.local from secrets
       working-directory: sweep_chat
