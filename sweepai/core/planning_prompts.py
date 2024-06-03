@@ -140,7 +140,7 @@ Take these steps:
     - When creating files you MUST do the following:
         - First, describe in detail EVERYTHING you will need in this file. Skip writing <original_code> tags.
         - Next, write the new file in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT and COMPLETE as this file will be created in the mentioned <file_path>.
-    - In both cases, paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED."""
+    - In both cases, paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED. NEVER LEAVE COMMENTS DESCRIBING WHAT YOU WILL DO, JUST DO IT."""
 
 # anthropic prompt
 anthropic_files_to_change_prompt = """Your job is to write a high quality, detailed, code changes resolve a GitHub issue.
