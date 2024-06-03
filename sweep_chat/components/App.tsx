@@ -337,6 +337,56 @@ const MessageDisplay = ({ message, className, onEdit }: { message: Message, clas
   );
 };
 
+async function* streamMessages(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  timeout: number = 90000
+): AsyncGenerator<{ message: string, snippets: Snippet[]}, void, unknown> {
+  let done = false;
+  let buffer = "";
+
+  while (!done) {
+    try {
+      const { value, done: streamDone } = await Promise.race([
+        reader.read(),
+        new Promise<ReadableStreamDefaultReadResult<Uint8Array>>((_, reject) => setTimeout(() => reject(new Error("Stream timeout after " + timeout / 1000 + " seconds. You can try again by editing your last message.")), timeout))
+      ]);
+
+      if (streamDone) {
+        done = true;
+        continue;
+      }
+
+      if (value) {
+        const decodedValue = new TextDecoder().decode(value);
+        buffer += decodedValue;
+        buffer = buffer.replace("][{", "]\n[{"); // Ensure proper JSON formatting for split
+        buffer = buffer.replace("][[", "]\n[["); // Ensure proper JSON formatting for split
+        buffer = buffer.replace("]][", "]]\n["); // Ensure proper JSON formatting for split
+        const bufferLines = buffer.split("\n");
+        console.log(bufferLines)
+
+        for (let line of bufferLines) { // Process all lines except the potentially incomplete last one
+          if (!line) {
+            continue
+          }
+          try {
+            const parsedLine = JSON.parse(line);
+            if (parsedLine) {
+              yield parsedLine
+            }
+          } catch (error) {
+            console.error("Failed to parse line:", line, error);
+          }
+        }
+
+        buffer = bufferLines[bufferLines.length - 1]; // Keep the last line in the buffer
+      }
+    } catch (error) {
+      console.error("Error during streaming:", error);
+      throw error;
+    }
+  }
+}
 
 function App() {
   const [repoName, setRepoName] = useLocalStorage<string>("repoName", "")
@@ -394,49 +444,33 @@ function App() {
             "Authorization": `Bearer ${session?.accessToken}`
           }
         });
-        const reader = snippetsResponse.body?.getReader();
-        let done = false;
-        let buffer = "";
+
         let streamedMessages: Message[] = [...newMessages]
         let currentSnippets: Snippet[] = []
         let streamedMessage: string = ""
-        while (!done && isStream.current) {
-          const { value, done: done_ } = await Promise.race([
-            reader!.read() as Promise<ReadableStreamDefaultReadResult<Uint8Array>>,
-            new Promise<ReadableStreamDefaultReadResult<Uint8Array>>((_, reject) => setTimeout(() => reject(new Error("Stream timeout after 90 seconds. You can try again by editing your last message.")), 90000))
-          ]);
-          console.log(value)
-          if (value) {
-            const decodedValue = new TextDecoder().decode(value);
-            buffer += decodedValue;
-            buffer = buffer.replace("][{", "]\n[{")
-            var newBuffer = "";
-            const bufferLines = buffer.trim().split("\n")
-            try {
-              for (var i = 0; i < bufferLines.length; i += 1) {
-                [streamedMessage, currentSnippets] = JSON.parse(bufferLines[i])
-                currentSnippets = currentSnippets.slice(0, k)
-                streamedMessages = [...newMessages, {
-                  content: streamedMessage,
-                  role: "function",
-                  function_call: {
-                    function_name: "search_codebase",
-                    function_parameters: {},
-                    snippets: currentSnippets,
-                    is_complete: false
-                  }
-                }]
-                if (currentSnippets) {
-                  setSnippets(currentSnippets)
-                }
-                setMessages(streamedMessages)
-              }
-            } catch (e: any) {
-              continue
+        const reader = snippetsResponse.body?.getReader()!;
+        for await (const chunk of streamMessages(reader)) {
+          // @ts-ignore
+          streamedMessage = chunk[0]
+          // @ts-ignore
+          currentSnippets = chunk[1]
+          console.log(streamedMessage)
+          console.log(currentSnippets)
+          currentSnippets = currentSnippets.slice(0, k)
+          streamedMessages = [...newMessages, {
+            content: streamedMessage,
+            role: "function",
+            function_call: {
+              function_name: "search_codebase",
+              function_parameters: {},
+              snippets: currentSnippets,
+              is_complete: false
             }
-            buffer = newBuffer
+          }]
+          if (currentSnippets) {
+            setSnippets(currentSnippets)
           }
-          done = done_;
+          setMessages(streamedMessages)
         }
         streamedMessages = [
           ...streamedMessages.slice(0, streamedMessages.length - 1),
