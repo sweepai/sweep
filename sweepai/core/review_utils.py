@@ -1062,7 +1062,6 @@ class PRReviewBot(ChatGPT):
                 ranked_snippets, _, _ = get_top_k_snippets(
                     cloned_repo, 
                     function.function_code, 
-                    None, 
                     k=3, 
                     include_docs=False, 
                     include_tests=False, 

@@ -241,7 +241,7 @@ def on_ticket(
                 " time using Sweep, I'm indexing your repository, which will take a few minutes."
             )
             first_comment = (
-                f"{get_comment_header(0, g, repo_full_name, progress_headers, tracking_id, payment_message_start)}\n## "
+                f"{get_comment_header(0, progress_headers, payment_message_start)}\n## "
                 f"{progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
             )
             # Find Sweep's previous comment
@@ -267,37 +267,33 @@ def on_ticket(
                 index: int,
                 pr_message="",
                 done=False,
+                step_complete=True,
                 add_bonus_message=True,
             ):
                 nonlocal current_index, user_token, g, repo, issue_comment, initial_sandbox_response, initial_sandbox_response_file
                 message = sanitize_string_for_github(message)
                 if pr_message:
                     pr_message = sanitize_string_for_github(pr_message)
-                # -1 = error, -2 = retry
-                # Only update the progress bar if the issue generation errors.
                 errored = index == -1
                 if index >= 0:
                     past_messages[index] = message
                     current_index = index
 
-                agg_message = None
+                agg_message = ""
                 # Include progress history
-                # index = -2 is reserved for
                 for i in range(
                     current_index + 2
                 ):  # go to next header (for Working on it... text)
-                    if i == 0 or i >= len(progress_headers):
+                    if i >= len(progress_headers):
                         continue  # skip None header
+                    if not step_complete and i >= current_index + 1:
+                        continue
+                    if i == 0 and index != 0:
+                        continue
                     header = progress_headers[i]
-                    if header is not None:
-                        header = "## " + header + "\n"
-                    else:
-                        header = "No header\n"
+                    header = "## " + (header if header is not None else "") + "\n"
                     msg = header + (past_messages.get(i) or "Working on it...")
-                    if agg_message is None:
-                        agg_message = msg
-                    else:
-                        agg_message = agg_message + "\n" + msg
+                    agg_message += "\n" + msg
 
                 suffix = bot_suffix + discord_suffix
                 if errored:
@@ -317,16 +313,11 @@ def on_ticket(
                 # Update the issue comment
                 msg = f"""{get_comment_header(
                     current_index, 
-                    g, 
-                    repo_full_name,
                     progress_headers,
-                    tracking_id,
                     payment_message_start,
                     errored=errored,
                     pr_message=pr_message,
                     done=done,
-                    initial_sandbox_response=initial_sandbox_response,
-                    initial_sandbox_response_file=initial_sandbox_response_file,
                     config_pr_url=config_pr_url
                 )}\n{agg_message}{suffix}"""
                 try:
@@ -399,6 +390,11 @@ def on_ticket(
                 )
                 return {"success": True}
 
+            edit_sweep_comment(
+                "I've just finished validating the issue. I'm now going to start searching for relevant files.",
+                0
+            )
+
             prs_extracted = PRReader.extract_prs(repo, summary)
             if prs_extracted:
                 internal_message_summary += "\n\n" + prs_extracted
@@ -421,7 +417,13 @@ def on_ticket(
                 if image_contents: # doing it here to avoid editing the original issue
                     internal_message_summary += ImageDescriptionBot().describe_images(text=title + internal_message_summary, images=image_contents)
                 
-                snippets, tree, _, repo_context_manager = fetch_relevant_files(
+                _user_token, g = get_github_client(installation_id)
+                user_token, g, repo = refresh_token(repo_full_name, installation_id)
+                cloned_repo.token = user_token
+                repo = g.get_repo(repo_full_name)
+
+                newline = "\n"
+                for message, repo_context_manager in fetch_relevant_files.stream(
                     cloned_repo,
                     title,
                     internal_message_summary,
@@ -434,9 +436,59 @@ def on_ticket(
                     issue_url,
                     chat_logger,
                     images=image_contents
+                ):
+                    if repo_context_manager.current_top_snippets + repo_context_manager.read_only_snippets:
+                        edit_sweep_comment(
+                            create_collapsible(
+                                "(Click to expand) " + message,
+                                "\n".join(
+                                    [
+                                        f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{max(min(snippet.end, snippet.content.count(newline) - 1), 1)}\n"
+                                        for snippet in list(dict.fromkeys(repo_context_manager.current_top_snippets + repo_context_manager.read_only_snippets))
+                                    ]
+                                ),
+                            )
+                            + (
+                                create_collapsible(
+                                    "I also found that you mentioned the following Pull Requests that may be helpful:",
+                                    blockquote(prs_extracted),
+                                )
+                                if prs_extracted
+                                else ""
+                            ),
+                            1,
+                            step_complete=False
+                        )
+                    else:
+                        edit_sweep_comment(
+                            message,
+                            1,
+                            step_complete=False
+                        )
+
+                edit_sweep_comment(
+                    create_collapsible(
+                        "(Click to expand) " + message,
+                        "\n".join(
+                            [
+                                f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{max(min(snippet.end, snippet.content.count(newline) - 1), 1)}\n"
+                                for snippet in list(dict.fromkeys(repo_context_manager.current_top_snippets + repo_context_manager.read_only_snippets))
+                            ]
+                        ),
+                    )
+                    + (
+                        create_collapsible(
+                            "I also found that you mentioned the following Pull Requests that may be helpful:",
+                            blockquote(prs_extracted),
+                        )
+                        if prs_extracted
+                        else ""
+                    ),
+                    1,
                 )
+
                 cloned_repo = repo_context_manager.cloned_repo
-                assert repo_context_manager.current_top_snippets or repo_context_manager.read_only_snippets, "No relevant files found."
+                user_token, g, repo = refresh_token(repo_full_name, installation_id)
             except Exception as e:
                 edit_sweep_comment(
                     (
@@ -447,36 +499,7 @@ def on_ticket(
                     -1,
                 )
                 raise e
-
-            _user_token, g = get_github_client(installation_id)
-            user_token, g, repo = refresh_token(repo_full_name, installation_id)
-            cloned_repo.token = user_token
-            repo = g.get_repo(repo_full_name)
-
-            newline = "\n"
-            edit_sweep_comment(
-                "Here are the code search results. I'm now analyzing these search results to write the PR."
-                + "\n\n"
-                + create_collapsible(
-                    "Relevant files (click to expand). Mentioned files will always appear here.",
-                    "\n".join(
-                        [
-                            f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{max(min(snippet.end, snippet.content.count(newline) - 1), 1)}\n"
-                            for snippet in list(dict.fromkeys(repo_context_manager.current_top_snippets + repo_context_manager.read_only_snippets))
-                        ]
-                    ),
-                )
-                + (
-                    create_collapsible(
-                        "I also found that you mentioned the following Pull Requests that may be helpful:",
-                        blockquote(prs_extracted),
-                    )
-                    if prs_extracted
-                    else ""
-                ),
-                1
-            )
-
+            
             # Fetch git commit history
             if not repo_description:
                 repo_description = "No description provided."
@@ -487,7 +510,7 @@ def on_ticket(
             try:
                 newline = "\n"
                 logger.info("Fetching files to modify/create...")
-                renames_dict, file_change_requests, plan = get_files_to_change(
+                for renames_dict, user_facing_message, file_change_requests in get_files_to_change.stream(
                     relevant_snippets=repo_context_manager.current_top_snippets,
                     read_only_snippets=repo_context_manager.read_only_snippets,
                     problem_statement=f"{title}\n\n{internal_message_summary}",
@@ -495,11 +518,12 @@ def on_ticket(
                     cloned_repo=cloned_repo,
                     images=image_contents,
                     chat_logger=chat_logger
-                )
-                raise_on_no_file_change_requests(title, summary, edit_sweep_comment, file_change_requests)
+                ):
+                    planning_markdown = render_fcrs(file_change_requests)
+                    edit_sweep_comment(user_facing_message + planning_markdown, 2, step_complete=False)
 
-                planning_markdown = render_fcrs(file_change_requests)
-                edit_sweep_comment(planning_markdown, 2)
+                edit_sweep_comment(user_facing_message + planning_markdown, 2)
+                raise_on_no_file_change_requests(title, summary, edit_sweep_comment, file_change_requests)
             except Exception as e:
                 logger.exception(e)
                 # title and summary are defined elsewhere
