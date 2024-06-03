@@ -33,6 +33,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadio
 import { Label } from "./ui/label";
 import PulsingLoader from "./shared/PulsingLoader";
 
+
 if (typeof window !== 'undefined') {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!)
   posthog.debug(false)
@@ -89,8 +90,8 @@ const SnippetBadge = ({
   button?: JSX.Element;
 }) => {
   return (
-    <div className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 ${typeNameToColor[snippet.type_name]} ${className || ""} `} style={{ opacity: `${Math.max(Math.min(1, snippet.score), 0.2)}` }}>
-      <HoverCard openDelay={300} closeDelay={200}>
+    <HoverCard openDelay={300} closeDelay={200}>
+      <div className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 ${typeNameToColor[snippet.type_name]} ${className || ""} `} style={{ opacity: `${Math.max(Math.min(1, snippet.score), 0.2)}` }}>
         <HoverCardTrigger asChild>
           <Button variant="link" className="text-sm py-0 px-1 h-6 leading-4">
             <span>
@@ -105,103 +106,102 @@ const SnippetBadge = ({
             }
           </Button>
         </HoverCardTrigger>
-        <HoverCardContent className="w-[800px] mr-2">
-          <SyntaxHighlighter
-            PreTag="div"
-            language="python"
-            style={tomorrow}
-            customStyle={{
-              backgroundColor: 'transparent',
-              whiteSpace: 'pre-wrap',
-            }}
-            className="rounded-xl max-h-80 overflow-y-auto p-4 w-full"
-          >
-            {sliceLines(snippet.content, snippet.start, snippet.end)}
-          </SyntaxHighlighter>
-        </HoverCardContent>
-      </HoverCard>
-      {button}
-    </div>
+      </div>
+      <HoverCardContent className="w-[800px] mr-2" style={{ opacity: 1 }}>
+        <SyntaxHighlighter
+          PreTag="div"
+          language="python"
+          style={tomorrow}
+          customStyle={{
+            backgroundColor: 'transparent',
+            whiteSpace: 'pre-wrap',
+          }}
+          className="rounded-xl max-h-80 overflow-y-auto p-4 w-full"
+        >
+          {sliceLines(snippet.content, snippet.start, snippet.end)}
+        </SyntaxHighlighter>
+      </HoverCardContent>
+    </HoverCard>
   )
 }
 
 const getFunctionCallHeaderString = (functionCall: Message["function_call"]) => {
-  switch (functionCall?.function_name) {
-    case "analysis":
-      return functionCall.is_complete ? "Analysis" : "Analyzing..."
-    case "self_critique":
-      return functionCall.is_complete ? "Self critique" : "Self critiquing..."
-    case "search_codebase":
-      if (functionCall!.function_parameters?.query) {
-        return functionCall.is_complete ? `Search codebase for "${functionCall.function_parameters.query.trim()}"` : `Searching codebase for "${functionCall.function_parameters.query.trim()}"...`
-      } else {
-        return functionCall.is_complete ? "Search codebase" : "Searching codebase..."
-      }
-    default:
-      return `${functionCall?.function_name}(${Object.entries(functionCall?.function_parameters!).map(([key, value]) => `${key}="${value}"`).join(", ")})`
-  }
+switch (functionCall?.function_name) {
+  case "analysis":
+    return functionCall.is_complete ? "Analysis" : "Analyzing..."
+  case "self_critique":
+    return functionCall.is_complete ? "Self critique" : "Self critiquing..."
+  case "search_codebase":
+    if (functionCall!.function_parameters?.query) {
+      return functionCall.is_complete ? `Search codebase for "${functionCall.function_parameters.query.trim()}"` : `Searching codebase for "${functionCall.function_parameters.query.trim()}"...`
+    } else {
+      return functionCall.is_complete ? "Search codebase" : "Searching codebase..."
+    }
+  default:
+    return `${functionCall?.function_name}(${Object.entries(functionCall?.function_parameters!).map(([key, value]) => `${key}="${value}"`).join(", ")})`
+}
 }
 
 const roleToColor = {
-  "user": "bg-zinc-600",
-  "assistant": "bg-zinc-700",
-  "function": "bg-zinc-800",
+"user": "bg-zinc-600",
+"assistant": "bg-zinc-700",
+"function": "bg-zinc-800",
 }
 
 const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (content: string) => void }) => {
-  // TODO: finish this implementation
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedContent, setEditedContent] = useState(message.content);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+// TODO: finish this implementation
+const [isEditing, setIsEditing] = useState(false);
+const [editedContent, setEditedContent] = useState(message.content);
+const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleClick = () => {
-    setIsEditing(true);
-  };
+const handleClick = () => {
+  setIsEditing(true);
+};
 
-  const handleBlur = () => {
-    setIsEditing(false);
-  };
+const handleBlur = () => {
+  setIsEditing(false);
+};
 
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-    }
-  }, [editedContent]);
+useEffect(() => {
+  if (textareaRef.current) {
+    textareaRef.current.style.height = 'auto';
+    textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+  }
+}, [editedContent]);
 
-  return (
-    <>
-      <div className={`text-sm text-white`} onClick={handleClick}>
-        {isEditing ? (
-          <Textarea
-            className="w-full mb-4 bg-transparent text-white max-w-[500px] w-[500px] hover:bg-initial"
-            ref={textareaRef}
-            value={editedContent}
-            onChange={(e) => setEditedContent(e.target.value)}
-            autoFocus
-          />
-        ) : (
-          <>
-            <span className="bg-initial pl-1">
-              <FaPencilAlt className="inline-block mr-2" />&nbsp;
-              {message.content}
-            </span>
-          </>
-        )}
-      </div>
-      {isEditing && (
+return (
+  <>
+    <div className={`text-sm text-white`} onClick={handleClick}>
+      {isEditing ? (
+        <Textarea
+          className="w-full mb-4 bg-transparent text-white max-w-[500px] w-[500px] hover:bg-initial"
+          ref={textareaRef}
+          value={editedContent}
+          onChange={(e) => setEditedContent(e.target.value)}
+          autoFocus
+        />
+      ) : (
         <>
-          <Button onClick={() => handleBlur()} variant="secondary" className="bg-zinc-800 text-white">
-            Cancel
-          </Button>
-          <Button onClick={() => {
-            onEdit(editedContent)
-            handleBlur()
-          }} variant="default" className="ml-2 bg-slate-600 text-white hover:bg-slate-700">
-            Generate
-          </Button>
+          <span className="bg-initial pl-1">
+            <FaPencilAlt className="inline-block mr-2" />&nbsp;
+            {message.content}
+          </span>
         </>
       )}
+    </div>
+    {isEditing && (
+      <>
+        <Button onClick={() => handleBlur()} variant="secondary" className="bg-zinc-800 text-white">
+          Cancel
+        </Button>
+        <Button onClick={() => {
+          onEdit(editedContent)
+          handleBlur()
+        }} variant="default" className="ml-2 bg-slate-600 text-white hover:bg-slate-700">
+          Generate
+        </Button>
+      </>
+    )}
   </>
   );
 }
