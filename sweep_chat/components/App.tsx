@@ -33,6 +33,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadio
 import { Label } from "./ui/label";
 import PulsingLoader from "./shared/PulsingLoader";
 
+
 if (typeof window !== 'undefined') {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!)
   posthog.debug(false)
