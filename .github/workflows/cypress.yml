@@ -39,7 +39,7 @@ jobs:
     - name: Cache next build
       uses: actions/cache@v4
       with:
-        path: ~/.npm
+        path: ./sweep_chat/.next
         key: ${{ runner.os }}-next-${{ hashFiles('**/package-lock.json') }}
         restore-keys: |
           ${{ runner.os }}-next-
