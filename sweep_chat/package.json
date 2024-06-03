@@ -9,7 +9,7 @@
     "lint": "next lint",
     "e2e:run": "cypress run",
     "e2e:open": "cypress open",
-    "ci": "start-server-and-test start 3000 e2e:run"
+    "e2e:ci": "start-server-and-test start 3000 e2e:run"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.1.2",

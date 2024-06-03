@@ -1,0 +1,43 @@
+name: Cypress E2E Tests
+
+concurrency: 
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'sweepai/**'
+      - 'sweep_chat/**'
+      - pyproject.toml
+      - requirements.txt
+
+jobs:
+  cypress:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sweep_chat
+    steps:
+    - name: Cache node modules
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
+    - name: Install npm dependencies
+      if: steps.cache-node-modules.outputs.cache-hit != 'true'  # Condition to check cache hit
+      run: npm ci
+
+    - name: Load .env.local from secrets
+      run: |
+        echo "${{ secrets.CYPRESS_ENV_LOCAL }}" > .env.local
+        echo "${{ secrets.CYPRESS_ENV_JSON }}" > cypress.env.json
+    
+    - name: Run Cypress tests
+      run: npm run e2e:ci
