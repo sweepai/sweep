@@ -27,6 +27,8 @@ jobs:
         key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
         restore-keys: |
           ${{ runner.os }}-node-
+    - name: List directory contents
+      run: pwd && ls -la
 
     - name: Install npm dependencies
       working-directory: sweep_chat
