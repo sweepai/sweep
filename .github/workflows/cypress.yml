@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: sweep_chat
+        working-directory: ./sweep_chat
     steps:
     - name: Cache node modules
       uses: actions/cache@v4
@@ -31,7 +31,7 @@ jobs:
           ${{ runner.os }}-node-
 
     - name: Install npm dependencies
-      if: steps.cache-node-modules.outputs.cache-hit != 'true'  # Condition to check cache hit
+      if: steps.cache-node-modules.outputs.cache-hit != 'true'
       run: npm ci
 
     - name: Load .env.local from secrets
