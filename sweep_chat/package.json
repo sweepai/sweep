@@ -43,6 +43,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "cypress": "^13.10.0",
     "eslint": "^8",
     "eslint-config-next": "14.2.3",
     "postcss": "^8",
