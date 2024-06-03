@@ -484,7 +484,7 @@ Finally, format the found issues and root causes using the following XML tags. E
 <issues>
 <issue>
 <issue_description>
-{{Issue 1 description}}
+{{Issue 1 description, be sure to reference the line/lines of code. Max 1 sentence.}}
 </issue_description>
 <file_name>
 {{Corresponding file name that this issue is in}}
@@ -1339,7 +1339,7 @@ def group_vote_review_pr(
     # format: {file_name: [embedding1, embedding2, ...]}
     groups_to_embeddings = {}
 
-    # for each file combine all the embeddings together while determining the max amount of clusters
+    # for each group combine all the embeddings together while determining the max amount of clusters
     for group_name in formatted_pr_changes_by_group:
         all_embeddings = []
         all_issues = []
@@ -1350,14 +1350,14 @@ def group_vote_review_pr(
                 embeddings = embeddings[0]
                 for embedding in embeddings:
                     all_embeddings.append(embedding.flatten())
-                    all_issues.extend(code_review.issues)
+                all_issues.extend(code_review.issues)
         groups_to_issues[group_name] = all_issues
         all_flattened_embeddings = np.array(all_embeddings)
         groups_to_embeddings[group_name] = all_flattened_embeddings
         # note DBSCAN expects a shape with less than or equal to 2 dimensions
         try:
             if all_flattened_embeddings.size:
-                db = DBSCAN(eps=0.2, min_samples=2).fit(all_flattened_embeddings)
+                db = DBSCAN(eps=0.253, min_samples=2).fit(all_flattened_embeddings)
                 groups_to_labels[group_name] = db.labels_
             else:
                 groups_to_labels[group_name] = []
