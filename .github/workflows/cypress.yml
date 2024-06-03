@@ -21,7 +21,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Cache node modules
-      working-directory: sweep_chat
       uses: actions/cache@v4
       with:
         path: ~/.npm
