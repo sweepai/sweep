@@ -39,11 +39,13 @@
     "usehooks-ts": "^3.1.0"
   },
   "devDependencies": {
+    "@testing-library/cypress": "^10.0.2",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/react-syntax-highlighter": "^15.5.13",
     "cypress": "^13.10.0",
+    "cypress-social-logins": "^1.14.1",
     "eslint": "^8",
     "eslint-config-next": "14.2.3",
     "postcss": "^8",

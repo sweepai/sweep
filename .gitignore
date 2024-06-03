@@ -220,3 +220,4 @@ eval/**/*.json
 **.txt
 !sweep_chat/.env
 sweepai_messages/**
+sweep_chat/cypress.env.json
