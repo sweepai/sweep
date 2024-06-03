@@ -775,7 +775,7 @@ def get_files_to_change(
         # breakpoint()
 
         validate_file_change_requests(file_change_requests, cloned_repo, renames_dict=renames_dict)
-        yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm done with the edits and now just need to validate the changes using a linter to catch any mistakes like undefined variables:\n", file_change_requests
+        yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm done making edits and now I'm just validating the changes using a linter to catch any mistakes like syntax errors or undefined variables:\n", file_change_requests
         return renames_dict, file_change_requests, files_to_change_response
     except RegexMatchError as e:
         print("RegexMatchError", e)
