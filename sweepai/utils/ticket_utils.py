@@ -133,7 +133,6 @@ def apply_adjustment_score(
 NUM_SNIPPETS_TO_RERANK = 100
 VECTOR_SEARCH_WEIGHT = 2
 
-# @file_cache()
 @streamable
 def multi_get_top_k_snippets(
     cloned_repo: ClonedRepo,
@@ -194,7 +193,6 @@ def multi_get_top_k_snippets(
     ]
     yield "Finished hybrid search, currently performing reranking...", ranked_snippets_list, snippets, content_to_lexical_score_list
 
-# @file_cache()
 @streamable
 def get_top_k_snippets(
     cloned_repo: ClonedRepo,
@@ -205,10 +203,11 @@ def get_top_k_snippets(
     *args,
     **kwargs,
 ):
+    # Kinda cursed, we have to rework this
     for message, ranked_snippets_list, snippets, content_to_lexical_score_list in multi_get_top_k_snippets.stream(
         cloned_repo, [query], k, do_not_use_file_cache=do_not_use_file_cache, seed=seed, *args, **kwargs
     ):
-        yield message, ranked_snippets_list[0], snippets, content_to_lexical_score_list[0]
+        yield message, ranked_snippets_list[0] if ranked_snippets_list else [], snippets, content_to_lexical_score_list[0] if content_to_lexical_score_list else []
 
 def get_pointwise_reranked_snippet_scores(
     query: str,
@@ -385,14 +384,14 @@ def multi_prep_snippets(
                 all_snippets.extend(snippets_subset[:max_results])
 
         ranked_snippets = all_snippets[:k]
-        yield "Finished reranking, here are the relevant final snippets:\n", ranked_snippets
+        yield "Finished reranking, here are the relevant final search results:\n", ranked_snippets
     else:
         ranked_snippets = sorted(
             snippets,
             key=lambda snippet: content_to_lexical_score[snippet.denotation],
             reverse=True,
         )[:k]
-        yield "Finished reranking, here are the relevant final snippets:\n", ranked_snippets
+        yield "Finished reranking, here are the relevant final search results:\n", ranked_snippets
     # you can use snippet.denotation and snippet.get_snippet()
     if not skip_reranking and skip_pointwise_reranking:
         ranked_snippets[:NUM_SNIPPETS_TO_RERANK] = listwise_rerank_snippets(queries[0], ranked_snippets[:NUM_SNIPPETS_TO_RERANK])

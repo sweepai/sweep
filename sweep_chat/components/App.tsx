@@ -213,7 +213,7 @@ const MessageDisplay = ({ message, className, onEdit }: { message: Message, clas
           } ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
       >
         {message.role === "function" ? (
-          <Accordion type="single" collapsible className="w-full" defaultValue={(message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0) ? "function" : undefined}>
+          <Accordion type="single" collapsible className="w-full" defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}>
             <AccordionItem value="function" className="border-none">
               <AccordionTrigger className="border-none py-0 text-left">
                 <div className="text-xs text-gray-400 flex align-center">
@@ -228,7 +228,12 @@ const MessageDisplay = ({ message, className, onEdit }: { message: Message, clas
                   <span>{getFunctionCallHeaderString(message.function_call)}</span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="pb-0">
+              <AccordionContent className={`pb-0 ${message.content && message.function_call?.function_name === "search_codebase" && !message.function_call?.is_complete ? "pt-6" : "pt-0"}`}>
+                {message.function_call?.function_name === "search_codebase" && message.content && !message.function_call.is_complete && (
+                  <span className="p-4 pl-2">
+                    {message.content}
+                  </span>
+                )}
                 {message.function_call!.snippets ? (
                   <div className="pb-0 pt-4">
                     {message.function_call!.snippets.map((snippet, index) => (
@@ -377,30 +382,75 @@ function App() {
 
   const startStream = async (message: string, newMessages: Message[]) => {
     setIsLoading(true);
+    isStream.current = true;
 
     var currentSnippets = snippets;
     if (currentSnippets.length == 0) {
       try {
-        const startTime = Date.now()
-        const snippetsResponse = await fetch(`/backend/search?repo_name=${repoName}&query=${encodeURIComponent(message)}`, {
+        const snippetsResponse = await fetch(`/backend/search?repo_name=${repoName}&query=${encodeURIComponent(message)}&stream=true`, {
           headers: {
             "Content-Type": "application/json",
             // @ts-ignore
             "Authorization": `Bearer ${session?.accessToken}`
           }
         });
-        console.log(message)
-        console.log(`Time taken for search: ${(Date.now() - startTime) / 1000}s`)
-        const responseObj = await snippetsResponse.json()
-        if (responseObj.success == false) {
-          console.error(responseObj)
-          throw new Error(responseObj.error)
+        const reader = snippetsResponse.body?.getReader();
+        let done = false;
+        let buffer = "";
+        let streamedMessages: Message[] = [...newMessages]
+        let currentSnippets: Snippet[] = []
+        let streamedMessage: string = ""
+        while (!done && isStream.current) {
+          const { value, done: done_ } = await Promise.race([
+            reader!.read() as Promise<ReadableStreamDefaultReadResult<Uint8Array>>,
+            new Promise<ReadableStreamDefaultReadResult<Uint8Array>>((_, reject) => setTimeout(() => reject(new Error("Stream timeout after 90 seconds. You can try again by editing your last message.")), 90000))
+          ]);
+          console.log(value)
+          if (value) {
+            const decodedValue = new TextDecoder().decode(value);
+            buffer += decodedValue;
+            buffer = buffer.replace("][{", "]\n[{")
+            var newBuffer = "";
+            const bufferLines = buffer.trim().split("\n")
+            try {
+              for (var i = 0; i < bufferLines.length; i += 1) {
+                [streamedMessage, currentSnippets] = JSON.parse(bufferLines[i])
+                currentSnippets = currentSnippets.slice(0, k)
+                streamedMessages = [...newMessages, {
+                  content: streamedMessage,
+                  role: "function",
+                  function_call: {
+                    function_name: "search_codebase",
+                    function_parameters: {},
+                    snippets: currentSnippets,
+                    is_complete: false
+                  }
+                }]
+                if (currentSnippets) {
+                  setSnippets(currentSnippets)
+                }
+                setMessages(streamedMessages)
+              }
+            } catch (e: any) {
+              continue
+            }
+            buffer = newBuffer
+          }
+          done = done_;
         }
-        currentSnippets = (responseObj as Snippet[]).slice(0, k);
-        if (!currentSnippets.length) {
-          throw new Error("No snippets found. Are you sure you have the right codebase?");
-        }
-        setSnippets(currentSnippets);
+        streamedMessages = [
+          ...streamedMessages.slice(0, streamedMessages.length - 1),
+          {
+            ...streamedMessages[streamedMessages.length - 1],
+            function_call: {
+              function_name: "search_codebase",
+              function_parameters: {},
+              snippets: currentSnippets,
+              is_complete: true
+            }
+          }
+        ]
+        setMessages(streamedMessages)
       } catch (e: any) {
         console.log(e)
         toast({
@@ -435,8 +485,6 @@ function App() {
         use_patch: true
       })
     });
-
-    isStream.current = true;
 
     // Stream
     const reader = chatResponse.body?.getReader();

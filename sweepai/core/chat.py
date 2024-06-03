@@ -476,6 +476,7 @@ class ChatGPT(MessageList):
                         } for message in self.messages if message.role != "system"
                     ]
                     message_dicts = sanitize_anthropic_messages(message_dicts)
+                    streamed_string = ""
                     # pylint: disable=E1129
                     with client.messages.stream(
                         model=model,
@@ -495,7 +496,7 @@ class ChatGPT(MessageList):
                             token_thread.daemon = True
                             token_thread.start()
 
-                            token_timeout = 5  # Timeout threshold in seconds
+                            token_timeout = 15  # Timeout threshold in seconds
 
                             while token_thread.is_alive():
                                 try:
@@ -511,12 +512,13 @@ class ChatGPT(MessageList):
                                             print(f"Time to first token: {time.time() - start_time:.2f}s")
                                         print(text, end="", flush=True)
 
+                                    streamed_string += text
                                     yield text
 
                                 except queue.Empty:
                                     if not token_thread.is_alive():
                                         break
-                                    raise TimeoutError(f"Time between tokens exceeded {token_timeout} seconds.")
+                                    raise TimeoutError(f"Time between tokens exceeded {token_timeout} seconds. Current stream: {streamed_string}")
 
                         except TimeoutError as te:
                             logger.exception(te)
