@@ -305,6 +305,8 @@ def chat_codebase_stream(
     model: str = "claude-3-opus-20240229",
     use_patch: bool = False,
 ):
+    if not snippets:
+        raise ValueError("No snippets were sent.")
     use_openai = model.startswith("gpt")
     # Stream
     chat_gpt = ChatGPT.from_system_message_string(

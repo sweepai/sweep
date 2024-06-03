@@ -339,12 +339,13 @@ const MessageDisplay = ({ message, className, onEdit }: { message: Message, clas
 
 async function* streamMessages(
   reader: ReadableStreamDefaultReader<Uint8Array>,
+  isStream: React.MutableRefObject<boolean>,
   timeout: number = 90000
-): AsyncGenerator<{ message: string, snippets: Snippet[]}, void, unknown> {
+): AsyncGenerator<any, void, unknown> {
   let done = false;
   let buffer = "";
 
-  while (!done) {
+  while (!done && isStream.current) {
     try {
       const { value, done: streamDone } = await Promise.race([
         reader.read(),
@@ -363,7 +364,6 @@ async function* streamMessages(
         buffer = buffer.replace("][[", "]\n[["); // Ensure proper JSON formatting for split
         buffer = buffer.replace("]][", "]]\n["); // Ensure proper JSON formatting for split
         const bufferLines = buffer.split("\n");
-        console.log(bufferLines)
 
         for (let line of bufferLines) { // Process all lines except the potentially incomplete last one
           if (!line) {
@@ -446,16 +446,13 @@ function App() {
         });
 
         let streamedMessages: Message[] = [...newMessages]
-        let currentSnippets: Snippet[] = []
         let streamedMessage: string = ""
         const reader = snippetsResponse.body?.getReader()!;
-        for await (const chunk of streamMessages(reader)) {
+        for await (const chunk of streamMessages(reader, isStream)) {
           // @ts-ignore
           streamedMessage = chunk[0]
           // @ts-ignore
           currentSnippets = chunk[1]
-          console.log(streamedMessage)
-          console.log(currentSnippets)
           currentSnippets = currentSnippets.slice(0, k)
           streamedMessages = [...newMessages, {
             content: streamedMessage,
@@ -485,6 +482,9 @@ function App() {
           }
         ]
         setMessages(streamedMessages)
+        if (!currentSnippets.length) {
+          throw new Error("No snippets found")
+        }
       } catch (e: any) {
         console.log(e)
         toast({
@@ -503,7 +503,6 @@ function App() {
         throw e;
       }
     }
-    console.log(model)
     const chatResponse = await fetch("/backend/chat", {
       method: "POST",
       headers: {
@@ -521,46 +520,14 @@ function App() {
     });
 
     // Stream
-    const reader = chatResponse.body?.getReader();
-    let done = false;
-    let buffer = "";
+    const reader = chatResponse.body?.getReader()!;
     var streamedMessages: Message[] = []
     var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" }]
     setMessages(respondedMessages);
     try {
-      while (!done && isStream.current) {
-        const { value, done: done_ } = await Promise.race([
-          reader!.read() as Promise<ReadableStreamDefaultReadResult<Uint8Array>>,
-          new Promise<ReadableStreamDefaultReadResult<Uint8Array>>((_, reject) => setTimeout(() => reject(new Error("Stream timeout after 90 seconds. You can try again by editing your last message.")), 90000))
-        ]);
-        if (value) {
-          const decodedValue = new TextDecoder().decode(value);
-          buffer += decodedValue;
-          buffer = buffer.replace("][{", "]\n[{")
-          var newBuffer = "";
-          const bufferLines = buffer.trim().split("\n")
-
-          for (var i = 0; i < bufferLines.length; i += 1) {
-            const line = bufferLines[i];
-            if (line !== "") {
-              try {
-                const patch = JSON.parse(line)
-                streamedMessages = jsonpatch.applyPatch(streamedMessages, patch).newDocument
-              } catch (e: any) {
-                if (i == bufferLines.length - 1) {
-                  newBuffer = line
-                } else {
-                  console.log(e.message)
-                  console.log(buffer)
-                }
-              }
-            }
-          }
-          setMessages([...newMessages, ...streamedMessages])
-
-          buffer = newBuffer
-        }
-        done = done_;
+      for await (const patch of streamMessages(reader, isStream)) {
+        streamedMessages = jsonpatch.applyPatch(streamedMessages, patch).newDocument
+        setMessages([...newMessages, ...streamedMessages])
       }
       if (!isStream.current) {
         reader!.cancel()
@@ -577,7 +544,6 @@ function App() {
         description: e.message,
         variant: "destructive"
       });
-      console.log(buffer)
       setIsLoading(false);
       posthog.capture("chat errored", {
         repoName,
@@ -697,7 +663,6 @@ function App() {
                   "Authorization": `Bearer ${session?.accessToken!}`
                 }
               });
-              console.log(response)
               data = await response.json();
             } catch (e: any) {
               setRepoNameValid(false)
