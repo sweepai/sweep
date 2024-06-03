@@ -19,7 +19,22 @@ class CodeReview:
     potential_issues: list[CodeReviewIssue]
 
 @dataclass
+class CodeReviewByGroup:
+    file_names: list[str]
+    diff_summary: str
+    issues: list[CodeReviewIssue]
+    potential_issues: list[CodeReviewIssue]
+
+    @property
+    def group_name(self):
+        return ",".join(self.file_names)
+
+    def get_all_file_names(self):
+        return ", ".join(self.file_names)
+
+@dataclass
 class Patch:
+    file_name: str
     old_start: int
     old_count: int
     new_start: int
@@ -42,3 +57,23 @@ class FunctionDef:
     function_code: str
     start_line: int
     end_line: int
+
+@dataclass
+class GroupedFilesForReview:
+    file_names: list[str]
+    rendered_changes: str # full rendered changes
+    rendered_patches: str # only has rendered patches
+    rendered_source_code: str # only has rendered patches
+
+    @property
+    def group_name(self):
+        return ",".join(self.file_names)
+    
+    def get_group_name(self):
+        return ",".join(self.file_names)
+    
+    def get_all_file_names(self):
+        return ", ".join(self.file_names)
+
+    def is_file_in_group(self, file_name):
+        return file_name in self.file_names

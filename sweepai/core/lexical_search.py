@@ -206,18 +206,23 @@ def compute_vector_search_scores(queries: list[str], snippets: list[Snippet]):
     } for query_snippet_similarities in multi_query_snippet_similarities]
     return snippet_denotation_to_scores
 
-def get_lexical_cache_key(repo_directory: str, commit_hash: str | None = None):
+def get_lexical_cache_key(
+    repo_directory: str, 
+    commit_hash: str | None = None, 
+    seed: str = ""
+):
     commit_hash = commit_hash or subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_directory, capture_output=True, text=True).stdout.strip()
     repo_directory = os.path.basename(repo_directory)
-    return f"{repo_directory}_{commit_hash}_{CACHE_VERSION}"
+    return f"{repo_directory}_{commit_hash}_{CACHE_VERSION}_{seed}"
 
 @file_cache(ignore_params=["sweep_config", "ticket_progress"])
 def prepare_lexical_search_index(
     repo_directory: str,
     sweep_config: SweepConfig,
-    do_not_use_file_cache: bool = False # choose to not cache results
+    do_not_use_file_cache: bool = False, # choose to not cache results
+    seed: str = "" # used for lexical cache key
 ):
-    lexical_cache_key = get_lexical_cache_key(repo_directory)
+    lexical_cache_key = get_lexical_cache_key(repo_directory, seed=seed)
 
     snippets_results = snippets_cache.get(lexical_cache_key)
     if snippets_results is None:

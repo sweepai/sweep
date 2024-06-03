@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from github import Github
 from loguru import logger
 
-from sweepai.core.review_utils import PRReviewBot, format_pr_changes_by_file, get_pr_changes
+from sweepai.core.review_utils import PRReviewBot, get_pr_changes
 from sweepai.utils.chat_logger import ChatLogger
 
 load_dotenv(dotenv_path=".env", override=True, verbose=True)
@@ -30,11 +30,8 @@ def temp_pr_changes(url):
 
 pr_changes = temp_pr_changes(url)
 breakpoint()
-formatted_pr_changes_by_file = format_pr_changes_by_file(pr_changes)
-breakpoint()
 # breakpoint()
 # exit()
 chat_logger=ChatLogger({"username": "Code Review","title": "Code Review Test",})
 review_bot = PRReviewBot()
-code_review_by_file = review_bot.review_code_changes_by_file(formatted_pr_changes_by_file, chat_logger=chat_logger)
 breakpoint()

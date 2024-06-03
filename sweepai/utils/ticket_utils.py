@@ -140,6 +140,7 @@ def multi_get_top_k_snippets(
     queries: list[str],
     k: int = 15,
     do_not_use_file_cache: bool = False, # added for review_pr
+    seed: str = "", # for caches
 ):
     """
     Handles multiple queries at once now. Makes the vector search faster.
@@ -151,7 +152,8 @@ def multi_get_top_k_snippets(
         _, snippets, lexical_index = prepare_lexical_search_index(
             cloned_repo.cached_dir,
             sweep_config,
-            do_not_use_file_cache=do_not_use_file_cache
+            do_not_use_file_cache=do_not_use_file_cache,
+            seed=seed
         )
     logger.info(f"Lexical search index took {timer.time_elapsed} seconds")
     yield "I just finished building the lexical index, I'm currently calculating the lexical scores.", [], snippets, []
@@ -200,11 +202,12 @@ def get_top_k_snippets(
     query: str,
     k: int = 15,
     do_not_use_file_cache: bool = False, # added for review_pr
+    seed: str = "",
     *args,
     **kwargs,
 ):
     for message, ranked_snippets_list, snippets, content_to_lexical_score_list in multi_get_top_k_snippets.stream(
-        cloned_repo, [query], k, do_not_use_file_cache=do_not_use_file_cache, *args, **kwargs
+        cloned_repo, [query], k, do_not_use_file_cache=do_not_use_file_cache, seed=seed, *args, **kwargs
     ):
         yield message, ranked_snippets_list[0], snippets, content_to_lexical_score_list[0]
 
