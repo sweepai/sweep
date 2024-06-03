@@ -31,7 +31,7 @@ import { Slider } from "./ui/slider";
 import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Label } from "./ui/label";
-
+import PulsingLoader from "./shared/PulsingLoader";
 
 if (typeof window !== 'undefined') {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!)
@@ -218,7 +218,7 @@ const MessageDisplay = ({ message, className, onEdit }: { message: Message, clas
               <AccordionTrigger className="border-none py-0 text-left">
                 <div className="text-xs text-gray-400 flex align-center">
                   {!message.function_call!.is_complete ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-zinc-500 mr-2"></div>
+                    <PulsingLoader size={4} />
                   ) : (
                     <FaCheck
                       className="inline-block mr-2"
@@ -764,7 +764,7 @@ function App() {
         ))}
         {isLoading && (
           <div className="flex justify-around w-full py-2">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-zinc-500 ml-4 mr-4"></div>
+            <PulsingLoader size={8} />
           </div>
         )}
       </div>
