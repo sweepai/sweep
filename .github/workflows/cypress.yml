@@ -9,11 +9,12 @@ on:
     branches:
       - main
       - dev
-    # paths:
-    #   - 'sweepai/**'
-    #   - 'sweep_chat/**'
-    #   - pyproject.toml
-    #   - requirements.txt
+    paths:
+      - '.github/**'
+      - 'sweepai/**'
+      - 'sweep_chat/**'
+      - pyproject.toml
+      - requirements.txt
 
 jobs:
   cypress:
