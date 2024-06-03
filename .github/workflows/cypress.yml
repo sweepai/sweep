@@ -26,27 +26,19 @@ jobs:
     - name: Cache node modules
       uses: actions/cache@v4
       with:
-        path: ~/.npm
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        path: |
+          ~/.npm
+          ${{ github.workspace }}/.next/cache
+        key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx') }}
         restore-keys: |
-          ${{ runner.os }}-node-
+          ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
     
     - name: Install npm dependencies
       working-directory: sweep_chat
-      if: steps.cache-node-modules.outputs.cache-hit != 'true'
       run: npm ci
 
-    - name: Cache next build
-      uses: actions/cache@v4
-      with:
-        path: ./sweep_chat/.next
-        key: ${{ runner.os }}-next-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-next-
-    
     - name: Build next.js
       working-directory: sweep_chat
-      if: steps.cache-next-build.outputs.cache-hit != 'true'
       run: npm run build
 
     - name: Load .env.local from secrets
