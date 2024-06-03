@@ -10,7 +10,7 @@ import zipfile
 
 import markdown
 import requests
-from github import Github, Repository, IncompletableObject
+from github import Repository, IncompletableObject
 from github.PullRequest import PullRequest
 from github.Issue import Issue
 from loguru import logger
@@ -27,7 +27,6 @@ from sweepai.config.client import (
 from sweepai.core.entities import (
     SandboxResponse,
 )
-from sweepai.core.entities import create_error_logs as entities_create_error_logs
 from sweepai.dataclasses.codereview import CodeReview, CodeReviewIssue
 from sweepai.handlers.create_pr import (
     safe_delete_sweep_branch,

@@ -303,14 +303,14 @@ def on_comment(
             if file_comment:
                 formatted_query = f"The user left this GitHub PR Review comment in `{pr_path}`:\n<comment>\n{comment}\n</comment>\nThis was where they left their comment on the PR:\n<review_code_chunk>\n{formatted_pr_chunk}\n</review_code_chunk>.\n\nResolve their comment."
             renames_dict, file_change_requests, plan = get_files_to_change(
-                relevant_snippets=repo_context_manager.current_top_snippets,
-                read_only_snippets=repo_context_manager.read_only_snippets,
+                relevant_snippets=snippets,
+                read_only_snippets=[],
                 problem_statement=formatted_query,
                 repo_name=repo_name,
                 pr_diffs=pr_diff_string,
                 cloned_repo=cloned_repo,
             )
-            validate_file_change_requests(file_change_requests, repo_context_manager.cloned_repo)
+            validate_file_change_requests(file_change_requests, cloned_repo)
 
             assert file_change_requests, NoFilesException("I couldn't find any relevant files to change.")
 

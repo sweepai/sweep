@@ -442,6 +442,7 @@ class ChatGPT(MessageList):
         hit_content_filtering = False
         if stream:
             def llm_stream():
+                model = self.model
                 if use_openai:
                     client = OpenAI()
                     response = client.chat.completions.create(
