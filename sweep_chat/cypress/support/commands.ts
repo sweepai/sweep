@@ -36,14 +36,15 @@
 //   }
 // }
 
+const loginSecureCookie = Cypress.env("loginSecureCookie");
 const loginSessionCookie = Cypress.env("loginSessionCookie");
 
 Cypress.Commands.add("login", () => {
     cy.session("mySession", () => {
-        // cy.intercept("/api/auth/session", { fixture: "session.json" }).as("session");
         // We need to refresh this cookie once in a while.
         // We are unsure if this is true and if true, when it needs to be refreshed.
         // console.log(loginSessionCookie)
+        cy.setCookie("__Secure-next-auth.session-token", loginSecureCookie, {secure: true})
         cy.setCookie("next-auth.session-token", loginSessionCookie);
     });
 });
