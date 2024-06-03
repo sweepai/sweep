@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Cache node modules
-      working-directory: ./sweep_chat
+      working-directory: sweep_chat
       uses: actions/cache@v4
       with:
         path: ~/.npm
@@ -30,16 +30,16 @@ jobs:
           ${{ runner.os }}-node-
 
     - name: Install npm dependencies
-      working-directory: ./sweep_chat
+      working-directory: sweep_chat
       if: steps.cache-node-modules.outputs.cache-hit != 'true'
       run: npm ci
 
     - name: Load .env.local from secrets
-      working-directory: ./sweep_chat
+      working-directory: sweep_chat
       run: |
         echo "${{ secrets.CYPRESS_ENV_LOCAL }}" > .env.local
         echo "${{ secrets.CYPRESS_ENV_JSON }}" > cypress.env.json
     
     - name: Run Cypress tests
-      working-directory: ./sweep_chat
+      working-directory: sweep_chat
       run: npm run e2e:ci
