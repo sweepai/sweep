@@ -44,6 +44,7 @@ interface Snippet {
   end: number;
   file_path: string;
   type_name: "source" | "tests" | "dependencies" | "tools" | "docs";
+  score: number;
 }
 
 interface Message {
@@ -88,7 +89,7 @@ const SnippetBadge = ({
   button?: JSX.Element;
 }) => {
   return (
-    <div className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 ${typeNameToColor[snippet.type_name]} ${className || ""} `}>
+    <div className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 ${typeNameToColor[snippet.type_name]} ${className || ""} `} style={{ opacity: `${Math.min(1, snippet.score)}` }}>
       <HoverCard openDelay={300} closeDelay={200}>
         <HoverCardTrigger asChild>
           <Button variant="link" className="text-sm py-0 px-1 h-6 leading-4">
