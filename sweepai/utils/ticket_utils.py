@@ -154,7 +154,7 @@ def multi_get_top_k_snippets(
     sweep_config.exclude_dirs += blocked_dirs
     with Timer() as timer:
         _, snippets, lexical_index = prepare_lexical_search_index(
-            cloned_repo.cached_dir,
+            cloned_repo.repo_dir,
             sweep_config,
             do_not_use_file_cache=do_not_use_file_cache,
             seed=seed
@@ -162,7 +162,7 @@ def multi_get_top_k_snippets(
     logger.info(f"Lexical search index took {timer.time_elapsed} seconds")
 
     for snippet in snippets:
-        snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
+        snippet.file_path = snippet.file_path[len(cloned_repo.repo_dir) + 1 :]
     with Timer() as timer:
         content_to_lexical_score_list = [search_index(query, lexical_index) for query in queries]
     logger.info(f"Lexical search took {timer.time_elapsed} seconds")
