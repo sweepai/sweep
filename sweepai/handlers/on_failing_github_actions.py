@@ -13,7 +13,7 @@ from sweepai.utils.str_utils import strip_triple_quotes
 from sweepai.config.client import get_gha_enabled
 from sweepai.config.server import DEPLOYMENT_GHA_ENABLED
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message
+from sweepai.core.entities import Message, Snippet
 from sweepai.core.pull_request_bot import GHA_SUMMARY_END, GHA_SUMMARY_START, PRSummaryBot
 from sweepai.core.sweep_bot import GHA_PROMPT, GHA_PROMPT_WITH_HISTORY, get_files_to_change_for_gha, validate_file_change_requests
 from sweepai.handlers.create_pr import handle_file_change_requests
@@ -208,14 +208,14 @@ def on_failing_github_actions(
                         previous_github_actions_logs=previous_gha_logs,
                     )
                 
-                snippets = prep_snippets(cloned_repo=cloned_repo, query=problem_statement.strip("\n"), ticket_progress=None) # need to do this, can use the old query for speed
+                snippets: list[Snippet] = prep_snippets(cloned_repo=cloned_repo, query=problem_statement.strip("\n"), ticket_progress=None) # need to do this, can use the old query for speed
                 issue_request = get_issue_request(
                     "Fix the following errors to complete the user request.",
                     all_information_prompt,
                 )
                 # only pass in top 3 relevant snippets at this point we dont really need context anymore, we are just modifying the existing files
                 file_change_requests, plan = get_files_to_change_for_gha(
-                    relevant_snippets=snippets[:3],
+                    relevant_snippets=snippets[:3],  # pylint: disable=unsubscriptable-object
                     read_only_snippets=[],
                     problem_statement=all_information_prompt,
                     updated_files=modify_files_dict,
