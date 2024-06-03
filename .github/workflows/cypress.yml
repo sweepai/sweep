@@ -30,14 +30,24 @@ jobs:
         key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
         restore-keys: |
           ${{ runner.os }}-node-
-
-    - name: List directory contents
-      run: pwd && ls -la
-
+    
     - name: Install npm dependencies
       working-directory: sweep_chat
       if: steps.cache-node-modules.outputs.cache-hit != 'true'
       run: npm ci
+
+    - name: Cache next build
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-next-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-next-
+    
+    - name: Build next.js
+      working-directory: sweep_chat
+      if: steps.cache-next-build.outputs.cache-hit != 'true'
+      run: npm run build
 
     - name: Load .env.local from secrets
       working-directory: sweep_chat
