@@ -1,8 +1,6 @@
 from math import inf
 import os
-import queue
 import re
-import threading
 import time
 import traceback
 from typing import Any, Callable, Iterator, Literal
@@ -469,7 +467,6 @@ class ChatGPT(MessageList):
                         } for message in self.messages if message.role != "system"
                     ]
                     message_dicts = sanitize_anthropic_messages(message_dicts)
-                    streamed_string = ""
                     # pylint: disable=E1129
                     with client.messages.stream(
                         model=model,
