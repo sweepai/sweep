@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "e2e:run": "cypress run",
-    "e2e:open": "cypress open"
+    "e2e:open": "cypress open",
+    "ci": "start-server-and-test start 3000 test"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.1.2",
@@ -51,6 +52,7 @@
     "eslint": "^8",
     "eslint-config-next": "14.2.3",
     "postcss": "^8",
+    "start-server-and-test": "^2.0.3",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   }

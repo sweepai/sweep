@@ -36,9 +36,21 @@
 //   }
 // }
 
+declare module 'cypress' {
+    namespace Cypress {
+        interface Chainable {
+            /**
+             * Custom command to perform login.
+             */
+            login(): Chainable
+        }
+    }
+}
+
 const loginSecureCookie = Cypress.env("loginSecureCookie");
 const loginSessionCookie = Cypress.env("loginSessionCookie");
 
+// @ts-ignore
 Cypress.Commands.add("login", () => {
     cy.session("mySession", () => {
         // We need to refresh this cookie once in a while.
