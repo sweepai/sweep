@@ -7,15 +7,16 @@ export default withSentryConfig({
     return [
         {
             source: '/backend/:path*',
-            destination: `${process.env.BACKEND_URL}/chat/backend/:path*`, // FastAPI server
+            destination: async (req, res) => {
+              const backendUrl = process.env.BACKEND_URL
+              return `${backendUrl}/chat/backend/:path*`, // FastAPI server
+            }
         },
     ]
   },
 
   ...nextConfig
   }, {
-  // For all available options, see:
-  // https://github.com/getsentry/sentry-webpack-plugin#options
 
   org: "sweep-ai",
   project: "sweep-chat",
