@@ -339,7 +339,7 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
       </div>
       {!isEditing && message.annotations.pulls?.map((pr) => (
         <div className="flex justify-end text-sm">
-          <div className="bg-zinc-800 rounded-xl p-4 mt-2 text-left hover:bg-zinc-700 hover:cursor-pointer" onClick={() => {
+          <div className="bg-zinc-800 rounded-xl p-4 mb-2 text-left hover:bg-zinc-700 hover:cursor-pointer" onClick={() => {
             window.open(`https://github.com/${pr.repo_name}/pull/${pr.number}`, "_blank")
           }}>
             <div className={`border-l-4 ${pr.status === "open" ? "border-green-500" : pr.status === "merged" ? "border-purple-500" : "border-red-500"} pl-4`}>
