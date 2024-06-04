@@ -18,7 +18,7 @@ const authOptions: AuthOptions = {
             const data = await response.json()
             const { login, name, picture } = data;
             session.user = {
-                username: token.name,
+                username: token.name || login,
                 image: token.picture,
                 accessToken: token.accessToken,
                 refreshToken: token.refreshToken,
@@ -33,7 +33,7 @@ const authOptions: AuthOptions = {
             return true;
         },
         async jwt({ token, account }) {
-            const hasExpired = token.expires_at ? Date.now() + 1000 * 60 * 60 * 8 - 10 * 1000 >= (token.expires_at as number) * 1000 : false;
+            const hasExpired = token.expires_at ? Date.now() >= (token.expires_at as number) * 1000 : false;
             if (account && !hasExpired) {
                 return {
                     ...token,
