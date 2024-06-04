@@ -7,10 +7,7 @@ export default withSentryConfig({
     return [
         {
             source: '/backend/:path*',
-            destination: async (req, res) => {
-              const backendUrl = process.env.BACKEND_URL
-              return `${backendUrl}/chat/backend/:path*`, // FastAPI server
-            }
+            destination: `${process.env.BACKEND_URL}/chat/backend/:path*` // should redirect at runtime instead: https://nextjs.org/docs/pages/building-your-application/routing/middleware
         },
     ]
   },
