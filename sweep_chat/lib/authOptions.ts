@@ -8,8 +8,7 @@ const authOptions: AuthOptions = {
             clientSecret: process.env.GITHUB_SECRET || "",
         }),
     ],
-    secret: process.env.NEXTAUTH_SECRET,
-    debug: true,
+    debug: process.env.NODE_ENV === "development",
     callbacks: {
         async session({ session, token }: any) {
             const { sub } = token;
@@ -23,6 +22,7 @@ const authOptions: AuthOptions = {
         async signIn({ user, account, profile }: any) {
             if (account.provider === "github") {
                 user.username = profile.login; 
+                user.expiry = new Date(Date.now() + 1000 * 60 * 60 * 8); // 8 hours
             }
             return true;
         },
