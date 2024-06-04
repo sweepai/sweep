@@ -78,4 +78,4 @@ jobs:
     
     - name: Run Cypress tests
       working-directory: sweep_chat
-      run: CYPRESS_LOGIN_SESSION_COOKIE=${{ secrets.CYPRESS_LOGIN_SESSION_COOKIE }} npm run e2e:ci
+      run: BACKEND_URL=${{ secrets.BACKEND_URL }} CYPRESS_LOGIN_SESSION_COOKIE=${{ secrets.CYPRESS_LOGIN_SESSION_COOKIE }} npm run e2e:ci
