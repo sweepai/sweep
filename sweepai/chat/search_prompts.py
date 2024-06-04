@@ -153,3 +153,17 @@ relevant_snippet_template = '''<relevant_file index="{i}">
 {content}
 </source>
 </relevant_file>'''
+
+pr_format = """<pull_request>
+<title>
+{title}
+</title>
+<body>
+{body}
+</body>
+<patch>
+{patch}
+</patch>
+</pull_request>
+"""
+
