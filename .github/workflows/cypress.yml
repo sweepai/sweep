@@ -5,6 +5,8 @@ concurrency:
   cancel-in-progress: true
 
 on:
+  schedule:
+    - cron: '*/30 * * * *'  # Runs every 30 minutes
   pull_request:
     branches:
       - main
