@@ -441,7 +441,7 @@ function App() {
           headers: {
             "Content-Type": "application/json",
             // @ts-ignore
-            "Authorization": `Bearer ${session?.accessToken}`
+            "Authorization": `Bearer ${session?.user.accessToken}`
           }
         });
 
@@ -508,7 +508,7 @@ function App() {
       headers: {
         "Content-Type": "application/json",
         // @ts-ignore
-        "Authorization": `Bearer ${session?.accessToken}`
+        "Authorization": `Bearer ${session?.user.accessToken}`
       },
       body: JSON.stringify({
         repo_name: repoName,
@@ -660,7 +660,7 @@ function App() {
                 headers: {
                   "Content-Type": "application/json",
                   // @ts-ignore
-                  "Authorization": `Bearer ${session?.accessToken!}`
+                  "Authorization": `Bearer ${session?.user.accessToken!}`
                 }
               });
               data = await response.json();
