@@ -47,8 +47,8 @@ declare module 'cypress' {
     }
 }
 
-const loginSecureCookie = Cypress.env("loginSecureCookie");
-const loginSessionCookie = Cypress.env("loginSessionCookie");
+const loginSecureCookie = Cypress.env("LOGIN_SECURE_COOKIE");
+const loginSessionCookie = Cypress.env("LOGIN_SESSION_COOKIE");
 
 // @ts-ignore
 Cypress.Commands.add("login", () => {
