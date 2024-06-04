@@ -52,6 +52,30 @@ interface Snippet {
   score: number;
 }
 
+interface FileDiff {
+  sha: string;
+  filename: string;
+  status: "modified" | "added" | "removed" | "renamed" | "copied" | "changed" | "unchanged";
+  additions: number;
+  deletions: number;
+  changes: number;
+  blob_url: string;
+  raw_url: string;
+  contents_url: string;
+  patch?: string | undefined;
+  previous_filename?: string | undefined;
+}
+
+interface PullRequest {
+  number: number;
+  repo_name: string;
+  title: string;
+  body: string;
+  labels: string[];
+  status: string;
+  file_diffs: FileDiff[]
+}
+
 interface Message {
   content: string; // This is the message content or function output
   role: "user" | "assistant" | "function";
@@ -61,6 +85,9 @@ interface Message {
     is_complete: boolean;
     snippets?: Snippet[];
   }; // This is the function input
+  annotations: {
+    pulls: PullRequest[]
+  }
 }
 
 const modelMap: Record<string, string> = {
@@ -135,6 +162,44 @@ const InputWithDropdown = ({
   );
 };
 
+const MarkdownRenderer = ({ content, className }: { content: string, className?: string }) => {
+  return (
+    <Markdown
+      className={`${className} reactMarkdown`}
+      remarkPlugins={[remarkGfm]}
+      components={{
+        code(props) {
+          const { children, className, node, ref, ...rest } = props
+          const match = /language-(\w+)/.exec(className || '')
+          return match ? (
+            <SyntaxHighlighter
+              {...rest} // eslint-disable-line
+              PreTag="div"
+              language={match[1]}
+              style={tomorrow}
+              customStyle={{
+                backgroundColor: '#333',
+              }}
+              className="rounded-xl"
+            >
+              {String(children).replace(/\n$/, '')}
+            </SyntaxHighlighter>
+          ) : (
+            <code
+              {...rest}
+              className={`rounded-xl ${className}`}
+            >
+              {children}
+            </code>
+          )
+        }
+      }}
+    >
+      {content}
+    </Markdown>
+  )
+}
+
 const typeNameToColor = {
   "source": "bg-blue-900",
   "tests": "bg-green-900",
@@ -206,72 +271,100 @@ switch (functionCall?.function_name) {
 }
 
 const roleToColor = {
-"user": "bg-zinc-600",
-"assistant": "bg-zinc-700",
-"function": "bg-zinc-800",
+  "user": "bg-zinc-600",
+  "assistant": "bg-zinc-700",
+  "function": "bg-zinc-800",
 }
 
+const sum = (arr: number[]) => arr.reduce((acc, cur) => acc + cur, 0)
+
 const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (content: string) => void }) => {
-// TODO: finish this implementation
-const [isEditing, setIsEditing] = useState(false);
-const [editedContent, setEditedContent] = useState(message.content);
-const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // TODO: finish this implementation
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(message.content);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-const handleClick = () => {
-  setIsEditing(true);
-};
+  const handleClick = () => {
+    setIsEditing(true);
+  };
 
-const handleBlur = () => {
-  setIsEditing(false);
-};
+  const handleBlur = () => {
+    setIsEditing(false);
+  };
 
-useEffect(() => {
-  if (textareaRef.current) {
-    textareaRef.current.style.height = 'auto';
-    textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-  }
-}, [editedContent]);
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [editedContent]);
 
-return (
-  <>
-    <div className={`text-sm text-white`} onClick={handleClick}>
-      {isEditing ? (
-        <Textarea
-          className="w-full mb-4 bg-transparent text-white max-w-[500px] w-[500px] hover:bg-initial"
-          ref={textareaRef}
-          value={editedContent}
-          onChange={(e) => setEditedContent(e.target.value)}
-          autoFocus
-        />
-      ) : (
-        <>
-          <span className="bg-initial pl-1">
-            <FaPencilAlt className="inline-block mr-2" />&nbsp;
-            {message.content}
-          </span>
-        </>
-      )}
-    </div>
-    {isEditing && (
-      <>
-        <Button onClick={() => handleBlur()} variant="secondary" className="bg-zinc-800 text-white">
-          Cancel
-        </Button>
-        <Button onClick={() => {
-          onEdit(editedContent)
-          handleBlur()
-        }} variant="default" className="ml-2 bg-slate-600 text-white hover:bg-slate-700">
-          Generate
-        </Button>
-      </>
-    )}
-  </>
-  );
+  return (
+    <>
+      <div className="flex justify-end">
+        <FaPencilAlt className="inline-block mr-2 mt-3 hover:cursor-pointer" onClick={handleClick} />&nbsp;
+        <div className="bg-zinc-800 transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] hover:bg-zinc-700 hover:cursor-pointer text-right" onClick={handleClick}>
+          <div className={`text-sm text-white`}>
+            {isEditing ? (
+              <Textarea
+                className="w-full mb-4 bg-transparent text-white max-w-[500px] w-[500px] hover:bg-initial"
+                ref={textareaRef}
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                autoFocus
+              />
+            ) : (
+              <MarkdownRenderer content={message.content.trim()} />
+            )}
+          </div>
+          {isEditing && (
+            <>
+              <Button onClick={(e) => {
+                handleBlur()
+                e.stopPropagation()
+              }} variant="secondary" className="bg-zinc-800 text-white">
+                Cancel
+              </Button>
+              <Button onClick={() => {
+                onEdit(editedContent)
+                handleBlur()
+              }} variant="default" className="ml-2 bg-slate-600 text-white hover:bg-slate-700">
+                Generate
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+      {!isEditing && message.annotations.pulls?.map((pr) => (
+        <div className="flex justify-end text-sm">
+          <div className="bg-zinc-800 rounded-xl p-4 mt-2 text-left hover:bg-zinc-700 hover:cursor-pointer" onClick={() => {
+            window.open(`https://github.com/${pr.repo_name}/pull/${pr.number}`, "_blank")
+          }}>
+            <div className={`border-l-4 ${pr.status === "open" ? "border-green-500" : pr.status === "merged" ? "border-purple-500" : "border-red-500"} pl-4`}>
+              <div className="mb-2 text-md">
+                #{pr.number} {pr.title} 
+              </div>
+              <div className="mb-4 text-sm">
+                {pr.body}
+              </div>
+              <div className="text-xs">
+                <div className="mb-1">{pr.repo_name}</div>
+                {pr.file_diffs.length} files changed <span className="text-green-500">+{sum(pr.file_diffs.map(diff => diff.additions))}</span> <span className="text-red-500">-{sum(pr.file_diffs.map(diff => diff.deletions))}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </>
+    );
 }
 
 const MessageDisplay = ({ message, className, onEdit }: { message: Message, className?: string, onEdit: (content: string) => void }) => {
+  if (message.role === "user") {
+    return <UserMessageDisplay message={message} onEdit={onEdit} />
+  }
   return (
-    <div className={`flex ${message.role !== "user" ? "justify-start" : "justify-end"}`}>
+    <div className={`flex justify-start`}>
       <div
         className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] ${message.role !== "user" ? "text-left w-[80%]" : "hover:bg-zinc-700 hover:cursor-pointer text-right"
           } ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
@@ -308,39 +401,7 @@ const MessageDisplay = ({ message, className, onEdit }: { message: Message, clas
                     ))}
                   </div>
                 ) : (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
-                  <Markdown
-                    className="reactMarkdown mt-4 mb-0"
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      code(props) {
-                        const { children, className, node, ref, ...rest } = props
-                        const match = /language-(\w+)/.exec(className || '')
-                        return match ? (
-                          <SyntaxHighlighter
-                            {...rest} // eslint-disable-line
-                            PreTag="div"
-                            language={match[1]}
-                            style={tomorrow}
-                            customStyle={{
-                              backgroundColor: '#333',
-                            }}
-                            className="rounded-xl"
-                          >
-                            {String(children).replace(/\n$/, '')}
-                          </SyntaxHighlighter>
-                        ) : (
-                          <code
-                            {...rest}
-                            className={`rounded-xl ${className}`}
-                          >
-                            {children}
-                          </code>
-                        )
-                      }
-                    }}
-                  >
-                    {message.content}
-                  </Markdown>
+                  <MarkdownRenderer content={message.content} className="reactMarkdown mt-4 mb-0" />
                 ) : (
                   <SyntaxHighlighter
                     language="xml"
@@ -644,18 +705,13 @@ function App() {
     });
   }
 
-  // const [repos, setRepos] = useState<Repo[]>([])
-
-  // useEffect(() => {
-  //   const octokit = new Octokit({auth: session?.user.accessToken});
-  //   (async () => {
-  //     const response = await octokit.rest.repos.listForAuthenticatedUser({
-  //       per_page: 100
-  //     })
-  //     setRepos(response.data)
-  //   })();
-  // }, [])
-  // console.log(repos)
+  const [octokit, setOctokit] = useState<Octokit>(null)
+  useEffect(() => {
+    if (session) {
+      const octokit = new Octokit({auth: session.user!.accessToken!})
+      setOctokit(octokit)
+    }
+  }, [session])
 
   if (!session) {
     return (
@@ -825,11 +881,47 @@ function App() {
             key={index}
             message={message}
             className={index == lastAssistantMessageIndex ? "bg-slate-700" : ""}
-            onEdit={(content) => {
-              console.log(index)
-              const newMessages = [
+            onEdit={async (content) => {
+              // search for mentions of PR URLs in content
+
+              const [orgName, repo] = repoName.split("/")
+              const pulls = []
+
+              const prURLs = content.match(new RegExp(`https?:\/\/github.com\/${repoName}\/pull\/(?<prNumber>[0-9]+)`, 'gm'));
+              for (const prURL of prURLs || []) {
+                const prNumber = prURL.split("/").pop()
+                console.log(prNumber)
+                const pr = await octokit.rest.pulls.get({
+                  owner: orgName,
+                  repo: repo,
+                  pull_number: parseInt(prNumber!)
+                })
+                const title = pr.data.title
+                const body = pr.data.body
+                const labels = pr.data.labels.map((label) => label.name)
+                const status = pr.data.state === "open" ? "open" : pr.data.merged ? "merged" : "closed"
+                const file_diffs = (await octokit.rest.pulls.listFiles({
+                  owner: orgName,
+                  repo: repo,
+                  pull_number: parseInt(prNumber!)
+                })).data
+                // console.log(file_diffs)
+                pulls.push({
+                  number: prNumber,
+                  repo_name: repoName,
+                  title,
+                  body,
+                  labels,
+                  status,
+                  file_diffs
+                })
+              }
+
+              // console.log(pulls)
+
+              const newMessages: Message[] = [
                 ...messages.slice(0, index),
-                { ...message, content },
+                { ...message, content, annotations: { pulls } },
               ]
               setMessages(newMessages)
               if (index == 0) {
