@@ -119,7 +119,7 @@ def clean_gh_logs(logs_str: str):
         cleaned_logs = cleaned_logs[:LINES_TO_KEEP] + ["..."] + cleaned_logs[-LINES_TO_KEEP:]
     cleaned_logs_str = "\n".join(cleaned_logs)
     error_content = ""
-    if len(error_line) < 2000:
+    if len(error_line) < 200000:
         error_content = f"""<errors>
 {error_line}
 </errors>"""
