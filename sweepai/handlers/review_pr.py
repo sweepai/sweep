@@ -177,6 +177,7 @@ def review_pr(
                 dropped_files=dropped_files,
                 unsuitable_files=unsuitable_files,
             )
+            pr_issue.delete_reaction(reaction_eyes.id)
         except Exception as e:
             posthog.capture(
                 username,
@@ -190,6 +191,5 @@ def review_pr(
             )
             pr_issue.delete_reaction(reaction_eyes.id)
             raise e
-        pr_issue.delete_reaction(reaction_eyes.id)
         logger.info("review_pr success in " + str(round(time() - review_pr_start_time)))
         return {"success": True}
