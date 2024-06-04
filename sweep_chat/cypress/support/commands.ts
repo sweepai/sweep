@@ -50,13 +50,21 @@ declare module 'cypress' {
 const loginSecureCookie = Cypress.env("LOGIN_SECURE_COOKIE");
 const loginSessionCookie = Cypress.env("LOGIN_SESSION_COOKIE");
 
+if (!loginSessionCookie && !loginSecureCookie) {
+    throw new Error("Login cookies are not set, you must set one of the following environment variables: LOGIN_SESSION_COOKIE or LOGIN_SECURE_COOKIE");
+}
+
 // @ts-ignore
 Cypress.Commands.add("login", () => {
     cy.session("mySession", () => {
         // We need to refresh this cookie once in a while.
         // We are unsure if this is true and if true, when it needs to be refreshed.
         // console.log(loginSessionCookie)
-        cy.setCookie("__Secure-next-auth.session-token", loginSecureCookie, {secure: true})
-        cy.setCookie("next-auth.session-token", loginSessionCookie);
+        if (loginSessionCookie) {
+            cy.setCookie("next-auth.session-token", loginSessionCookie);
+        }
+        if (loginSecureCookie) {
+            cy.setCookie("__Secure-next-auth.session-token", loginSecureCookie, {secure: true})
+        }
     });
 });
