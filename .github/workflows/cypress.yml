@@ -74,6 +74,5 @@ jobs:
       run: |
         echo "${{ secrets.CYPRESS_ENV_LOCAL }}" > .env.local
         echo "\nBACKEND_URL=${{ secrets.BACKEND_URL }}" >> env.local
-        export BACKEND_URL=${{ secrets.BACKEND_URL }}
         export CYPRESS_LOGIN_SESSION_COOKIE=${{ secrets.CYPRESS_LOGIN_SESSION_COOKIE }}
         npm run e2e:ci
