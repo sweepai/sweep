@@ -29,7 +29,7 @@ describe('sweep chat', () => {
     })
   })
 
-  it.skip("can send a message", () => {
+  it("can send a message", () => {
     cy.get('.grow > .flex').type("sweepai/sweep").blur()
     cy.get(':nth-child(5) > .flex', { timeout: 10000 }).should('have.attr', 'placeholder', 'Type a message...')
 

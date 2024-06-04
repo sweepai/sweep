@@ -72,9 +72,8 @@ jobs:
       run: |
         echo "${{ secrets.CYPRESS_ENV_LOCAL }}" > .env.local
         export CYPRESS_LOGIN_SESSION_COOKIE="${{ secrets.CYPRESS_LOGIN_SESSION_COOKIE }}"
-        export CYPRESS_LOGIN_SECURE_COOKIE="${{ secrets.CYPRESS_LOGIN_SECURE_COOKIE }}"
         ls -la
     
     - name: Run Cypress tests
       working-directory: sweep_chat
-      run: npm run e2e:ci
+      run: CYPRESS_LOGIN_SESSION_COOKIE=${{ secrets.CYPRESS_LOGIN_SESSION_COOKIE }} npm run e2e:ci
