@@ -449,9 +449,7 @@ function App() {
         let streamedMessage: string = ""
         const reader = snippetsResponse.body?.getReader()!;
         for await (const chunk of streamMessages(reader, isStream)) {
-          // @ts-ignore
           streamedMessage = chunk[0]
-          // @ts-ignore
           currentSnippets = chunk[1]
           currentSnippets = currentSnippets.slice(0, k)
           streamedMessages = [...newMessages, {
