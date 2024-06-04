@@ -71,6 +71,7 @@ jobs:
       working-directory: sweep_chat
       run: |
         echo "${{ secrets.CYPRESS_ENV_LOCAL }}" > .env.local
+        export BACKEND_URL="${{ secrets.BACKEND_URL }}"
         export CYPRESS_LOGIN_SESSION_COOKIE="${{ secrets.CYPRESS_LOGIN_SESSION_COOKIE }}"
         ls -la
     
