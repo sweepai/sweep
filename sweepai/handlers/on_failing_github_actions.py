@@ -51,6 +51,8 @@ def get_error_locations_from_error_logs(error_logs: str, cloned_repo: ClonedRepo
             current_error_message = match.group("error_message")
             if not any(file_path in potential_file_path
                     for file_path in file_paths):
+                # include raw message if we cannot find the file
+                error_message += f"{match.group(0)}\n"
                 continue
             actual_file_path = [
                 file_path 
