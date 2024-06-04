@@ -9,7 +9,7 @@ export default withSentryConfig({
             source: '/backend/:path*',
             destination: async (req, res) => {
               const backendUrl = process.env.BACKEND_URL
-              return `${backendUrl}/chat/backend/:path*`, // FastAPI server
+              return `${backendUrl}/chat/backend/:path*`; // FastAPI server
             }
         },
     ]
