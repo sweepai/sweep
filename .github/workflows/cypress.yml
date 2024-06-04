@@ -33,12 +33,12 @@ jobs:
         key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}
     
     - name: Install npm dependencies
-      if: steps.cache-node-modules.outputs.cache-hit != 'true'
+      if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
       working-directory: sweep_chat
       run: npm ci
 
     - name: Cache save node modules
-      if: steps.cache-node-modules.outputs.cache-hit != 'true'
+      if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v4
       with:
         path: |
@@ -50,25 +50,21 @@ jobs:
       id: cache-build
       uses: actions/cache/restore@v4
       with:
-        path: |
-          ~/.npm
-          sweep_chat/.next/cache
+        path: sweep_chat/.next/cache
         key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('sweep_chat/**/*.js', 'sweep_chat/**/*.jsx', 'sweep_chat/**/*.ts', 'sweep_chat/**/*.tsx', '!sweep_chat/.next/**', '!sweep_chat/node_modules/**') }}
         restore-keys: |
           ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
 
     - name: Build next.js
-      if: steps.cache-build.outputs.cache-hit != 'true'
+      if: ${{ steps.cache-build.outputs.cache-hit != 'true' }}
       working-directory: sweep_chat
       run: npm run build
 
     - name: Cache build
-      if: steps.cache-build.outputs.cache-hit != 'true'
+      if: ${{ steps.cache-build.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v4
       with:
-        path: |
-          ~/.npm
-          sweep_chat/.next/cache
+        path: sweep_chat/.next/cache
         key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('sweep_chat/**/*.js', 'sweep_chat/**/*.jsx', 'sweep_chat/**/*.ts', 'sweep_chat/**/*.tsx', '!sweep_chat/.next/**', '!sweep_chat/node_modules/**') }}
 
     - name: Load .env.local from secrets
