@@ -53,12 +53,14 @@ jobs:
       uses: actions/cache/restore@v4
       with:
         path: sweep_chat/.next
-        key: ${{ runner.os }}-${{ hashFiles('sweep_chat/components/*.tsx', 'sweep_chat/app/*.tsx', 'sweep_chat/app/*.ts', 'sweep_chat/lib/*.ts') }}-1
+        key: ${{ runner.os }}-${{ hashFiles('sweep_chat/components/*.tsx', 'sweep_chat/app/*.tsx', 'sweep_chat/app/*.ts', 'sweep_chat/lib/*.ts') }}-2
 
     - name: Build next.js
       if: ${{ steps.cache-build.outputs.cache-hit != 'true' }}
       working-directory: sweep_chat
-      run: npm run build
+      run: |
+        export BACKEND_URL=${{ secrets.BACKEND_URL }}
+        npm run build
 
     - name: Cache build
       if: ${{ steps.cache-build.outputs.cache-hit != 'true' }}
@@ -67,15 +69,11 @@ jobs:
         path: sweep_chat/.next
         key: ${{ runner.os }}-${{ hashFiles('sweep_chat/components/*.tsx', 'sweep_chat/app/*.tsx', 'sweep_chat/app/*.ts', 'sweep_chat/lib/*.ts') }}
 
-    - name: Load .env.local from secrets
+    - name: Run Cypress tests
       working-directory: sweep_chat
       run: |
         echo "${{ secrets.CYPRESS_ENV_LOCAL }}" > .env.local
-        export BACKEND_URL="${{ secrets.BACKEND_URL }}"
         echo "\nBACKEND_URL=${{ secrets.BACKEND_URL }}" >> env.local
-        export CYPRESS_LOGIN_SESSION_COOKIE="${{ secrets.CYPRESS_LOGIN_SESSION_COOKIE }}"
-        ls -la
-    
-    - name: Run Cypress tests
-      working-directory: sweep_chat
-      run: BACKEND_URL=${{ secrets.BACKEND_URL }} CYPRESS_LOGIN_SESSION_COOKIE=${{ secrets.CYPRESS_LOGIN_SESSION_COOKIE }} npm run e2e:ci
+        export BACKEND_URL=${{ secrets.BACKEND_URL }}
+        export CYPRESS_LOGIN_SESSION_COOKIE=${{ secrets.CYPRESS_LOGIN_SESSION_COOKIE }}
+        npm run e2e:ci
