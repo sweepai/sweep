@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "e2e:run": "cypress run",
+    "e2e:open": "cypress open",
+    "e2e:ci": "start-server-and-test start 3000 e2e:run"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.1.2",
@@ -39,13 +42,17 @@
     "usehooks-ts": "^3.1.0"
   },
   "devDependencies": {
+    "@testing-library/cypress": "^10.0.2",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "cypress": "^13.10.0",
+    "cypress-social-logins": "^1.14.1",
     "eslint": "^8",
     "eslint-config-next": "14.2.3",
     "postcss": "^8",
+    "start-server-and-test": "^2.0.3",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   }
