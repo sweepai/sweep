@@ -33,7 +33,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadio
 import { Label } from "./ui/label";
 import PulsingLoader from "./shared/PulsingLoader";
 
-
 if (typeof window !== 'undefined') {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!)
   posthog.debug(false)
@@ -442,7 +441,7 @@ function App() {
           headers: {
             "Content-Type": "application/json",
             // @ts-ignore
-            "Authorization": `Bearer ${session?.accessToken}`
+            "Authorization": `Bearer ${session?.user.accessToken}`
           }
         });
 
@@ -450,9 +449,7 @@ function App() {
         let streamedMessage: string = ""
         const reader = snippetsResponse.body?.getReader()!;
         for await (const chunk of streamMessages(reader, isStream)) {
-          // @ts-ignore
           streamedMessage = chunk[0]
-          // @ts-ignore
           currentSnippets = chunk[1]
           currentSnippets = currentSnippets.slice(0, k)
           streamedMessages = [...newMessages, {
@@ -509,7 +506,7 @@ function App() {
       headers: {
         "Content-Type": "application/json",
         // @ts-ignore
-        "Authorization": `Bearer ${session?.accessToken}`
+        "Authorization": `Bearer ${session?.user.accessToken}`
       },
       body: JSON.stringify({
         repo_name: repoName,
@@ -661,7 +658,7 @@ function App() {
                 headers: {
                   "Content-Type": "application/json",
                   // @ts-ignore
-                  "Authorization": `Bearer ${session?.accessToken!}`
+                  "Authorization": `Bearer ${session?.user.accessToken!}`
                 }
               });
               data = await response.json();

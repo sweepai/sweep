@@ -309,13 +309,13 @@ def format_pr_changes(
         if truncate:
             formatted_source_code = source_code_with_patches_format.format(
                 file_name=file_name, file_contents=smart_prune_file_based_on_patches(
-                    add_line_numbers(pr_change.new_code), 
+                    add_line_numbers(pr_change.new_code, start=1), 
                     pr_change.patches
                 )
             )
         else:
             formatted_source_code = source_code_with_patches_format.format(
-                file_name=file_name, file_contents=add_line_numbers(pr_change.new_code)
+                file_name=file_name, file_contents=add_line_numbers(pr_change.new_code, start=1)
             )
         all_formatted_source_code += formatted_source_code
     file_names = ", ".join(pr_changes.keys())
@@ -380,6 +380,11 @@ You will also be given the pull request title and description which you will use
 
 system_prompt_review = """You are a busy tech manager who is responsible for reviewing prs and identifying any possible production issues. 
 You will be analyzing a list of potential issues that have been identified by a previous engineer and determing which issues are severe enough to bring up to the original engineer."""
+
+system_prompt_special_rules = """You are a careful and smart tech lead that wants to avoid production issues. You will be analyzing a set of diffs representing a pull request made to a piece of source code. 
+You will also be given the pull request title and description which you will use to determine the intentions of the pull request. Finally you will be given a set of rules to check the pull request changes against.
+It is your job to make sure that the pull request changes do not violate any of the given rules.
+"""
 
 system_prompt_identify_new_functions = """You are an expert programmer with a keen eye for detail, assigned to analyze a series of code patches in a pull request. Your primary responsibility is to meticulously identify all newly created functions within the code."""
 
@@ -459,8 +464,8 @@ Along with the rules provided, there may be examples given for each rule. These 
 1. Analyze the rules and examples provided.
     For each rule provided, answer the following:
     Rule #n:
-        a. Are there any examples relating to this rule? If no, you may stop here.
-        b. If there are examples, for each example, explain how the example relates to the rule and give an example code change that would violate the rule.
+        a. Are there any examples relating to this rule? If no, you may stop here. If yes, repeat the example verbatim here.
+        b. For each example, examine if the example provided relates to any code change in the pull request. If it does, explain why, if it doesn't explain why.
 Output the questions and answers for each rule in step 1 in the following format:
 <examples_analysis>
 {{Question and answers for each example in the special_rules section.}}
@@ -479,7 +484,7 @@ Output the questions and answers for each rule in step 2 in the following format
 
 user_prompt_issue_output_format = """
 [FORMAT]
-Finally, format the found issues and root causes using the following XML tags. Each issue description should be a single sentence. Include the corresponding start and end line numbers of the change, these line numbers should be at most 50 apart. DO NOT reference the patch or patch number in the description. Format these fields in an <issue> tag in the following manner:
+Finally, format the found issues and root causes using the following XML tags. Each issue description should be a single sentence. Include the corresponding start and end line numbers of the issue, give 1-2 extra lines of context above and below the issue. DO NOT reference the patch or patch number in the description. Format these fields in an <issue> tag in the following manner:
 
 <issues>
 <issue>
@@ -564,6 +569,7 @@ Deliver your analysis including all questions and answers in the following forma
 </thinking>
 ...
 </thoughts>"""
+
 user_prompt_review_decisions = """
 2. Decide which issues to keep
     2a. Based on your analysis in step 1, now decide which issues to keep and drop. Only include severe issues.
@@ -730,7 +736,9 @@ class PRReviewBot(ChatGPT):
         file_names: list[str], 
         special_rule_file: str = "SWEEP.md"
     ):
-        special_rules = ""
+        special_rules = []
+        # a set of already added SWEEP.md rules so that we don't add them multiple times
+        added_rules = set([])
         for file_name in file_names:
             # ensure file exists and this is not a GPT.md file
             full_path = os.path.join(cloned_repo.repo_dir, file_name)
@@ -752,7 +760,10 @@ class PRReviewBot(ChatGPT):
             for directory in directories_to_check:
                 special_rule_path = os.path.join(directory, special_rule_file)
                 if os.path.exists(special_rule_path):
-                    special_rules += read_file_with_fallback_encodings(special_rule_path)
+                    if special_rule_path not in added_rules:
+                        special_rules.append(read_file_with_fallback_encodings(special_rule_path))
+                        added_rules.add(special_rule_path)
+
         return special_rules
     # get a comprehensive pr summary
     def get_pr_summary(self, formatted_patches: str, chat_logger: ChatLogger = None):
@@ -828,15 +839,22 @@ class PRReviewBot(ChatGPT):
             # check if there are special rules we need to follow for this file by seeing if the files "SWEEP.md" exists
             special_rules = self.get_special_rules(cloned_repo, file_names)
             if special_rules:
-                formatted_user_prompt_special_rules = user_prompt_special_rules_format.format(diff=rendered_changes, special_rules=special_rules)
-                formatted_user_prompt_special_rules += user_prompt_issue_output_format
-                special_rules_response = self.chat_anthropic(
-                    content=formatted_user_prompt_special_rules,
-                    temperature=0,
-                    model=CLAUDE_MODEL,
-                    seed=seed
-                )
-                code_review_response += special_rules_response
+                for special_rule_set in special_rules:
+                    formatted_user_prompt_special_rules = user_prompt_special_rules_format.format(diff=rendered_changes, special_rules=special_rule_set)
+                    formatted_user_prompt_special_rules += user_prompt_issue_output_format
+                    self.messages = [
+                        Message(
+                            role="system",
+                            content=system_prompt_special_rules,
+                        )
+                    ]
+                    special_rules_response = self.chat_anthropic(
+                        content=formatted_user_prompt_special_rules,
+                        temperature=0.1,
+                        model=CLAUDE_MODEL,
+                        seed=seed,
+                    )
+                    code_review_response += special_rules_response
             diff_summary = ""
             diff_summary_pattern = r"<diff_summary>(.*?)</diff_summary>"
             diff_summary_matches = re.findall(diff_summary_pattern, code_review_response, re.DOTALL)
@@ -900,7 +918,7 @@ class PRReviewBot(ChatGPT):
             )
             special_rules = self.get_special_rules(cloned_repo, file_names)
             if special_rules:
-                formatted_user_prompt += user_prompt_review_special_rules.format(special_rules=special_rules)
+                formatted_user_prompt += user_prompt_review_special_rules.format(special_rules="\n".join(special_rules))
             formatted_user_prompt += user_prompt_review_analysis_format
             formatted_user_prompt += user_prompt_review_decisions
             # get response
