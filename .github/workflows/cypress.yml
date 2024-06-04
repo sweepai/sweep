@@ -53,7 +53,7 @@ jobs:
       uses: actions/cache/restore@v4
       with:
         path: sweep_chat/.next
-        key: ${{ runner.os }}-${{ hashFiles('sweep_chat/components/*.tsx', 'sweep_chat/app/*.tsx', 'sweep_chat/app/*.ts', 'sweep_chat/lib/*.ts') }}-2
+        key: ${{ runner.os }}-${{ hashFiles('sweep_chat/components/*.tsx', 'sweep_chat/app/*.tsx', 'sweep_chat/app/*.ts', 'sweep_chat/lib/*.ts') }}
 
     - name: Build next.js
       if: ${{ steps.cache-build.outputs.cache-hit != 'true' }}
