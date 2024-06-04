@@ -7,7 +7,7 @@ export default withSentryConfig({
     return [
         {
             source: '/backend/:path*',
-            destination: `${process.env.BACKEND_URL}/chat/backend/:path*`
+            destination: `${process.env.BACKEND_URL}/chat/backend/:path*` // should redirect at runtime instead: https://nextjs.org/docs/pages/building-your-application/routing/middleware
         },
     ]
   },
