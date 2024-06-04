@@ -325,9 +325,11 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
               }} variant="secondary" className="bg-zinc-800 text-white">
                 Cancel
               </Button>
-              <Button onClick={() => {
+              <Button onClick={(e) => {
                 onEdit(editedContent)
+                setIsEditing(false)
                 handleBlur()
+                e.stopPropagation()
               }} variant="default" className="ml-2 bg-slate-600 text-white hover:bg-slate-700">
                 Generate
               </Button>
@@ -401,7 +403,7 @@ const MessageDisplay = ({ message, className, onEdit }: { message: Message, clas
                     ))}
                   </div>
                 ) : (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
-                  <MarkdownRenderer content={message.content} className="reactMarkdown mt-4 mb-0" />
+                  <MarkdownRenderer content={message.content} className="reactMarkdown mt-4 mb-0 py-2" />
                 ) : (
                   <SyntaxHighlighter
                     language="xml"
@@ -421,39 +423,7 @@ const MessageDisplay = ({ message, className, onEdit }: { message: Message, clas
             </AccordionItem>
           </Accordion>
         ) : message.role === "assistant" ? (
-          <Markdown
-            className="reactMarkdown"
-            remarkPlugins={[remarkGfm]}
-            components={{
-              code(props) {
-                const { children, className, node, ref, ...rest } = props
-                const match = /language-(\w+)/.exec(className || '')
-                return match ? (
-                  <SyntaxHighlighter
-                    {...rest}
-                    PreTag="div"
-                    language={match[1]}
-                    style={tomorrow}
-                    customStyle={{
-                      backgroundColor: '#333',
-                    }}
-                    className="rounded-xl"
-                  >
-                    {String(children).replace(/\n$/, '')}
-                  </SyntaxHighlighter>
-                ) : (
-                  <code
-                    {...rest}
-                    className={`rounded-xl ${className}`}
-                  >
-                    {children}
-                  </code>
-                )
-              }
-            }}
-          >
-            {message.content}
-          </Markdown>
+          <MarkdownRenderer content={message.content} className="reactMarkdown mb-0 py-2" />
         ) : (
           <UserMessageDisplay message={message} onEdit={onEdit} />
         )}
