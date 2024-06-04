@@ -33,6 +33,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadio
 import { Label } from "./ui/label";
 import PulsingLoader from "./shared/PulsingLoader";
 
+import { Octokit } from "octokit";
+import { Repo } from "octokit/types";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "./ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+
 if (typeof window !== 'undefined') {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!)
   posthog.debug(false)
@@ -70,6 +75,65 @@ const DEFAULT_K: number = 8
 const sliceLines = (content: string, start: number, end: number) => {
   return content.split("\n").slice(Math.max(start - 1, 0), end).join("\n");
 }
+
+const InputWithDropdown = ({
+  onChange = () => {},
+  onClick = () => {},
+  onBlur = () => {},
+  ...props
+}: {
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClick?: () => void;
+  onBlur?: () => void;
+  [key: string]: any;
+}) => {
+  // can't get this to work, will work on it later
+  const ref = useRef<HTMLDivElement>(null);
+  const [isActive, setIsActive] = useState(false);
+
+  return (
+    <Command className="p-0">
+      <CommandInput
+        placeholder="Type a repository to search..."
+        onChangeCapture={(e) => {
+          onChange(e as any)
+        }}
+        onClick={() => {
+          setIsActive(true)
+          onClick()
+        }}
+        onBlur={() => {
+          setIsActive(false)
+          onBlur()
+        }}
+        {...props}
+        ref={ref}
+      />
+      <CommandList
+        className="fixed bg-black z-50 border border-zinc-800 rounded-bl-xl rounded-br-xl border-t-0"
+        style={{
+          top: ref.current?.offsetTop + ref.current?.offsetHeight,
+          left: ref.current?.offsetLeft,
+          width: ref.current?.offsetWidth,
+          display: isActive ? "block" : "none"  
+        }}
+      >
+        {/* <CommandEmpty></CommandEmpty> */}
+        <CommandGroup heading="Suggestions">
+          <CommandItem>Calendar</CommandItem>
+          <CommandItem>Search Emoji</CommandItem>
+          <CommandItem>Calculator</CommandItem>
+        </CommandGroup>
+        <CommandSeparator />
+        <CommandGroup heading="Settings">
+          <CommandItem>Profile</CommandItem>
+          <CommandItem>Billing</CommandItem>
+          <CommandItem>Settings</CommandItem>
+        </CommandGroup>
+      </CommandList>
+    </Command>
+  );
+};
 
 const typeNameToColor = {
   "source": "bg-blue-900",
@@ -415,6 +479,8 @@ function App() {
       {
         email: session.user!.email,
         name: session.user!.name,
+        username: session.user!.username,
+        image: session.user!.image,
       }
     );
   }
@@ -578,6 +644,19 @@ function App() {
     });
   }
 
+  // const [repos, setRepos] = useState<Repo[]>([])
+
+  // useEffect(() => {
+  //   const octokit = new Octokit({auth: session?.user.accessToken});
+  //   (async () => {
+  //     const response = await octokit.rest.repos.listForAuthenticatedUser({
+  //       per_page: 100
+  //     })
+  //     setRepos(response.data)
+  //   })();
+  // }, [])
+  // console.log(repos)
+
   if (!session) {
     return (
       <main className="flex h-screen items-center justify-center p-12">
@@ -618,7 +697,7 @@ function App() {
             alt={session!.user!.name || ""}
           />
           <div>
-            <p className="text-lg font-bold">{session!.user!.name}</p>
+            <p className="text-lg font-bold">{session!.user!.username! || session!.user!.name}</p>
             <p className="text-sm text-gray-400">{session!.user!.email}</p>
           </div>
           <Button className="ml-4" variant="secondary" onClick={() => signOut()}>
@@ -629,7 +708,6 @@ function App() {
       <div className={`mb-4 w-full flex items-center ${repoNameValid ? "" : "grow"}`}>
         <Input
           data-ph-capture-attribute-repo-name={repoName}
-          className=""
           value={repoName}
           onChange={(e) => setRepoName(e.target.value)}
           onKeyDown={(e) => {
@@ -691,6 +769,7 @@ function App() {
           placeholder="Repository name"
           disabled={repoNameDisabled}
         />
+        
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="outline" className="ml-4">

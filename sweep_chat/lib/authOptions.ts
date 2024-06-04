@@ -1,6 +1,18 @@
 import { AuthOptions } from "next-auth";
 import GitHubProvider from "next-auth/providers/github"
 import { refreshToken } from "@octokit/oauth-methods";
+import { Octokit } from "octokit";
+import { cache } from "react";
+
+const getUserData = cache(async (accessToken: string, sub: string) => {
+    const octokit = new Octokit({
+        auth: accessToken,
+    })
+    const response = await octokit.request('GET /user/{id}', {
+        id: sub
+    })
+    return response.data;
+})
 
 const authOptions: AuthOptions = {
     providers: [
@@ -14,16 +26,17 @@ const authOptions: AuthOptions = {
         async session({ session, token }: any) {
             console.log(session)
             const { sub } = token;
-            const response = await fetch(`https://api.github.com/user/${sub}`)
-            const data = await response.json()
-            const { login, name, picture } = data;
+            console.log(sub)
+            const data = await getUserData(token.accessToken, sub)
             session.user = {
-                username: token.name || login,
-                image: token.picture,
+                name: data.name,
+                username: data.login,
+                image: data.avatar_url,
                 accessToken: token.accessToken,
                 refreshToken: token.refreshToken,
                 expires_at: token.expires_at,
             }
+            console.log(session)
             return session;
         },
         async signIn({ user, account, profile }: any) {
