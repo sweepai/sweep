@@ -43,7 +43,7 @@ def validate_issue(issue: str) -> str:
     """
     Somehow haiku and GPT-4 can't do this consistently.
     """
-    chat_gpt = ChatGPT.from_system_message_string(
+    chat_gpt: ChatGPT = ChatGPT.from_system_message_string(
         prompt_string=issue_validator_system_prompt,
     )
 
