@@ -52,8 +52,8 @@ jobs:
       with:
         path: sweep_chat/.next
         key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('sweep_chat/**/*.js', 'sweep_chat/**/*.jsx', 'sweep_chat/**/*.ts', 'sweep_chat/**/*.tsx', '!sweep_chat/.next/**', '!sweep_chat/node_modules/**') }}
-        restore-keys: |
-          ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
+        # restore-keys: |
+        #   ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
 
     - name: Build next.js
       if: ${{ steps.cache-build.outputs.cache-hit != 'true' }}
@@ -71,10 +71,8 @@ jobs:
       working-directory: sweep_chat
       run: |
         echo "${{ secrets.CYPRESS_ENV_LOCAL }}" > .env.local
-        echo "${{ secrets.CYPRESS_ENV_JSON }}" > cypress.env.json
-        sudo apt-get update
-        sudo apt-get install -y jq
-        cat cypress.env.json | jq .
+        export CYPRESS_LOGIN_SESSION_COOKIE="${{ secrets.CYPRESS_LOGIN_SESSION_COOKIE }}"
+        export CYPRESS_LOGIN_SECURE_COOKIE="${{ secrets.CYPRESS_LOGIN_SECURE_COOKIE }}"
         ls -la
     
     - name: Run Cypress tests
