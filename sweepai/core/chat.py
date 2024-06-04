@@ -33,6 +33,7 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.image_utils import create_message_with_images
 from sweepai.utils.openai_proxy import OpenAIProxy
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
+from sweepai.utils.str_utils import truncate_text_based_on_stop_sequence
 from sweepai.utils.tiktoken_utils import Tiktoken
 from parea import Parea
 
@@ -441,7 +442,6 @@ class ChatGPT(MessageList):
                         messages=self.messages_dicts,
                         max_tokens=max_tokens,
                         temperature=temperature,
-                        stop=stop_sequences,
                         stream=True,
                     )
                     for chunk in response:
@@ -474,7 +474,6 @@ class ChatGPT(MessageList):
                         max_tokens=max_tokens,
                         messages=message_dicts,
                         system=system_message,  
-                        stop_sequences=stop_sequences,
                         timeout=60,
                     ) as stream_:
                         try:
@@ -531,7 +530,6 @@ class ChatGPT(MessageList):
                             messages=self.messages_dicts,
                             max_tokens=max_tokens,
                             temperature=temperature,
-                            stop=stop_sequences,
                             stream=True,
                         )
                         text = ""
@@ -541,6 +539,7 @@ class ChatGPT(MessageList):
                             if new_content:
                                 print(new_content, end="", flush=True)
                         print() # clear the line
+                        response = truncate_text_based_on_stop_sequence(text, stop_sequences)
                         return text
                     else:
                         verbose = True
@@ -553,7 +552,6 @@ class ChatGPT(MessageList):
                             max_tokens=max_tokens,
                             messages=message_dicts,
                             system=system_message,  
-                            stop_sequences=stop_sequences,
                         ) as stream:
                             if verbose:
                                 print(f"Started stream in {time.time() - start_time:.2f}s!")
@@ -565,6 +563,8 @@ class ChatGPT(MessageList):
                         response = stream.get_final_message().content[0].text
                         if verbose:
                             print("Done streaming results!")
+                        # manually chop off text after any stop tokens because including stop sequences makes the llms lazy
+                        response = truncate_text_based_on_stop_sequence(response, stop_sequences)
                     return response
                 if use_openai:
                     message_dicts = [

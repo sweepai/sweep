@@ -140,7 +140,7 @@ Take these steps:
     - When creating files you MUST do the following:
         - First, describe in detail EVERYTHING you will need in this file. Skip writing <original_code> tags.
         - Next, write the new file in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT and COMPLETE as this file will be created in the mentioned <file_path>.
-    - In both cases, paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED."""
+    - In both cases, paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED. NEVER LEAVE COMMENTS DESCRIBING WHAT YOU WILL DO, JUST DO IT."""
 
 # anthropic prompt
 anthropic_files_to_change_prompt = """Your job is to write a high quality, detailed, code changes resolve a GitHub issue.
@@ -189,7 +189,7 @@ d. Sort the proposed changes topologically. This means that each proposed change
 <modify file="file_path"> 
 Describe ALL changes to be made.
 
-1. If you are creating a file, you may skip this step. Otherwise, copy the original code into <original_code></original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. The referenced original code span should be just enough to cover the change, with 10 extra lines above and below for context. Start from the last header like a function or class definition and include the entire block of code that needs to be modified.
+1. If you are creating a file, you may skip this step. Otherwise, copy the original code into <original_code></original_code> tags, copying them VERBATIM from the file. Do NOT paraphrase or abbreviate the source code. Placeholder comments like "# existing code" are not permitted. The referenced original code span should be just enough to cover the change, with 5 extra lines above and below for context. Start from the last header like a function or class definition and include the entire block of code that needs to be modified.
 
 2. Write the new code in <new_code></new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE COMPLETE as this code will replace the mentioned <original_code></original_code>. Paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED.
 </modify>

@@ -1484,9 +1484,14 @@ def cluster_patches(pr_changes: dict[str, PRChange]):
     # get the order of the files
     file_order = [file_name for file_name in all_patch_strings_by_file.keys()]
     files_to_embed = [patches for patches in all_patch_strings_by_file.values()]
-    embedded_patches = embed_text_array(files_to_embed)[0]
-    db = DBSCAN(eps=0.6, min_samples=2).fit(embedded_patches)
-    labels = db.labels_
+    try:
+        embedded_patches = embed_text_array(files_to_embed)[0]
+        db = DBSCAN(eps=0.6, min_samples=2).fit(embedded_patches)
+        labels = db.labels_
+    except Exception:
+        # if we cant cluster for some reason just set each file in its own group
+        labels = [i for i in range(len(file_order))]
+    
     # group key is the label, value is the list of file names to review together
     groups_to_review_files_in: dict[str, list[str]] = {}
     # split files into their groups -> -1 means create a seperate group -1x for that group
