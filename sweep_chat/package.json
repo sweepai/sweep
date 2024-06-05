@@ -23,6 +23,8 @@
     "@radix-ui/react-switch": "^1.0.3",
     "@radix-ui/react-toast": "^1.1.5",
     "@sentry/nextjs": "^8.2.1",
+    "@types/clarinet": "^0.12.3",
+    "clarinet": "^0.12.6",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",

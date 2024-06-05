@@ -35,6 +35,7 @@ import PulsingLoader from "./shared/PulsingLoader";
 
 import { Octokit } from "octokit";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "./ui/command";
+import clarinet from "clarinet";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 
 if (typeof window !== 'undefined') {
@@ -457,6 +458,57 @@ const MessageDisplay = ({ message, className, onEdit }: { message: Message, clas
   );
 };
 
+function getJSONPrefix(buffer: string): [any[], number] {
+  let stack: string[] = [];
+  const matchingBrackets: Record<string, string> = {
+    '[': ']',
+    '{': '}',
+    '(': ')'
+  };
+  var currentIndex = 0;
+  const results = [];
+  let inString = false;
+  let escapeNext = false;
+
+  for (let i = 0; i < buffer.length; i++) {
+    const char = buffer[i];
+
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+    }
+
+    if (!inString) {
+      if (matchingBrackets[char]) {
+        stack.push(char);
+      } else if (matchingBrackets[stack[stack.length - 1]] === char) {
+        stack.pop();
+        if (stack.length === 0) {
+          try {
+            results.push(JSON.parse(buffer.slice(currentIndex, i + 1)));
+            currentIndex = i + 1;
+          } catch (e) {
+            continue;
+          }
+        }
+      }
+    }
+  }
+  if (currentIndex == 0) {
+    console.log(results, currentIndex, buffer);
+  }
+  return [results, currentIndex];
+}
+
 async function* streamMessages(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   isStream: React.MutableRefObject<boolean>,
@@ -482,31 +534,50 @@ async function* streamMessages(
         done = true;
         continue;
       }
-
+      
       if (value) {
         const decodedValue = new TextDecoder().decode(value);
         buffer += decodedValue;
-        buffer = buffer.replace("][{", "]\n[{"); // Ensure proper JSON formatting for split
-        buffer = buffer.replace("][[", "]\n[["); // Ensure proper JSON formatting for split
-        buffer = buffer.replace("]][", "]]\n["); // Ensure proper JSON formatting for split
-        const bufferLines = buffer.split("\n");
 
-        for (let line of bufferLines) { // Process all lines except the potentially incomplete last one
-          if (!line) {
-            continue
-          }
-          try {
-            const parsedLine = JSON.parse(line);
-            if (parsedLine) {
-              yield parsedLine
-            }
-          } catch (error) {
-            console.error("Failed to parse line:", line, error);
-          }
+        const [parsedObjects, currentIndex] = getJSONPrefix(buffer)
+        for (let parsedObject of parsedObjects) {
+          console.log(parsedObject)
+          yield parsedObject
         }
+        buffer = buffer.slice(currentIndex)
 
-        buffer = bufferLines[bufferLines.length - 1]; // Keep the last line in the buffer
+        // const parsedLine = JSON.parse(buffer);
+        // if (parsedLine) {
+        //   yield parsedLine;
+        // }
+
+        // buffer = "";
       }
+
+      // if (value) {
+      //   const decodedValue = new TextDecoder().decode(value);
+      //   buffer += decodedValue;
+      //   buffer = buffer.replace("][{", "]\n[{"); // Ensure proper JSON formatting for split
+      //   buffer = buffer.replace("][[", "]\n[["); // Ensure proper JSON formatting for split
+      //   buffer = buffer.replace("]][", "]]\n["); // Ensure proper JSON formatting for split
+      //   const bufferLines = buffer.split("\n");
+
+      //   for (let line of bufferLines) { // Process all lines except the potentially incomplete last one
+      //     if (!line) {
+      //       continue
+      //     }
+      //     try {
+      //       const parsedLine = JSON.parse(line);
+      //       if (parsedLine) {
+      //         yield parsedLine
+      //       }
+      //     } catch (error) {
+      //       console.error("Failed to parse line:", line, error);
+      //     }
+      //   }
+
+      //   buffer = bufferLines[bufferLines.length - 1]; // Keep the last line in the buffer
+      // }
     } catch (error) {
       console.error("Error during streaming:", error);
       throw error;
