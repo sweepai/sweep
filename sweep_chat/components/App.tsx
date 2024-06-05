@@ -17,6 +17,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { AutoComplete } from "@/components/ui/autocomplete";
 import { Toaster } from "@/components/ui/toaster";
 import { toast } from "@/components/ui/use-toast";
 import { useSession, signIn, SessionProvider, signOut } from "next-auth/react";
@@ -35,13 +36,14 @@ import PulsingLoader from "./shared/PulsingLoader";
 
 import { Octokit } from "octokit";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "./ui/command";
-import clarinet from "clarinet";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 
 if (typeof window !== 'undefined') {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!)
   posthog.debug(false)
 }
+
+type Repository = any;
 
 interface Snippet {
   content: string;
@@ -403,7 +405,7 @@ const MessageDisplay = ({ message, className, onEdit }: { message: Message, clas
               <AccordionTrigger className="border-none py-0 text-left">
                 <div className="text-xs text-gray-400 flex align-center">
                   {!message.function_call!.is_complete ? (
-                    <PulsingLoader size={4} />
+                    <PulsingLoader size={0.5} />
                   ) : (
                     <FaCheck
                       className="inline-block mr-2"
@@ -504,7 +506,7 @@ function getJSONPrefix(buffer: string): [any[], number] {
     }
   }
   if (currentIndex == 0) {
-    console.log(results, currentIndex, buffer);
+    console.log(buffer);
   }
   return [results, currentIndex];
 }
@@ -541,43 +543,10 @@ async function* streamMessages(
 
         const [parsedObjects, currentIndex] = getJSONPrefix(buffer)
         for (let parsedObject of parsedObjects) {
-          console.log(parsedObject)
           yield parsedObject
         }
         buffer = buffer.slice(currentIndex)
-
-        // const parsedLine = JSON.parse(buffer);
-        // if (parsedLine) {
-        //   yield parsedLine;
-        // }
-
-        // buffer = "";
       }
-
-      // if (value) {
-      //   const decodedValue = new TextDecoder().decode(value);
-      //   buffer += decodedValue;
-      //   buffer = buffer.replace("][{", "]\n[{"); // Ensure proper JSON formatting for split
-      //   buffer = buffer.replace("][[", "]\n[["); // Ensure proper JSON formatting for split
-      //   buffer = buffer.replace("]][", "]]\n["); // Ensure proper JSON formatting for split
-      //   const bufferLines = buffer.split("\n");
-
-      //   for (let line of bufferLines) { // Process all lines except the potentially incomplete last one
-      //     if (!line) {
-      //       continue
-      //     }
-      //     try {
-      //       const parsedLine = JSON.parse(line);
-      //       if (parsedLine) {
-      //         yield parsedLine
-      //       }
-      //     } catch (error) {
-      //       console.error("Failed to parse line:", line, error);
-      //     }
-      //   }
-
-      //   buffer = bufferLines[bufferLines.length - 1]; // Keep the last line in the buffer
-      // }
     } catch (error) {
       console.error("Error during streaming:", error);
       throw error;
@@ -586,6 +555,9 @@ async function* streamMessages(
         clearTimeout(timeoutId)
       }
     }
+  }
+  if (buffer) {
+    console.warn("Buffer:", buffer)
   }
 }
 
@@ -653,6 +625,8 @@ function App() {
   const { data: session } = useSession()
 
   const posthog = usePostHog();
+  const [octokit, setOctokit] = useState<Octokit | null>(null)
+  const [repos, setRepos] = useState<Repository[]>([])
 
   if (session) {
     posthog.identify(
@@ -663,6 +637,19 @@ function App() {
         image: session.user!.image,
       }
     );
+  } else {
+    return (
+      <main className="flex h-screen items-center justify-center p-12">
+        <Toaster />
+        <Button onClick={() => signIn("github")} variant="secondary">
+          <FaGithub
+            className="inline-block mr-2"
+            style={{ marginTop: -2 }}
+          />
+          Sign in with GitHub
+        </Button>
+      </main>
+    )
   }
 
   useEffect(() => {
@@ -676,7 +663,7 @@ function App() {
 
   const lastAssistantMessageIndex = messages.findLastIndex((message) => message.role === "assistant" && message.content.trim().length > 0)
 
-  const startStream = async (message: string, newMessages: Message[]) => {
+  const startStream = async (message: string, newMessages: Message[], snippets: Snippet[]) => {
     setIsLoading(true);
     isStream.current = true;
 
@@ -737,6 +724,7 @@ function App() {
           variant: "destructive"
         });
         setIsLoading(false);
+        isStream.current = false;
         posthog.capture("chat errored", {
           repoName,
           snippets,
@@ -824,28 +812,29 @@ function App() {
     });
   }
 
-  const [octokit, setOctokit] = useState<Octokit | null>(null)
   useEffect(() => {
     if (session) {
       const octokit = new Octokit({auth: session.user!.accessToken})
-      setOctokit(octokit)
+      setOctokit(octokit);
+      (async () => {
+        const maxPages = 5;
+        let allRepositories: Repository[] = [];
+        let page = 1;
+        let response;
+        do {
+          response = await octokit.rest.repos.listForAuthenticatedUser({
+            visibility: "all",
+            sort: "pushed",
+            per_page: 100,
+            page: page,
+          });
+          allRepositories = allRepositories.concat(response.data);
+          setRepos(allRepositories)
+          page++;
+        } while (response.data.length !== 0 && page < maxPages);
+      })()
     }
-  }, [session])
-
-  if (!session) {
-    return (
-      <main className="flex h-screen items-center justify-center p-12">
-        <Toaster />
-        <Button onClick={() => signIn("github")} variant="secondary">
-          <FaGithub
-            className="inline-block mr-2"
-            style={{ marginTop: -2 }}
-          />
-          Sign in with GitHub
-        </Button>
-      </main>
-    )
-  }
+  }, [session.user!.accessToken])
 
   return (
     <main className="flex h-screen flex-col items-center justify-between p-12">
@@ -881,17 +870,17 @@ function App() {
         </div>
       </div>
       <div className={`mb-4 w-full flex items-center ${repoNameValid ? "" : "grow"}`}>
-        <Input
-          data-ph-capture-attribute-repo-name={repoName}
-          value={repoName}
-          onChange={(e)=>setRepoName(e.target.value.replace(/\s/g,''))}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.currentTarget.blur();
-            }
-          }}
-          onBlur={async () => {
+        <AutoComplete
+          options={repos.map((repo) => ({label: repo.full_name, value: repo.full_name}))}
+          placeholder="Repository name"
+          emptyMessage="No repositories found"
+          value={{label: repoName, value: repoName}}
+          onValueChange={(option) => setRepoName(option.value)}
+          disabled={repoNameDisabled}
+          onBlur={async (repoName: string) => {
+            console.log(repoName)
             const cleanedRepoName = repoName.replace(/\s/g, '') // might be unsafe but we'll handle it once we get there
+            console.log(repoName)
             setRepoName(cleanedRepoName)
             if (cleanedRepoName === "") {
               setRepoNameValid(false)
@@ -943,10 +932,7 @@ function App() {
             }
             setRepoNameDisabled(false);
           }}
-          placeholder="Repository name"
-          disabled={repoNameDisabled}
         />
-        
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="outline" className="ml-4">
@@ -1011,15 +997,17 @@ function App() {
               ]
               setMessages(newMessages)
               if (index == 0) {
-                setSnippets([])
+                setSnippets([]) 
+                startStream(content, newMessages, [])
+              } else {
+                startStream(content, newMessages, snippets)
               }
-              startStream(content, newMessages)
             }}
           />
         ))}
         {isLoading && (
           <div className="flex justify-around w-full py-2">
-            <PulsingLoader size={8} />
+            <PulsingLoader size={1.5} />
           </div>
         )}
       </div>
@@ -1065,7 +1053,7 @@ function App() {
                 const newMessages: Message[] = [...messages, { content: currentMessage, role: "user", annotations: { pulls } }];
                 setMessages(newMessages);
                 setCurrentMessage("");
-                startStream(currentMessage, newMessages)
+                startStream(currentMessage, newMessages, snippets)
               }
             }}
             onChange={(e) => setCurrentMessage(e.target.value)}
