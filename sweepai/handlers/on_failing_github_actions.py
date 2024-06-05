@@ -243,10 +243,10 @@ def on_failing_github_actions(
                     temperature=0.2,
                     use_openai=True,
                 )
-                gha_log_query, failed, _ = extract_object_fields_from_string(gha_log_query_response, "query")
+                gha_log_query, failed, _ = extract_object_fields_from_string(gha_log_query_response, ["query"])
                 final_query = problem_statement.strip("\n")
                 if not failed:
-                    final_query += gha_log_query
+                    final_query += gha_log_query.get("query", "")
 
                 snippets: list[Snippet] = prep_snippets(cloned_repo=cloned_repo, query=final_query, ticket_progress=None) # need to do this, can use the old query for speed
                 issue_request = get_issue_request(
