@@ -12,12 +12,12 @@ describe('sweep chat', () => {
   });
 
   it("can set a repo", () => {
-    cy.get('.grow > .flex').type("sweepai/sweep").blur()
+    cy.get("[tabindex=\"-1\"] > :nth-child(2) > .items-center > input").type("sweepai/sweep").blur()
     cy.get(':nth-child(5) > .flex', { timeout: 10000 }).should('have.attr', 'placeholder', 'Type a message...')
   })
 
   it("can stop the chat", () => {
-    cy.get('.grow > .flex').type("sweepai/sweep").blur()
+    cy.get("[tabindex=\"-1\"] > :nth-child(2) > .items-center > input").type("sweepai/sweep").blur()
     cy.get(':nth-child(5) > .flex', { timeout: 10000 }).should('have.attr', 'placeholder', 'Type a message...')
 
     cy.get(':nth-child(5) > .flex').type(testMessage + "{enter}")
@@ -30,7 +30,7 @@ describe('sweep chat', () => {
   })
 
   it("can preview pull requests", () => {
-    cy.get('.grow > .flex').type("sweepai/sweep").blur()
+    cy.get("[tabindex=\"-1\"] > :nth-child(2) > .items-center > input").type("sweepai/sweep").blur()
     cy.get(':nth-child(5) > .flex', { timeout: 10000 }).should('have.attr', 'placeholder', 'Type a message...')
 
     cy.get(':nth-child(5) > .flex').type(testPullRequestMessage + "{enter}")
@@ -38,7 +38,7 @@ describe('sweep chat', () => {
   })
 
   it("can send a message", () => {
-    cy.get('.grow > .flex').type("sweepai/sweep").blur()
+    cy.get("[tabindex=\"-1\"] > :nth-child(2) > .items-center > input").type("sweepai/sweep").blur()
     cy.get(':nth-child(5) > .flex', { timeout: 10000 }).should('have.attr', 'placeholder', 'Type a message...')
 
     cy.get(':nth-child(5) > .flex').type(testMessage + "{enter}")
