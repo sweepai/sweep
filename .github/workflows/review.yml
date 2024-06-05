@@ -21,7 +21,7 @@ on:
       - 'tests/**'
 
 jobs:
-  code-quality:
+  review-pr:
     runs-on: ubuntu-latest
     strategy:
       matrix:
