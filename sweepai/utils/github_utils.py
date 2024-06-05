@@ -113,13 +113,15 @@ class CustomRequester(Requester):
     def __init__(
         self,
         token,
-        timeout=15,
-        user_agent="PyGithub/Python",
-        per_page=30,
-        verify=True,
+        timeout: int = 15,
+        user_agent: str = "PyGithub/Python",
+        per_page: int = 30,
+        verify: bool = True,
         retry=None,
         pool_size=None,
-        installation_id=None,
+        installation_id: int = None,
+        signing_key: str = "",
+        app_id: str = "",
     ) -> "CustomRequester":
         self.token = token
         self.installation_id = installation_id
@@ -139,8 +141,10 @@ class CustomRequester(Requester):
             pool_size=pool_size,
         )
 
-    def _refresh_token(self):
-        self.token = get_token(self.installation_id)
+    def _refresh_token(self, signing_key: str = "", app_id: str = ""):
+        self.token = get_token(
+            self.installation_id, signing_key=signing_key, app_id=app_id
+        )
         self._Requester__authorizationHeader = f"token {self.token}"
 
     def requestJsonAndCheck(
@@ -154,26 +158,44 @@ class CustomRequester(Requester):
 
 
 class CustomGithub(Github):
-    def __init__(self, installation_id: int, *args, **kwargs) -> "CustomGithub":
+    def __init__(
+        self, 
+        installation_id: int,
+        signing_key: str = "",
+        app_id: str = "",
+        *args, 
+        **kwargs
+    ) -> "CustomGithub":
         self.installation_id = installation_id
-        self.token = self._get_token()
+        self.token = self._get_token(signing_key=signing_key, app_id=app_id)
         super().__init__(self.token, *args, **kwargs)
         self._Github__requester = CustomRequester(
-            self.token, installation_id=self.installation_id
+            self.token, 
+            installation_id=self.installation_id, 
+            signing_key=signing_key, 
+            app_id=app_id
         )
 
-    def _get_token(self) -> str:
+    def _get_token(self, signing_key: str = "", app_id: str = "") -> str:
         if not self.installation_id:
             return os.environ["GITHUB_PAT"]
-        return get_token(self.installation_id)
+        return get_token(self.installation_id, signing_key=signing_key, app_id=app_id)
 
 
-def get_github_client(installation_id: int) -> tuple[str, CustomGithub]:
+def get_github_client(
+    installation_id: int, 
+    signing_key: str = "", 
+    app_id: str = ""
+) -> tuple[str, CustomGithub]:
     github_instance = None
     if not installation_id:
         github_instance = Github(os.environ["GITHUB_PAT"])
     else:
-        github_instance = CustomGithub(installation_id)
+        github_instance = CustomGithub(
+            installation_id,
+            signing_key=signing_key,
+            app_id=app_id
+        )
     return github_instance.token, github_instance
 
 
