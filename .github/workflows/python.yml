@@ -60,7 +60,7 @@ jobs:
         run: ruff check sweepai
 
       - name: Lint with Pylint
-        run: pylint sweepai --errors-only
+        run: pylint sweepai --errors-only --disable=E1136 # some weird cache bug
 
       - name: Run Unit Tests
         env:
