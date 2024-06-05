@@ -53,6 +53,7 @@ jobs:
         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
       - run: uv pip install ruff pylint pytest pytest-xdist black
         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
+      - run: export PYTHONPATH=.
       - name: Run Review Test
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
