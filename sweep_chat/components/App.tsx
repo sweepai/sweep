@@ -278,6 +278,12 @@ const roleToColor = {
 
 const sum = (arr: number[]) => arr.reduce((acc, cur) => acc + cur, 0)
 
+const renderPRDiffs = (pr: PullRequest) => {
+  return pr.file_diffs.map((diff, index) => (
+    `@@ ${diff.filename} @@\n${diff.patch}`
+  )).join("\n\n")
+}
+
 const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (content: string) => void }) => {
   // TODO: finish this implementation
   const [isEditing, setIsEditing] = useState(false);
@@ -299,6 +305,8 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
     }
   }, [editedContent]);
 
+
+  console.log(renderPRDiffs(message.annotations.pulls[0]))
   return (
     <>
       <div className="flex justify-end">
@@ -341,22 +349,39 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
       </div>
       {!isEditing && message.annotations.pulls?.map((pr) => (
         <div className="flex justify-end text-sm">
-          <div className="bg-zinc-800 rounded-xl p-4 mb-2 text-left hover:bg-zinc-700 hover:cursor-pointer" onClick={() => {
-            window.open(`https://github.com/${pr.repo_name}/pull/${pr.number}`, "_blank")
-          }}>
-            <div className={`border-l-4 ${pr.status === "open" ? "border-green-500" : pr.status === "merged" ? "border-purple-500" : "border-red-500"} pl-4`}>
-              <div className="mb-2 text-md">
-                #{pr.number} {pr.title} 
+          <HoverCard openDelay={300} closeDelay={200}>
+            <HoverCardTrigger>
+              <div className="bg-zinc-800 rounded-xl p-4 mb-2 text-left hover:bg-zinc-700 hover:cursor-pointer" onClick={() => {
+                window.open(`https://github.com/${pr.repo_name}/pull/${pr.number}`, "_blank")
+              }}>
+                <div className={`border-l-4 ${pr.status === "open" ? "border-green-500" : pr.status === "merged" ? "border-purple-500" : "border-red-500"} pl-4`}>
+                  <div className="mb-2 text-md">
+                    #{pr.number} {pr.title} 
+                  </div>
+                  <div className="mb-4 text-sm">
+                    {pr.body}
+                  </div>
+                  <div className="text-xs text-zinc-300">
+                    <div className="mb-1">{pr.repo_name}</div>
+                    {pr.file_diffs.length} files changed <span className="text-green-500">+{sum(pr.file_diffs.map(diff => diff.additions))}</span> <span className="text-red-500">-{sum(pr.file_diffs.map(diff => diff.deletions))}</span>
+                  </div>
+                </div>
               </div>
-              <div className="mb-4 text-sm">
-                {pr.body}
-              </div>
-              <div className="text-xs text-zinc-300">
-                <div className="mb-1">{pr.repo_name}</div>
-                {pr.file_diffs.length} files changed <span className="text-green-500">+{sum(pr.file_diffs.map(diff => diff.additions))}</span> <span className="text-red-500">-{sum(pr.file_diffs.map(diff => diff.deletions))}</span>
-              </div>
-            </div>
-          </div>
+            </HoverCardTrigger>
+            <HoverCardContent className="w-[800px] max-h-[600px] overflow-y-auto">
+              <SyntaxHighlighter
+                language="diff"
+                style={tomorrow}
+                customStyle={{
+                  backgroundColor: 'transparent',
+                  whiteSpace: 'pre-wrap',
+                }}
+                className="rounded-xl p-4 text-xs w-full"
+              >
+                {renderPRDiffs(pr)}
+              </SyntaxHighlighter>
+            </HoverCardContent>
+          </HoverCard>
         </div>
       ))}
     </>
