@@ -54,8 +54,11 @@ jobs:
       - run: uv pip install ruff pylint pytest pytest-xdist black
         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
       - run: export PYTHONPATH=.
+      - run: cwd
       - name: Run Review Test
         env:
+          GITHUB_APP_ID: ${{ secrets.GH_APP_ID }}
+          GITHUB_APP_PEM: ${{ secrets.GH_APP_PEM }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: pytest tests/e2e/test_pr_review.py
+        run: uv pytest tests/e2e/test_review_pr.py
