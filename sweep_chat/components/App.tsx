@@ -522,37 +522,44 @@ const parsePullRequests = async (repoName: string, message: string, octokit: Oct
   const [orgName, repo] = repoName.split("/")
   const pulls = []
 
-  const prURLs = message.match(new RegExp(`https?:\/\/github.com\/${repoName}\/pull\/(?<prNumber>[0-9]+)`, 'gm'));
-  for (const prURL of prURLs || []) {
-    const prNumber = prURL.split("/").pop()
-    console.log(prNumber)
-    const pr = await octokit!.rest.pulls.get({
-      owner: orgName,
-      repo: repo,
-      pull_number: parseInt(prNumber!)
-    })
-    const title = pr.data.title
-    const body = pr.data.body
-    const labels = pr.data.labels.map((label) => label.name)
-    const status = pr.data.state === "open" ? "open" : pr.data.merged ? "merged" : "closed"
-    const file_diffs = (await octokit!.rest.pulls.listFiles({
-      owner: orgName,
-      repo: repo,
-      pull_number: parseInt(prNumber!)
-    })).data
-    // console.log(file_diffs)
-    pulls.push({
-      number: parseInt(prNumber!),
-      repo_name: repoName,
-      title,
-      body,
-      labels,
-      status,
-      file_diffs
-    } as PullRequest)
-  }
+  try {
+    const prURLs = message.match(new RegExp(`https?:\/\/github.com\/${repoName}\/pull\/(?<prNumber>[0-9]+)`, 'gm'));
+    for (const prURL of prURLs || []) {
+      const prNumber = prURL.split("/").pop()
+      const pr = await octokit!.rest.pulls.get({
+        owner: orgName,
+        repo: repo,
+        pull_number: parseInt(prNumber!)
+      })
+      const title = pr.data.title
+      const body = pr.data.body
+      const labels = pr.data.labels.map((label) => label.name)
+      const status = pr.data.state === "open" ? "open" : pr.data.merged ? "merged" : "closed"
+      const file_diffs = (await octokit!.rest.pulls.listFiles({
+        owner: orgName,
+        repo: repo,
+        pull_number: parseInt(prNumber!)
+      })).data
+      // console.log(file_diffs)
+      pulls.push({
+        number: parseInt(prNumber!),
+        repo_name: repoName,
+        title,
+        body,
+        labels,
+        status,
+        file_diffs
+      } as PullRequest)
+    }
 
-  return pulls
+    return pulls
+  } catch (e: any) {
+    toast({
+      title: "Failed to retrieve pull request",
+      description: `The following error has occurred: ${e.message}. Sometimes, logging out and logging back in can resolve this issue.`,
+      variant: "destructive"
+    });
+  } 
 }
 
 function App() {
