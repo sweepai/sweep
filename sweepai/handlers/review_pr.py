@@ -19,9 +19,9 @@ from sweepai.core.review_utils import (
     review_pr_detailed_checks,
     sort_code_issues_by_severity,
 )
+from sweepai.utils.concurrency_utils import fire_and_forget_wrapper
 from sweepai.utils.github_utils import ClonedRepo, get_github_client, refresh_token
 from sweepai.utils.ticket_rendering_utils import create_update_review_pr_comment
-from sweepai.utils.ticket_utils import fire_and_forget_wrapper
 from sweepai.utils.validate_license import validate_license
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog

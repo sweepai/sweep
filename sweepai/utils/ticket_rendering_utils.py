@@ -19,7 +19,6 @@ import hashlib
 
 
 from sweepai.agents.pr_description_bot import PRDescriptionBot
-from sweepai.chat.api import posthog_trace
 from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
     SweepConfig,
@@ -34,6 +33,7 @@ from sweepai.handlers.create_pr import (
 from sweepai.handlers.on_check_suite import clean_gh_logs
 from sweepai.utils.buttons import create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.concurrency_utils import fire_and_forget_wrapper
 from sweepai.utils.github_utils import (
     CURRENT_USERNAME,
     get_github_client,
@@ -49,10 +49,6 @@ from sweepai.utils.str_utils import (
     format_sandbox_success,
     sep,
     stars_suffix,
-)
-from sweepai.utils.ticket_utils import (
-    center,
-    fire_and_forget_wrapper,
 )
 from sweepai.utils.user_settings import UserSettings
 
@@ -105,6 +101,8 @@ Propose a fix to the failing github actions. You must edit the source code, not 
 
 SWEEP_PR_REVIEW_HEADER = "# Sweep: PR Review"
 
+def center(text: str) -> str:
+    return f"<div align='center'>{text}</div>"
 
 # Add :eyes: emoji to ticket
 def add_emoji(issue: Issue, comment_id: int = None, reaction_content="eyes"):
@@ -571,7 +569,6 @@ def parse_issues_from_code_review(issue_string: str):
 
 
 # converts the list of issues inside a code_review into markdown text to display in a github comment
-@posthog_trace
 def render_code_review_issues(
     username: str,
     pr: PullRequest,
@@ -652,7 +649,6 @@ def format_code_sections(text: str) -> str:
 
 
 # turns code_review_by_file into markdown string
-@posthog_trace
 def render_pr_review_by_file(
     username: str,
     pr: PullRequest,
@@ -729,7 +725,6 @@ def render_pr_review_by_file(
 
 # handles the creation or update of the Sweep comment letting the user know that Sweep is reviewing a pr
 # returns the comment_id
-@posthog_trace
 def create_update_review_pr_comment(
     username: str,
     pr: PullRequest,

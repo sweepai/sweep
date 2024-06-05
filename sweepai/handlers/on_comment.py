@@ -19,16 +19,20 @@ from sweepai.config.server import (
 )
 from sweepai.core.entities import MockPR, NoFilesException, Snippet, render_fcrs
 from sweepai.core.pull_request_bot import PRSummaryBot
-from sweepai.core.sweep_bot import get_files_to_change, validate_file_change_requests
+from sweepai.core.sweep_bot import get_files_to_change_for_on_comment, validate_file_change_requests
 from sweepai.handlers.create_pr import handle_file_change_requests
-from sweepai.core.review_utils import get_pr_changes
+from sweepai.core.review_utils import format_pr_info, get_pr_changes, smart_prune_file_based_on_patches
 from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.concurrency_utils import fire_and_forget_wrapper
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, get_github_client, sanitize_string_for_github, validate_and_sanitize_multi_file_changes
-from sweepai.utils.str_utils import BOT_SUFFIX, FASTER_MODEL_MESSAGE, blockquote
-from sweepai.utils.ticket_rendering_utils import sweeping_gif
-from sweepai.utils.ticket_utils import center, fire_and_forget_wrapper, prep_snippets
+from sweepai.utils.str_utils import BOT_SUFFIX, FASTER_MODEL_MESSAGE, add_line_numbers, blockquote
+from sweepai.utils.ticket_rendering_utils import center, sweeping_gif
+from sweepai.utils.ticket_utils import prep_snippets
+
+from github.Repository import Repository
+from github.PullRequest import PullRequest
 
 num_of_snippets_to_query = 30
 total_number_of_snippet_tokens = 15_000
@@ -67,11 +71,10 @@ def on_comment(
         )
         organization, repo_name = repo_full_name.split("/")
         start_time = time.time()
-
         _token, g = get_github_client(installation_id)
-        repo = g.get_repo(repo_full_name)
+        repo: Repository = g.get_repo(repo_full_name)
         if pr is None:
-            pr = repo.get_pull(pr_number)
+            pr: PullRequest = repo.get_pull(pr_number)
         pr_title = pr.title
         pr_body = (
             pr.body.split("<details>\n<summary><b>🎉 Latest improvements to Sweep:")[0]
@@ -164,16 +167,6 @@ def on_comment(
 
         logger.bind(**metadata)
 
-        elapsed_time = time.time() - start_time
-        posthog.capture(
-            username,
-            "started",
-            properties={
-                **metadata,
-                "duration": elapsed_time,
-                "tracking_id": tracking_id,
-            },
-        )
         logger.info(f"Getting repo {repo_full_name}")
         # Telemetry logic end
 
@@ -223,24 +216,28 @@ def on_comment(
             )
 
             # Generate diffs for this PR
-            pr_diff_string = None
-            pr_files_modified = None
+            pr_diff_string = ""
             if pr_number:
+                pr_changes, dropped_files, unsuitable_files = get_pr_changes(repo, pr)
                 patches = []
-                pr_files_modified = {}
-                files = pr.get_files()
-                for file in files:
-                    if file.status == "modified":
+                source_codes = []
+                for file_name, pr_change in pr_changes.items():
+                    if pr_change.status == "modified":
                         # Get the entire file contents, not just the patch
-                        pr_files_modified[file.filename] = repo.get_contents(
-                            file.filename, ref=branch_name
-                        ).decoded_content.decode("utf-8")
-
+                        numbered_source_code = add_line_numbers(pr_change.new_code, start=1)
+                        pruned_source_code = smart_prune_file_based_on_patches(numbered_source_code, pr_change.patches)
+                        source_codes.append(f'<file_with_patches_applied file_name="{file_name}">\n{pruned_source_code}\n</file>')
+                        patch_changes = [patch.changes for patch in pr_change.patches]
+                        patches_string = "\n".join(patch_changes)
                         patches.append(
-                            f'<file file_path="{file.filename}">\n{file.patch}\n</file>'
+                            f'<patches file_name="{file_name}">\n{patches_string}\n</patches>'
                         )
+                # create source code string
+                source_code_string = (
+                    "<code_files_with_patches_applied>\n" + "\n".join(source_codes) + "\n</code_files_with_patches_applied>"
+                )
                 pr_diff_string = (
-                    "<files_changed>\n" + "\n".join(patches) + "\n</files_changed>"
+                    "<pr_changes>\n" + "\n".join(patches) + "\n\n# Here are all the code files with the above patches applied:\n\n" + source_code_string + "</pr_changes>"
                 )
 
             # This means it's a comment on a file
@@ -302,11 +299,13 @@ def on_comment(
             edit_comment(SWEEPING_GIF + "I just completed searching for relevant files, now I'm making changes...")
             if file_comment:
                 formatted_query = f"The user left this GitHub PR Review comment in `{pr_path}`:\n<comment>\n{comment}\n</comment>\nThis was where they left their comment on the PR:\n<review_code_chunk>\n{formatted_pr_chunk}\n</review_code_chunk>.\n\nResolve their comment."
-            renames_dict, file_change_requests, plan = get_files_to_change(
+            pull_request_info = format_pr_info(pr)
+            renames_dict, file_change_requests, plan = get_files_to_change_for_on_comment(
                 relevant_snippets=snippets,
                 read_only_snippets=[],
                 problem_statement=formatted_query,
                 repo_name=repo_name,
+                pr_info=pull_request_info,
                 pr_diffs=pr_diff_string,
                 cloned_repo=cloned_repo,
             )

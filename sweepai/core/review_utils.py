@@ -10,12 +10,10 @@ import git
 import numpy as np
 from sklearn.cluster import DBSCAN
 from tqdm import tqdm
-from sweepai.chat.api import posthog_trace
 from sweepai.config.client import SweepConfig
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, UnsuitableFileException
 from sweepai.core.review_annotations import get_diff_annotations
-from sweepai.core.sweep_bot import safe_decode
 from sweepai.core.vector_db import cosine_similarity, embed_text_array
 from sweepai.dataclasses.codereview import CodeReview, CodeReviewByGroup, CodeReviewIssue, FunctionDef, GroupedFilesForReview, PRChange, Patch
 from sweepai.logn.cache import file_cache
@@ -24,7 +22,7 @@ from sweepai.utils.chat_logger import ChatLogger
 from github.Repository import Repository
 from github.PullRequest import PullRequest
 
-from sweepai.utils.file_utils import read_file_with_fallback_encodings
+from sweepai.utils.file_utils import read_file_with_fallback_encodings, safe_decode
 from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo, update_file
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.str_utils import add_line_numbers, extract_object_fields_from_string, extract_objects_from_string, object_to_xml, objects_to_xml, remove_lines_from_text
@@ -327,15 +325,26 @@ def format_pr_changes(
     return formatted_changes, all_formatted_patches, all_formatted_source_code
 
 # render a group of pr changes for review
-def render_pr_changes(pr_changes: dict[str, PRChange]) -> str:
-    formatted_changes, formatted_patches, formatted_source_code = format_pr_changes(pr_changes)
+def render_pr_changes(
+    pr_changes: dict[str, PRChange],
+    truncate: bool = False,
+    include_annotations: bool = True
+) -> str:
+    formatted_changes, formatted_patches, formatted_source_code = format_pr_changes(
+        pr_changes, truncate=truncate, include_annotations=include_annotations
+    )
     if len(formatted_changes) >= MAX_CHAR_BUDGET:
+        truncate = True
         # go again with pruned code
-        formatted_changes, formatted_patches, formatted_source_code = format_pr_changes(pr_changes, truncate=True)
+        formatted_changes, formatted_patches, formatted_source_code = format_pr_changes(
+            pr_changes, truncate=truncate, include_annotations=include_annotations
+        )
     if len(formatted_changes) >= MAX_CHAR_BUDGET:
+        truncate = True
+        include_annotations = False
         # go again without annotations and prune code
         formatted_changes, formatted_patches, formatted_source_code = format_pr_changes(
-            pr_changes, truncate=True, include_annotations=False
+            pr_changes, truncate=truncate, include_annotations=include_annotations
         )
     if len(formatted_changes) >= MAX_CHAR_BUDGET:
         # simply too many changes to handle, split them up
@@ -345,14 +354,18 @@ def render_pr_changes(pr_changes: dict[str, PRChange]) -> str:
 # render all changes for all groups, handle cases where grouped files are too large
 def format_all_pr_changes_by_groups(
     grouped_files: dict[str, list[str]],
-    pr_changes: dict[str, PRChange]
+    pr_changes: dict[str, PRChange],
+    truncate: bool = False,
+    include_annotations: bool = True
 ):
     formatted_pr_changes_by_groups: dict[str, GroupedFilesForReview] = {}
     for _, files_to_review in grouped_files.items():
         # get all relevant PRChange objects
         changes_to_review = {file_name: pr_changes[file_name] for file_name in files_to_review}
         # build change overview
-        formatted_changes, formatted_patches, formatted_source_code = render_pr_changes(changes_to_review)
+        formatted_changes, formatted_patches, formatted_source_code = render_pr_changes(
+            changes_to_review, truncate=truncate, include_annotations=include_annotations
+        )
         if formatted_changes:
             group = GroupedFilesForReview(
                 file_names=files_to_review,
@@ -1216,7 +1229,6 @@ class PRReviewBot(ChatGPT):
         
 
 # get the best issue to return based on group vote
-@posthog_trace
 def get_group_voted_best_issue_index(
     username: str, 
     file_name: str, 
@@ -1265,7 +1277,6 @@ def get_code_reviews_for_file(
     return code_review_by_group
 
 # run 5 seperate instances of review_pr and then group the resulting issues and only take the issues that appear the majority of the time (> 3)
-@posthog_trace
 def group_vote_review_pr(
     username: str, 
     pr_changes: dict[str, PRChange], 
@@ -1416,7 +1427,6 @@ def group_vote_review_pr(
         majority_code_review_by_file[group_name] = copy.deepcopy(final_code_review)
     return majority_code_review_by_file
 
-@posthog_trace
 def review_pr_detailed_checks(
     username: str, 
     cloned_repo: ClonedRepo,
@@ -1453,7 +1463,6 @@ def get_pr_summary_from_patches(
     pr_summary = review_bot.get_pr_summary(formatted_pr_patches, chat_logger=chat_logger)
     return pr_summary
     
-@posthog_trace
 def sort_code_issues_by_severity(
     username: str, 
     code_review_by_file: dict[str, CodeReview], 
