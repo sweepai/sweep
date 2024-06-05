@@ -14,7 +14,8 @@ from loguru import logger
 
 from sweepai.agents.modify_utils import validate_and_parse_function_call
 from sweepai.agents.search_agent import extract_xml_tag
-from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, system_message, function_response, format_message
+from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, system_message, function_response, format_message, pr_format
+from sweepai.config.client import SweepConfig
 from sweepai.config.server import CACHE_DIRECTORY
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
@@ -271,7 +272,7 @@ def chat_codebase(
 ):
     if len(messages) == 0:
         raise ValueError("At least one message is required.")
-    
+
     g = get_authenticated_github_client(repo_name, access_token)
     assert g
 
@@ -323,11 +324,48 @@ def chat_codebase_stream(
             for i, snippet in enumerate(snippets)
         ])
     )
+
+    org_name, repo = repo_name.split("/")
+    cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name, token=access_token)
+    cloned_repo.git_repo.git.pull()
+
+    sweep_config = SweepConfig()
     for message in messages:
         if message.role == "function":
             message.role = "assistant"
         if message.function_call:
             message.function_call = None
+        if message.annotations:
+            pulls = message.annotations.get("pulls", [])
+            pulls_messages = ""
+            for pull in pulls:
+                patch = pull["file_diffs"]
+                diff_patch = ""
+                # Filters copied from get_pr_changes
+                for file_data in patch:
+                    file_path = file_data["filename"]
+                    if sweep_config.is_file_excluded(file_path):
+                        continue
+                    try:
+                        file_contents = cloned_repo.get_file_contents(file_path)
+                    except Exception:
+                        logger.warning(f"Error getting file contents for {file_path}")
+                        continue
+                    is_file_suitable, reason = sweep_config.is_file_suitable(file_contents)
+                    if not is_file_suitable:
+                        continue
+                    diff = file_data["patch"]
+                    if file_data["status"] in ("added", "modified", "removed"):
+                        diff_patch += diff.strip("\n") + "\n\n"
+                if diff_patch:
+                    pulls_messages += pr_format.format(
+                        title=pull["title"],
+                        body=pull["body"],
+                        patch=diff_patch.strip("\n")
+                    ) + "\n\n"
+            if pulls_messages:
+                message.content += "\n\nPull requests:\n" + pulls_messages
+
     chat_gpt.messages = [
         Message(
             content=snippets_message,
