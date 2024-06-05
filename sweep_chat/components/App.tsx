@@ -34,7 +34,6 @@ import { Label } from "./ui/label";
 import PulsingLoader from "./shared/PulsingLoader";
 
 import { Octokit } from "octokit";
-import { Repo } from "octokit/types";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "./ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 
@@ -85,8 +84,8 @@ interface Message {
     is_complete: boolean;
     snippets?: Snippet[];
   }; // This is the function input
-  annotations: {
-    pulls: PullRequest[]
+  annotations?: {
+    pulls?: PullRequest[]
   }
 }
 
@@ -115,7 +114,7 @@ const InputWithDropdown = ({
   [key: string]: any;
 }) => {
   // can't get this to work, will work on it later
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLInputElement>(null);
   const [isActive, setIsActive] = useState(false);
 
   return (
@@ -139,7 +138,7 @@ const InputWithDropdown = ({
       <CommandList
         className="fixed bg-black z-50 border border-zinc-800 rounded-bl-xl rounded-br-xl border-t-0"
         style={{
-          top: ref.current?.offsetTop + ref.current?.offsetHeight,
+          top: ref.current?.offsetTop! + ref.current?.offsetHeight!,
           left: ref.current?.offsetLeft,
           width: ref.current?.offsetWidth,
           display: isActive ? "block" : "none"  
@@ -306,7 +305,6 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
   }, [editedContent]);
 
 
-  console.log(renderPRDiffs(message.annotations.pulls[0]))
   return (
     <>
       <div className="flex justify-end">
@@ -347,15 +345,15 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
           )}
         </div>
       </div>
-      {!isEditing && message.annotations.pulls?.map((pr) => (
-        <div className="flex justify-end text-sm">
+      {!isEditing && message.annotations?.pulls?.map((pr) => (
+        <div className="flex justify-end text-sm" key={pr.number}>
           <HoverCard openDelay={300} closeDelay={200}>
             <HoverCardTrigger>
-              <div className="bg-zinc-800 rounded-xl p-4 mb-2 text-left hover:bg-zinc-700 hover:cursor-pointer" onClick={() => {
+              <div className="bg-zinc-800 rounded-xl p-4 mb-2 text-left hover:bg-zinc-700 hover:cursor-pointer max-w-[600px]" onClick={() => {
                 window.open(`https://github.com/${pr.repo_name}/pull/${pr.number}`, "_blank")
               }}>
                 <div className={`border-l-4 ${pr.status === "open" ? "border-green-500" : pr.status === "merged" ? "border-purple-500" : "border-red-500"} pl-4`}>
-                  <div className="mb-2 text-md">
+                  <div className="mb-2 font-bold text-md">
                     #{pr.number} {pr.title} 
                   </div>
                   <div className="mb-4 text-sm">
@@ -395,8 +393,8 @@ const MessageDisplay = ({ message, className, onEdit }: { message: Message, clas
   return (
     <div className={`flex justify-start`}>
       <div
-        className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] ${message.role !== "user" ? "text-left w-[80%]" : "hover:bg-zinc-700 hover:cursor-pointer text-right"
-          } ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
+        className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] text-left w-[80%]
+          ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
       >
         {message.role === "function" ? (
           <Accordion type="single" collapsible className="w-full" defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}>
@@ -466,12 +464,18 @@ async function* streamMessages(
 ): AsyncGenerator<any, void, unknown> {
   let done = false;
   let buffer = "";
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
   while (!done && isStream.current) {
     try {
       const { value, done: streamDone } = await Promise.race([
         reader.read(),
-        new Promise<ReadableStreamDefaultReadResult<Uint8Array>>((_, reject) => setTimeout(() => reject(new Error("Stream timeout after " + timeout / 1000 + " seconds. You can try again by editing your last message.")), timeout))
+        new Promise<ReadableStreamDefaultReadResult<Uint8Array>>((_, reject) => {
+          if (timeoutId) {
+            clearTimeout(timeoutId)
+          }
+          timeoutId = setTimeout(() => reject(new Error("Stream timeout after " + timeout / 1000 + " seconds. You can try again by editing your last message.")), timeout)
+        })
       ]);
 
       if (streamDone) {
@@ -506,8 +510,49 @@ async function* streamMessages(
     } catch (error) {
       console.error("Error during streaming:", error);
       throw error;
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
     }
   }
+}
+
+const parsePullRequests = async (repoName: string, message: string, octokit: Octokit): Promise<PullRequest[]> => {
+  const [orgName, repo] = repoName.split("/")
+  const pulls = []
+
+  const prURLs = message.match(new RegExp(`https?:\/\/github.com\/${repoName}\/pull\/(?<prNumber>[0-9]+)`, 'gm'));
+  for (const prURL of prURLs || []) {
+    const prNumber = prURL.split("/").pop()
+    console.log(prNumber)
+    const pr = await octokit!.rest.pulls.get({
+      owner: orgName,
+      repo: repo,
+      pull_number: parseInt(prNumber!)
+    })
+    const title = pr.data.title
+    const body = pr.data.body
+    const labels = pr.data.labels.map((label) => label.name)
+    const status = pr.data.state === "open" ? "open" : pr.data.merged ? "merged" : "closed"
+    const file_diffs = (await octokit!.rest.pulls.listFiles({
+      owner: orgName,
+      repo: repo,
+      pull_number: parseInt(prNumber!)
+    })).data
+    // console.log(file_diffs)
+    pulls.push({
+      number: parseInt(prNumber!),
+      repo_name: repoName,
+      title,
+      body,
+      labels,
+      status,
+      file_diffs
+    } as PullRequest)
+  }
+
+  return pulls
 }
 
 function App() {
@@ -537,7 +582,6 @@ function App() {
       {
         email: session.user!.email,
         name: session.user!.name,
-        username: session.user!.username,
         image: session.user!.image,
       }
     );
@@ -585,7 +629,7 @@ function App() {
               snippets: currentSnippets,
               is_complete: false
             }
-          }]
+          } as Message]
           if (currentSnippets) {
             setSnippets(currentSnippets)
           }
@@ -644,7 +688,7 @@ function App() {
     // Stream
     const reader = chatResponse.body?.getReader()!;
     var streamedMessages: Message[] = []
-    var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" }]
+    var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" } as Message]
     setMessages(respondedMessages);
     try {
       for await (const patch of streamMessages(reader, isStream)) {
@@ -702,10 +746,10 @@ function App() {
     });
   }
 
-  const [octokit, setOctokit] = useState<Octokit>(null)
+  const [octokit, setOctokit] = useState<Octokit | null>(null)
   useEffect(() => {
     if (session) {
-      const octokit = new Octokit({auth: session.user!.accessToken!})
+      const octokit = new Octokit({auth: session.user!.accessToken})
       setOctokit(octokit)
     }
   }, [session])
@@ -762,18 +806,20 @@ function App() {
         <Input
           data-ph-capture-attribute-repo-name={repoName}
           value={repoName}
-          onChange={(e) => setRepoName(e.target.value)}
+          onChange={(e)=>setRepoName(e.target.value.replace(/\s/g,''))}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.currentTarget.blur();
             }
           }}
           onBlur={async () => {
-            if (repoName === "") {
+            const cleanedRepoName = repoName.replace(/\s/g, '') // might be unsafe but we'll handle it once we get there
+            setRepoName(cleanedRepoName)
+            if (cleanedRepoName === "") {
               setRepoNameValid(false)
               return;
             }
-            if (!repoName.includes("/")) {
+            if (!cleanedRepoName.includes("/")) {
               setRepoNameValid(false)
               toast({
                 title: "Invalid repository name",
@@ -785,7 +831,7 @@ function App() {
             var data = null
             try {
               setRepoNameDisabled(true);
-              const response = await fetch(`/backend/repo?repo_name=${repoName}`, {
+              const response = await fetch(`/backend/repo?repo_name=${cleanedRepoName}`, {
                 headers: {
                   "Content-Type": "application/json",
                   // @ts-ignore
@@ -879,42 +925,7 @@ function App() {
             message={message}
             className={index == lastAssistantMessageIndex ? "bg-slate-700" : ""}
             onEdit={async (content) => {
-              // search for mentions of PR URLs in content
-
-              const [orgName, repo] = repoName.split("/")
-              const pulls = []
-
-              const prURLs = content.match(new RegExp(`https?:\/\/github.com\/${repoName}\/pull\/(?<prNumber>[0-9]+)`, 'gm'));
-              for (const prURL of prURLs || []) {
-                const prNumber = prURL.split("/").pop()
-                console.log(prNumber)
-                const pr = await octokit.rest.pulls.get({
-                  owner: orgName,
-                  repo: repo,
-                  pull_number: parseInt(prNumber!)
-                })
-                const title = pr.data.title
-                const body = pr.data.body
-                const labels = pr.data.labels.map((label) => label.name)
-                const status = pr.data.state === "open" ? "open" : pr.data.merged ? "merged" : "closed"
-                const file_diffs = (await octokit.rest.pulls.listFiles({
-                  owner: orgName,
-                  repo: repo,
-                  pull_number: parseInt(prNumber!)
-                })).data
-                // console.log(file_diffs)
-                pulls.push({
-                  number: prNumber,
-                  repo_name: repoName,
-                  title,
-                  body,
-                  labels,
-                  status,
-                  file_diffs
-                })
-              }
-
-              // console.log(pulls)
+              const pulls = await parsePullRequests(repoName, content, octokit!)
 
               const newMessages: Message[] = [
                 ...messages.slice(0, index),
@@ -964,7 +975,7 @@ function App() {
           )}
           <Input
             data-ph-capture-attribute-current-message={currentMessage}
-            onKeyUp={(e) => {
+            onKeyUp={async (e) => {
               if (e.key === "Enter") {
                 posthog.capture("chat submitted", {
                   repoName,
@@ -972,7 +983,8 @@ function App() {
                   messages,
                   currentMessage,
                 });
-                const newMessages: Message[] = [...messages, { content: currentMessage, role: "user" }];
+                const pulls = await parsePullRequests(repoName, currentMessage, octokit!)
+                const newMessages: Message[] = [...messages, { content: currentMessage, role: "user", annotations: { pulls } }];
                 setMessages(newMessages);
                 setCurrentMessage("");
                 startStream(currentMessage, newMessages)

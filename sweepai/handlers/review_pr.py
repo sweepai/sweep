@@ -113,7 +113,8 @@ def review_pr(
                     error_message=str(error),
                 )
                 return {"success": False, "reason": str(error)}
-
+            pr_issue = repository.get_issue(number=pr.number)
+            reaction_eyes = pr_issue.create_reaction("eyes")
             # handle creating comments on the pr to tell the user we are going to begin reviewing the pr
             # _comment_id = create_update_review_pr_comment(username, pr)
             pr_changes, dropped_files, unsuitable_files = get_pr_changes(repository, pr)
@@ -139,7 +140,7 @@ def review_pr(
                 formatted_pr_changes_by_group,
                 cloned_repo,
                 pull_request_info,
-                multiprocess=True, 
+                multiprocess=True,
                 chat_logger=chat_logger,
             )
             # convert code_review_by_group to be by file for easier rendering
@@ -176,6 +177,7 @@ def review_pr(
                 dropped_files=dropped_files,
                 unsuitable_files=unsuitable_files,
             )
+            pr_issue.delete_reaction(reaction_eyes.id)
         except Exception as e:
             posthog.capture(
                 username,
@@ -187,6 +189,7 @@ def review_pr(
                     "duration": round(time() - review_pr_start_time),
                 },
             )
+            pr_issue.delete_reaction(reaction_eyes.id)
             raise e
         logger.info("review_pr success in " + str(round(time() - review_pr_start_time)))
         return {"success": True}
