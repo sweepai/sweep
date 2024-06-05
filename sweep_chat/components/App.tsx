@@ -17,6 +17,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { AutoComplete } from "@/components/ui/autocomplete";
 import { Toaster } from "@/components/ui/toaster";
 import { toast } from "@/components/ui/use-toast";
 import { useSession, signIn, SessionProvider, signOut } from "next-auth/react";
@@ -41,6 +42,8 @@ if (typeof window !== 'undefined') {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!)
   posthog.debug(false)
 }
+
+type Repository = any;
 
 interface Snippet {
   content: string;
@@ -402,7 +405,7 @@ const MessageDisplay = ({ message, className, onEdit }: { message: Message, clas
               <AccordionTrigger className="border-none py-0 text-left">
                 <div className="text-xs text-gray-400 flex align-center">
                   {!message.function_call!.is_complete ? (
-                    <PulsingLoader size={4} />
+                    <PulsingLoader size={0.5} />
                   ) : (
                     <FaCheck
                       className="inline-block mr-2"
@@ -457,6 +460,57 @@ const MessageDisplay = ({ message, className, onEdit }: { message: Message, clas
   );
 };
 
+function getJSONPrefix(buffer: string): [any[], number] {
+  let stack: string[] = [];
+  const matchingBrackets: Record<string, string> = {
+    '[': ']',
+    '{': '}',
+    '(': ')'
+  };
+  var currentIndex = 0;
+  const results = [];
+  let inString = false;
+  let escapeNext = false;
+
+  for (let i = 0; i < buffer.length; i++) {
+    const char = buffer[i];
+
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+    }
+
+    if (!inString) {
+      if (matchingBrackets[char]) {
+        stack.push(char);
+      } else if (matchingBrackets[stack[stack.length - 1]] === char) {
+        stack.pop();
+        if (stack.length === 0) {
+          try {
+            results.push(JSON.parse(buffer.slice(currentIndex, i + 1)));
+            currentIndex = i + 1;
+          } catch (e) {
+            continue;
+          }
+        }
+      }
+    }
+  }
+  if (currentIndex == 0) {
+    console.log(buffer);
+  }
+  return [results, currentIndex];
+}
+
 async function* streamMessages(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   isStream: React.MutableRefObject<boolean>,
@@ -482,30 +536,16 @@ async function* streamMessages(
         done = true;
         continue;
       }
-
+      
       if (value) {
         const decodedValue = new TextDecoder().decode(value);
         buffer += decodedValue;
-        buffer = buffer.replace("][{", "]\n[{"); // Ensure proper JSON formatting for split
-        buffer = buffer.replace("][[", "]\n[["); // Ensure proper JSON formatting for split
-        buffer = buffer.replace("]][", "]]\n["); // Ensure proper JSON formatting for split
-        const bufferLines = buffer.split("\n");
 
-        for (let line of bufferLines) { // Process all lines except the potentially incomplete last one
-          if (!line) {
-            continue
-          }
-          try {
-            const parsedLine = JSON.parse(line);
-            if (parsedLine) {
-              yield parsedLine
-            }
-          } catch (error) {
-            console.error("Failed to parse line:", line, error);
-          }
+        const [parsedObjects, currentIndex] = getJSONPrefix(buffer)
+        for (let parsedObject of parsedObjects) {
+          yield parsedObject
         }
-
-        buffer = bufferLines[bufferLines.length - 1]; // Keep the last line in the buffer
+        buffer = buffer.slice(currentIndex)
       }
     } catch (error) {
       console.error("Error during streaming:", error);
@@ -516,43 +556,54 @@ async function* streamMessages(
       }
     }
   }
+  if (buffer) {
+    console.warn("Buffer:", buffer)
+  }
 }
 
 const parsePullRequests = async (repoName: string, message: string, octokit: Octokit): Promise<PullRequest[]> => {
   const [orgName, repo] = repoName.split("/")
   const pulls = []
 
-  const prURLs = message.match(new RegExp(`https?:\/\/github.com\/${repoName}\/pull\/(?<prNumber>[0-9]+)`, 'gm'));
-  for (const prURL of prURLs || []) {
-    const prNumber = prURL.split("/").pop()
-    console.log(prNumber)
-    const pr = await octokit!.rest.pulls.get({
-      owner: orgName,
-      repo: repo,
-      pull_number: parseInt(prNumber!)
-    })
-    const title = pr.data.title
-    const body = pr.data.body
-    const labels = pr.data.labels.map((label) => label.name)
-    const status = pr.data.state === "open" ? "open" : pr.data.merged ? "merged" : "closed"
-    const file_diffs = (await octokit!.rest.pulls.listFiles({
-      owner: orgName,
-      repo: repo,
-      pull_number: parseInt(prNumber!)
-    })).data
-    // console.log(file_diffs)
-    pulls.push({
-      number: parseInt(prNumber!),
-      repo_name: repoName,
-      title,
-      body,
-      labels,
-      status,
-      file_diffs
-    } as PullRequest)
-  }
+  try {
+    const prURLs = message.match(new RegExp(`https?:\/\/github.com\/${repoName}\/pull\/(?<prNumber>[0-9]+)`, 'gm'));
+    for (const prURL of prURLs || []) {
+      const prNumber = prURL.split("/").pop()
+      const pr = await octokit!.rest.pulls.get({
+        owner: orgName,
+        repo: repo,
+        pull_number: parseInt(prNumber!)
+      })
+      const title = pr.data.title
+      const body = pr.data.body
+      const labels = pr.data.labels.map((label) => label.name)
+      const status = pr.data.state === "open" ? "open" : pr.data.merged ? "merged" : "closed"
+      const file_diffs = (await octokit!.rest.pulls.listFiles({
+        owner: orgName,
+        repo: repo,
+        pull_number: parseInt(prNumber!)
+      })).data
+      // console.log(file_diffs)
+      pulls.push({
+        number: parseInt(prNumber!),
+        repo_name: repoName,
+        title,
+        body,
+        labels,
+        status,
+        file_diffs
+      } as PullRequest)
+    }
 
-  return pulls
+    return pulls
+  } catch (e: any) {
+    toast({
+      title: "Failed to retrieve pull request",
+      description: `The following error has occurred: ${e.message}. Sometimes, logging out and logging back in can resolve this issue.`,
+      variant: "destructive"
+    });
+    return []
+  } 
 }
 
 function App() {
@@ -575,17 +626,8 @@ function App() {
   const { data: session } = useSession()
 
   const posthog = usePostHog();
-
-  if (session) {
-    posthog.identify(
-      session.user!.email!,
-      {
-        email: session.user!.email,
-        name: session.user!.name,
-        image: session.user!.image,
-      }
-    );
-  }
+  const [octokit, setOctokit] = useState<Octokit | null>(null)
+  const [repos, setRepos] = useState<Repository[]>([])
 
   useEffect(() => {
     if (messagesContainerRef.current) {
@@ -596,9 +638,57 @@ function App() {
     }
   }, [messages]);
 
+  useEffect(() => {
+    if (session) {
+      const octokit = new Octokit({auth: session.user!.accessToken})
+      setOctokit(octokit);
+      (async () => {
+        const maxPages = 5;
+        let allRepositories: Repository[] = [];
+        let page = 1;
+        let response;
+        do {
+          response = await octokit.rest.repos.listForAuthenticatedUser({
+            visibility: "all",
+            sort: "pushed",
+            per_page: 100,
+            page: page,
+          });
+          allRepositories = allRepositories.concat(response.data);
+          setRepos(allRepositories)
+          page++;
+        } while (response.data.length !== 0 && page < maxPages);
+      })()
+    }
+  }, [session?.user!.accessToken])
+
+  if (session) {
+    posthog.identify(
+      session.user!.email!,
+      {
+        email: session.user!.email,
+        name: session.user!.name,
+        image: session.user!.image,
+      }
+    );
+  } else {
+    return (
+      <main className="flex h-screen items-center justify-center p-12">
+        <Toaster />
+        <Button onClick={() => signIn("github")} variant="secondary">
+          <FaGithub
+            className="inline-block mr-2"
+            style={{ marginTop: -2 }}
+          />
+          Sign in with GitHub
+        </Button>
+      </main>
+    )
+  }
+
   const lastAssistantMessageIndex = messages.findLastIndex((message) => message.role === "assistant" && message.content.trim().length > 0)
 
-  const startStream = async (message: string, newMessages: Message[]) => {
+  const startStream = async (message: string, newMessages: Message[], snippets: Snippet[]) => {
     setIsLoading(true);
     isStream.current = true;
 
@@ -659,6 +749,7 @@ function App() {
           variant: "destructive"
         });
         setIsLoading(false);
+        isStream.current = false;
         posthog.capture("chat errored", {
           repoName,
           snippets,
@@ -746,29 +837,6 @@ function App() {
     });
   }
 
-  const [octokit, setOctokit] = useState<Octokit | null>(null)
-  useEffect(() => {
-    if (session) {
-      const octokit = new Octokit({auth: session.user!.accessToken})
-      setOctokit(octokit)
-    }
-  }, [session])
-
-  if (!session) {
-    return (
-      <main className="flex h-screen items-center justify-center p-12">
-        <Toaster />
-        <Button onClick={() => signIn("github")} variant="secondary">
-          <FaGithub
-            className="inline-block mr-2"
-            style={{ marginTop: -2 }}
-          />
-          Sign in with GitHub
-        </Button>
-      </main>
-    )
-  }
-
   return (
     <main className="flex h-screen flex-col items-center justify-between p-12">
       <Toaster />
@@ -803,17 +871,17 @@ function App() {
         </div>
       </div>
       <div className={`mb-4 w-full flex items-center ${repoNameValid ? "" : "grow"}`}>
-        <Input
-          data-ph-capture-attribute-repo-name={repoName}
-          value={repoName}
-          onChange={(e)=>setRepoName(e.target.value.replace(/\s/g,''))}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.currentTarget.blur();
-            }
-          }}
-          onBlur={async () => {
+        <AutoComplete
+          options={repos.map((repo) => ({label: repo.full_name, value: repo.full_name}))}
+          placeholder="Repository name"
+          emptyMessage="No repositories found"
+          value={{label: repoName, value: repoName}}
+          onValueChange={(option) => setRepoName(option.value)}
+          disabled={repoNameDisabled}
+          onBlur={async (repoName: string) => {
+            console.log(repoName)
             const cleanedRepoName = repoName.replace(/\s/g, '') // might be unsafe but we'll handle it once we get there
+            console.log(repoName)
             setRepoName(cleanedRepoName)
             if (cleanedRepoName === "") {
               setRepoNameValid(false)
@@ -865,10 +933,7 @@ function App() {
             }
             setRepoNameDisabled(false);
           }}
-          placeholder="Repository name"
-          disabled={repoNameDisabled}
         />
-        
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="outline" className="ml-4">
@@ -933,15 +998,17 @@ function App() {
               ]
               setMessages(newMessages)
               if (index == 0) {
-                setSnippets([])
+                setSnippets([]) 
+                startStream(content, newMessages, [])
+              } else {
+                startStream(content, newMessages, snippets)
               }
-              startStream(content, newMessages)
             }}
           />
         ))}
         {isLoading && (
           <div className="flex justify-around w-full py-2">
-            <PulsingLoader size={8} />
+            <PulsingLoader size={1.5} />
           </div>
         )}
       </div>
@@ -987,7 +1054,7 @@ function App() {
                 const newMessages: Message[] = [...messages, { content: currentMessage, role: "user", annotations: { pulls } }];
                 setMessages(newMessages);
                 setCurrentMessage("");
-                startStream(currentMessage, newMessages)
+                startStream(currentMessage, newMessages, snippets)
               }
             }}
             onChange={(e) => setCurrentMessage(e.target.value)}
