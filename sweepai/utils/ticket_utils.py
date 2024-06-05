@@ -59,7 +59,7 @@ code_snippet_separation_features = {
             ".spec.ts", ".spec.js", ".test.ts", ".test.js",
             "_test.py", "_test.ts", "_test.js", "_test.go",
             "Test.java", "Tests.java", "Spec.java", "Specs.java",
-            "_spec.rb", "_specs.rb", ".feature",
+            "_spec.rb", "_specs.rb", ".feature", "cy.ts", "cy.js"
         ],
         "substring": ["tests/", "test/", "/test", "_test", "rspec", ".test"],
     },
