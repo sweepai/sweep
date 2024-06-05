@@ -35,7 +35,6 @@ from sweepai.core.prompts import (
     fix_files_to_change_system_prompt,
 )
 from sweepai.core.planning_prompts import (
-    openai_files_to_change_prompt,
     proposed_plan_prompt,
     plan_generation_steps_system_prompt,
     plan_generation_steps_prompt,

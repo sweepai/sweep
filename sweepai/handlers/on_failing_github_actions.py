@@ -1,7 +1,7 @@
 from collections import defaultdict
 import copy
 import re
-from time import sleep
+from time import sleep, time
 
 from github import WorkflowRun
 from github.Repository import Repository
@@ -18,7 +18,7 @@ from sweepai.core.pull_request_bot import GHA_SUMMARY_END, GHA_SUMMARY_START, PR
 from sweepai.core.sweep_bot import GHA_PROMPT, GHA_PROMPT_WITH_HISTORY, get_files_to_change_for_gha, validate_file_change_requests
 from sweepai.handlers.create_pr import handle_file_change_requests
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, get_github_client, validate_and_sanitize_multi_file_changes
+from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, get_github_client, refresh_token, validate_and_sanitize_multi_file_changes
 from sweepai.utils.prompt_constructor import get_issue_request
 from sweepai.utils.ticket_rendering_utils import get_branch_diff_text, get_failing_gha_logs
 from sweepai.utils.ticket_utils import prep_snippets
@@ -123,6 +123,7 @@ def on_failing_github_actions(
     modify_files_dict_history: list[dict[str, dict[str, str]]] = [],
     chat_logger: ChatLogger | None = None,
 ):
+    gha_start_time = time()
     modify_files_dict = {}
 
     repo_full_name = repo.full_name
@@ -156,6 +157,9 @@ def on_failing_github_actions(
 
 
     while GITHUB_ACTIONS_ENABLED and main_passing:
+        if time() - gha_start_time > 60 * 59:
+            user_token, g, repo = refresh_token(repo_full_name, installation_id)
+            repo = g.get_repo(repo_full_name)
         logger.info(
             f"Polling to see if Github Actions have finished... {total_poll_attempts}"
         )
