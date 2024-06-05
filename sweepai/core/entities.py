@@ -30,6 +30,7 @@ class Message(BaseModel):
     name: str | None = None
     function_call: dict | None = None
     key: str | None = None
+    annotations: dict | None = None
 
     @classmethod
     def from_tuple(cls, tup: tuple[str | None, str | None]) -> Self:
