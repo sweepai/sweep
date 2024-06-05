@@ -540,7 +540,7 @@ def chat_codebase_stream(
                 yield json.dumps([
                     message.model_dump()
                     for message in messages
-                ]) + "\n"
+                ])
             else:
                 current_state = [
                     message.model_dump()
@@ -548,7 +548,7 @@ def chat_codebase_stream(
                 ]
                 patch = jsonpatch.JsonPatch.from_diff(previous_state, current_state)
                 if patch:
-                    yield patch.to_string() + "\n"
+                    yield patch.to_string()
                 previous_state = current_state
 
     return StreamingResponse(
