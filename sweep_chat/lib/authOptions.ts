@@ -78,4 +78,19 @@ const authOptions: AuthOptions = {
     },
 }
 
+declare module "next-auth" {
+    interface Session {
+        user: {
+            email: string;
+            name: string;
+            username: string;
+            image: string;
+            accessToken: string;
+            refreshToken: string;
+            expires_at: number;
+        }
+    }
+}
+
 export default authOptions
+
