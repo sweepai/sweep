@@ -345,7 +345,7 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
           )}
         </div>
       </div>
-      {!isEditing && message.annotations.pulls?.map((pr) => (
+      {!isEditing && message.annotations?.pulls?.map((pr) => (
         <div className="flex justify-end text-sm" key={pr.number}>
           <HoverCard openDelay={300} closeDelay={200}>
             <HoverCardTrigger>
