@@ -86,4 +86,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install sweepai --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --pre
       - name: Test installation
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          COHERE_API_KEY: test
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: sweep test
