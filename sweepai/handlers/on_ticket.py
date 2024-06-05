@@ -39,10 +39,11 @@ from sweepai.handlers.on_failing_github_actions import on_failing_github_actions
 from sweepai.handlers.create_pr import (
     handle_file_change_requests,
 )
+from sweepai.utils.concurrency_utils import fire_and_forget_wrapper
 from sweepai.utils.image_utils import get_image_contents_from_urls, get_image_urls_from_issue
 from sweepai.utils.issue_validator import validate_issue
 from sweepai.utils.prompt_constructor import get_issue_request
-from sweepai.utils.ticket_rendering_utils import add_emoji, process_summary, remove_emoji, get_payment_messages, get_comment_header, send_email_to_user, raise_on_no_file_change_requests, handle_empty_repository, delete_old_prs
+from sweepai.utils.ticket_rendering_utils import add_emoji, center, process_summary, remove_emoji, get_payment_messages, get_comment_header, send_email_to_user, raise_on_no_file_change_requests, handle_empty_repository, delete_old_prs
 from sweepai.utils.validate_license import validate_license
 from sweepai.utils.buttons import Button, ButtonList
 from sweepai.utils.chat_logger import ChatLogger
@@ -73,9 +74,7 @@ from sweepai.utils.str_utils import (
     to_branch_name
 )
 from sweepai.utils.ticket_utils import (
-    center,
     fetch_relevant_files,
-    fire_and_forget_wrapper,
 )
 
 @posthog_trace
