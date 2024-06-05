@@ -115,11 +115,11 @@ import {
         <div className="relative mt-1">
           <div
             className={cn(
-              "animate-in fade-in-0 zoom-in-95 absolute top-0 z-10 w-full rounded-md bg-black outline-none border border-gray-700",
+              "animate-in fade-in-0 zoom-in-95 absolute top-0 z-10 w-full rounded-md bg-black outline-none border border-zinc-700",
               isOpen ? "block" : "hidden",
             )}
           >
-            <CommandList className="rounded-lg ring-1 ring-slate-200">
+            <CommandList className="rounded-lg ring-slate-200">
               {isLoading ? (
                 <CommandPrimitive.Loading>
                   <div className="p-1">
