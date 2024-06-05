@@ -346,7 +346,12 @@ def chat_codebase_stream(
                     file_path = file_data["filename"]
                     if sweep_config.is_file_excluded(file_path):
                         continue
-                    is_file_suitable, reason = sweep_config.is_file_suitable(cloned_repo.get_file_contents(file_path))
+                    try:
+                        file_contents = cloned_repo.get_file_contents(file_path)
+                    except Exception:
+                        logger.warning(f"Error getting file contents for {file_path}")
+                        continue
+                    is_file_suitable, reason = sweep_config.is_file_suitable(file_contents)
                     if not is_file_suitable:
                         continue
                     diff = file_data["patch"]
