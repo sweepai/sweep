@@ -38,7 +38,6 @@ from sweepai.core.planning_prompts import (
     proposed_plan_prompt,
     plan_generation_steps_system_prompt,
     plan_generation_steps_prompt,
-    openai_files_to_change_system_prompt,
     proposed_plan_system_prompt,
     issue_sub_request_prompt,
     issue_sub_request_system_prompt,
@@ -583,7 +582,7 @@ def get_files_to_change(
         messages=[
             Message(
                 role="system",
-                content=openai_files_to_change_system_prompt if use_openai else proposed_plan_system_prompt,
+                content=proposed_plan_system_prompt,
             ),
         ],
     )
@@ -679,7 +678,7 @@ def get_files_to_change(
         messages=[
             Message(
                 role="system",
-                content=openai_files_to_change_system_prompt if use_openai else proposed_plan_system_prompt,
+                content=proposed_plan_system_prompt,
             ),
         ],
     )
