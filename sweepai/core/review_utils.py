@@ -1077,12 +1077,10 @@ class PRReviewBot(ChatGPT):
                     raise e
                 file_hash = hash_sha256(modified_files_dict[file_name]["modified"])
                 # get the top five snippets and then pass those into sweep to ask if there are any repeated function definitions
-                ranked_snippets, _, _ = get_top_k_snippets(
+                _, ranked_snippets, _, _ = get_top_k_snippets(
                     cloned_repo, 
                     function.function_code, 
                     k=3, 
-                    include_docs=False, 
-                    include_tests=False, 
                     do_not_use_file_cache=True,
                     use_repo_dir=True,
                     seed=file_hash
