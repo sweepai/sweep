@@ -275,7 +275,7 @@ def on_comment(
 
             pr_diffs, _dropped_files, _unsuitable_files = get_pr_changes(repo, pr)
             snippets_modified = [Snippet.from_file(
-                pr_diff.file_name, cloned_repo.get_file_contents(pr_diff.file_name)
+                pr_diff, cloned_repo.get_file_contents(pr_diff)
             ) for pr_diff in pr_diffs]
             snippets = snippets_modified + snippets
             snippets = snippets[:num_of_snippets_to_query]
