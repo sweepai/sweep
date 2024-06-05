@@ -464,12 +464,18 @@ async function* streamMessages(
 ): AsyncGenerator<any, void, unknown> {
   let done = false;
   let buffer = "";
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
   while (!done && isStream.current) {
     try {
       const { value, done: streamDone } = await Promise.race([
         reader.read(),
-        new Promise<ReadableStreamDefaultReadResult<Uint8Array>>((_, reject) => setTimeout(() => reject(new Error("Stream timeout after " + timeout / 1000 + " seconds. You can try again by editing your last message.")), timeout))
+        new Promise<ReadableStreamDefaultReadResult<Uint8Array>>((_, reject) => {
+          if (timeoutId) {
+            clearTimeout(timeoutId)
+          }
+          timeoutId = setTimeout(() => reject(new Error("Stream timeout after " + timeout / 1000 + " seconds. You can try again by editing your last message.")), timeout)
+        })
       ]);
 
       if (streamDone) {
@@ -504,6 +510,10 @@ async function* streamMessages(
     } catch (error) {
       console.error("Error during streaming:", error);
       throw error;
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
     }
   }
 }
