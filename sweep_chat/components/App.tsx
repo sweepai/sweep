@@ -602,6 +602,7 @@ const parsePullRequests = async (repoName: string, message: string, octokit: Oct
       description: `The following error has occurred: ${e.message}. Sometimes, logging out and logging back in can resolve this issue.`,
       variant: "destructive"
     });
+    return []
   } 
 }
 
@@ -628,6 +629,39 @@ function App() {
   const [octokit, setOctokit] = useState<Octokit | null>(null)
   const [repos, setRepos] = useState<Repository[]>([])
 
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+      if (scrollHeight - scrollTop - clientHeight < 100) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (session) {
+      const octokit = new Octokit({auth: session.user!.accessToken})
+      setOctokit(octokit);
+      (async () => {
+        const maxPages = 5;
+        let allRepositories: Repository[] = [];
+        let page = 1;
+        let response;
+        do {
+          response = await octokit.rest.repos.listForAuthenticatedUser({
+            visibility: "all",
+            sort: "pushed",
+            per_page: 100,
+            page: page,
+          });
+          allRepositories = allRepositories.concat(response.data);
+          setRepos(allRepositories)
+          page++;
+        } while (response.data.length !== 0 && page < maxPages);
+      })()
+    }
+  }, [session?.user!.accessToken])
+
   if (session) {
     posthog.identify(
       session.user!.email!,
@@ -651,15 +685,6 @@ function App() {
       </main>
     )
   }
-
-  useEffect(() => {
-    if (messagesContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-      if (scrollHeight - scrollTop - clientHeight < 100) {
-        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-      }
-    }
-  }, [messages]);
 
   const lastAssistantMessageIndex = messages.findLastIndex((message) => message.role === "assistant" && message.content.trim().length > 0)
 
@@ -811,30 +836,6 @@ function App() {
       message,
     });
   }
-
-  useEffect(() => {
-    if (session) {
-      const octokit = new Octokit({auth: session.user!.accessToken})
-      setOctokit(octokit);
-      (async () => {
-        const maxPages = 5;
-        let allRepositories: Repository[] = [];
-        let page = 1;
-        let response;
-        do {
-          response = await octokit.rest.repos.listForAuthenticatedUser({
-            visibility: "all",
-            sort: "pushed",
-            per_page: 100,
-            page: page,
-          });
-          allRepositories = allRepositories.concat(response.data);
-          setRepos(allRepositories)
-          page++;
-        } while (response.data.length !== 0 && page < maxPages);
-      })()
-    }
-  }, [session.user!.accessToken])
 
   return (
     <main className="flex h-screen flex-col items-center justify-between p-12">
