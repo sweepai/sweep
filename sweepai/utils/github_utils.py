@@ -125,6 +125,8 @@ class CustomRequester(Requester):
     ) -> "CustomRequester":
         self.token = token
         self.installation_id = installation_id
+        self.signing_key = signing_key
+        self.app_id = app_id
         base_url = GITHUB_BASE_URL
         auth = Token(token)
         retry = Retry(
@@ -153,7 +155,7 @@ class CustomRequester(Requester):
         try:
             return super().requestJsonAndCheck(*args, **kwargs)
         except (BadCredentialsException, UnknownObjectException):
-            self._refresh_token()
+            self._refresh_token(signing_key=self.signing_key, app_id=self.app_id)
             return super().requestJsonAndCheck(*args, **kwargs)
 
 
