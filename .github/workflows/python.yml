@@ -28,8 +28,8 @@ jobs:
         python-version: ["3.10"]
         # python-version: ["3.10", "3.11"]
         os: [ubuntu-latest]
-    outputs:
-      cache-key: ${{ steps.cache-dependencies.outputs.cache-key }}
+    # outputs:
+    #   cache-key: ${{ steps.cache-dependencies.outputs.cache-key }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
@@ -37,7 +37,7 @@ jobs:
           profile: minimal
           toolchain: 1.67.0
           override: true
-      - uses: Swatinem/rust-cache@v1
+      # - uses: Swatinem/rust-cache@v1
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
