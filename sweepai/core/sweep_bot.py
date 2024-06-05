@@ -1095,6 +1095,326 @@ def get_files_to_change_for_on_comment(
 
     return [], ""
 
+
+@streamable
+def get_files_to_change_for_on_comment(
+    relevant_snippets: list[Snippet],
+    read_only_snippets: list[Snippet],
+    problem_statement: str,
+    repo_name: str,
+    cloned_repo: ClonedRepo,
+    additional_context: str = "",
+    import_graph: Graph | None = None,
+    pr_info: str = "",
+    pr_diffs: str = "",
+    chat_logger: ChatLogger = None,
+    seed: int = 0,
+    images: list[tuple[str, str, str]] | None = None
+) -> Iterator[tuple[dict[str, str], list[FileChangeRequest], str]]:
+    use_openai = False
+    problem_statement = problem_statement.strip("\n")
+    file_change_requests: list[FileChangeRequest] = []
+    messages: list[Message] = []
+    user_facing_message = ""
+    messages.append(
+        Message(role="system", content=issue_sub_request_on_comment_system_prompt, key="system")
+    )
+
+    new_relevant_snippets = []
+    new_read_only_snippets = []
+    
+    for snippet in relevant_snippets:
+        if snippet in new_relevant_snippets or snippet in new_read_only_snippets:
+            continue
+        if "test" in snippet.file_path:
+            new_read_only_snippets.append(snippet)
+        else:
+            new_relevant_snippets.append(snippet)
+    
+    relevant_snippets = new_relevant_snippets
+    read_only_snippets = new_read_only_snippets + read_only_snippets
+
+    interleaved_snippets = []
+    for i in range(max(len(relevant_snippets), len(read_only_snippets))):
+        if i < len(relevant_snippets):
+            interleaved_snippets.append(relevant_snippets[i])
+        if i < len(read_only_snippets):
+            interleaved_snippets.append(read_only_snippets[i])
+
+    interleaved_snippets = partition_snippets_if_test(interleaved_snippets, include_tests=False)
+    max_snippets = get_max_snippets(interleaved_snippets)
+    relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
+    read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
+
+    messages.append(
+        Message(
+            role="user",
+            content=format_snippets(
+                relevant_snippets,
+                read_only_snippets,
+                problem_statement,
+            ),
+            key="relevant_snippets",
+        )
+    )
+    if additional_context:
+        messages.append(
+            Message(
+                role="user",
+                content=additional_context,
+            )
+        )
+    if pr_info:
+        messages.append(
+            Message(
+                role="user",
+                content=f"# Pr Description - use this to get an idea of what the original pull request was about:\n\n{pr_info}",
+            )
+        )
+    messages.append(
+        Message(
+            role="user",
+            content=f"# Comment left on the Pull Request - THIS IS THE USER REQUEST YOU ARE TO RESOLVE:\n<user_comment>\n{problem_statement}\n</user_comment>",
+        )
+    )
+    formatted_pr_diffs = on_comment_pr_diffs_format.format(pr_changes=pr_diffs)
+    messages.append(
+        Message(role="user", content=formatted_pr_diffs, key="pr_diffs")
+    )
+    print("messages")
+    for message in messages:
+        print(message.content + "\n\n")
+    joint_message = "\n\n".join(message.content for message in messages[1:])
+    print("messages", joint_message)
+    issue_sub_request_chat_gpt = ChatGPT(
+        messages=[
+            Message(
+                role="system",
+                content=issue_sub_request_on_comment_system_prompt,
+            ),
+        ],
+    )
+    renames_chat_gpt = ChatGPT(
+        messages=[
+            Message(
+                role="system",
+                content=rename_on_comment_system_prompt,
+            ),
+        ],
+    )
+    MODEL = "claude-3-opus-20240229"
+
+    renames_response = renames_chat_gpt.chat_anthropic(
+        content=joint_message + "\n\n" + rename_on_comment_prompt,
+        temperature=0.1,
+        images=images,
+        use_openai=use_openai,
+        seed=seed + 1,
+        stop_sequences=["</renames>"],
+        model=MODEL # haiku can troll this reponse
+    )
+    renames_dict = parse_renames(renames_response)
+    # need better validation
+    if renames_dict:
+        relevant_snippets = [Snippet(
+            file_path=renames_dict.get(snippet.file_path, snippet.file_path),
+            start=snippet.start,
+            end=snippet.end,
+            content=snippet.content,
+            score=snippet.score,
+            type_name=snippet.type_name,
+        ) for snippet in relevant_snippets]
+        read_only_snippets = [Snippet(
+            file_path=renames_dict.get(snippet.file_path, snippet.file_path),
+            start=snippet.start,
+            end=snippet.end,
+            content=snippet.content,
+            score=snippet.score,
+            type_name=snippet.type_name,
+        ) for snippet in read_only_snippets]
+        messages = [
+            message if message.key != "relevant_snippets" else Message(
+                role="user",
+                content=format_snippets(
+                    relevant_snippets,
+                    read_only_snippets,
+                    problem_statement,
+                ),
+                key="relevant_snippets",
+            ) for message in messages
+        ]
+        renames_string = "# Warning\n<warnings>\nIMPORTANT:" + "\n".join(
+            f"`{old_name}` has already been renamed to `{new_name}`" for old_name, new_name in renames_dict.items()
+        ) + "\nDo NOT include any renaming steps in your plan.\n</warnings>"
+        messages.append(
+            Message(
+                role="user",
+                content=renames_string,
+                key="renames"
+            )
+        )
+        joint_message = "\n\n".join(message.content for message in messages[1:])
+        user_facing_message += "We decided to make the following renames to help you solve the GitHub issue:\n"  +"\n".join(
+            f"Rename `{old_name}` to `{new_name}`" for old_name, new_name in renames_dict.items()
+        ) + "\n\n"
+        yield renames_dict, user_facing_message, []
+
+    issue_sub_requests = ""
+    if not use_openai:
+        issue_sub_request_response = continuous_llm_calls(
+            issue_sub_request_chat_gpt,
+            content=joint_message + "\n\n" + issue_sub_request_on_comment_prompt,
+            model=MODEL,
+            temperature=0.1,
+            images=images,
+            use_openai=use_openai,
+            seed=seed,
+            stop_sequences=["</issue_sub_requests>"],
+            response_cleanup=cleanup_fcrs,
+            MAX_CALLS=10
+        )
+        issue_sub_request_pattern = re.compile(r"<issue_sub_requests>(.*?)</issue_sub_requests>", re.DOTALL)
+        issue_sub_request_match = issue_sub_request_pattern.search(issue_sub_request_response)
+        if not issue_sub_request_match:
+            raise Exception("Failed to match issue excerpts")
+        issue_sub_requests = issue_sub_request_match.group(1)
+        issue_sub_requests = issue_sub_requests.strip("\n")
+        issue_sub_requests = re.sub(r"<justification>\n(.*?)\n</justification>\n*", "\n", issue_sub_requests, flags=re.DOTALL).strip("\n")
+
+        user_facing_message += "I'm going to follow the following steps to help you solve the GitHub issue:\n" 
+        single_issue_sub_request_pattern = re.compile(r"<issue_sub_request>(.*?)</issue_sub_request>", re.DOTALL)
+        for i, single_issue_sub_request_match in enumerate(single_issue_sub_request_pattern.finditer(issue_sub_requests)):
+            user_facing_message += f"{i + 1}. {single_issue_sub_request_match.group(1).strip()}\n"
+        user_facing_message += "\n\n"
+        yield renames_dict, user_facing_message, []
+
+    open("msg.txt", "w").write(joint_message + "\n\n" + proposed_plan_on_comment_prompt.format(issue_sub_requests=issue_sub_requests))
+    
+    chat_gpt = ChatGPT(
+        messages=[
+            Message(
+                role="system",
+                content=proposed_plan_on_comment_system_prompt,
+            ),
+        ],
+    )
+    # handle stop sequences better for multiple chained calls
+    proposed_plan_response: str = continuous_llm_calls(
+        chat_gpt,
+        content=joint_message + "\n\n" + proposed_plan_on_comment_prompt.format(issue_sub_requests=issue_sub_requests),
+        model=MODEL,
+        temperature=0.1,
+        images=images,
+        use_openai=use_openai,
+        seed=seed,
+        stop_sequences=["</issue_analysis>"],
+        response_cleanup=cleanup_fcrs,
+        MAX_CALLS=10
+    )
+    # get the issue analysis from the proposed plan response
+    issue_analysis_and_proposed_changes, failed , _ = extract_object_fields_from_string(proposed_plan_response, ["issue_analysis"])
+
+    # TODO: add error case for no issue_analysis
+
+    chat_gpt.messages= [
+        Message(
+            role="system",
+            content=plan_generation_steps_on_comment_system_prompt,
+        ),
+    ]
+    # handle stop sequences better for multiple chained calls
+    files_to_change_response: str = continuous_llm_calls(
+        chat_gpt,
+        content=joint_message + "\n\n" + plan_generation_steps_on_comment_prompt.format(
+            issue_analysis_and_proposed_changes=issue_analysis_and_proposed_changes
+        ),
+        model=MODEL,
+        temperature=0.1,
+        images=images,
+        use_openai=use_openai,
+        seed=seed,
+        stop_sequences=["</plan>"],
+        response_cleanup=cleanup_fcrs,
+        MAX_CALLS=10
+    )
+    # breakpoint()
+    relevant_modules = []
+    pattern = re.compile(r"<relevant_modules>(.*?)</relevant_modules>", re.DOTALL)
+    relevant_modules_match = pattern.search(files_to_change_response)
+    if relevant_modules_match:
+        relevant_modules = [relevant_module.strip() for relevant_module in relevant_modules_match.group(1).split("\n") if relevant_module.strip()]
+    print("relevant_modules", relevant_modules)
+    file_change_requests = []
+    try:
+        for re_match in re.finditer(
+            FileChangeRequest._regex, files_to_change_response, re.DOTALL
+        ):
+            file_change_request = FileChangeRequest.from_string(re_match.group(0))
+            file_change_request.raw_relevant_files = " ".join(relevant_modules)
+            file_change_request.filename = renames_dict.get(file_change_request.filename, file_change_request.filename)
+            file_change_requests.append(file_change_request)
+        
+        yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm currently just making some edits:\n", file_change_requests
+        
+        error_message, error_indices = get_error_message(
+            file_change_requests,
+            cloned_repo,
+            renames_dict=renames_dict,
+        )
+
+        for error_resolution_count in range(3):
+            if not error_message:
+                break
+            # todo: segment these into smaller calls to handle different edge cases
+            # delete the error messages
+            chat_gpt.messages = [message if message.role != "system" else Message(
+                content=fix_files_to_change_system_prompt,
+                role="system"
+            ) for message in chat_gpt.messages]
+            fix_attempt = continuous_llm_calls(
+                chat_gpt,
+                content=fix_files_to_change_prompt.format(
+                    error_message=error_message,
+                    allowed_indices=english_join([str(index) for index in range(len(error_indices))]),
+                ),
+                model=MODEL,
+                temperature=0.1,
+                images=images,
+                seed=seed,
+                stop_sequences=["</error_resolutions"],
+                response_cleanup=cleanup_fcrs,
+                use_openai=error_resolution_count < 2,
+            )
+            drops, matches = parse_patch_fcrs(fix_attempt)
+            for index, new_fcr in matches:
+                if index >= len(error_indices):
+                    logger.warning(f"Index {index} not in error indices")
+                    continue
+                if "COPIED_FROM_PREVIOUS_MODIFY" in new_fcr.instructions:
+                    # if COPIED_FROM_PREVIOUS_CREATE, we just need to override the filename
+                    file_change_requests[error_indices[index]].filename = renames_dict.get(new_fcr.filename, new_fcr.filename)
+                    continue
+                file_change_requests[error_indices[index]] = new_fcr
+            for drop in sorted(drops, reverse=True):
+                if drop >= len(error_indices):
+                    logger.warning(f"Index {drop} not in error indices")
+                    continue
+                file_change_requests.pop(error_indices[drop])
+            logger.debug("Old indices", error_indices)
+            error_message, error_indices = get_error_message(file_change_requests, cloned_repo, renames_dict=renames_dict)
+            logger.debug("New indices", error_indices)
+            yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm currently just making some edits:\n", file_change_requests
+            # breakpoint()
+        # breakpoint()
+
+        validate_file_change_requests(file_change_requests, cloned_repo, renames_dict=renames_dict)
+        yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm done making edits and now I'm just validating the changes using a linter to catch any mistakes like syntax errors or undefined variables:\n", file_change_requests
+        return renames_dict, file_change_requests, files_to_change_response
+    except RegexMatchError as e:
+        print("RegexMatchError", e)
+
+    return [], ""
+
 def context_get_files_to_change(
     relevant_snippets: list[Snippet],
     read_only_snippets: list[Snippet],

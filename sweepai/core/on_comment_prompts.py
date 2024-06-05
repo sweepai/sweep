@@ -45,6 +45,7 @@ A relevant, subtask based off of the user's comment.
 2. Answer the following question: Does this subtask involve working with code that has been added in the pull request? Was the code removed in the pull request? Or is the previously untouched code.
 3. Justify your answer to the above question by either including the patch index where the code was added or removed. If it was untouched, then justify why it was untouched.
 4. A detailed explanation of the subtask, including the specific code entities that need to be changed.
+
 </justification>
 [additional sub requests as needed]
 </issue_sub_requests>"""
