@@ -170,12 +170,14 @@ class CustomGithub(Github):
     ) -> "CustomGithub":
         self.installation_id = installation_id
         self.token = self._get_token(signing_key=signing_key, app_id=app_id)
+        self.signing_key = signing_key
+        self.app_id = app_id
         super().__init__(self.token, *args, **kwargs)
         self._Github__requester = CustomRequester(
             self.token, 
             installation_id=self.installation_id, 
-            signing_key=signing_key, 
-            app_id=app_id
+            signing_key=self.signing_key, 
+            app_id=self.app_id
         )
 
     def _get_token(self, signing_key: str = "", app_id: str = "") -> str:
