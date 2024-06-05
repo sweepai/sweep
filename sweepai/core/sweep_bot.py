@@ -35,10 +35,10 @@ from sweepai.core.prompts import (
     fix_files_to_change_system_prompt,
 )
 from sweepai.core.planning_prompts import (
-    openai_files_to_change_prompt,
-    anthropic_files_to_change_prompt,
-    openai_files_to_change_system_prompt,
-    anthropic_files_to_change_system_prompt,
+    proposed_plan_prompt,
+    plan_generation_steps_system_prompt,
+    plan_generation_steps_prompt,
+    proposed_plan_system_prompt,
     issue_sub_request_prompt,
     issue_sub_request_system_prompt,
     anthropic_rename_prompt,
@@ -48,6 +48,7 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.core.entities import parse_fcr
+from sweepai.utils.str_utils import extract_object_fields_from_string
 from sweepai.utils.streamable_functions import streamable
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
@@ -503,7 +504,6 @@ def get_files_to_change(
 ) -> Iterator[tuple[dict[str, str], list[FileChangeRequest], str]]:
     use_openai = False
     problem_statement = problem_statement.strip("\n")
-    files_to_change_prompt = openai_files_to_change_prompt if use_openai else anthropic_files_to_change_prompt
     file_change_requests: list[FileChangeRequest] = []
     messages: list[Message] = []
     user_facing_message = ""
@@ -582,7 +582,7 @@ def get_files_to_change(
         messages=[
             Message(
                 role="system",
-                content=openai_files_to_change_system_prompt if use_openai else anthropic_files_to_change_system_prompt,
+                content=proposed_plan_system_prompt,
             ),
         ],
     )
@@ -672,20 +672,46 @@ def get_files_to_change(
         user_facing_message += "\n\n"
         yield renames_dict, user_facing_message, []
 
-    open("msg.txt", "w").write(joint_message + "\n\n" + files_to_change_prompt.format(issue_sub_requests=issue_sub_requests))
+    open("msg.txt", "w").write(joint_message + "\n\n" + proposed_plan_prompt.format(issue_sub_requests=issue_sub_requests))
     
     chat_gpt = ChatGPT(
         messages=[
             Message(
                 role="system",
-                content=openai_files_to_change_system_prompt if use_openai else anthropic_files_to_change_system_prompt,
+                content=proposed_plan_system_prompt,
             ),
         ],
     )
     # handle stop sequences better for multiple chained calls
+    proposed_plan_response: str = continuous_llm_calls(
+        chat_gpt,
+        content=joint_message + "\n\n" + proposed_plan_prompt.format(issue_sub_requests=issue_sub_requests),
+        model=MODEL,
+        temperature=0.1,
+        images=images,
+        use_openai=use_openai,
+        seed=seed,
+        stop_sequences=["</issue_analysis>"],
+        response_cleanup=cleanup_fcrs,
+        MAX_CALLS=10
+    )
+    # get the issue analysis from the proposed plan response
+    issue_analysis_and_proposed_changes, failed , _ = extract_object_fields_from_string(proposed_plan_response, ["issue_analysis"])
+
+    # TODO: add error case for no issue_analysis
+
+    chat_gpt.messages= [
+        Message(
+            role="system",
+            content=plan_generation_steps_system_prompt,
+        ),
+    ]
+    # handle stop sequences better for multiple chained calls
     files_to_change_response: str = continuous_llm_calls(
         chat_gpt,
-        content=joint_message + "\n\n" + files_to_change_prompt.format(issue_sub_requests=issue_sub_requests),
+        content=joint_message + "\n\n" + plan_generation_steps_prompt.format(
+            issue_analysis_and_proposed_changes=issue_analysis_and_proposed_changes
+        ),
         model=MODEL,
         temperature=0.1,
         images=images,
@@ -694,16 +720,7 @@ def get_files_to_change(
         stop_sequences=["</plan>"],
         response_cleanup=cleanup_fcrs,
         MAX_CALLS=10
-    ) + "\n</plan>"
-
-    if chat_logger:
-        chat_logger.add_chat(
-            {
-                "model": MODEL,
-                "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
-                "output": files_to_change_response,
-            })
-    print("files_to_change_response", files_to_change_response)
+    )
     relevant_modules = []
     pattern = re.compile(r"<relevant_modules>(.*?)</relevant_modules>", re.DOTALL)
     relevant_modules_match = pattern.search(files_to_change_response)
@@ -1262,7 +1279,6 @@ def get_files_to_change_for_gha(
         )
         chat_gpt.messages[-1].content += "</reflection>\n"
         chat_gpt.messages[0].content = gha_files_to_change_system_prompt_2
-
         files_to_change_response = continuous_llm_calls(
             chat_gpt,
             content=gha_files_to_change_prompt_2,

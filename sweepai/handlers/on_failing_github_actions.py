@@ -1,7 +1,7 @@
 from collections import defaultdict
 import copy
 import re
-from time import sleep
+from time import sleep, time
 
 from github import WorkflowRun
 from github.Repository import Repository
@@ -9,7 +9,7 @@ from github.PullRequest import PullRequest
 from loguru import logger
 
 from sweepai.dataclasses.gha_fix import GHAFix
-from sweepai.utils.str_utils import strip_triple_quotes
+from sweepai.utils.str_utils import extract_object_fields_from_string, strip_triple_quotes
 from sweepai.config.client import get_gha_enabled
 from sweepai.config.server import DEPLOYMENT_GHA_ENABLED
 from sweepai.core.chat import ChatGPT
@@ -18,7 +18,7 @@ from sweepai.core.pull_request_bot import GHA_SUMMARY_END, GHA_SUMMARY_START, PR
 from sweepai.core.sweep_bot import GHA_PROMPT, GHA_PROMPT_WITH_HISTORY, get_files_to_change_for_gha, validate_file_change_requests
 from sweepai.handlers.create_pr import handle_file_change_requests
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, get_github_client, validate_and_sanitize_multi_file_changes
+from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, get_github_client, refresh_token, validate_and_sanitize_multi_file_changes
 from sweepai.utils.prompt_constructor import get_issue_request
 from sweepai.utils.ticket_rendering_utils import get_branch_diff_text, get_failing_gha_logs
 from sweepai.utils.ticket_utils import prep_snippets
@@ -27,12 +27,31 @@ from sweepai.utils.event_logger import posthog
 gha_context_cleanup_system_prompt = """You are a skilled programmer. You will be given a set of failing GitHub Action logs. Your sole task is to extract and return only the crucial parts that will help a developer resolve the issues. 
 Eliminate any unnecessary context and return verbatim the useful lines of logs."""
 
+gha_generate_query_system_prompt = """You are a skilled programmer. You will be given a set of failing GitHub Action logs. 
+Your sole task is to create a query based on the failing Github Action logs that will be used to vector search a code base in order to fetch relevant code snippets.
+The retrived code snippets will then be used as context to help the next developer resolve the failing Github Action logs."""
+
 gha_context_cleanup_user_prompt = """
 # The failing Github Action logs are given below
 
 {github_actions_logs}
 
 ONLY RETURN THE USEFUL PARTS OF THE LOGS THAT WILL HELP A DEVELOPER RESOLVE THE ISSUES. NOTHING ELSE.
+"""
+
+gha_generate_query_user_prompt = """
+# The failing Github Action logs are given below
+
+{github_actions_logs}
+
+# The initial task that resulted in these failing Github Action logs is given below
+
+{issue_description}
+
+Return your query below in the following xml tags:
+<query>
+{{generated query goes here. Remember that it will be used in a vector search so tailor your query with that in mind. There will not be multiple searches, this one search needs to get all the revelant code snippets for all issues}}
+</query>
 """
 
 def get_error_locations_from_error_logs(error_logs: str, cloned_repo: ClonedRepo):
@@ -104,6 +123,7 @@ def on_failing_github_actions(
     modify_files_dict_history: list[dict[str, dict[str, str]]] = [],
     chat_logger: ChatLogger | None = None,
 ):
+    gha_start_time = time()
     modify_files_dict = {}
 
     repo_full_name = repo.full_name
@@ -137,6 +157,9 @@ def on_failing_github_actions(
 
 
     while GITHUB_ACTIONS_ENABLED and main_passing:
+        if time() - gha_start_time > 60 * 59:
+            user_token, g, repo = refresh_token(repo_full_name, installation_id)
+            repo = g.get_repo(repo_full_name)
         logger.info(
             f"Polling to see if Github Actions have finished... {total_poll_attempts}"
         )
@@ -210,14 +233,33 @@ def on_failing_github_actions(
                         previous_github_actions_logs=previous_gha_logs,
                     )
                 
-                snippets: list[Snippet] = prep_snippets(cloned_repo=cloned_repo, query=problem_statement.strip("\n"), ticket_progress=None) # need to do this, can use the old query for speed
+                # generate query based on github error logs
+                chat_gpt_generate_query = ChatGPT()
+                chat_gpt_generate_query.messages = [
+                    Message(role="system", content=gha_generate_query_system_prompt)
+                ]
+                formatted_gha_generate_query_prompt = gha_generate_query_user_prompt.format(
+                    github_actions_logs=failed_gha_logs, issue_description=problem_statement
+                )
+                # we can also gate github actions fixes here
+                gha_log_query_response = chat_gpt_generate_query.chat_anthropic(
+                    content=formatted_gha_generate_query_prompt,
+                    temperature=0.2,
+                    use_openai=True,
+                )
+                gha_log_query, failed, _ = extract_object_fields_from_string(gha_log_query_response, ["query"])
+                final_query = problem_statement.strip("\n")
+                if not failed:
+                    final_query += gha_log_query.get("query", "")
+
+                snippets: list[Snippet] = prep_snippets(cloned_repo=cloned_repo, query=final_query, ticket_progress=None) # need to do this, can use the old query for speed
                 issue_request = get_issue_request(
                     "Fix the following errors to complete the user request.",
                     all_information_prompt,
                 )
-                # only pass in top 3 relevant snippets at this point we dont really need context anymore, we are just modifying the existing files
+                # only pass in top 10 relevant snippets at this point we dont really need context anymore, we are just modifying the existing files
                 file_change_requests, plan = get_files_to_change_for_gha(
-                    relevant_snippets=snippets[:3],  # pylint: disable=unsubscriptable-object
+                    relevant_snippets=snippets[:10],  # pylint: disable=unsubscriptable-object
                     read_only_snippets=[],
                     problem_statement=all_information_prompt,
                     updated_files=modify_files_dict,

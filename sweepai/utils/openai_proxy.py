@@ -248,7 +248,6 @@ class OpenAIProxy:
                 temperature=temperature,
                 timeout=OPENAI_TIMEOUT,
                 seed=SEED,
-                stop=stop_sequences,
                 stream=True,
             )
             text = ""
@@ -267,8 +266,7 @@ class OpenAIProxy:
                 max_tokens=max_tokens,
                 temperature=temperature,
                 timeout=OPENAI_TIMEOUT,
-                seed=SEED,
-                stop=stop_sequences,
+                seed=SEED,  
             )
             return response.choices[0].message.content
 

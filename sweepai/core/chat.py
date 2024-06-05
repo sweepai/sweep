@@ -147,7 +147,7 @@ def determine_model_from_chat_logger(chat_logger: ChatLogger, model: str):
     return model
 
 tool_call_parameters = {
-    "make_change": ["justification", "file_name", "original_code", "new_code"],
+    "make_change": ["justification", "file_name", "original_code", "new_code", "replace_all"],
     "create_file": ["justification", "file_name", "new_code"],
     "submit_task": ["justification"],
     "search_codebase": ["query", "include_docs", "include_tests"],

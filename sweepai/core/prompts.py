@@ -411,11 +411,17 @@ b. List ALL the changes made so far in extreme detail. Be absolutely complete. F
 a. List out all the previous error logs that were solved.
 b. List out all previous error logs that are still present or only partially solved.
 c. Identify the number of errors, and list out the indices of all the new Github Action error logs that you must now solve and potential root causes and solutions.
-- Error 1/n: Identify the error message, root cause, and fix.
+- Error 1/n: For each error answer the following questions:
+    1. What is the error message? Repeat it verbatim. Is this a repeat error? If so, you may skip the rest of the questions and simply reference the first appearance of this error.
+    2. What is the root cause of the error? Explain why.
+    3. How can we resolve the error? Be complete and precise.
+    4. If we make the fix, what are the potential side effects? Will the fix break other parts of the code? For example, if we change a function signature, will we need to update all the calls to that function?
+    5. If you identify potential side effects create - Side Effect #n block and describe the changes that need to be made in order to fix the side effect.
 [repeat for all errors]
-</reflction>"""
+</reflection>"""
 
 gha_files_to_change_prompt_2 = """Now that you've analyzed the issue and error logs, your job is to write code changes to help resolve the errors in his code while also resolving the GitHub issue.
+For each unique error log identified in the previous step, you will need to provide a set of code changes to fix the error.
 
 Guidelines:
 <guidelines>
@@ -424,7 +430,6 @@ Guidelines:
 - Break the task into small steps, with each <modify> section for each logical code block worth of change. Use multiple <modify> blocks for the same file if there are multiple distinct changes to make in that file, such as for imports.
 - A <modify> block must contain exactly one change in one <new_code> tag.
 - To remove code, replace it with empty <new_code> tags.
-- If imports are necessary, place them in a separate <modify> block. Use multiple <modify> blocks for the same file to separate distinct changes.
 - Do not make a change that has already been made by the developer.
 <guidelines>
 
@@ -445,9 +450,7 @@ Then, based on the analysis, propose a fix by following the format below. If the
 <modify file="file_path"> 
 Instructions for modifying one section of the file. Each block must have exactly one original_code and one new_code block.
 
-a. Identify whether the change involves appending to a list, such as a list of imports, arguments or properties. If so, we should add an <append>true</append> tag to the <modify> block. In the <original_code></original_code> block, we should place the code we want to append to.
-
-b. Describe the section of code that needs to be modified.
+a. Describe the section of code that needs to be modified.
 <original_code>
 Copy the original_code here VERBATIM from the file.
 Do NOT paraphrase or abbreviate the source code.
@@ -456,7 +459,7 @@ Start a few lines before the target code to change and end a few lines after.
 Do not edit the same area of code more than once to avoid merge conflicts with other modifies.
 </original_code>
 
-c. Describe the changes that need to be made to the code.
+b. Describe the changes that need to be made to the code.
 <new_code>
 Write the new code in <new_code> tags, specifying necessary imports and referencing relevant type definitions, interfaces, and schemas. BE EXACT as this code will replace the mentioned <original_code>. This code MUST be different from the original_code.
 </new_code>
