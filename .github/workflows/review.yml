@@ -59,6 +59,7 @@ jobs:
           GITHUB_APP_PEM: ${{ secrets.GH_APP_PEM }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
         run: |
           export PYTHONPATH=.
           pytest tests/e2e/test_pr_review.py
