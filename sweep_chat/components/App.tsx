@@ -322,6 +322,7 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
               <Button onClick={(e) => {
                 handleBlur()
                 e.stopPropagation()
+                e.preventDefault()
               }} variant="secondary" className="bg-zinc-800 text-white">
                 Cancel
               </Button>
@@ -330,6 +331,7 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
                 setIsEditing(false)
                 handleBlur()
                 e.stopPropagation()
+                e.preventDefault()
               }} variant="default" className="ml-2 bg-slate-600 text-white hover:bg-slate-700">
                 Generate
               </Button>
@@ -349,7 +351,7 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
               <div className="mb-4 text-sm">
                 {pr.body}
               </div>
-              <div className="text-xs">
+              <div className="text-xs text-zinc-300">
                 <div className="mb-1">{pr.repo_name}</div>
                 {pr.file_diffs.length} files changed <span className="text-green-500">+{sum(pr.file_diffs.map(diff => diff.additions))}</span> <span className="text-red-500">-{sum(pr.file_diffs.map(diff => diff.deletions))}</span>
               </div>
