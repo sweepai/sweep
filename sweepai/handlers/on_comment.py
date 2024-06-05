@@ -228,7 +228,9 @@ def on_comment(
                         pruned_source_code = smart_prune_file_based_on_patches(numbered_source_code, pr_change.patches)
                         source_codes.append(f'<file_with_patches_applied file_name="{file_name}">\n{pruned_source_code}\n</file>')
                         patch_changes = [patch.changes for patch in pr_change.patches]
-                        patches_string = "\n".join(patch_changes)
+                        patch_annotations = pr_change.annotations
+                        patches_with_annotations = [f'<patch index="{i}">\n{patch}\n</patch>\n<patch_description index="{i}">\n{patch_annotations[i]}\n<patch_description>' for i, patch in enumerate(patch_changes)]
+                        patches_string = "\n".join(patches_with_annotations)
                         patches.append(
                             f'<patches file_name="{file_name}">\n{patches_string}\n</patches>'
                         )
@@ -237,7 +239,7 @@ def on_comment(
                     "<code_files_with_patches_applied>\n" + "\n".join(source_codes) + "\n</code_files_with_patches_applied>"
                 )
                 pr_diff_string = (
-                    "<pr_changes>\n" + "\n".join(patches) + "\n\n# Here are all the code files with the above patches applied:\n\n" + source_code_string + "</pr_changes>"
+                    "<pr_changes>\n" + "\n".join(patches) + "\n\n# Here is the current state of the codebase with the above patches applied:\n\n" + source_code_string + "</pr_changes>"
                 )
 
             # This means it's a comment on a file
