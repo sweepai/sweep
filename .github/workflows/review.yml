@@ -55,6 +55,7 @@ jobs:
         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
       - name: Run Review Test
         env:
+          LICENSE_KEY: ${{ secrets.LICENSE_KEY }}
           GITHUB_PAT: ${{ secrets.GH_PAT }}
           GITHUB_APP_ID: ${{ secrets.GH_APP_ID }}
           GITHUB_APP_PEM: ${{ secrets.GH_APP_PEM }}
