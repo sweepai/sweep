@@ -59,7 +59,7 @@ code_snippet_separation_features = {
             ".spec.ts", ".spec.js", ".test.ts", ".test.js",
             "_test.py", "_test.ts", "_test.js", "_test.go",
             "Test.java", "Tests.java", "Spec.java", "Specs.java",
-            "_spec.rb", "_specs.rb", ".feature",
+            "_spec.rb", "_specs.rb", ".feature", "cy.ts", "cy.js"
         ],
         "substring": ["tests/", "test/", "/test", "_test", "rspec", ".test"],
     },
@@ -342,7 +342,10 @@ def multi_prep_snippets(
                 # Fallback to sequential processing
                 logger.warning(e)
                 for type_name, snippets_subset in separated_snippets:
-                    new_content_to_lexical_score_by_type[type_name] = process_snippets(type_name, queries[0], snippets_subset, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, rerank_count[type_name], {})[1]
+                    if snippets_subset:
+                        new_content_to_lexical_score_by_type[type_name] = process_snippets(type_name, queries[0], snippets_subset, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, rerank_count[type_name], {})[1]
+                    else:
+                        new_content_to_lexical_score_by_type[type_name] = {}
         logger.info(f"Reranked snippets took {timer.time_elapsed} seconds")
 
         for type_name, snippets_subset in separated_snippets:
