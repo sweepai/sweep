@@ -53,9 +53,7 @@ jobs:
         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
       - run: uv pip install ruff pylint pytest pytest-xdist black
         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
-      - run: export PYTHONPATH=.
-      - run: pwd
-      - run: ls
+      - run: source .venv/bin/activate
       - name: Run Review Test
         env:
           GITHUB_APP_ID: ${{ secrets.GH_APP_ID }}
