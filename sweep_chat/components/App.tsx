@@ -33,6 +33,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadio
 import { Label } from "./ui/label";
 import PulsingLoader from "./shared/PulsingLoader";
 
+import { Octokit } from "octokit";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "./ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+
 if (typeof window !== 'undefined') {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!)
   posthog.debug(false)
@@ -47,6 +51,30 @@ interface Snippet {
   score: number;
 }
 
+interface FileDiff {
+  sha: string;
+  filename: string;
+  status: "modified" | "added" | "removed" | "renamed" | "copied" | "changed" | "unchanged";
+  additions: number;
+  deletions: number;
+  changes: number;
+  blob_url: string;
+  raw_url: string;
+  contents_url: string;
+  patch?: string | undefined;
+  previous_filename?: string | undefined;
+}
+
+interface PullRequest {
+  number: number;
+  repo_name: string;
+  title: string;
+  body: string;
+  labels: string[];
+  status: string;
+  file_diffs: FileDiff[]
+}
+
 interface Message {
   content: string; // This is the message content or function output
   role: "user" | "assistant" | "function";
@@ -56,6 +84,9 @@ interface Message {
     is_complete: boolean;
     snippets?: Snippet[];
   }; // This is the function input
+  annotations?: {
+    pulls?: PullRequest[]
+  }
 }
 
 const modelMap: Record<string, string> = {
@@ -69,6 +100,103 @@ const DEFAULT_K: number = 8
 
 const sliceLines = (content: string, start: number, end: number) => {
   return content.split("\n").slice(Math.max(start - 1, 0), end).join("\n");
+}
+
+const InputWithDropdown = ({
+  onChange = () => {},
+  onClick = () => {},
+  onBlur = () => {},
+  ...props
+}: {
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClick?: () => void;
+  onBlur?: () => void;
+  [key: string]: any;
+}) => {
+  // can't get this to work, will work on it later
+  const ref = useRef<HTMLInputElement>(null);
+  const [isActive, setIsActive] = useState(false);
+
+  return (
+    <Command className="p-0">
+      <CommandInput
+        placeholder="Type a repository to search..."
+        onChangeCapture={(e) => {
+          onChange(e as any)
+        }}
+        onClick={() => {
+          setIsActive(true)
+          onClick()
+        }}
+        onBlur={() => {
+          setIsActive(false)
+          onBlur()
+        }}
+        {...props}
+        ref={ref}
+      />
+      <CommandList
+        className="fixed bg-black z-50 border border-zinc-800 rounded-bl-xl rounded-br-xl border-t-0"
+        style={{
+          top: ref.current?.offsetTop! + ref.current?.offsetHeight!,
+          left: ref.current?.offsetLeft,
+          width: ref.current?.offsetWidth,
+          display: isActive ? "block" : "none"  
+        }}
+      >
+        {/* <CommandEmpty></CommandEmpty> */}
+        <CommandGroup heading="Suggestions">
+          <CommandItem>Calendar</CommandItem>
+          <CommandItem>Search Emoji</CommandItem>
+          <CommandItem>Calculator</CommandItem>
+        </CommandGroup>
+        <CommandSeparator />
+        <CommandGroup heading="Settings">
+          <CommandItem>Profile</CommandItem>
+          <CommandItem>Billing</CommandItem>
+          <CommandItem>Settings</CommandItem>
+        </CommandGroup>
+      </CommandList>
+    </Command>
+  );
+};
+
+const MarkdownRenderer = ({ content, className }: { content: string, className?: string }) => {
+  return (
+    <Markdown
+      className={`${className} reactMarkdown`}
+      remarkPlugins={[remarkGfm]}
+      components={{
+        code(props) {
+          const { children, className, node, ref, ...rest } = props
+          const match = /language-(\w+)/.exec(className || '')
+          return match ? (
+            <SyntaxHighlighter
+              {...rest} // eslint-disable-line
+              PreTag="div"
+              language={match[1]}
+              style={tomorrow}
+              customStyle={{
+                backgroundColor: '#333',
+              }}
+              className="rounded-xl"
+            >
+              {String(children).replace(/\n$/, '')}
+            </SyntaxHighlighter>
+          ) : (
+            <code
+              {...rest}
+              className={`rounded-xl ${className}`}
+            >
+              {children}
+            </code>
+          )
+        }
+      }}
+    >
+      {content}
+    </Markdown>
+  )
 }
 
 const typeNameToColor = {
@@ -142,75 +270,131 @@ switch (functionCall?.function_name) {
 }
 
 const roleToColor = {
-"user": "bg-zinc-600",
-"assistant": "bg-zinc-700",
-"function": "bg-zinc-800",
+  "user": "bg-zinc-600",
+  "assistant": "bg-zinc-700",
+  "function": "bg-zinc-800",
+}
+
+const sum = (arr: number[]) => arr.reduce((acc, cur) => acc + cur, 0)
+
+const renderPRDiffs = (pr: PullRequest) => {
+  return pr.file_diffs.map((diff, index) => (
+    `@@ ${diff.filename} @@\n${diff.patch}`
+  )).join("\n\n")
 }
 
 const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (content: string) => void }) => {
-// TODO: finish this implementation
-const [isEditing, setIsEditing] = useState(false);
-const [editedContent, setEditedContent] = useState(message.content);
-const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // TODO: finish this implementation
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(message.content);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-const handleClick = () => {
-  setIsEditing(true);
-};
+  const handleClick = () => {
+    setIsEditing(true);
+  };
 
-const handleBlur = () => {
-  setIsEditing(false);
-};
+  const handleBlur = () => {
+    setIsEditing(false);
+  };
 
-useEffect(() => {
-  if (textareaRef.current) {
-    textareaRef.current.style.height = 'auto';
-    textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-  }
-}, [editedContent]);
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [editedContent]);
 
-return (
-  <>
-    <div className={`text-sm text-white`} onClick={handleClick}>
-      {isEditing ? (
-        <Textarea
-          className="w-full mb-4 bg-transparent text-white max-w-[500px] w-[500px] hover:bg-initial"
-          ref={textareaRef}
-          value={editedContent}
-          onChange={(e) => setEditedContent(e.target.value)}
-          autoFocus
-        />
-      ) : (
-        <>
-          <span className="bg-initial pl-1">
-            <FaPencilAlt className="inline-block mr-2" />&nbsp;
-            {message.content}
-          </span>
-        </>
-      )}
-    </div>
-    {isEditing && (
-      <>
-        <Button onClick={() => handleBlur()} variant="secondary" className="bg-zinc-800 text-white">
-          Cancel
-        </Button>
-        <Button onClick={() => {
-          onEdit(editedContent)
-          handleBlur()
-        }} variant="default" className="ml-2 bg-slate-600 text-white hover:bg-slate-700">
-          Generate
-        </Button>
-      </>
-    )}
-  </>
-  );
+
+  return (
+    <>
+      <div className="flex justify-end">
+        <FaPencilAlt className="inline-block mr-2 mt-3 hover:cursor-pointer" onClick={handleClick} />&nbsp;
+        <div className="bg-zinc-800 transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] hover:bg-zinc-700 hover:cursor-pointer text-right" onClick={handleClick}>
+          <div className={`text-sm text-white`}>
+            {isEditing ? (
+              <Textarea
+                className="w-full mb-4 bg-transparent text-white max-w-[500px] w-[500px] hover:bg-initial"
+                ref={textareaRef}
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                autoFocus
+              />
+            ) : (
+              <MarkdownRenderer content={message.content.trim()} />
+            )}
+          </div>
+          {isEditing && (
+            <>
+              <Button onClick={(e) => {
+                handleBlur()
+                e.stopPropagation()
+                e.preventDefault()
+              }} variant="secondary" className="bg-zinc-800 text-white">
+                Cancel
+              </Button>
+              <Button onClick={(e) => {
+                onEdit(editedContent)
+                setIsEditing(false)
+                handleBlur()
+                e.stopPropagation()
+                e.preventDefault()
+              }} variant="default" className="ml-2 bg-slate-600 text-white hover:bg-slate-700">
+                Generate
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+      {!isEditing && message.annotations?.pulls?.map((pr) => (
+        <div className="flex justify-end text-sm" key={pr.number}>
+          <HoverCard openDelay={300} closeDelay={200}>
+            <HoverCardTrigger>
+              <div className="bg-zinc-800 rounded-xl p-4 mb-2 text-left hover:bg-zinc-700 hover:cursor-pointer max-w-[600px]" onClick={() => {
+                window.open(`https://github.com/${pr.repo_name}/pull/${pr.number}`, "_blank")
+              }}>
+                <div className={`border-l-4 ${pr.status === "open" ? "border-green-500" : pr.status === "merged" ? "border-purple-500" : "border-red-500"} pl-4`}>
+                  <div className="mb-2 font-bold text-md">
+                    #{pr.number} {pr.title} 
+                  </div>
+                  <div className="mb-4 text-sm">
+                    {pr.body}
+                  </div>
+                  <div className="text-xs text-zinc-300">
+                    <div className="mb-1">{pr.repo_name}</div>
+                    {pr.file_diffs.length} files changed <span className="text-green-500">+{sum(pr.file_diffs.map(diff => diff.additions))}</span> <span className="text-red-500">-{sum(pr.file_diffs.map(diff => diff.deletions))}</span>
+                  </div>
+                </div>
+              </div>
+            </HoverCardTrigger>
+            <HoverCardContent className="w-[800px] max-h-[600px] overflow-y-auto">
+              <SyntaxHighlighter
+                language="diff"
+                style={tomorrow}
+                customStyle={{
+                  backgroundColor: 'transparent',
+                  whiteSpace: 'pre-wrap',
+                }}
+                className="rounded-xl p-4 text-xs w-full"
+              >
+                {renderPRDiffs(pr)}
+              </SyntaxHighlighter>
+            </HoverCardContent>
+          </HoverCard>
+        </div>
+      ))}
+    </>
+    );
 }
 
 const MessageDisplay = ({ message, className, onEdit }: { message: Message, className?: string, onEdit: (content: string) => void }) => {
+  if (message.role === "user") {
+    return <UserMessageDisplay message={message} onEdit={onEdit} />
+  }
   return (
-    <div className={`flex ${message.role !== "user" ? "justify-start" : "justify-end"}`}>
+    <div className={`flex justify-start`}>
       <div
-        className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] ${message.role !== "user" ? "text-left w-[80%]" : "hover:bg-zinc-700 hover:cursor-pointer text-right"
-          } ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
+        className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] text-left w-[80%]
+          ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
       >
         {message.role === "function" ? (
           <Accordion type="single" collapsible className="w-full" defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}>
@@ -244,39 +428,7 @@ const MessageDisplay = ({ message, className, onEdit }: { message: Message, clas
                     ))}
                   </div>
                 ) : (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
-                  <Markdown
-                    className="reactMarkdown mt-4 mb-0"
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      code(props) {
-                        const { children, className, node, ref, ...rest } = props
-                        const match = /language-(\w+)/.exec(className || '')
-                        return match ? (
-                          <SyntaxHighlighter
-                            {...rest} // eslint-disable-line
-                            PreTag="div"
-                            language={match[1]}
-                            style={tomorrow}
-                            customStyle={{
-                              backgroundColor: '#333',
-                            }}
-                            className="rounded-xl"
-                          >
-                            {String(children).replace(/\n$/, '')}
-                          </SyntaxHighlighter>
-                        ) : (
-                          <code
-                            {...rest}
-                            className={`rounded-xl ${className}`}
-                          >
-                            {children}
-                          </code>
-                        )
-                      }
-                    }}
-                  >
-                    {message.content}
-                  </Markdown>
+                  <MarkdownRenderer content={message.content} className="reactMarkdown mt-4 mb-0 py-2" />
                 ) : (
                   <SyntaxHighlighter
                     language="xml"
@@ -296,39 +448,7 @@ const MessageDisplay = ({ message, className, onEdit }: { message: Message, clas
             </AccordionItem>
           </Accordion>
         ) : message.role === "assistant" ? (
-          <Markdown
-            className="reactMarkdown"
-            remarkPlugins={[remarkGfm]}
-            components={{
-              code(props) {
-                const { children, className, node, ref, ...rest } = props
-                const match = /language-(\w+)/.exec(className || '')
-                return match ? (
-                  <SyntaxHighlighter
-                    {...rest}
-                    PreTag="div"
-                    language={match[1]}
-                    style={tomorrow}
-                    customStyle={{
-                      backgroundColor: '#333',
-                    }}
-                    className="rounded-xl"
-                  >
-                    {String(children).replace(/\n$/, '')}
-                  </SyntaxHighlighter>
-                ) : (
-                  <code
-                    {...rest}
-                    className={`rounded-xl ${className}`}
-                  >
-                    {children}
-                  </code>
-                )
-              }
-            }}
-          >
-            {message.content}
-          </Markdown>
+          <MarkdownRenderer content={message.content} className="reactMarkdown mb-0 py-2" />
         ) : (
           <UserMessageDisplay message={message} onEdit={onEdit} />
         )}
@@ -344,12 +464,18 @@ async function* streamMessages(
 ): AsyncGenerator<any, void, unknown> {
   let done = false;
   let buffer = "";
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
   while (!done && isStream.current) {
     try {
       const { value, done: streamDone } = await Promise.race([
         reader.read(),
-        new Promise<ReadableStreamDefaultReadResult<Uint8Array>>((_, reject) => setTimeout(() => reject(new Error("Stream timeout after " + timeout / 1000 + " seconds. You can try again by editing your last message.")), timeout))
+        new Promise<ReadableStreamDefaultReadResult<Uint8Array>>((_, reject) => {
+          if (timeoutId) {
+            clearTimeout(timeoutId)
+          }
+          timeoutId = setTimeout(() => reject(new Error("Stream timeout after " + timeout / 1000 + " seconds. You can try again by editing your last message.")), timeout)
+        })
       ]);
 
       if (streamDone) {
@@ -384,8 +510,49 @@ async function* streamMessages(
     } catch (error) {
       console.error("Error during streaming:", error);
       throw error;
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
     }
   }
+}
+
+const parsePullRequests = async (repoName: string, message: string, octokit: Octokit): Promise<PullRequest[]> => {
+  const [orgName, repo] = repoName.split("/")
+  const pulls = []
+
+  const prURLs = message.match(new RegExp(`https?:\/\/github.com\/${repoName}\/pull\/(?<prNumber>[0-9]+)`, 'gm'));
+  for (const prURL of prURLs || []) {
+    const prNumber = prURL.split("/").pop()
+    console.log(prNumber)
+    const pr = await octokit!.rest.pulls.get({
+      owner: orgName,
+      repo: repo,
+      pull_number: parseInt(prNumber!)
+    })
+    const title = pr.data.title
+    const body = pr.data.body
+    const labels = pr.data.labels.map((label) => label.name)
+    const status = pr.data.state === "open" ? "open" : pr.data.merged ? "merged" : "closed"
+    const file_diffs = (await octokit!.rest.pulls.listFiles({
+      owner: orgName,
+      repo: repo,
+      pull_number: parseInt(prNumber!)
+    })).data
+    // console.log(file_diffs)
+    pulls.push({
+      number: parseInt(prNumber!),
+      repo_name: repoName,
+      title,
+      body,
+      labels,
+      status,
+      file_diffs
+    } as PullRequest)
+  }
+
+  return pulls
 }
 
 function App() {
@@ -415,6 +582,7 @@ function App() {
       {
         email: session.user!.email,
         name: session.user!.name,
+        image: session.user!.image,
       }
     );
   }
@@ -461,7 +629,7 @@ function App() {
               snippets: currentSnippets,
               is_complete: false
             }
-          }]
+          } as Message]
           if (currentSnippets) {
             setSnippets(currentSnippets)
           }
@@ -520,7 +688,7 @@ function App() {
     // Stream
     const reader = chatResponse.body?.getReader()!;
     var streamedMessages: Message[] = []
-    var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" }]
+    var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" } as Message]
     setMessages(respondedMessages);
     try {
       for await (const patch of streamMessages(reader, isStream)) {
@@ -578,6 +746,14 @@ function App() {
     });
   }
 
+  const [octokit, setOctokit] = useState<Octokit | null>(null)
+  useEffect(() => {
+    if (session) {
+      const octokit = new Octokit({auth: session.user!.accessToken})
+      setOctokit(octokit)
+    }
+  }, [session])
+
   if (!session) {
     return (
       <main className="flex h-screen items-center justify-center p-12">
@@ -618,7 +794,7 @@ function App() {
             alt={session!.user!.name || ""}
           />
           <div>
-            <p className="text-lg font-bold">{session!.user!.name}</p>
+            <p className="text-lg font-bold">{session!.user!.username! || session!.user!.name}</p>
             <p className="text-sm text-gray-400">{session!.user!.email}</p>
           </div>
           <Button className="ml-4" variant="secondary" onClick={() => signOut()}>
@@ -629,20 +805,21 @@ function App() {
       <div className={`mb-4 w-full flex items-center ${repoNameValid ? "" : "grow"}`}>
         <Input
           data-ph-capture-attribute-repo-name={repoName}
-          className=""
           value={repoName}
-          onChange={(e) => setRepoName(e.target.value)}
+          onChange={(e)=>setRepoName(e.target.value.replace(/\s/g,''))}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.currentTarget.blur();
             }
           }}
           onBlur={async () => {
-            if (repoName === "") {
+            const cleanedRepoName = repoName.replace(/\s/g, '') // might be unsafe but we'll handle it once we get there
+            setRepoName(cleanedRepoName)
+            if (cleanedRepoName === "") {
               setRepoNameValid(false)
               return;
             }
-            if (!repoName.includes("/")) {
+            if (!cleanedRepoName.includes("/")) {
               setRepoNameValid(false)
               toast({
                 title: "Invalid repository name",
@@ -654,7 +831,7 @@ function App() {
             var data = null
             try {
               setRepoNameDisabled(true);
-              const response = await fetch(`/backend/repo?repo_name=${repoName}`, {
+              const response = await fetch(`/backend/repo?repo_name=${cleanedRepoName}`, {
                 headers: {
                   "Content-Type": "application/json",
                   // @ts-ignore
@@ -691,6 +868,7 @@ function App() {
           placeholder="Repository name"
           disabled={repoNameDisabled}
         />
+        
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="outline" className="ml-4">
@@ -746,11 +924,12 @@ function App() {
             key={index}
             message={message}
             className={index == lastAssistantMessageIndex ? "bg-slate-700" : ""}
-            onEdit={(content) => {
-              console.log(index)
-              const newMessages = [
+            onEdit={async (content) => {
+              const pulls = await parsePullRequests(repoName, content, octokit!)
+
+              const newMessages: Message[] = [
                 ...messages.slice(0, index),
-                { ...message, content },
+                { ...message, content, annotations: { pulls } },
               ]
               setMessages(newMessages)
               if (index == 0) {
@@ -796,7 +975,7 @@ function App() {
           )}
           <Input
             data-ph-capture-attribute-current-message={currentMessage}
-            onKeyUp={(e) => {
+            onKeyUp={async (e) => {
               if (e.key === "Enter") {
                 posthog.capture("chat submitted", {
                   repoName,
@@ -804,7 +983,8 @@ function App() {
                   messages,
                   currentMessage,
                 });
-                const newMessages: Message[] = [...messages, { content: currentMessage, role: "user" }];
+                const pulls = await parsePullRequests(repoName, currentMessage, octokit!)
+                const newMessages: Message[] = [...messages, { content: currentMessage, role: "user", annotations: { pulls } }];
                 setMessages(newMessages);
                 setCurrentMessage("");
                 startStream(currentMessage, newMessages)

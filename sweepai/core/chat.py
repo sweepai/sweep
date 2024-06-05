@@ -444,10 +444,16 @@ class ChatGPT(MessageList):
                         temperature=temperature,
                         stream=True,
                     )
+                    streamed_text = ""
                     for chunk in response:
-                        yield chunk.choices[0].delta.content
+                        new_content = chunk.choices[0].delta.content
+                        streamed_text += new_content
+                        yield new_content
                         if chunk.choices[0].finish_reason == "stop":
                             break
+                        for stop_sequence in stop_sequences:
+                            if stop_sequence in streamed_text:
+                                return truncate_text_based_on_stop_sequence(streamed_text, stop_sequences)
                 else:
                     if ANTHROPIC_AVAILABLE and use_aws:
                         if "anthropic" not in model:
@@ -476,6 +482,7 @@ class ChatGPT(MessageList):
                         system=system_message,  
                         timeout=60,
                     ) as stream_:
+                        streamed_text = ""
                         try:
                             if verbose:
                                 print(f"Connected to {model}...")
@@ -485,7 +492,11 @@ class ChatGPT(MessageList):
                                     if i == 0:
                                         print(f"Time to first token: {time.time() - start_time:.2f}s")
                                     print(token, end="", flush=True)
+                                streamed_text += token
                                 yield token
+                                for stop_sequence in stop_sequences:
+                                    if stop_sequence in streamed_text:
+                                        return truncate_text_based_on_stop_sequence(streamed_text, stop_sequences)
                         except TimeoutError as te:
                             logger.exception(te)
                             raise te
@@ -532,14 +543,19 @@ class ChatGPT(MessageList):
                             temperature=temperature,
                             stream=True,
                         )
+                        streamed_text = ""
                         text = ""
                         for chunk in response:
                             new_content = chunk.choices[0].delta.content
                             text += new_content if new_content else ""
                             if new_content:
                                 print(new_content, end="", flush=True)
+                                streamed_text += new_content
+                                for stop_sequence in stop_sequences:
+                                    if stop_sequence in streamed_text:
+                                        return truncate_text_based_on_stop_sequence(streamed_text, stop_sequences)
                         print() # clear the line
-                        response = truncate_text_based_on_stop_sequence(text, stop_sequences)
+                        response = truncate_text_based_on_stop_sequence(streamed_text, stop_sequences)
                         return text
                     else:
                         verbose = True
@@ -553,6 +569,7 @@ class ChatGPT(MessageList):
                             messages=message_dicts,
                             system=system_message,  
                         ) as stream:
+                            streamed_text = ""
                             if verbose:
                                 print(f"Started stream in {time.time() - start_time:.2f}s!")
                             for i, text in enumerate(stream.text_stream):
@@ -560,6 +577,11 @@ class ChatGPT(MessageList):
                                     if i == 0:
                                         print(f"Time to first token: {time.time() - start_time:.2f}s")
                                     print(text, end="", flush=True)
+                                if text:
+                                    streamed_text += text
+                                    for stop_sequence in stop_sequences:
+                                        if stop_sequence in streamed_text:
+                                            return truncate_text_based_on_stop_sequence(streamed_text, stop_sequences)
                         response = stream.get_final_message().content[0].text
                         if verbose:
                             print("Done streaming results!")

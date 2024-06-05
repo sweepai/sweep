@@ -129,8 +129,11 @@
       text-decoration: underline;
     }
     
-    p {
+    p:not(:first-child) {
       margin-top: 0.75rem;
+    }
+    
+    p:not(:last-child) {
       margin-bottom: 0.75rem;
     }
   }
