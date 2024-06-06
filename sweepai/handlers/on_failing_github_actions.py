@@ -184,6 +184,7 @@ def on_failing_github_actions(
             break
         logger.debug(f"Run statuses: {[run.conclusion for run in runs]}")
         # if any of them have failed we retry
+        # TODO: add circleci here
         if any([run.conclusion == "failure" for run in runs]):
             failed_runs = [run for run in suite_runs if run.conclusion == "failure"]
 

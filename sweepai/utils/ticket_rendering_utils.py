@@ -159,7 +159,7 @@ def create_error_logs(
     )
 
 def remove_ansi_tags(logs: str) -> str:
-    return re.sub(r"\x1b\[[0-9;]*m", "", logs)
+    return re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', "", logs, flags=re.MULTILINE)
 
 # takes in a list of workflow runs and returns a list of messages containing the logs of the failing runs
 def get_failing_gha_logs(runs, installation_id) -> str:
