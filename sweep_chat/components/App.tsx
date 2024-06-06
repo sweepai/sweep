@@ -772,7 +772,8 @@ function App() {
         messages: newMessages,
         snippets: currentSnippets,
         model: model,
-        use_patch: true
+        use_patch: true,
+        k: k
       })
     });
 

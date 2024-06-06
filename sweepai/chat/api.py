@@ -267,7 +267,8 @@ def chat_codebase(
     messages: list[Message] = Body(...),
     snippets: list[Snippet] = Body(...),
     model: str = Body(...),
-    use_patch: bool = Body(False),
+    use_patch: bool = Body(True),
+    k: int = Body(DEFAULT_K),
     access_token: str = Depends(get_token_header)
 ):
     if len(messages) == 0:
@@ -292,7 +293,8 @@ def chat_codebase(
             "snippets": [snippet.model_dump() for snippet in snippets],
         },
         model=model,
-        use_patch=use_patch
+        use_patch=use_patch,
+        k=k
     )
 
 @posthog_trace
@@ -305,6 +307,7 @@ def chat_codebase_stream(
     metadata: dict = {},
     model: str = "claude-3-opus-20240229",
     use_patch: bool = False,
+    k: int = DEFAULT_K
 ):
     if not snippets:
         raise ValueError("No snippets were sent.")
@@ -381,7 +384,8 @@ def chat_codebase_stream(
         access_token: str,
         metadata: dict,
         model: str,
-        use_openai: bool
+        use_openai: bool,
+        k: int = DEFAULT_K
     ):
         user_message = initial_user_message
         fetched_snippets = snippets
@@ -495,7 +499,7 @@ def chat_codebase_stream(
                     )
                 ]
                 
-                function_output, new_snippets = handle_function_call(function_call, repo_name, fetched_snippets, access_token)
+                function_output, new_snippets = handle_function_call(function_call, repo_name, fetched_snippets, access_token, k)
                 
                 yield [
                     *new_messages,
@@ -560,7 +564,8 @@ def chat_codebase_stream(
             metadata,
             model,
             use_openai=use_openai,
-            use_patch=use_patch
+            use_patch=use_patch,
+            k=k
         )
     )
 
