@@ -317,6 +317,22 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
               </div>
             </HoverCardTrigger>
             <HoverCardContent className="w-[800px] max-h-[600px] overflow-y-auto">
+              <div className="p-4">
+                <h2 className="text-sm font-semibold mb-2">
+                  Files changed
+                </h2>
+                <div className="text-sm text-gray-300">
+                  <ol>
+                    {pr.file_diffs.map((file, index) => (
+                      <li key={index} className="mb-1">
+                        {file.filename} <span className={`${file.status === 'added' ? 'text-green-500' : file.status === 'removed' ? 'text-red-500' : 'text-gray-400'}`}>
+                          {file.status === 'added' ? <span className="text-green-500">Added (+{file.additions})</span> : file.status === 'removed' ? <span className="text-red-500">Deleted ({file.deletions})</span> : <><span className="text-green-500">+{file.additions}</span> <span className="text-red-500">-{file.deletions}</span></>}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </div>
               <SyntaxHighlighter
                 language="diff"
                 style={codeStyle}
@@ -579,7 +595,7 @@ function App() {
   useEffect(() => {
     if (messagesContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-      if (scrollHeight - scrollTop - clientHeight < 100) {
+      if (scrollHeight - scrollTop - clientHeight < 50) {
         messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
       }
     }
@@ -635,19 +651,31 @@ function App() {
 
   const lastAssistantMessageIndex = messages.findLastIndex((message) => message.role === "assistant" && message.content.trim().length > 0)
 
-  const startStream = async (message: string, newMessages: Message[], snippets: Snippet[]) => {
+  const startStream = async (
+    message: string,
+    newMessages: Message[],
+    snippets: Snippet[],
+    annotations: { pulls: PullRequest[] } = { pulls: [] }
+  ) => {
     setIsLoading(true);
     isStream.current = true;
 
     var currentSnippets = snippets;
     if (currentSnippets.length == 0) {
       try {
-        const snippetsResponse = await fetch(`/backend/search?repo_name=${repoName}&query=${encodeURIComponent(message)}&stream=true`, {
+        const snippetsResponse = await fetch(`/backend/search`, {
+          method: 'POST',
           headers: {
             "Content-Type": "application/json",
             // @ts-ignore
             "Authorization": `Bearer ${session?.user.accessToken}`
-          }
+          },
+          body: JSON.stringify({
+            repo_name: repoName,
+            query: message,
+            stream: true,
+            annotations: annotations
+          })
         });
 
         let streamedMessages: Message[] = [...newMessages]
@@ -952,9 +980,9 @@ function App() {
               setMessages(newMessages)
               if (index == 0) {
                 setSnippets([]) 
-                startStream(content, newMessages, [])
+                startStream(content, newMessages, [], { pulls })
               } else {
-                startStream(content, newMessages, snippets)
+                startStream(content, newMessages, snippets, { pulls })
               }
             }}
           />
@@ -1007,7 +1035,7 @@ function App() {
                 const newMessages: Message[] = [...messages, { content: currentMessage, role: "user", annotations: { pulls } }];
                 setMessages(newMessages);
                 setCurrentMessage("");
-                startStream(currentMessage, newMessages, snippets)
+                startStream(currentMessage, newMessages, snippets, { pulls })
               }
             }}
             onChange={(e) => setCurrentMessage(e.target.value)}
