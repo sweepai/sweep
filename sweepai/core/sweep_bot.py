@@ -767,8 +767,6 @@ def get_files_to_change(
             error_message, error_indices = get_error_message(file_change_requests, cloned_repo, renames_dict=renames_dict)
             logger.debug("New indices", error_indices)
             yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm currently just making some edits:\n", file_change_requests
-            # breakpoint()
-        # breakpoint()
 
         validate_file_change_requests(file_change_requests, cloned_repo, renames_dict=renames_dict)
         yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm done making edits and now I'm just validating the changes using a linter to catch any mistakes like syntax errors or undefined variables:\n", file_change_requests
@@ -1020,7 +1018,6 @@ def get_files_to_change_for_on_comment(
         response_cleanup=cleanup_fcrs,
         MAX_CALLS=10
     )
-    # breakpoint()
     relevant_modules = []
     pattern = re.compile(r"<relevant_modules>(.*?)</relevant_modules>", re.DOTALL)
     relevant_modules_match = pattern.search(files_to_change_response)
@@ -1087,8 +1084,6 @@ def get_files_to_change_for_on_comment(
             error_message, error_indices = get_error_message(file_change_requests, cloned_repo, renames_dict=renames_dict)
             logger.debug("New indices", error_indices)
             yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm currently just making some edits:\n", file_change_requests
-            # breakpoint()
-        # breakpoint()
 
         validate_file_change_requests(file_change_requests, cloned_repo, renames_dict=renames_dict)
         yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm done making edits and now I'm just validating the changes using a linter to catch any mistakes like syntax errors or undefined variables:\n", file_change_requests
@@ -1097,6 +1092,7 @@ def get_files_to_change_for_on_comment(
         print("RegexMatchError", e)
 
     return [], ""
+
 
 def context_get_files_to_change(
     relevant_snippets: list[Snippet],

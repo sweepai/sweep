@@ -42,7 +42,10 @@ A relevant, subtask based off of the user's comment.
 </issue_sub_request>
 <justification>
 1. Why this subtask is needed.
-2. A detailed explanation of the subtask, including the specific code entities that need to be changed.
+2. Answer the following question: Does this subtask involve working with code that has been added in the pull request? Was the code removed in the pull request? Or is the previously untouched code.
+3. Justify your answer to the above question by either including the patch index where the code was added or removed. If it was untouched, then justify why it was untouched.
+4. A detailed explanation of the subtask, including the specific code entities that need to be changed.
+
 </justification>
 [additional sub requests as needed]
 </issue_sub_requests>"""
@@ -98,6 +101,7 @@ Reference the provided code files, summaries, entity names, and necessary files/
 <proposed_changes>
 For each of the sub requests here, pinpoint the exact places to make changes. Describe exactly what to do, referencing specific code entities in the relevant files.
 Break the above steps up into seperate actionable steps and number them.
+Double check the state of the code base.
 Example:
 1. Step 1
    - Step 1a
