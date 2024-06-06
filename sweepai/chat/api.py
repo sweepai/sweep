@@ -359,12 +359,13 @@ def chat_codebase_stream(
                         diff_patch += diff.strip("\n") + "\n\n"
                 if diff_patch:
                     pulls_messages += pr_format.format(
+                        url=f"https://github.com/{repo_name}/pull/{pull['number']}",
                         title=pull["title"],
                         body=pull["body"],
                         patch=diff_patch.strip("\n")
                     ) + "\n\n"
             if pulls_messages:
-                message.content += "\n\nPull requests:\n" + pulls_messages
+                message.content += "\n\nPull requests:\n" + pulls_messages + "\n\nBe sure to summarize the contents of the pull request during the analysis phase."
 
     chat_gpt.messages = [
         Message(
