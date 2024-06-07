@@ -112,6 +112,7 @@ def review_pr(
                 _comment_id = create_update_review_pr_comment(
                     username,
                     pr,
+                    {},
                     error_message=str(error),
                 )
                 return {"success": False, "reason": str(error)}
