@@ -591,9 +591,9 @@ function App() {
 
   const [k, setK] = useLocalStorage<number>("k", DEFAULT_K)
   const [model, setModel] = useLocalStorage<keyof typeof modelMap>("model", "claude-3-opus-20240229")
-  const [snippets, setSnippets] = useLocalStorage<Snippet[]>("snippets", [])
-  const [messages, setMessages] = useLocalStorage<Message[]>("messages", [])
-  const [currentMessage, setCurrentMessage] = useLocalStorage<string>("currentMessage", "")
+  const [snippets, setSnippets] = useState<Snippet[]>([])
+  const [messages, setMessages] = useState<Message[]>([])
+  const [currentMessage, setCurrentMessage] = useState<string>("")
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const isStream = useRef<boolean>(false)
   const [showSurvey, setShowSurvey] = useState<boolean>(false)
