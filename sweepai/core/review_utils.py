@@ -733,12 +733,14 @@ class PRReviewBot(ChatGPT):
         cloned_repo: ClonedRepo, 
         newly_created_functions_dict: dict[str, list[FunctionDef]],
         pull_request_info: str,
+        formatted_comment_threads: dict[str, str],
         chat_logger: ChatLogger | None = None
     ) -> dict[str, list[CodeReviewIssue]]:
         repeated_functions_code_issues: dict[str, list[CodeReviewIssue]] = {}
         for file_name, newly_created_functions in newly_created_functions_dict.items():
             if "SWEEP.md" in file_name: # jank but temporary
                 continue
+            comment_threads_string = formatted_comment_threads[file_name]
             # keep copy of edited files to revert later
             modified_files_dict: dict[str, dict[str, str]] = {}
             modified_files_dict[file_name] = {"original": cloned_repo.get_file_contents(file_name)}
@@ -777,6 +779,7 @@ class PRReviewBot(ChatGPT):
                     function=f"<new_function>\n{function.function_code}\n</new_function>", 
                     formatted_code_snippets=formatted_code_snippets,
                     pull_request_info=pull_request_info,
+                    comment_threads=comment_threads_string
                 )
                 self.messages = [
                     Message(
@@ -1110,6 +1113,7 @@ def review_pr_detailed_checks(
     pr_changes: dict[str, PRChange], 
     code_review_by_file: dict[str, CodeReview], 
     pull_request_info: str,
+    formatted_comment_threads: dict[str, str],
     chat_logger: ChatLogger | None = None, 
 ) -> dict[str, CodeReview]:
     review_bot = PRReviewBot()
@@ -1118,7 +1122,11 @@ def review_pr_detailed_checks(
         pr_changes, chat_logger=chat_logger
     )
     new_code_issues: dict[str, list[CodeReviewIssue]] = review_bot.identify_repeated_functions(
-        cloned_repo, newly_created_functions_dict, pull_request_info, chat_logger=chat_logger
+        cloned_repo, 
+        newly_created_functions_dict, 
+        pull_request_info,
+        formatted_comment_threads,
+        chat_logger=chat_logger
     )
     # now append these code issues to the existing ones
     for file_name, new_code_issues in new_code_issues.items():

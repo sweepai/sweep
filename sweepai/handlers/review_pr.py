@@ -146,7 +146,7 @@ def review_pr(
                 cloned_repo,
                 pull_request_info,
                 formatted_comment_threads,
-                multiprocess=False,
+                multiprocess=True,
                 chat_logger=chat_logger,
             )
             # convert code_review_by_group to be by file for easier rendering
@@ -158,18 +158,9 @@ def review_pr(
                 pr_changes,
                 code_review_by_file,
                 pull_request_info,
+                formatted_comment_threads,
                 chat_logger=chat_logger,
             )
-            # sort all issues by severity
-            try:
-                code_review_by_file, all_issues_sorted = sort_code_issues_by_severity(
-                    username,
-                    code_review_by_file,
-                    chat_logger=chat_logger,
-                )
-            except Exception as e:
-                logger.error(f"Failed to sort code issues by severity: {e}")
-                all_issues_sorted = []
             # after 50 minutes have passed refresh token to re get pr
             if time() - review_pr_start_time > 50 * 60:
                 _, _ , repository = refresh_token(repository.full_name, installation_id)

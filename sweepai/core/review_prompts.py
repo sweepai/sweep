@@ -70,7 +70,7 @@ Added a new categorization system for snippets in `multi_prep_snippets` and upda
     2b. Identify any other potential issues that the code changes may introduce that were not captured by 2a. This could include accidental changes such as commented out code. (1 paragraph)
     2c. Only include issues that you are very confident will cause serious issues that prevent the pull request from being merged. For example, focus only on functional code changes and ignore changes to strings and comments that are purely descriptive.
     2d. Do not make assumptions about existing functions or code.
-    2e. Has this issue been previously raised in a comment thread? Provide proof by referencing the exact comment where this issue was raised. If this issue has been previously raised do not raise this issue again.
+    2e. Has this issue been previously raised in a comment thread? If yes, do not raise the same issue again, regardless of if it was resolved or not.
 
 Answer each of the above questions in step 2 in the following format:
 <issue_identification>
@@ -283,6 +283,12 @@ Below are a series of code snippets retrieved from the codebase via vector searc
 
 {formatted_code_snippets}
 
+Below are the comments left on the pull request, possibly from a previous review you did. Use these comments to determine if there are any issues that have already been identified or if there is anything you need to pay attention to.
+The issues that have already been identified should not be raised again.
+# Previous Review and Comments left on the Pull Request
+
+{comment_threads}
+
 # Instructions
 1. Analyze each of the code snippets above and determine whether or not the new function is useless. Specifically, compare the new function with the existing methods in the code snippets by answering ALL the following questions:
    1a. Purpose: What is the primary purpose of the new function? Is this purpose already served by an existing method? If its purpose is not perfectly serve by an existing method then this function is not useless. If it takes more than one existing function to replicate the functionality of this new function, than this new funciton is not useless.
@@ -292,6 +298,7 @@ Below are a series of code snippets retrieved from the codebase via vector searc
    1e. Data Processing: How does the new function process data (e.g., formatting, extracting, or transforming data)? Are these data processing steps already implemented in existing methods?
    1f. Unique Contributions: Does the new function provide any unique contributions or improvements that are not covered by existing methods? If it does then it should be considered as not useless and should be kept.
    1g. Impact of Removal: Would removing this function require a significant refactor of existing functions? Would the use cases of the existing functions change at all? If the answer is yes to any of these questions the new function is not useless.
+   1h. Already Mentioned: Has this issue been previously raised in a comment thread? If yes, then this function is considered not useless. Provide proof of it being raised by referencing the exact comment where this issue was raised.
 
 2. Return your answer in the following xml format:
 <useless_new_function>
