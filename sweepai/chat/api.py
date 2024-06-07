@@ -31,6 +31,7 @@ from sweepai.utils.timer import Timer
 app = FastAPI()
 
 auth_cache = Cache(f'{CACHE_DIRECTORY}/auth_cache') 
+repo_cache = f"{CACHE_DIRECTORY}/repos"
 
 DEFAULT_K = 8
 
@@ -222,12 +223,12 @@ def check_repo_exists(
     metadata: dict = {},
 ):
     org_name, repo = repo_name.split("/")
-    if os.path.exists(f"/tmp/{repo}"):
+    if os.path.exists(f"{repo_cache}/{repo}"):
         return {"success": True}
     try:
-        print(f"Cloning {repo_name} to /tmp/{repo}")
-        git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"/tmp/{repo}")
-        print(f"Cloned {repo_name} to /tmp/{repo}")
+        print(f"Cloning {repo_name} to {repo_cache}/{repo}")
+        git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"{repo_cache}/{repo}")
+        print(f"Cloned {repo_name} to {repo_cache}/{repo}")
         return {"success": True}
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -317,11 +318,11 @@ def wrapped_search_codebase(
     metadata: dict = {},
 ):
     org_name, repo = repo_name.split("/")
-    if not os.path.exists(f"/tmp/{repo}"):
-        print(f"Cloning {repo_name} to /tmp/{repo}")
-        git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"/tmp/{repo}")
-        print(f"Cloned {repo_name} to /tmp/{repo}")
-    cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name, token=access_token)
+    if not os.path.exists(f"{repo_cache}/{repo}"):
+        print(f"Cloning {repo_name} to {repo_cache}/{repo}")
+        git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"{repo_cache}/{repo}")
+        print(f"Cloned {repo_name} to {repo_cache}/{repo}")
+    cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
     cloned_repo.pull()
     pr_snippets, skipped_pr_snippets, pulls_messages = get_pr_snippets(
         repo_name,
@@ -348,11 +349,11 @@ def search_codebase(
 ):
     with Timer() as timer:
         org_name, repo = repo_name.split("/")
-        if not os.path.exists(f"/tmp/{repo}"):
-            print(f"Cloning {repo_name} to /tmp/{repo}")
-            git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"/tmp/{repo}")
-            print(f"Cloned {repo_name} to /tmp/{repo}")
-        cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name, token=access_token)
+        if not os.path.exists(f"{repo_cache}/{repo}"):
+            print(f"Cloning {repo_name} to {repo_cache}/{repo}")
+            git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"{repo_cache}/{repo}")
+            print(f"Cloned {repo_name} to {repo_cache}/{repo}")
+        cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
         cloned_repo.pull()
         for message, snippets in prep_snippets.stream(
             cloned_repo, query, 
@@ -432,7 +433,7 @@ def chat_codebase_stream(
     )
 
     org_name, repo = repo_name.split("/")
-    cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name, token=access_token)
+    cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
     cloned_repo.git_repo.git.pull()
 
     pr_snippets = []
