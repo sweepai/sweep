@@ -30,7 +30,7 @@ from sweepai.dataclasses.codereview import CodeReview, CodeReviewIssue
 from sweepai.handlers.create_pr import (
     safe_delete_sweep_branch,
 )
-from sweepai.handlers.on_check_suite import clean_gh_logs
+from sweepai.handlers.on_check_suite import clean_gh_logs, remove_ansi_tags
 from sweepai.utils.buttons import create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.concurrency_utils import fire_and_forget_wrapper
@@ -157,9 +157,6 @@ def create_error_logs(
         if sandbox_response
         else ""
     )
-
-def remove_ansi_tags(logs: str) -> str:
-    return re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', "", logs, flags=re.MULTILINE)
 
 # takes in a list of workflow runs and returns a list of messages containing the logs of the failing runs
 def get_failing_gha_logs(runs, installation_id) -> str:

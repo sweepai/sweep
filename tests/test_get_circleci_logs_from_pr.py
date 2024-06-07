@@ -38,7 +38,7 @@ def get_failing_circleci_logs(circleci_run_url: str):
 
     steps = circleci_run_details['steps']
     failing_steps = []
-    failed_commands_and_logs: list[tuple[str, str]] = []
+    failed_commands_and_logs: list[tuple[str, str, str]] = []
     for step in steps:
         if step['actions'][0]['exit_code'] != 0:
             failing_steps.append(step)
@@ -51,17 +51,19 @@ def get_failing_circleci_logs(circleci_run_url: str):
                 log_url = action['output_url']
                 log_response = requests.get(log_url, headers=headers)
                 log_response = log_response.json()
-                log_message = log_response[0]["message"]
-                breakpoint()
+                # these might return in a different order; watch out
+                log_message = log_response[0]["message"] if len(log_response) > 0 else ""
+                error_message = log_response[1].get("message", "") if len(log_response) > 1 else ""
                 log_message = remove_ansi_tags(log_message)
+                error_message = remove_ansi_tags(error_message)
                 command = action.get("bash_command", "No command found.") # seems like this is the only command
-                failed_commands_and_logs.append((command, log_message))
-    for command, log in failed_commands_and_logs:
+                failed_commands_and_logs.append((command, error_message, log_message))
+    for command, error, log in failed_commands_and_logs:
         print(f"Failed Command: {command}")
+        print(f"Error: {error}")
         print("Logs:")
         print(log)
         print("---")
-    breakpoint()
     return failed_commands_and_logs
 
 for commit in commits:
