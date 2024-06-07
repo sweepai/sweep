@@ -14,8 +14,7 @@ Notice that the `query` parameter is a single, extremely detailed, specific natu
 Here are other examples of good questions to ask:
 
 Where are the GraphQL mutations constructed for updating a user's profile information, and what specific fields are being updated?
-Where are the React components that render the product carousel on the homepage, and what library is being used for the carousel functionality?
-Where do we currently implement the endpoint handler for processing incoming webhook events from Stripe in the backend API, and how are the events being validated and parsed?
+Where do we currently implement the endpoint handler for processing incoming webhook events from Stripe in the backend API?
 Where is the structure of the Post model in the blog module?
 
 The above are just illustrative examples. Make sure to provide detailed, specific questions to search for relevant snippets in the codebase and only make one function call."""
@@ -100,40 +99,30 @@ Then, make each a function call like so:
 
 """ + example_tool_calls
 
-tools_available = """You have access to the following tools to assist in fulfilling the user request:
+system_message = """You are a helpful assistant that will answer a user's questions about a codebase to resolve their issue. You are provided with a list of relevant code snippets from the codebase that you can refer to. You can use this information to help the user solve their issue. You may also make function calls to retrieve additional information from the codebase. 
+
+Guidelines:
+- When requested, you must always write out any code in FULL. When describing code edits, use the diff format.
+- When you are uncertain about something such as a type definition in the codebase, search the codebase to find the required information.
+
+In this environment, you have access to a code search tool to assist in fulfilling the user request:
+
+You MUST invoke the tool like this:
+<function_call>
+<search_codebase>
+<query>
+The search query.
+</query>
+</search_codebase>
+</function_call>
+
 <search_codebase>
 <query>
 Single, detailed, specific natural language search question to search the codebase for relevant snippets. This should be in the form of a natural language question, like "What is the structure of the User model in the authentication module?"
 </query>
-<include_docs>
-(Optional) Include documentation in the search results. Default is false. Either true or false.
-</include_docs>
-<include_tests>
-(Optional) Include documentation in the search results. Default is false. Either true or false.
-</include_tests>
 </search_codebase>
 
-""" + example_tool_calls
-
-system_message = """You are a helpful assistant that will answer a user's questions about a codebase to resolve their issue. You are provided with a list of relevant code snippets from the codebase that you can refer to. You can use this information to help the user solve their issue. You may also make function calls to retrieve additional information from the codebase. 
-
-In this environment, you have access to the following tools to assist in fulfilling the user request:
-
-Once you have collected and analyzed the relevant snippets, use the `submit_task` tool to submit the final response to the user's question.
-
-You MUST call them like this:
-<function_call>
-<tool_name>
-<param1>
-param1 value
-</param1>
-...
-</tool_name>
-</function_call>
-
-Here are the tools available:
-
-""" + tools_available + "\n\n" + format_message
+""" + example_tool_calls + "\n\n" + format_message
 
 relevant_snippets_message = """# Codebase
 repo: {repo_name}
