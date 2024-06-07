@@ -545,7 +545,21 @@ const parsePullRequests = async (repoName: string, message: string, octokit: Oct
         owner: orgName,
         repo: repo,
         pull_number: parseInt(prNumber!)
-      })).data
+      })).data.sort((a, b) => {
+        const statusOrder: Record<string, number> = { 
+          'renamed': 0,
+          'copied': 1,
+          'added': 2, 
+          'modified': 3, 
+          'changed': 4,
+          'deleted': 5,
+          'unchanged': 6
+        };
+        if (statusOrder[a.status] !== statusOrder[b.status]) {
+          return statusOrder[a.status] - statusOrder[b.status];
+        }
+        return b.changes - a.changes;
+      })
       // console.log(file_diffs)
       pulls.push({
         number: parseInt(prNumber!),
@@ -673,7 +687,6 @@ function App() {
           body: JSON.stringify({
             repo_name: repoName,
             query: message,
-            stream: true,
             annotations: annotations
           })
         });
