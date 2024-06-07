@@ -371,7 +371,7 @@ def chat_codebase(
     messages: list[Message] = Body(...),
     snippets: list[Snippet] = Body(...),
     model: str = Body(...),
-    use_patch: bool = Body(False),
+    use_patch: bool = Body(True),
     k: int = Body(DEFAULT_K),
     access_token: str = Depends(get_token_header)
 ):
@@ -398,7 +398,7 @@ def chat_codebase(
         },
         model=model,
         use_patch=use_patch,
-        k=k,
+        k=k
     )
 
 @posthog_trace
@@ -412,6 +412,7 @@ def chat_codebase_stream(
     k: int = DEFAULT_K,
     model: str = "claude-3-opus-20240229",
     use_patch: bool = False,
+    k: int = DEFAULT_K
 ):
     if not snippets:
         raise ValueError("No snippets were sent.")
@@ -656,7 +657,7 @@ def chat_codebase_stream(
                 yield json.dumps([
                     message.model_dump()
                     for message in messages
-                ]) + "\n"
+                ])
             else:
                 current_state = [
                     message.model_dump()
@@ -664,7 +665,7 @@ def chat_codebase_stream(
                 ]
                 patch = jsonpatch.JsonPatch.from_diff(previous_state, current_state)
                 if patch:
-                    yield patch.to_string() + "\n"
+                    yield patch.to_string()
                 previous_state = current_state
 
     return StreamingResponse(
@@ -677,7 +678,7 @@ def chat_codebase_stream(
             model,
             use_openai=use_openai,
             use_patch=use_patch,
-            k=k,
+            k=k
         )
     )
 

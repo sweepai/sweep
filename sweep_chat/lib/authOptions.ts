@@ -24,9 +24,7 @@ const authOptions: AuthOptions = {
     debug: process.env.NODE_ENV === "development",
     callbacks: {
         async session({ session, token }: any) {
-            console.log(session)
             const { sub } = token;
-            console.log(sub)
             const data = await getUserData(token.accessToken, sub)
             session.user = {
                 name: data.name,
@@ -36,7 +34,6 @@ const authOptions: AuthOptions = {
                 refreshToken: token.refreshToken,
                 expires_at: token.expires_at,
             }
-            console.log(session)
             return session;
         },
         async signIn({ user, account, profile }: any) {
@@ -62,7 +59,6 @@ const authOptions: AuthOptions = {
                     clientSecret: process.env.GITHUB_SECRET || "",
                     refreshToken: token.refreshToken as string,
                 });
-                console.log("New refresh token", data.refresh_token)
                 token.accessToken = data.access_token;
                 token.refreshToken = data.refresh_token;
                 token.expires_at = data.expires_in;

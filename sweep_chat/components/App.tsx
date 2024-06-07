@@ -5,7 +5,7 @@ import { Input } from "../components/ui/input"
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { FaCheck, FaCog, FaGithub, FaPencilAlt, FaStop } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
@@ -35,11 +35,17 @@ import { Label } from "./ui/label";
 import PulsingLoader from "./shared/PulsingLoader";
 
 import { Octokit } from "octokit";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "./ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+
+const codeStyle = dracula;
 
 if (typeof window !== 'undefined') {
-  posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!)
+  posthog.init(
+    process.env.NEXT_PUBLIC_POSTHOG_KEY!,
+    {
+      api_host: "/ingest",
+      ui_host: "https://us.posthog.com"
+    }
+  )
   posthog.debug(false)
 }
 
@@ -105,65 +111,6 @@ const sliceLines = (content: string, start: number, end: number) => {
   return content.split("\n").slice(Math.max(start - 1, 0), end).join("\n");
 }
 
-const InputWithDropdown = ({
-  onChange = () => {},
-  onClick = () => {},
-  onBlur = () => {},
-  ...props
-}: {
-  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onClick?: () => void;
-  onBlur?: () => void;
-  [key: string]: any;
-}) => {
-  // can't get this to work, will work on it later
-  const ref = useRef<HTMLInputElement>(null);
-  const [isActive, setIsActive] = useState(false);
-
-  return (
-    <Command className="p-0">
-      <CommandInput
-        placeholder="Type a repository to search..."
-        onChangeCapture={(e) => {
-          onChange(e as any)
-        }}
-        onClick={() => {
-          setIsActive(true)
-          onClick()
-        }}
-        onBlur={() => {
-          setIsActive(false)
-          onBlur()
-        }}
-        {...props}
-        ref={ref}
-      />
-      <CommandList
-        className="fixed bg-black z-50 border border-zinc-800 rounded-bl-xl rounded-br-xl border-t-0"
-        style={{
-          top: ref.current?.offsetTop! + ref.current?.offsetHeight!,
-          left: ref.current?.offsetLeft,
-          width: ref.current?.offsetWidth,
-          display: isActive ? "block" : "none"  
-        }}
-      >
-        {/* <CommandEmpty></CommandEmpty> */}
-        <CommandGroup heading="Suggestions">
-          <CommandItem>Calendar</CommandItem>
-          <CommandItem>Search Emoji</CommandItem>
-          <CommandItem>Calculator</CommandItem>
-        </CommandGroup>
-        <CommandSeparator />
-        <CommandGroup heading="Settings">
-          <CommandItem>Profile</CommandItem>
-          <CommandItem>Billing</CommandItem>
-          <CommandItem>Settings</CommandItem>
-        </CommandGroup>
-      </CommandList>
-    </Command>
-  );
-};
-
 const MarkdownRenderer = ({ content, className }: { content: string, className?: string }) => {
   return (
     <Markdown
@@ -178,7 +125,7 @@ const MarkdownRenderer = ({ content, className }: { content: string, className?:
               {...rest} // eslint-disable-line
               PreTag="div"
               language={match[1]}
-              style={tomorrow}
+              style={codeStyle}
               customStyle={{
                 backgroundColor: '#333',
               }}
@@ -241,7 +188,7 @@ const SnippetBadge = ({
         <SyntaxHighlighter
           PreTag="div"
           language="python"
-          style={tomorrow}
+          style={codeStyle}
           customStyle={{
             backgroundColor: 'transparent',
             whiteSpace: 'pre-wrap',
@@ -370,9 +317,25 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
               </div>
             </HoverCardTrigger>
             <HoverCardContent className="w-[800px] max-h-[600px] overflow-y-auto">
+              <div className="p-4">
+                <h2 className="text-sm font-semibold mb-2">
+                  Files changed
+                </h2>
+                <div className="text-sm text-gray-300">
+                  <ol>
+                    {pr.file_diffs.map((file, index) => (
+                      <li key={index} className="mb-1">
+                        {file.filename} <span className={`${file.status === 'added' ? 'text-green-500' : file.status === 'removed' ? 'text-red-500' : 'text-gray-400'}`}>
+                          {file.status === 'added' ? <span className="text-green-500">Added (+{file.additions})</span> : file.status === 'removed' ? <span className="text-red-500">Deleted ({file.deletions})</span> : <><span className="text-green-500">+{file.additions}</span> <span className="text-red-500">-{file.deletions}</span></>}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </div>
               <SyntaxHighlighter
                 language="diff"
-                style={tomorrow}
+                style={codeStyle}
                 customStyle={{
                   backgroundColor: 'transparent',
                   whiteSpace: 'pre-wrap',
@@ -435,7 +398,7 @@ const MessageDisplay = ({ message, className, onEdit }: { message: Message, clas
                 ) : (
                   <SyntaxHighlighter
                     language="xml"
-                    style={tomorrow}
+                    style={codeStyle}
                     customStyle={{
                       backgroundColor: 'transparent',
                       whiteSpace: 'pre-wrap',
@@ -528,7 +491,7 @@ async function* streamMessages(
           if (timeoutId) {
             clearTimeout(timeoutId)
           }
-          timeoutId = setTimeout(() => reject(new Error("Stream timeout after " + timeout / 1000 + " seconds. You can try again by editing your last message.")), timeout)
+          timeoutId = setTimeout(() => reject(new Error("Stream timeout after " + timeout / 1000 + " seconds, this is likely caused by the LLM freezing. You can try again by editing your last message. Further, decreasing the number of snippets to retrieve in the settings will help mitigate this issue.")), timeout)
         })
       ]);
 
@@ -582,7 +545,21 @@ const parsePullRequests = async (repoName: string, message: string, octokit: Oct
         owner: orgName,
         repo: repo,
         pull_number: parseInt(prNumber!)
-      })).data
+      })).data.sort((a, b) => {
+        const statusOrder: Record<string, number> = { 
+          'renamed': 0,
+          'copied': 1,
+          'added': 2, 
+          'modified': 3, 
+          'changed': 4,
+          'deleted': 5,
+          'unchanged': 6
+        };
+        if (statusOrder[a.status] !== statusOrder[b.status]) {
+          return statusOrder[a.status] - statusOrder[b.status];
+        }
+        return b.changes - a.changes;
+      })
       // console.log(file_diffs)
       pulls.push({
         number: parseInt(prNumber!),
@@ -632,7 +609,7 @@ function App() {
   useEffect(() => {
     if (messagesContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-      if (scrollHeight - scrollTop - clientHeight < 100) {
+      if (scrollHeight - scrollTop - clientHeight < 50) {
         messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
       }
     }
@@ -688,19 +665,30 @@ function App() {
 
   const lastAssistantMessageIndex = messages.findLastIndex((message) => message.role === "assistant" && message.content.trim().length > 0)
 
-  const startStream = async (message: string, newMessages: Message[], snippets: Snippet[]) => {
+  const startStream = async (
+    message: string,
+    newMessages: Message[],
+    snippets: Snippet[],
+    annotations: { pulls: PullRequest[] } = { pulls: [] }
+  ) => {
     setIsLoading(true);
     isStream.current = true;
 
     var currentSnippets = snippets;
     if (currentSnippets.length == 0) {
       try {
-        const snippetsResponse = await fetch(`/backend/search?repo_name=${repoName}&query=${encodeURIComponent(message)}&stream=true`, {
+        const snippetsResponse = await fetch(`/backend/search`, {
+          method: 'POST',
           headers: {
             "Content-Type": "application/json",
             // @ts-ignore
             "Authorization": `Bearer ${session?.user.accessToken}`
-          }
+          },
+          body: JSON.stringify({
+            repo_name: repoName,
+            query: message,
+            annotations: annotations
+          })
         });
 
         let streamedMessages: Message[] = [...newMessages]
@@ -746,7 +734,8 @@ function App() {
         toast({
           title: "Failed to search codebase",
           description: `The following error has occurred: ${e.message}. Sometimes, logging out and logging back in can resolve this issue.`,
-          variant: "destructive"
+          variant: "destructive",
+          duration: Infinity
         });
         setIsLoading(false);
         isStream.current = false;
@@ -772,7 +761,8 @@ function App() {
         messages: newMessages,
         snippets: currentSnippets,
         model: model,
-        use_patch: true
+        use_patch: true,
+        k: k
       })
     });
 
@@ -799,7 +789,8 @@ function App() {
       toast({
         title: "Chat stream failed",
         description: e.message,
-        variant: "destructive"
+        variant: "destructive",
+        duration: Infinity
       });
       setIsLoading(false);
       posthog.capture("chat errored", {
@@ -892,7 +883,8 @@ function App() {
               toast({
                 title: "Invalid repository name",
                 description: "Please enter a valid repository name in the format 'owner/repo'",
-                variant: "destructive"
+                variant: "destructive",
+                duration: Infinity
               })
               return;
             }
@@ -912,7 +904,8 @@ function App() {
               toast({
                 title: "Failed to load repository",
                 description: e.message,
-                variant: "destructive"
+                variant: "destructive",
+                duration: Infinity
               })
               setRepoNameDisabled(false);
               return;
@@ -922,13 +915,14 @@ function App() {
               toast({
                 title: "Failed to load repository",
                 description: data.error,
-                variant: "destructive"
+                variant: "destructive",
+                duration: Infinity
               })
             } else {
               setRepoNameValid(true)
               toast({
                 title: "Successfully loaded repository",
-                variant: "default"
+                variant: "default",
               })
             }
             setRepoNameDisabled(false);
@@ -999,9 +993,9 @@ function App() {
               setMessages(newMessages)
               if (index == 0) {
                 setSnippets([]) 
-                startStream(content, newMessages, [])
+                startStream(content, newMessages, [], { pulls })
               } else {
-                startStream(content, newMessages, snippets)
+                startStream(content, newMessages, snippets, { pulls })
               }
             }}
           />
@@ -1054,7 +1048,7 @@ function App() {
                 const newMessages: Message[] = [...messages, { content: currentMessage, role: "user", annotations: { pulls } }];
                 setMessages(newMessages);
                 setCurrentMessage("");
-                startStream(currentMessage, newMessages, snippets)
+                startStream(currentMessage, newMessages, snippets, { pulls })
               }
             }}
             onChange={(e) => setCurrentMessage(e.target.value)}

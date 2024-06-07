@@ -1,19 +1,26 @@
 import {withSentryConfig} from '@sentry/nextjs';
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
-
-export default withSentryConfig({
+const nextConfig = {
   async rewrites() {
     return [
         {
             source: '/backend/:path*',
             destination: `${process.env.BACKEND_URL}/chat/backend/:path*` // should redirect at runtime instead: https://nextjs.org/docs/pages/building-your-application/routing/middleware
         },
+        {
+            source: "/ingest/static/:path*",
+            destination: "https://us-assets.i.posthog.com/static/:path*",
+        },
+        {
+            source: "/ingest/:path*",
+            destination: "https://us.i.posthog.com/:path*",
+        },
     ]
   },
+  skipTrailingSlashRedirect: true, 
+};
 
-  ...nextConfig
-  }, {
+export default withSentryConfig(nextConfig, {
 
   org: "sweep-ai",
   project: "sweep-chat",

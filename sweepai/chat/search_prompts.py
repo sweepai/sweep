@@ -101,21 +101,6 @@ Then, make each a function call like so:
 
 """ + example_tool_calls
 
-tools_available = """You have access to the following tools to assist in fulfilling the user request:
-<search_codebase>
-<query>
-Single, detailed, specific natural language search question to search the codebase for relevant snippets. This should be in the form of a natural language question, like "What is the structure of the User model in the authentication module?"
-</query>
-<include_docs>
-(Optional) Include documentation in the search results. Default is false. Either true or false.
-</include_docs>
-<include_tests>
-(Optional) Include documentation in the search results. Default is false. Either true or false.
-</include_tests>
-</search_codebase>
-
-""" + example_tool_calls
-
 system_message = """You are a helpful assistant that will answer a user's questions about a codebase to resolve their issue. You are provided with a list of relevant code snippets from the codebase that you can refer to. You can use this information to help the user solve their issue. You may also make function calls to retrieve additional information from the codebase. 
 
 Guidelines:
