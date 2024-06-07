@@ -22,7 +22,6 @@ from sweepai.core.review_prompts import (
     system_prompt_special_rules,
     system_prompt_identify_new_functions,
     system_prompt_identify_repeats,
-    system_prompt_identify_repeats,
     user_prompt,
     user_prompt_issue_output_format,
     user_prompt_special_rules_format,
@@ -42,7 +41,6 @@ from sweepai.core.review_prompts import (
     user_prompt_sort_issues,
     comment_thread_format,
     comment_format,
-    comment_thread_is_resolved_format
 )
 from sweepai.dataclasses.codereview import CodeReview, CodeReviewByGroup, CodeReviewIssue, FunctionDef, GroupedFilesForReview, PRChange, PRReviewComment, PRReviewCommentThread, Patch
 from sweepai.logn.cache import file_cache

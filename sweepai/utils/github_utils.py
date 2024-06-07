@@ -24,7 +24,6 @@ from github.Auth import Token
 # get default_base_url from github
 from github.Requester import Requester
 from github.GithubException import BadCredentialsException, UnknownObjectException
-from github.PullRequestComment import PullRequestComment
 from github import PullRequest, Repository, InputGitTreeElement, GithubException
 from jwt import encode
 from loguru import logger
