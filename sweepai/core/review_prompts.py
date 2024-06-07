@@ -35,12 +35,6 @@ Here are the changes in the pull request changes given in diff format:
 {diff}
 </changes>
 
-# Previous Review and Comments left on the Pull Request
-Here are all the comments left on the pull request, possibly from a previous review you did. Use these comments to determine if there are any issues that have already been identified or if there is anything you need to pay attention to.
-Any issues mentioned in these comment threads means that the issue has already been identified and you should not raise it again. You should see if there are any other issues that were missed.
-
-{comment_threads}
-
 # Instructions
 1. Analyze the code changes. Keep in mind what the intentions of the pull request are.
     1a. Review each change individually, examining the code changes line-by-line.
@@ -70,7 +64,6 @@ Added a new categorization system for snippets in `multi_prep_snippets` and upda
     2b. Identify any other potential issues that the code changes may introduce that were not captured by 2a. This could include accidental changes such as commented out code. (1 paragraph)
     2c. Only include issues that you are very confident will cause serious issues that prevent the pull request from being merged. For example, focus only on functional code changes and ignore changes to strings and comments that are purely descriptive.
     2d. Do not make assumptions about existing functions or code.
-    2e. Has this issue been previously raised in a comment thread? If yes, do not raise the same issue again, regardless of if it was resolved or not.
 
 Answer each of the above questions in step 2 in the following format:
 <issue_identification>
@@ -90,12 +83,6 @@ Here are list of rules that are specific to this code review:
 {special_rules}
 </rules>
 
-# Previous Review and Comments left on the Pull Request
-Here are all the comments left on the pull request, possibly from a previous review you did. Use these comments to determine if there are any issues that have already been identified or if there is anything you need to pay attention to.
-Any issues mentioned in these comment threads means that the issue has already been identified and you should not raise it again. You should see if there are any other issues that were missed.
-
-{comment_threads}
-
 # Instructions
 Along with the rules provided, there may be examples given for each rule. These examples are important to consider when analyzing the code changes.
 1. Analyze the rules and examples provided.
@@ -113,7 +100,6 @@ Output the questions and answers for each rule in step 1 in the following format
     Rule #n:
         a. Are there code changes in violation of the rule? If yes, then this is an issue that should be raised.
         b. Are there any examples for this rule? If yes, then for each example provided explicitly list out the example and check if the rule applies. Remember that the examples are there for a reason!
-        c. Has this issue already been raised before in a comment thread? If yes, then this issue has already been identified and you should not raise it again. You must also provide proof by referencing the exact comment where this issue was raised.
 Output the questions and answers for each rule in step 2 in the following format:
 <rules_analysis>
 {{Question and answers for each rule in the special_rules section.}}

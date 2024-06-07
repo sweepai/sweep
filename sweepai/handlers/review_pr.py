@@ -20,7 +20,7 @@ from sweepai.core.review_utils import (
     group_vote_review_pr,
     review_pr_detailed_checks,
 )
-from sweepai.dataclasses.codereview import PRReviewCommentThread
+from sweepai.dataclasses.codereview import GroupedFilesForReview, PRReviewCommentThread
 from sweepai.utils.concurrency_utils import fire_and_forget_wrapper
 from sweepai.utils.github_utils import ClonedRepo, get_github_client, refresh_token
 from sweepai.utils.ticket_rendering_utils import create_update_review_pr_comment
@@ -124,9 +124,15 @@ def review_pr(
             pr_changes, dropped_files, unsuitable_files = get_pr_changes(repository, pr)
             # -1 group key means review those seperately
             grouped_files: dict[str, list[str]] = cluster_patches(pr_changes)
+            # build another dict so that all files are in their own group
+            single_files = {file_name: [file_name] for file_name in pr_changes.keys()}
             # render all groups of files
-            formatted_pr_changes_by_group = format_all_pr_changes_by_groups(
+            formatted_pr_changes_by_group: dict[str, GroupedFilesForReview] = format_all_pr_changes_by_groups(
                 grouped_files, pr_changes
+            )
+            # also render them individually
+            formatted_pr_changes_by_file: dict[str, GroupedFilesForReview] = format_all_pr_changes_by_groups(
+                single_files, pr_changes
             )
             # formatted_pr_changes_by_file = format_pr_changes_by_file(pr_changes)
             pull_request_info = format_pr_info(pr)
@@ -142,6 +148,7 @@ def review_pr(
                 username,
                 pr_changes,
                 formatted_pr_changes_by_group,
+                formatted_pr_changes_by_file,
                 cloned_repo,
                 pull_request_info,
                 formatted_comment_threads,
@@ -167,6 +174,7 @@ def review_pr(
             _comment_id = create_update_review_pr_comment(
                 username,
                 pr,
+                formatted_comment_threads,
                 code_review_by_file=code_review_by_file,
                 pull_request_summary=pull_request_summary,
                 dropped_files=dropped_files,

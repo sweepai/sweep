@@ -592,16 +592,12 @@ def render_code_review_issues(
     code_issues_string = ""
     for issue in code_issues:
         if issue.file_name in files_to_blobs:
-            if issue.start_line == issue.end_line:
-                issue_blob_url = (
-                    f"{files_to_blobs[issue.file_name]}#L{issue.start_line}"
-                )
-                issue_diff_url = (
-                    f"{files_to_diffs[issue.file_name]}R{issue.start_line}"
-                )
-            else:
-                issue_blob_url = f"{files_to_blobs[issue.file_name]}#L{issue.start_line}-L{issue.end_line}"
-                issue_diff_url = f"{files_to_diffs[issue.file_name]}R{issue.start_line}-R{issue.end_line}"
+            issue_blob_url = (
+                f"{files_to_blobs[issue.file_name]}#L{issue.line_number}"
+            )
+            issue_diff_url = (
+                f"{files_to_diffs[issue.file_name]}R{issue.line_number}"
+            )
             if sorted_issues:
                 code_issues_string += f"<li>In `{issue.file_name}`: {issue.issue_description}</li>\n\n{issue_blob_url}\n[View Diff]({issue_diff_url})"
             else:
@@ -677,6 +673,7 @@ def render_pr_review_by_file(
     username: str,
     pr: PullRequest,
     code_review_by_file: dict[str, CodeReview],
+    formatted_comment_threads: dict[str, str],
     pull_request_summary: str = "",
     dropped_files: list[str] = [],
     unsuitable_files: list[tuple[str, Exception]] = [],
@@ -700,15 +697,15 @@ def render_pr_review_by_file(
         all_potential_issues.extend(code_review.potential_issues)
     create_review_comments_for_code_issues(pr, all_issues)
     # build potential issues section
-#     for file_name, code_review in code_review_by_file.items():
-#         potential_issues = code_review.potential_issues
-#         if potential_issues:
-#             potential_issues_string = render_code_review_issues(
-#                 username, pr, code_review, issue_type="potential"
-#             )
-#             potential_issues_section += f"""<details>
-# <summary>{file_name}</summary>
-# <ul>{format_code_sections(potential_issues_string)}</ul></details>"""
+    for file_name, code_review in code_review_by_file.items():
+        potential_issues = code_review.potential_issues
+        if potential_issues:
+            potential_issues_string = render_code_review_issues(
+                username, pr, code_review, issue_type="potential"
+            )
+            potential_issues_section += f"""<details>
+<summary>{file_name}</summary>
+<ul>{format_code_sections(potential_issues_string)}</ul></details>"""
     # add titles/dropdowns for issues and potential issues section depending on if there were any issues/potential issues
     if potential_issues_section:
         potential_issues_section = f"<details><summary><h3>Potential Issues</h3></summary><p><strong>Sweep is unsure if these are issues, but they might be worth checking out.</strong></p>\n\n{potential_issues_section}</details><hr>"
@@ -731,13 +728,18 @@ def render_pr_review_by_file(
         footer += f"<p>The following files were not reviewed as they were deemed unsuitable for a variety of reasons. If this is an error please let us know.</p><ul>{unsuitable_files_string}</ul>"
     if len(all_issues) == 0 and len(all_potential_issues) == 0:
         issues_section = "The Pull Request looks good! Sweep did not find any issues."
+        if not formatted_comment_threads:
+            issues_section = "The Pull Request looks good! Sweep did not find any new issues."
     elif len(all_issues) == 0:
-        issues_section = "The Pull Request looks good! Sweep did not find any noticable issues but found some potential issues that you may want to take a look at."
+        issues_section = "The Pull Request looks good! Sweep did not find any issues but found some potential issues that you may want to take a look at."
+        if not formatted_comment_threads:
+            issues_section = "The Pull Request looks good! Sweep did not find any new issues but found some potential issues that you may want to take a look at."
     else:
         if len(all_issues) == 1:
-            issues_section = f"\n\nSweep found `{len(all_issues)}` new issue.\n\n Sweep has left comments on the pull request for you to review. You may respond to any comment Sweep made your feedback will be taken into consideration if you run the review again. If Sweep made a mistake, you can resolve the comment or let Sweep know by responding to the comment."
+            issues_section = f"\n\nSweep found `{len(all_issues)}` new issue.\n\n" 
         else:
-            issues_section = f"\n\nSweep found `{len(all_issues)}` new issues.\n\n Sweep has left comments on the pull request for you to review. You may respond to any comment Sweep made your feedback will be taken into consideration if you run the review again. If Sweep made a mistake, you can resolve the comment or let Sweep know by responding to the comment."
+            issues_section = f"\n\nSweep found `{len(all_issues)}` new issues.\n\n"
+        issues_section += "Sweep has left comments on the pull request for you to review. \nYou may respond to any comment Sweep made your feedback will be taken into consideration if you run the review again. If Sweep made a mistake, you can resolve the comment or let Sweep know by responding to the comment."
     return body + issues_section + potential_issues_section + pr_summary + footer
 
 
@@ -746,6 +748,7 @@ def render_pr_review_by_file(
 def create_update_review_pr_comment(
     username: str,
     pr: PullRequest,
+    formatted_comment_threads: dict[str, str],
     code_review_by_file: dict[str, CodeReview] | None = None,
     pull_request_summary: str = "",
     dropped_files: list[str] = [],
@@ -801,6 +804,7 @@ def create_update_review_pr_comment(
             username,
             pr,
             code_review_by_file,
+            formatted_comment_threads,
             pull_request_summary=pull_request_summary,
             dropped_files=dropped_files,
             unsuitable_files=unsuitable_files,

@@ -397,7 +397,8 @@ class PRReviewBot(ChatGPT):
         file_names: list[str], 
         special_rule_file: str = "SWEEP.md"
     ):
-        special_rules = []
+        # filename: special rules
+        special_rules: dict[str, list[str]] = {}
         # a set of already added SWEEP.md rules so that we don't add them multiple times
         added_rules = set([])
         for file_name in file_names:
@@ -422,7 +423,9 @@ class PRReviewBot(ChatGPT):
                 special_rule_path = os.path.join(directory, special_rule_file)
                 if os.path.exists(special_rule_path):
                     if special_rule_path not in added_rules:
-                        special_rules.append(read_file_with_fallback_encodings(special_rule_path))
+                        if file_name not in special_rules:
+                            special_rules[file_name] = []
+                        special_rules[file_name].append(read_file_with_fallback_encodings(special_rule_path))
                         added_rules.add(special_rule_path)
 
         return special_rules
@@ -460,9 +463,9 @@ class PRReviewBot(ChatGPT):
         self, 
         pr_changes: dict[str, PRChange],
         formatted_pr_changes_by_group: dict[str, GroupedFilesForReview], 
+        formatted_pr_changes_by_file: dict[str, GroupedFilesForReview],
         cloned_repo: ClonedRepo, 
         pull_request_info: str,
-        formatted_comment_threads: dict[str, str],
         chat_logger: ChatLogger = None, 
         seed: int | None = None
     ):
@@ -471,12 +474,6 @@ class PRReviewBot(ChatGPT):
         for group_name, grouped_files in formatted_pr_changes_by_group.items():
             file_names = grouped_files.file_names
             rendered_changes = grouped_files.rendered_changes
-            comment_threads = []
-            # build comment threads based on the file names
-            for file_name in file_names:
-                if file_name in formatted_comment_threads:
-                    comment_threads.append(formatted_comment_threads[file_name])
-            comment_threads_string = "\n".join(comment_threads)
             # get all relevant PRChange objects
             # build prompt
             self.messages = [
@@ -488,7 +485,6 @@ class PRReviewBot(ChatGPT):
             formatted_user_prompt = user_prompt.format(
                 diff=rendered_changes, 
                 pull_request_info=pull_request_info,
-                comment_threads=comment_threads_string
             )
             formatted_user_prompt += user_prompt_issue_output_format
             if len(formatted_user_prompt) > MAX_CHAR_BUDGET:
@@ -509,25 +505,28 @@ class PRReviewBot(ChatGPT):
             # check if there are special rules we need to follow for this file by seeing if the files "SWEEP.md" exists
             special_rules = self.get_special_rules(cloned_repo, file_names)
             if special_rules:
-                for special_rule_set in special_rules:
-                    formatted_user_prompt_special_rules = user_prompt_special_rules_format.format(
-                        diff=rendered_changes, 
-                        special_rules=special_rule_set,
-                        comment_threads=comment_threads_string)
-                    formatted_user_prompt_special_rules += user_prompt_issue_output_format
-                    self.messages = [
-                        Message(
-                            role="system",
-                            content=system_prompt_special_rules,
+                # may need to multi process this
+                for file_name, special_rule_set in special_rules.items():
+                    for special_rule in special_rule_set:
+                        rendered_file_changes = formatted_pr_changes_by_file[file_name].rendered_changes
+                        formatted_user_prompt_special_rules = user_prompt_special_rules_format.format(
+                            diff=rendered_file_changes, 
+                            special_rules=special_rule
                         )
-                    ]
-                    special_rules_response = self.chat_anthropic(
-                        content=formatted_user_prompt_special_rules,
-                        temperature=0.1,
-                        model=CLAUDE_MODEL,
-                        seed=seed,
-                    )
-                    code_review_response += special_rules_response
+                        formatted_user_prompt_special_rules += user_prompt_issue_output_format
+                        self.messages = [
+                            Message(
+                                role="system",
+                                content=system_prompt_special_rules,
+                            )
+                        ]
+                        special_rules_response = self.chat_anthropic(
+                            content=formatted_user_prompt_special_rules,
+                            temperature=0.1,
+                            model=CLAUDE_MODEL,
+                            seed=seed,
+                        )
+                        code_review_response += special_rules_response
             diff_summary = ""
             diff_summary_pattern = r"<diff_summary>(.*?)</diff_summary>"
             diff_summary_matches = re.findall(diff_summary_pattern, code_review_response, re.DOTALL)
@@ -599,8 +598,13 @@ class PRReviewBot(ChatGPT):
             )
             special_rules = self.get_special_rules(cloned_repo, file_names)
             if special_rules:
+                #  this can be improved by doing it sepeartely
+                special_rules_set = set([])
+                for special_rule_set in special_rules.values():
+                    for special_rule in special_rule_set:
+                        special_rules_set.add(special_rule)
                 formatted_user_prompt += user_prompt_review_special_rules.format(
-                    special_rules="\n".join(special_rules)
+                    special_rules="\n".join(special_rules_set)
                 )
             formatted_user_prompt += user_prompt_review_analysis_format
             formatted_user_prompt += user_prompt_review_decisions
@@ -923,6 +927,7 @@ def get_group_voted_best_issue_index(
 def get_code_reviews_for_file(
     pr_changes: dict[str, PRChange], 
     formatted_pr_changes_by_group: dict[str, GroupedFilesForReview], 
+    formatted_pr_changes_by_file: dict[str, GroupedFilesForReview], # single file
     cloned_repo: ClonedRepo,
     pull_request_info: str,
     formatted_comment_threads: dict[str, str],
@@ -933,9 +938,9 @@ def get_code_reviews_for_file(
     code_review_by_group = review_bot.review_code_changes_by_file(
         pr_changes,
         formatted_pr_changes_by_group, 
+        formatted_pr_changes_by_file,
         cloned_repo, 
         pull_request_info,
-        formatted_comment_threads,
         chat_logger=chat_logger, 
         seed=seed
     )
@@ -956,6 +961,7 @@ def group_vote_review_pr(
     username: str, 
     pr_changes: dict[str, PRChange], 
     formatted_pr_changes_by_group: dict[str, GroupedFilesForReview],
+    formatted_pr_changes_by_file: dict[str, GroupedFilesForReview], # this one is all single files
     cloned_repo: ClonedRepo,
     pull_request_info: str,
     formatted_comment_threads: dict[str, str],
@@ -984,6 +990,7 @@ def group_vote_review_pr(
             pool.apply_async(get_code_reviews_for_file, args=(
                 pr_changes, 
                 formatted_pr_changes_by_group,
+                formatted_pr_changes_by_file,
                 cloned_repos[i], 
                 pull_request_info, 
                 formatted_comment_threads,
@@ -1010,6 +1017,7 @@ def group_vote_review_pr(
             review = get_code_reviews_for_file(
                 pr_changes, 
                 formatted_pr_changes_by_group,
+                formatted_pr_changes_by_file,
                 cloned_repo, 
                 pull_request_info,
                 formatted_comment_threads,
