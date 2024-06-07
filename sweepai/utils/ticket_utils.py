@@ -13,7 +13,7 @@ from sweepai.utils.streamable_functions import streamable
 from sweepai.utils.timer import Timer
 from sweepai.agents.analyze_snippets import AnalyzeSnippetAgent
 from sweepai.config.client import SweepConfig, get_blocked_dirs
-from sweepai.config.server import COHERE_API_KEY
+from sweepai.config.server import COHERE_API_KEY, VOYAGE_API_KEY
 from sweepai.core.context_pruning import RepoContextManager, add_relevant_files_to_top_snippets, build_import_trees, parse_query_for_files
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import (
@@ -23,7 +23,7 @@ from sweepai.core.lexical_search import (
 )
 from sweepai.core.sweep_bot import context_get_files_to_change
 from sweepai.dataclasses.separatedsnippets import SeparatedSnippets
-from sweepai.utils.cohere_utils import cohere_rerank_call
+from sweepai.utils.cohere_utils import cohere_rerank_call, voyage_rerank_call
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.multi_query import generate_multi_queries
@@ -96,7 +96,7 @@ rerank_count = {
     "dependencies": 10,
     "docs": 30,
     "tests": 30,
-    "source": 50,
+    "source": 50, # have to decrease to 30 for Voyage AI
 }
 
 def separate_snippets_by_type(snippets: list[Snippet]) -> SeparatedSnippets:
@@ -250,15 +250,23 @@ def get_pointwise_reranked_snippet_scores(
             representation = representation + f"\n\nHere is a summary of the subdirectory {subdir}:\n\n" + directory_summaries[subdir]
         snippet_representations.append(representation)
 
-    response = cohere_rerank_call(
-        model='rerank-english-v3.0',
-        query=query,
-        documents=snippet_representations,
-        max_chunks_per_doc=900 // NUM_SNIPPETS_TO_RERANK,
-    )
     # this needs to happen before we update the scores with the (higher) Cohere scores
     snippet_denotations = set(snippet.denotation for snippet in sorted_snippets)
     new_snippet_scores = {snippet_denotation: v / 1_000_000_000_000 for snippet_denotation, v in rerank_scores.items() if snippet_denotation in snippet_denotations}
+
+    if COHERE_API_KEY:
+        response = cohere_rerank_call(
+            query=query,
+            documents=snippet_representations,
+            max_chunks_per_doc=900 // NUM_SNIPPETS_TO_RERANK,
+        )
+    elif VOYAGE_API_KEY:
+        response = voyage_rerank_call(
+            query=query,
+            documents=snippet_representations,
+        )
+    else:
+        raise ValueError("No reranking API key found, use either Cohere or Voyage AI")
 
     for document in response.results:
         new_snippet_scores[sorted_snippets[document.index].denotation] = apply_adjustment_score(

@@ -45,13 +45,13 @@ Determine if you have sufficient information to answer the user's question. If n
 <user_response>
 Determine if you have sufficient information to answer the user's question. If not, determine the information you need to answer the question completely by making `search_codebase` tool calls.
 
-If so, rewrite your previous response with the new information and any invalidated beliefs or assumptions. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When explaining how to add new code, always write out the new code. When suggesting code changes, write out all the code changes required in the unified diff format.
+If so, rewrite your previous response with the new information and any invalidated beliefs or assumptions. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When adding new code, always write out the new code in FULL. When suggesting code changes, write out all the code changes required in FULL as diffs.
 </user_response>
 
 # 3. Self-Critique
 
 <self_critique>
-Then, self-critique your answer and validate that you have completely answered the user's question. If the user's answer is relatively broad, you are done.
+Then, self-critique your answer and validate that you have completely answered the user's question and addressed all their points. If the user's answer is extremely broad, you are done.
 
 Otherwise, if the user's question is specific, and asks to implement a feature or fix a bug, determine what additional information you need to answer the user's question. Specifically, validate that all interfaces are being used correctly based on the contents of the retrieved files -- if you cannot verify this, then you must find the relevant information such as the correct interface or schema to validate the usage. If you need to search the codebase for more information, such as for how a particular feature in the codebase works, use the `search_codebase` tool in the next section.
 </self_critique>
@@ -79,13 +79,15 @@ Then, determine if you have sufficient information to answer the user's question
 # 2. User Response
 
 <user_response>
-Write a complete helpful response to the user's question in full detail. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When explaining how to add new code, always write out the new code. When suggesting code changes, write out all the code changes required in the unified diff format.
+Write a complete helpful response to the user's question in full detail, addressing all of the user's requests. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations.
+
+When adding new code, always write out the new code in FULL. When suggesting code changes, write out all the code changes required in FULL as diffs.
 </user_response>
 
 # 3. Self-Critique
 
 <self_critique>
-Then, self-critique your answer and validate that you have completely answered the user's question. If the user's answer is relatively broad, you are done.
+Then, self-critique your answer and validate that you have completely answered the user's question and addressed all their points. If the user's answer is extremely broad, you are done.
 
 Otherwise, if the user's question is specific, and asks to implement a feature or fix a bug, determine what additional information you need to answer the user's question. Specifically, validate that all interfaces are being used correctly based on the contents of the retrieved files -- if you cannot verify this, then you must find the relevant information such as the correct interface or schema to validate the usage. If you need to search the codebase for more information, such as for how a particular feature in the codebase works, use the `search_codebase` tool in the next section.
 </self_critique>
@@ -125,10 +127,10 @@ Single, detailed, specific natural language search question to search the codeba
 """ + example_tool_calls + "\n\n" + format_message
 
 relevant_snippets_message = """# Codebase
-repo: {repo_name}
+Repo: {repo_name}
 
 # Relevant codebase files:
-Here are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:
+Here are the initial search results from the codebase. These will be your primary reference to solve the problem:
 
 <relevant_files>
 {joined_relevant_snippets}
@@ -143,7 +145,9 @@ relevant_snippet_template = '''<relevant_file index="{i}">
 </source>
 </relevant_file>'''
 
-pr_format = """<pull_request>
+pr_format = """Here are the contents of the referenced pull request {url}:
+
+<pull_request>
 <title>
 {title}
 </title>
@@ -156,3 +160,20 @@ pr_format = """<pull_request>
 </pull_request>
 """
 
+relevant_snippets_message_for_pr = """# Codebase
+Repo: {repo_name}
+
+# Full files from the pull request:
+Here are the files from pull request:
+
+<pr_files>
+{pr_files}
+</pr_files>
+
+Here are other relevant files from the initial search results from the codebase:
+
+<other_relevant_files>
+{joined_relevant_snippets}
+</other_relevant_files>
+
+Be sure to address the files from the pull request and the other relevant files separately in the initial search results."""

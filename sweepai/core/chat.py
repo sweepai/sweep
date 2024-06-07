@@ -447,7 +447,8 @@ class ChatGPT(MessageList):
                     streamed_text = ""
                     for chunk in response:
                         new_content = chunk.choices[0].delta.content
-                        streamed_text += new_content
+                        if new_content:
+                            streamed_text += new_content
                         yield new_content
                         if chunk.choices[0].finish_reason == "stop":
                             break
