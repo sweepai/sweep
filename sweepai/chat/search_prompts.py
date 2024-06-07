@@ -145,7 +145,7 @@ relevant_snippets_message = """# Codebase
 Repo: {repo_name}
 
 # Relevant codebase files:
-Here are the initial search results from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:
+Here are the initial search results from the codebase. These will be your primary reference to solve the problem:
 
 <relevant_files>
 {joined_relevant_snippets}
@@ -175,3 +175,20 @@ pr_format = """Here are the contents of the referenced pull request {url}:
 </pull_request>
 """
 
+relevant_snippets_message_for_pr = """# Codebase
+Repo: {repo_name}
+
+# Full files from the pull request:
+Here are the files from pull request:
+
+<pr_files>
+{pr_files}
+</pr_files>
+
+Here are other relevant files from the initial search results from the codebase:
+
+<other_relevant_files>
+{joined_relevant_snippets}
+</other_relevant_files>
+
+Be sure to address the files from the pull request and the other relevant files separately in the initial search results."""
