@@ -11,7 +11,7 @@ def test_e2e_pr_review():
         repo_name = "sweepai/e2e"  # for e2e test this is hardcoded
         installation_id = get_installation_id("sweepai")
         pr_number = 1349
-        _user_token, g = get_github_client(installation_id)
+        _, g = get_github_client(installation_id)
         repo = g.get_repo(repo_name)
         pr = repo.get_pull(pr_number)
         
