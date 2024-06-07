@@ -218,13 +218,16 @@ Error #0: Summary of the error
 You will first think step-by-step about the error, and then either rewrite the instructions with the corrected fix, or drop the task.
 
 <thinking>
-Analyze extremely carefully in great detail what went wrong, including the file path and the specific code block that needs to be modified. If you have failed to copy code verbatim, describe precisely what is different between the code you provided and the code in the actual file.
+Analyze extremely carefully in great detail what went wrong, including the file path and the specific code block that needs to be modified. 
+If you have failed to copy code verbatim, describe precisely what is different between the code you provided and the code in the actual file. Reference the exact lines in the diff provided showing the difference between your original code and what is in the file.
 </thinking>
 
 Then, let's resolve the errors in your proposed plan. You MUST pick ONE of the following options:
 a. If you would like to patch the corresponding task of the plan, create a modify block with an index. The index should be equivalent to the error number of this error_resolution block, so it must be one of the following allowed integers: {allowed_indices}.
 b. If the error is a file path, correct the file path. This is preferred if the code does not need to be changed.
-c. Otherwise, if you absolutely cannot resolve the error, drop the task. You must pick exactly ONE of the three options. Follow this format:
+c. Otherwise, if you absolutely cannot resolve the error, drop the task. 
+
+You must pick exactly ONE option from the three options presented above. Follow this format:
 
 Option a: To patch an invalid modify:
 
@@ -245,7 +248,7 @@ Updated new code, based on the corrections in <original_code>. Ensure all newly 
 Option b: To fix an invalid file path, such as a non-existent directory (this is preferred if the code does not need to be changed):
 
 Enter "COPIED_FROM_PREVIOUS_MODIFY" verbatim into the modify block to copy the code from the previous change.
-
+Example:
 <modify file="file_path" index="0">
 COPIED_FROM_PREVIOUS_MODIFY
 </modify>
