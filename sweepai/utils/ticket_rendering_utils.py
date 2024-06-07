@@ -734,7 +734,10 @@ def render_pr_review_by_file(
     elif len(all_issues) == 0:
         issues_section = "The Pull Request looks good! Sweep did not find any noticable issues but found some potential issues that you may want to take a look at."
     else:
-        issues_section = f"Sweep found {len(all_issues)} issues and has left comments on the pull request for you to review. You may respond to any comment Sweep made your feedback will be taken into consideration if you run the review again. If Sweep made a mistake, you can resolve the comment or left Sweep know by responding to the comment."
+        if len(all_issues) == 1:
+            issues_section = f"\n\nSweep found `{len(all_issues)}` new issue.\n\n Sweep has left comments on the pull request for you to review. You may respond to any comment Sweep made your feedback will be taken into consideration if you run the review again. If Sweep made a mistake, you can resolve the comment or let Sweep know by responding to the comment."
+        else:
+            issues_section = f"\n\nSweep found `{len(all_issues)}` new issues.\n\n Sweep has left comments on the pull request for you to review. You may respond to any comment Sweep made your feedback will be taken into consideration if you run the review again. If Sweep made a mistake, you can resolve the comment or let Sweep know by responding to the comment."
     return body + issues_section + potential_issues_section + pr_summary + footer
 
 
