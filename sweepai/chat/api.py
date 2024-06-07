@@ -412,7 +412,6 @@ def chat_codebase_stream(
     k: int = DEFAULT_K,
     model: str = "claude-3-opus-20240229",
     use_patch: bool = False,
-    k: int = DEFAULT_K
 ):
     if not snippets:
         raise ValueError("No snippets were sent.")
