@@ -296,8 +296,8 @@ def search_codebase_endpoint_post(
             username,
             repo_name,
             query,
-            annotations,
             token,
+            annotations=annotations,
             metadata={
                 "repo_name": repo_name,
                 "query": query,
@@ -312,11 +312,15 @@ def wrapped_search_codebase(
     username: str,
     repo_name: str,
     query: str,
-    annotations: dict,
     access_token: str,
+    annotations: dict = {},
     metadata: dict = {},
 ):
     org_name, repo = repo_name.split("/")
+    if not os.path.exists(f"/tmp/{repo}"):
+        print(f"Cloning {repo_name} to /tmp/{repo}")
+        git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"/tmp/{repo}")
+        print(f"Cloned {repo_name} to /tmp/{repo}")
     cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name, token=access_token)
     cloned_repo.pull()
     pr_snippets, skipped_pr_snippets, pulls_messages = get_pr_snippets(
