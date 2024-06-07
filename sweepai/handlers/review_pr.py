@@ -12,13 +12,16 @@ from sweepai.core.review_utils import (
     cluster_patches,
     decompose_code_review_by_group,
     format_all_pr_changes_by_groups,
+    format_comment_threads,
     format_pr_info,
+    get_all_comments_for_review,
     get_pr_changes,
     get_pr_summary_from_patches,
     group_vote_review_pr,
     review_pr_detailed_checks,
     sort_code_issues_by_severity,
 )
+from sweepai.dataclasses.codereview import PRReviewCommentThread
 from sweepai.utils.concurrency_utils import fire_and_forget_wrapper
 from sweepai.utils.github_utils import ClonedRepo, get_github_client, refresh_token
 from sweepai.utils.ticket_rendering_utils import create_update_review_pr_comment
@@ -115,8 +118,10 @@ def review_pr(
                 return {"success": False, "reason": str(error)}
             pr_issue = repository.get_issue(number=pr.number)
             reaction_eyes = pr_issue.create_reaction("eyes")
+            # get all comments on the pr
+            comment_threads: dict[str, list[PRReviewCommentThread]] = get_all_comments_for_review(repository.full_name, pr, installation_id)
+            formatted_comment_threads: dict[str, str] = format_comment_threads(comment_threads)
             # handle creating comments on the pr to tell the user we are going to begin reviewing the pr
-            # _comment_id = create_update_review_pr_comment(username, pr)
             pr_changes, dropped_files, unsuitable_files = get_pr_changes(repository, pr)
             # -1 group key means review those seperately
             grouped_files: dict[str, list[str]] = cluster_patches(pr_changes)
@@ -140,7 +145,8 @@ def review_pr(
                 formatted_pr_changes_by_group,
                 cloned_repo,
                 pull_request_info,
-                multiprocess=True,
+                formatted_comment_threads,
+                multiprocess=False,
                 chat_logger=chat_logger,
             )
             # convert code_review_by_group to be by file for easier rendering
@@ -172,7 +178,6 @@ def review_pr(
                 username,
                 pr,
                 code_review_by_file=code_review_by_file,
-                sorted_issues=all_issues_sorted,
                 pull_request_summary=pull_request_summary,
                 dropped_files=dropped_files,
                 unsuitable_files=unsuitable_files,

@@ -24,6 +24,7 @@ from github.Auth import Token
 # get default_base_url from github
 from github.Requester import Requester
 from github.GithubException import BadCredentialsException, UnknownObjectException
+from github.PullRequestComment import PullRequestComment
 from github import PullRequest, Repository, InputGitTreeElement, GithubException
 from jwt import encode
 from loguru import logger
@@ -974,6 +975,68 @@ def convert_pr_draft_field(
         logger.error(f"Failed to convert PR to {'draft' if is_draft else 'open'}")
         return False
     return True
+
+# get the review threads obejct for a pr, required to tell if a comment is resolved or not
+def get_review_threads(
+    repo_full_name: str,
+    pr_number: int,
+    installation_id: int
+):
+    token = get_token(installation_id)
+    query = """
+query GetReviewThreads($owner: String!, $name: String!, $prNumber: Int!) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $prNumber) {
+      reviewThreads(first: 100) {
+        nodes {
+          id
+          isResolved
+          isOutdated
+          path
+          line
+          comments(first: 100) {
+            nodes {
+              id
+              body
+              author {
+                login
+              }
+              createdAt
+            }
+          }
+        }
+      }
+    }
+  }
+}
+    """
+
+    # GraphQL API URL
+    url = "https://api.github.com/graphql"
+
+    # Headers
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {token}",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    owner, name = repo_full_name.split("/")
+    # Prepare the JSON payload
+    variables = {
+        'owner': owner,
+        'name': name,
+        'prNumber': pr_number
+    }
+    json_data = {
+        'query': query, 'variables': variables
+    }
+
+    # Make the POST request
+    response = requests.post(url, headers=headers, data=json.dumps(json_data))
+    if response.status_code != 200:
+        return {}
+    review_threads_json = response.json()['data']['repository']['pullRequest']['reviewThreads']['nodes']
+    return review_threads_json
 
 
 # makes sure no secrets are in the message
