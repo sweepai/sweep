@@ -3,18 +3,21 @@ This module is responsible for handling the check suite event, called from sweep
 """
 import io
 import re
+from time import sleep
 import zipfile
 
 from loguru import logger
 import requests
 
 from github.Repository import Repository
+from github.CommitStatus import CommitStatus
 from sweepai.config.server import CIRCLE_CI_PAT
 from sweepai.logn.cache import file_cache
 from sweepai.utils.github_utils import get_token
 
 MAX_LINES = 500
 LINES_TO_KEEP = 100
+CIRCLECI_SLEEP_DURATION_SECONDS = 5
 
 log_message = """GitHub actions yielded the following error.
 
@@ -194,9 +197,35 @@ def get_failing_circleci_logs(
 ):
     # get the pygithub commit object
     all_logs = ""
-    commit = repo.get_commit(current_commit)
-    status = commit.get_combined_status()
-    for status_detail in status.statuses:
+    failing_statuses = []
+    total_poll_attempts = 0
+    while True:
+        commit = repo.get_commit(current_commit)
+        status = commit.get_combined_status()
+        # https://docs.github.com/en/rest/commits/statuses?apiVersion=2022-11-28#get-the-combined-status-for-a-specific-reference
+        all_statuses: list[CommitStatus] = status.statuses
+        # if all are success, break
+        if all(status.state == "success" for status in all_statuses):
+            failing_statuses = []
+            break
+        # if any of the statuses are pending, sleep and try again
+        if any(status.state == "pending" for status in all_statuses):
+            if total_poll_attempts * CIRCLECI_SLEEP_DURATION_SECONDS // 60 >= 60:
+                    logger.debug("Polling for CircleCI has taken too long, giving up.")
+                    break
+            else:
+                # wait one minute between check attempts
+                total_poll_attempts += 1
+
+                if total_poll_attempts > 1:
+                    sleep(CIRCLECI_SLEEP_DURATION_SECONDS)
+            continue
+        # if any of the statuses are failure, return those statuses
+        failing_statuses = [status for status in all_statuses if status.state == "failure"]
+        if failing_statuses:
+            break
+    # done polling
+    for status_detail in failing_statuses:
         # CircleCI run detected
         if 'circleci' in status_detail.context.lower():
             failing_circle_ci_log = get_failing_circleci_log_from_url(

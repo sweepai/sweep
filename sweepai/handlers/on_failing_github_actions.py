@@ -155,6 +155,7 @@ def on_failing_github_actions(
         new_gha_summary = GHA_SUMMARY_START + "\n".join([fix.to_markdown() for fix in gha_fixes]) + GHA_SUMMARY_END
         pull_request.edit(body=before_gha_summary + new_gha_summary + after_gha_summary)
 
+    # TODO: let's abstract out the polling logic for github actions because it's messy - have a function that polls inside the call
     while GITHUB_ACTIONS_ENABLED and main_passing:
         if time() - gha_start_time > 60 * 59:
             user_token, g, repo = refresh_token(repo_full_name, installation_id)
@@ -179,6 +180,8 @@ def on_failing_github_actions(
         failed_circleci_logs = ""
         if CIRCLE_CI_PAT:
             try:
+                # you need to poll here for CircleCI otherwise we'll see 0 GitHub Actions and incorrectly exit
+                # this function polls internally
                 failed_circleci_logs = get_failing_circleci_logs(
                     repo=repo,
                     current_commit=current_commit
