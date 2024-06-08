@@ -219,6 +219,7 @@ def get_failing_circleci_logs(
                 break
             # wait between check attempts
             total_poll_attempts += 1
+            logger.debug(f"Polling to see if CircleCI has finished... {total_poll_attempts}.")
             sleep(CIRCLECI_SLEEP_DURATION_SECONDS)
             continue
     # done polling

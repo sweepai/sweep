@@ -98,7 +98,7 @@ You made some changes, but GitHub Actions failed with the following logs:
 {github_actions_logs}
 </github_actions_logs>
 
-You have previously already made the following changes:
+You have previously made the following changes. The diffs represent the current state of the file/project:
 <changes_made>
 {changes_made}
 </changes_made>
@@ -122,7 +122,7 @@ You made some changes to address the previous Github Action failures, but GitHub
 {current_github_actions_logs}
 </current_github_actions_logs>
 
-You have previously already made the following changes:
+You have previously made the following changes. The diffs represent the current state of the file/project:
 <changes_made>
 {changes_made}
 </changes_made>
@@ -1136,7 +1136,7 @@ def context_get_files_to_change(
             content=snippet.expand(300).get_snippet(add_lines=False) if snippet.type_name == "source" else snippet.get_snippet(add_lines=False),
         ) for i, snippet in enumerate(relevant_snippets)
     )
-    relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
+    relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
     messages.append(
         Message(
             role="user",
@@ -1450,7 +1450,7 @@ def get_files_to_change_for_gha(
     messages.append(
         Message(role="system", content=issue_sub_request_system_prompt, key="system")
     )
-
+    # update the state of the snippets to be current
     for relevant_snippet in relevant_snippets:
         if relevant_snippet.file_path in updated_files:
             relevant_snippet.content = updated_files[relevant_snippet.file_path]["contents"]
@@ -1458,18 +1458,6 @@ def get_files_to_change_for_gha(
     for read_only_snippet in read_only_snippets:
         if read_only_snippet.file_path in updated_files:
             read_only_snippet.content = updated_files[read_only_snippet.file_path]["contents"]
-
-    new_relevant_snippets = []
-    new_read_only_snippets = []
-    for snippet in relevant_snippets + read_only_snippets:
-        if snippet in new_relevant_snippets or snippet in new_read_only_snippets:
-            continue
-        if "test" not in snippet.file_path:
-            new_read_only_snippets.append(snippet)
-        else:
-            new_relevant_snippets.append(snippet)
-    relevant_snippets = new_relevant_snippets
-    read_only_snippets = new_read_only_snippets
 
     interleaved_snippets = []
     for i in range(max(len(relevant_snippets), len(read_only_snippets))):
@@ -1499,7 +1487,6 @@ def get_files_to_change_for_gha(
                 key="relevant_snippets",
             )
         )
-
     relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
     joined_relevant_snippets = "\n".join(
         relevant_snippet_template.format(
@@ -1508,7 +1495,7 @@ def get_files_to_change_for_gha(
             content=snippet.expand(300).get_snippet(add_lines=False) if snippet.type_name == "source" else snippet.get_snippet(add_lines=False),
         ) for i, snippet in enumerate(relevant_snippets)
     )
-    relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
+    relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
     messages.append(
         Message(
             role="user",
@@ -1516,17 +1503,6 @@ def get_files_to_change_for_gha(
             key="relevant_snippets",
         )
     )
-    # previous_diffs = get_previous_diffs(
-    #     problem_statement,
-    #     cloned_repo=cloned_repo,
-    #     relevant_file_paths=[snippet.file_path for snippet in relevant_snippets],
-    # )
-    # messages.append( # temporarily disable in main
-    #     Message(
-    #         role="user",
-    #         content=previous_diffs,
-    #     )
-    # )
     messages.append(
         Message(
             role="user",
