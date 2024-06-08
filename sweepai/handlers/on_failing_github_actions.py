@@ -164,8 +164,8 @@ def on_failing_github_actions(
         logger.info(
             f"Polling to see if Github Actions have finished... {total_poll_attempts}"
         )
-        # we wait at most 60 minutes
-        if total_poll_attempts * SLEEP_DURATION_SECONDS // 60 >= 60:
+        # we wait at most 120 minutes
+        if total_poll_attempts * SLEEP_DURATION_SECONDS // 60 >= 120:
             logger.debug("Polling for Github Actions has taken too long, giving up.")
             break
         else:

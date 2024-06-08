@@ -14,11 +14,12 @@ from loguru import logger
 
 from sweepai.agents.modify_utils import validate_and_parse_function_call
 from sweepai.agents.search_agent import extract_xml_tag
-from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, system_message, function_response, format_message, pr_format
+from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, system_message, function_response, format_message, pr_format, relevant_snippets_message_for_pr
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import CACHE_DIRECTORY
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
+from sweepai.core.review_utils import split_diff_into_patches
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import CustomGithub, MockClonedRepo, get_github_client, get_installation_id
 from sweepai.utils.event_logger import posthog
@@ -30,8 +31,60 @@ from sweepai.utils.timer import Timer
 app = FastAPI()
 
 auth_cache = Cache(f'{CACHE_DIRECTORY}/auth_cache') 
+repo_cache = f"{CACHE_DIRECTORY}/repos"
 
 DEFAULT_K = 8
+
+def get_pr_snippets(
+    repo_name: str,
+    annotations: dict,
+    cloned_repo: MockClonedRepo,
+):
+    pr_snippets = []
+    skipped_pr_snippets = []
+    sweep_config = SweepConfig()
+    pulls = annotations.get("pulls", [])
+    pulls_messages = ""
+    for pull in pulls:
+        patch = pull["file_diffs"]
+        diff_patch = ""
+        # Filters copied from get_pr_changes
+        for file_data in patch:
+            file_path = file_data["filename"]
+            if sweep_config.is_file_excluded(file_path):
+                continue
+            try:
+                file_contents = cloned_repo.get_file_contents(file_path)
+            except FileNotFoundError:
+                logger.warning(f"Error getting file contents for {file_path}")
+                continue
+            is_file_suitable, reason = sweep_config.is_file_suitable(file_contents)
+            if not is_file_suitable:
+                continue
+            diff = file_data["patch"]
+            if file_data["status"] == "added":
+                pr_snippets.append(Snippet.from_file(file_path, file_contents))
+            elif file_data["status"] == "modified":
+                patches = split_diff_into_patches(diff, file_path)
+                num_changes_per_patch = [patch.changes.count("\n+") + patch.changes.count("\n-") for patch in patches]
+                if max(num_changes_per_patch) > 10 \
+                    or file_contents.count("\n") + 1 < 10 * file_data["changes"]:
+                    print(f"adding {file_path}")
+                    print(num_changes_per_patch)
+                    print(file_contents.count("\n"))
+                    pr_snippets.append(Snippet.from_file(file_path, file_contents))
+                else:
+                    skipped_pr_snippets.append(Snippet.from_file(file_path, file_contents))
+            if file_data["status"] in ("added", "modified", "removed"):
+                diff_patch += f"File: {file_path}\n" + diff.strip("\n") + "\n\n"
+        if diff_patch:
+            pulls_messages += pr_format.format(
+                url=f"https://github.com/{repo_name}/pull/{pull['number']}",
+                title=pull["title"],
+                body=pull["body"],
+                patch=diff_patch.strip("\n")
+            ) + "\n\n"
+    return pr_snippets, skipped_pr_snippets, pulls_messages
 
 # function to iterate through a dictionary and ensure all values are json serializable
 # truncates strings at 500 for sake of readability
@@ -170,23 +223,26 @@ def check_repo_exists(
     metadata: dict = {},
 ):
     org_name, repo = repo_name.split("/")
-    if os.path.exists(f"/tmp/{repo}"):
+    if os.path.exists(f"{repo_cache}/{repo}"):
         return {"success": True}
     try:
-        print(f"Cloning {repo_name} to /tmp/{repo}")
-        git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"/tmp/{repo}")
-        print(f"Cloned {repo_name} to /tmp/{repo}")
+        print(f"Cloning {repo_name} to {repo_cache}/{repo}")
+        git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"{repo_cache}/{repo}")
+        print(f"Cloned {repo_name} to {repo_cache}/{repo}")
         return {"success": True}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
 @app.get("/backend/search")
-def search_codebase_endpoint(
+def search_codebase_endpoint_get(
     repo_name: str,
     query: str,
     stream: bool = False,
     access_token: str = Depends(get_token_header)
 ):
+    """
+    DEPRECATED, use POST instead.
+    """
     with Timer() as timer:
         g = get_authenticated_github_client(repo_name, access_token)
     logger.debug(f"Getting authenticated GitHub client took {timer.time_elapsed} seconds")
@@ -201,7 +257,7 @@ def search_codebase_endpoint(
                 username,
                 repo_name,
                 query,
-                token,
+                access_token=token,
                 metadata={
                     "repo_name": repo_name,
                     "query": query,
@@ -214,12 +270,42 @@ def search_codebase_endpoint(
             username,
             repo_name,
             query,
-            token,
+            access_token=token,
             metadata={
                 "repo_name": repo_name,
                 "query": query,
             }
         )]
+    
+@app.post("/backend/search")
+def search_codebase_endpoint_post(
+    repo_name: str = Body(...),
+    query: str = Body(...),
+    annotations: dict = Body({}),
+    access_token: str = Depends(get_token_header)
+):
+    with Timer() as timer:
+        g = get_authenticated_github_client(repo_name, access_token)
+    logger.debug(f"Getting authenticated GitHub client took {timer.time_elapsed} seconds")
+    if not g:
+        return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
+    username = Github(access_token).get_user().login
+    token = g.token if isinstance(g, CustomGithub) else access_token
+    def stream_response():
+        yield json.dumps(["Building lexical index...", []])
+        for message, snippets in wrapped_search_codebase.stream(
+            username,
+            repo_name,
+            query,
+            token,
+            annotations=annotations,
+            metadata={
+                "repo_name": repo_name,
+                "query": query,
+            }
+        ):
+            yield json.dumps((message, [snippet.model_dump() for snippet in snippets]))
+    return StreamingResponse(stream_response())
 
 @streamable
 @posthog_trace
@@ -228,8 +314,26 @@ def wrapped_search_codebase(
     repo_name: str,
     query: str,
     access_token: str,
+    annotations: dict = {},
     metadata: dict = {},
 ):
+    org_name, repo = repo_name.split("/")
+    if not os.path.exists(f"{repo_cache}/{repo}"):
+        print(f"Cloning {repo_name} to {repo_cache}/{repo}")
+        git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"{repo_cache}/{repo}")
+        print(f"Cloned {repo_name} to {repo_cache}/{repo}")
+    cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
+    cloned_repo.pull()
+    pr_snippets, skipped_pr_snippets, pulls_messages = get_pr_snippets(
+        repo_name,
+        annotations,
+        cloned_repo,
+    )
+    if pulls_messages:
+        if pulls_messages.count("<pull_request>") > 1:
+            query += "\n\nHere are the mentioned pull request(s):\n\n" + pulls_messages
+        else:
+            query += "\n\n" + pulls_messages
     for message, snippets in search_codebase.stream(
         repo_name,
         query,
@@ -245,11 +349,11 @@ def search_codebase(
 ):
     with Timer() as timer:
         org_name, repo = repo_name.split("/")
-        if not os.path.exists(f"/tmp/{repo}"):
-            print(f"Cloning {repo_name} to /tmp/{repo}")
-            git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"/tmp/{repo}")
-            print(f"Cloned {repo_name} to /tmp/{repo}")
-        cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name, token=access_token)
+        if not os.path.exists(f"{repo_cache}/{repo}"):
+            print(f"Cloning {repo_name} to {repo_cache}/{repo}")
+            git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"{repo_cache}/{repo}")
+            print(f"Cloned {repo_name} to {repo_cache}/{repo}")
+        cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
         cloned_repo.pull()
         for message, snippets in prep_snippets.stream(
             cloned_repo, query, 
@@ -267,7 +371,8 @@ def chat_codebase(
     messages: list[Message] = Body(...),
     snippets: list[Snippet] = Body(...),
     model: str = Body(...),
-    use_patch: bool = Body(False),
+    use_patch: bool = Body(True),
+    k: int = Body(DEFAULT_K),
     access_token: str = Depends(get_token_header)
 ):
     if len(messages) == 0:
@@ -292,7 +397,8 @@ def chat_codebase(
             "snippets": [snippet.model_dump() for snippet in snippets],
         },
         model=model,
-        use_patch=use_patch
+        use_patch=use_patch,
+        k=k
     )
 
 @posthog_trace
@@ -303,6 +409,7 @@ def chat_codebase_stream(
     snippets: list[Snippet],
     access_token: str,
     metadata: dict = {},
+    k: int = DEFAULT_K,
     model: str = "claude-3-opus-20240229",
     use_patch: bool = False,
 ):
@@ -326,45 +433,53 @@ def chat_codebase_stream(
     )
 
     org_name, repo = repo_name.split("/")
-    cloned_repo = MockClonedRepo(f"/tmp/{repo}", repo_name, token=access_token)
+    cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
     cloned_repo.git_repo.git.pull()
 
-    sweep_config = SweepConfig()
+    pr_snippets = []
     for message in messages:
         if message.role == "function":
             message.role = "assistant"
         if message.function_call:
             message.function_call = None
         if message.annotations:
-            pulls = message.annotations.get("pulls", [])
-            pulls_messages = ""
-            for pull in pulls:
-                patch = pull["file_diffs"]
-                diff_patch = ""
-                # Filters copied from get_pr_changes
-                for file_data in patch:
-                    file_path = file_data["filename"]
-                    if sweep_config.is_file_excluded(file_path):
-                        continue
-                    try:
-                        file_contents = cloned_repo.get_file_contents(file_path)
-                    except Exception:
-                        logger.warning(f"Error getting file contents for {file_path}")
-                        continue
-                    is_file_suitable, reason = sweep_config.is_file_suitable(file_contents)
-                    if not is_file_suitable:
-                        continue
-                    diff = file_data["patch"]
-                    if file_data["status"] in ("added", "modified", "removed"):
-                        diff_patch += diff.strip("\n") + "\n\n"
-                if diff_patch:
-                    pulls_messages += pr_format.format(
-                        title=pull["title"],
-                        body=pull["body"],
-                        patch=diff_patch.strip("\n")
-                    ) + "\n\n"
+            new_pr_snippets, skipped_pr_snippets, pulls_messages = get_pr_snippets(
+                repo_name,
+                message.annotations,
+                cloned_repo,
+            )
+            pr_snippets.extend(new_pr_snippets)
             if pulls_messages:
-                message.content += "\n\nPull requests:\n" + pulls_messages
+                message.content += "\n\nPull requests:\n" + pulls_messages + "\n\nBe sure to summarize the contents of the pull request during the analysis phase separately from other relevant files."
+    
+    if pr_snippets:
+        relevant_pr_snippets = []
+        other_relevant_snippets = []
+        for snippet in snippets:
+            if snippet.file_path in [pr_snippet.file_path for pr_snippet in pr_snippets]:
+                relevant_pr_snippets.append(snippet)
+            else:
+                other_relevant_snippets.append(snippet)
+        
+        snippets_message = relevant_snippets_message_for_pr.format(
+            repo_name=repo_name,
+            pr_files="\n".join([
+                relevant_snippet_template.format(
+                    i=i,
+                    file_path=snippet.file_path,
+                    content=snippet.content
+                )
+                for i, snippet in enumerate(relevant_pr_snippets)
+            ]),
+            joined_relevant_snippets="\n".join([
+                relevant_snippet_template.format(
+                    i=i,
+                    file_path=snippet.file_path,
+                    content=snippet.content
+                )
+                for i, snippet in enumerate(other_relevant_snippets)
+            ])
+        )
 
     chat_gpt.messages = [
         Message(
@@ -381,7 +496,8 @@ def chat_codebase_stream(
         access_token: str,
         metadata: dict,
         model: str,
-        use_openai: bool
+        use_openai: bool,
+        k: int = DEFAULT_K
     ):
         user_message = initial_user_message
         fetched_snippets = snippets
@@ -495,7 +611,7 @@ def chat_codebase_stream(
                     )
                 ]
                 
-                function_output, new_snippets = handle_function_call(function_call, repo_name, fetched_snippets, access_token)
+                function_output, new_snippets = handle_function_call(function_call, repo_name, fetched_snippets, access_token, k)
                 
                 yield [
                     *new_messages,
@@ -540,7 +656,7 @@ def chat_codebase_stream(
                 yield json.dumps([
                     message.model_dump()
                     for message in messages
-                ]) + "\n"
+                ])
             else:
                 current_state = [
                     message.model_dump()
@@ -548,7 +664,7 @@ def chat_codebase_stream(
                 ]
                 patch = jsonpatch.JsonPatch.from_diff(previous_state, current_state)
                 if patch:
-                    yield patch.to_string() + "\n"
+                    yield patch.to_string()
                 previous_state = current_state
 
     return StreamingResponse(
@@ -560,7 +676,8 @@ def chat_codebase_stream(
             metadata,
             model,
             use_openai=use_openai,
-            use_patch=use_patch
+            use_patch=use_patch,
+            k=k
         )
     )
 

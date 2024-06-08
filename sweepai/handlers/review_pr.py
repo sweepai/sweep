@@ -12,13 +12,15 @@ from sweepai.core.review_utils import (
     cluster_patches,
     decompose_code_review_by_group,
     format_all_pr_changes_by_groups,
+    format_comment_threads,
     format_pr_info,
+    get_all_comments_for_review,
     get_pr_changes,
     get_pr_summary_from_patches,
     group_vote_review_pr,
     review_pr_detailed_checks,
-    sort_code_issues_by_severity,
 )
+from sweepai.dataclasses.codereview import GroupedFilesForReview, PRReviewCommentThread
 from sweepai.utils.concurrency_utils import fire_and_forget_wrapper
 from sweepai.utils.github_utils import ClonedRepo, get_github_client, refresh_token
 from sweepai.utils.ticket_rendering_utils import create_update_review_pr_comment
@@ -110,19 +112,28 @@ def review_pr(
                 _comment_id = create_update_review_pr_comment(
                     username,
                     pr,
+                    {},
                     error_message=str(error),
                 )
                 return {"success": False, "reason": str(error)}
             pr_issue = repository.get_issue(number=pr.number)
             reaction_eyes = pr_issue.create_reaction("eyes")
+            # get all comments on the pr
+            comment_threads: dict[str, list[PRReviewCommentThread]] = get_all_comments_for_review(repository.full_name, pr, installation_id)
+            formatted_comment_threads: dict[str, str] = format_comment_threads(comment_threads)
             # handle creating comments on the pr to tell the user we are going to begin reviewing the pr
-            # _comment_id = create_update_review_pr_comment(username, pr)
             pr_changes, dropped_files, unsuitable_files = get_pr_changes(repository, pr)
             # -1 group key means review those seperately
             grouped_files: dict[str, list[str]] = cluster_patches(pr_changes)
+            # build another dict so that all files are in their own group
+            single_files = {file_name: [file_name] for file_name in pr_changes.keys()}
             # render all groups of files
-            formatted_pr_changes_by_group = format_all_pr_changes_by_groups(
+            formatted_pr_changes_by_group: dict[str, GroupedFilesForReview] = format_all_pr_changes_by_groups(
                 grouped_files, pr_changes
+            )
+            # also render them individually
+            formatted_pr_changes_by_file: dict[str, GroupedFilesForReview] = format_all_pr_changes_by_groups(
+                single_files, pr_changes
             )
             # formatted_pr_changes_by_file = format_pr_changes_by_file(pr_changes)
             pull_request_info = format_pr_info(pr)
@@ -138,8 +149,10 @@ def review_pr(
                 username,
                 pr_changes,
                 formatted_pr_changes_by_group,
+                formatted_pr_changes_by_file,
                 cloned_repo,
                 pull_request_info,
+                formatted_comment_threads,
                 multiprocess=True,
                 chat_logger=chat_logger,
             )
@@ -152,18 +165,9 @@ def review_pr(
                 pr_changes,
                 code_review_by_file,
                 pull_request_info,
+                formatted_comment_threads,
                 chat_logger=chat_logger,
             )
-            # sort all issues by severity
-            try:
-                code_review_by_file, all_issues_sorted = sort_code_issues_by_severity(
-                    username,
-                    code_review_by_file,
-                    chat_logger=chat_logger,
-                )
-            except Exception as e:
-                logger.error(f"Failed to sort code issues by severity: {e}")
-                all_issues_sorted = []
             # after 50 minutes have passed refresh token to re get pr
             if time() - review_pr_start_time > 50 * 60:
                 _, _ , repository = refresh_token(repository.full_name, installation_id)
@@ -171,8 +175,8 @@ def review_pr(
             _comment_id = create_update_review_pr_comment(
                 username,
                 pr,
+                formatted_comment_threads,
                 code_review_by_file=code_review_by_file,
-                sorted_issues=all_issues_sorted,
                 pull_request_summary=pull_request_summary,
                 dropped_files=dropped_files,
                 unsuitable_files=unsuitable_files,

@@ -5,11 +5,30 @@ from dataclasses import dataclass, field
 class CodeReviewIssue:
     file_name: str
     issue_description: str
-    start_line: int
-    end_line: int
+    line_number: str
 
     def __hash__(self):
-        return hash((self.file_name, self.issue_description, self.start_line, self.end_line))
+        return hash((self.file_name, self.issue_description, self.line_number))
+    
+@dataclass
+class PRReviewComment:
+    thread_id: str
+    file_name: str
+    line_number: int
+    body: str
+    is_resolved: bool
+    is_outdated: bool
+    author: str
+
+@dataclass
+class PRReviewCommentThread:
+    thread_id: str
+    file_name: str
+    line_number: int
+    is_resolved: bool
+    is_outdated: bool
+    comments: list[PRReviewComment]
+
 
 @dataclass
 class CodeReview:

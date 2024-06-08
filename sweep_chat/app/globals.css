@@ -100,7 +100,8 @@
     }
 
     code {
-        color: salmon;
+        color: #00C8C8;
+        font-weight: bold;
         font-size: 1em;
         font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
     }
