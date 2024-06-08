@@ -10,7 +10,7 @@ from loguru import logger
 
 from sweepai.dataclasses.gha_fix import GHAFix
 from sweepai.handlers.on_check_suite import get_failing_circleci_logs
-from sweepai.utils.str_utils import extract_object_fields_from_string, strip_triple_quotes
+from sweepai.utils.str_utils import strip_triple_quotes
 from sweepai.config.client import get_gha_enabled
 from sweepai.config.server import CIRCLE_CI_PAT, DEPLOYMENT_GHA_ENABLED
 from sweepai.core.chat import ChatGPT
@@ -62,7 +62,6 @@ def get_error_locations_from_error_logs(error_logs: str, cloned_repo: ClonedRepo
     matched_files = []
     errors = defaultdict(dict)
     error_message = ""
-    
     try:
         file_paths = cloned_repo.get_file_list()
         for match in matches:
@@ -107,6 +106,8 @@ def get_error_locations_from_error_logs(error_logs: str, cloned_repo: ClonedRepo
         for file_path in matched_files:
             if file_path not in deduped_matched_files:
                 deduped_matched_files.append(file_path)
+        if not error_message: # monkey patch because this can fail and return empty error_message, which is not what we want
+            return error_logs, []
         return error_message, deduped_matched_files
     except Exception as e:
         logger.error(f"Error in getting error locations: {e}")
@@ -254,27 +255,7 @@ def on_failing_github_actions(
                     changes_made=diffs,
                     previous_github_actions_logs=previous_gha_logs,
                 )
-            
-            # generate query based on github error logs
-            chat_gpt_generate_query = ChatGPT()
-            chat_gpt_generate_query.messages = [
-                Message(role="system", content=gha_generate_query_system_prompt)
-            ]
-            formatted_gha_generate_query_prompt = gha_generate_query_user_prompt.format(
-                github_actions_logs=failed_gha_logs, issue_description=problem_statement
-            )
-            # we can also gate github actions fixes here
-            gha_log_query_response = chat_gpt_generate_query.chat_anthropic(
-                content=formatted_gha_generate_query_prompt,
-                temperature=0.2,
-                use_openai=True,
-            )
-            gha_log_query, failed, _ = extract_object_fields_from_string(gha_log_query_response, ["query"])
-            final_query = problem_statement.strip("\n")
-            if not failed:
-                final_query += gha_log_query.get("query", "")
-
-            snippets: list[Snippet] = prep_snippets(cloned_repo=cloned_repo, query=final_query, ticket_progress=None) # need to do this, can use the old query for speed
+            snippets: list[Snippet] = prep_snippets(cloned_repo=cloned_repo, query=all_information_prompt, ticket_progress=None) # need to do this, can use the old query for speed
             issue_request = get_issue_request(
                 "Fix the following errors to complete the user request.",
                 all_information_prompt,
@@ -302,13 +283,14 @@ def on_failing_github_actions(
             pull_request_bot = PRSummaryBot()
             if modify_files_dict_history:
                 commit_message = pull_request_bot.get_commit_message(
-                    modify_files_dict, 
+                    modify_files_dict=modify_files_dict, 
                     previous_modify_files_dict=modify_files_dict_history[-1], 
                     chat_logger=chat_logger
                 )[:50]
             else:
                 commit_message = pull_request_bot.get_commit_message(
-                    modify_files_dict, chat_logger=chat_logger
+                    modify_files_dict=modify_files_dict,
+                    chat_logger=chat_logger
                 )[:50]
             modify_files_dict_history.append(copy.deepcopy(modify_files_dict))
             try:

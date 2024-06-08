@@ -529,7 +529,7 @@ def on_ticket(
                 edit_sweep_comment(
                     (
                         "I'm sorry, but it looks like an error has occurred due to"
-                        + f" a planning failure. The error message is {str(e)}. Feel free to add more details to the issue description"
+                        + f" a planning failure. The error message is {str(e).rstrip('.')}. Feel free to add more details to the issue description"
                         + " so Sweep can better address it. Alternatively, reach out to Kevin or William for help at"
                         + " https://community.sweep.dev/."
                     ),

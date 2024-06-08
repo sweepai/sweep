@@ -17,7 +17,7 @@ from sweepai.utils.github_utils import get_token
 
 MAX_LINES = 500
 LINES_TO_KEEP = 100
-CIRCLECI_SLEEP_DURATION_SECONDS = 5
+CIRCLECI_SLEEP_DURATION_SECONDS = 15
 
 log_message = """GitHub actions yielded the following error.
 
@@ -208,22 +208,19 @@ def get_failing_circleci_logs(
         if all(status.state == "success" for status in all_statuses):
             failing_statuses = []
             break
-        # if any of the statuses are pending, sleep and try again
-        if any(status.state == "pending" for status in all_statuses):
-            if total_poll_attempts * CIRCLECI_SLEEP_DURATION_SECONDS // 60 >= 60:
-                    logger.debug("Polling for CircleCI has taken too long, giving up.")
-                    break
-            else:
-                # wait one minute between check attempts
-                total_poll_attempts += 1
-
-                if total_poll_attempts > 1:
-                    sleep(CIRCLECI_SLEEP_DURATION_SECONDS)
-            continue
         # if any of the statuses are failure, return those statuses
         failing_statuses = [status for status in all_statuses if status.state == "failure"]
         if failing_statuses:
             break
+        # if any of the statuses are pending, sleep and try again
+        if any(status.state == "pending" for status in all_statuses):
+            if total_poll_attempts * CIRCLECI_SLEEP_DURATION_SECONDS // 60 >= 60:
+                logger.debug("Polling for CircleCI has taken too long, giving up.")
+                break
+            # wait between check attempts
+            total_poll_attempts += 1
+            sleep(CIRCLECI_SLEEP_DURATION_SECONDS)
+            continue
     # done polling
     for status_detail in failing_statuses:
         # CircleCI run detected
