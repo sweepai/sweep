@@ -3,12 +3,21 @@ This module is responsible for handling the check suite event, called from sweep
 """
 import io
 import re
+from time import sleep
 import zipfile
 
+from loguru import logger
 import requests
 
+from github.Repository import Repository
+from github.CommitStatus import CommitStatus
+from sweepai.config.server import CIRCLE_CI_PAT
 from sweepai.logn.cache import file_cache
 from sweepai.utils.github_utils import get_token
+
+MAX_LINES = 500
+LINES_TO_KEEP = 100
+CIRCLECI_SLEEP_DURATION_SECONDS = 15
 
 log_message = """GitHub actions yielded the following error.
 
@@ -28,6 +37,8 @@ def get_files_in_dir(zipfile: zipfile.ZipFile, dir: str):
         if file.startswith(dir) and not file.endswith("/")
     ]
 
+def remove_ansi_tags(logs: str) -> str:
+    return re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', "", logs, flags=re.MULTILINE)
 
 @file_cache()
 def download_logs(repo_full_name: str, run_id: int, installation_id: int, get_errors_only=True):
@@ -71,8 +82,6 @@ Here are the logs:
 
 def clean_gh_logs(logs_str: str):
     # Extraction process could be better
-    MAX_LINES = 500
-    LINES_TO_KEEP = 100
     log_list = logs_str.split("\n")
     truncated_logs = [log[log.find(" ") + 1 :] for log in log_list]
     logs_str = "\n".join(truncated_logs)
@@ -84,6 +93,13 @@ def clean_gh_logs(logs_str: str):
     command_line = match.group(1).strip()
     log_content = match.group(2).strip()
     error_line = match.group(3).strip() # can be super long
+    return clean_cicd_logs(
+        command=command_line,
+        error=error_line,
+        logs=log_content,
+    )
+
+def clean_cicd_logs(command: str, error: str, logs: str):
     patterns = [
         # for docker
         "Already exists",
@@ -111,7 +127,7 @@ def clean_gh_logs(logs_str: str):
     ]
     cleaned_logs = [
         log.strip()
-        for log in log_content.split("\n")
+        for log in logs.split("\n")
         if not any(log.strip().startswith(pattern) for pattern in patterns)
     ]
     if len(cleaned_logs) > MAX_LINES:
@@ -119,13 +135,106 @@ def clean_gh_logs(logs_str: str):
         cleaned_logs = cleaned_logs[:LINES_TO_KEEP] + ["..."] + cleaned_logs[-LINES_TO_KEEP:]
     cleaned_logs_str = "\n".join(cleaned_logs)
     error_content = ""
-    if len(error_line) < 200000:
+    if len(error) < 200000:
         error_content = f"""<errors>
-{error_line}
+{error}
 </errors>"""
     cleaned_response = gha_prompt.format(
-        command_line=command_line,
+        command_line=command,
         error_content=error_content,
         cleaned_logs_str=cleaned_logs_str,
     )
     return cleaned_response
+
+def get_circleci_job_details(job_number, project_slug, vcs_type='github'):
+    # project_slug is the repo full name
+    headers = {'Circle-Token': CIRCLE_CI_PAT}
+    url = f"https://circleci.com/api/v1.1/project/{vcs_type}/{project_slug}/{job_number}"
+    response = requests.get(url, headers=headers)
+    return response.json()
+
+# take a commit and return all failing logs as a list
+def get_failing_circleci_log_from_url(circleci_run_url: str, repo_full_name: str):
+    if not CIRCLE_CI_PAT:
+        logger.warning("CIRCLE_CI_APIKEY not set")
+        return []
+    headers = {'Circle-Token': CIRCLE_CI_PAT}
+    job_number = circleci_run_url.split("/")[-1]
+    circleci_run_details = get_circleci_job_details(job_number, repo_full_name)
+    steps = circleci_run_details['steps']
+    failing_steps = []
+    failed_commands_and_logs = ""
+    for step in steps:
+        if step['actions'][0]['exit_code'] != 0:
+            failing_steps.append(step)
+    for step in failing_steps:
+        actions = step['actions']
+        for action in actions:
+            if action.get("status") != "failed":
+                continue
+            if 'output_url' in action:
+                log_url = action['output_url']
+                log_response = requests.get(log_url, headers=headers)
+                log_response = log_response.json()
+                # these might return in a different order; watch out
+                log_message = log_response[0]["message"] if len(log_response) > 0 else ""
+                error_message = log_response[1].get("message", "") if len(log_response) > 1 else ""
+                log_message = remove_ansi_tags(log_message)
+                error_message = remove_ansi_tags(error_message)
+                command = action.get("bash_command", "No command found.") # seems like this is the only command
+                circle_ci_failing_logs = clean_cicd_logs(
+                    command=command,
+                    error=error_message,
+                    logs=log_message,
+                )
+                if circle_ci_failing_logs:
+                    failed_commands_and_logs += circle_ci_failing_logs + "\n"
+    return failed_commands_and_logs
+
+def get_failing_circleci_logs(
+    repo: Repository,
+    current_commit: str,
+):
+    # get the pygithub commit object
+    all_logs = ""
+    failing_statuses = []
+    total_poll_attempts = 0
+    # hacky workaround because circleci can have a setup that takes a long time, and we will report "success" because the setup has finished but the actual CI is still running
+    logger.debug("Waiting for 60 seconds before polling for CircleCI status.")
+    sleep(60)
+    while True:
+        commit = repo.get_commit(current_commit)
+        status = commit.get_combined_status()
+        # https://docs.github.com/en/rest/commits/statuses?apiVersion=2022-11-28#get-the-combined-status-for-a-specific-reference
+        all_statuses: list[CommitStatus] = status.statuses
+        # if all are success, break
+        if all(status.state == "success" for status in all_statuses):
+            failing_statuses = []
+            logger.debug(f"Exiting polling for CircleCI as all statuses are success. Statuses were: {all_statuses}")
+            break
+        # if any of the statuses are failure, return those statuses
+        failing_statuses = [status for status in all_statuses if status.state == "failure"]
+        if failing_statuses:
+            logger.debug(f"Exiting polling for CircleCI as some statuses are failing. Statuses were: {all_statuses}")
+            break
+        # if any of the statuses are pending, sleep and try again
+        if any(status.state == "pending" for status in all_statuses):
+            if total_poll_attempts * CIRCLECI_SLEEP_DURATION_SECONDS // 60 >= 60:
+                logger.debug("Polling for CircleCI has taken too long, giving up.")
+                break
+            # wait between check attempts
+            total_poll_attempts += 1
+            logger.debug(f"Polling to see if CircleCI has finished... {total_poll_attempts}.")
+            sleep(CIRCLECI_SLEEP_DURATION_SECONDS)
+            continue
+    # done polling
+    for status_detail in failing_statuses:
+        # CircleCI run detected
+        if 'circleci' in status_detail.context.lower():
+            failing_circle_ci_log = get_failing_circleci_log_from_url(
+                circleci_run_url=status_detail.target_url,
+                repo_full_name=repo.full_name
+            ) # may be empty string
+            if failing_circle_ci_log:
+                all_logs += failing_circle_ci_log + "\n"
+    return all_logs

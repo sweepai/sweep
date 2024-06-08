@@ -209,3 +209,5 @@ CACHE_DIRECTORY = os.environ.get("CACHE_DIRECTORY", "/mnt/caches")
 
 assert OPENAI_API_KEY, "OPENAI_API_KEY is required."
 assert COHERE_API_KEY, "COHERE_API_KEY is required."
+
+CIRCLE_CI_PAT = os.environ.get("CIRCLE_CI_PAT", None) # if this is present, we will poll from and get logs from circleci
