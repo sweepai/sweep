@@ -199,6 +199,9 @@ def get_failing_circleci_logs(
     all_logs = ""
     failing_statuses = []
     total_poll_attempts = 0
+    # hacky workaround because circleci can have a setup that takes a long time, and we will report "success" because the setup has finished but the actual CI is still running
+    logger.debug("Waiting for 60 seconds before polling for CircleCI status.")
+    sleep(60)
     while True:
         commit = repo.get_commit(current_commit)
         status = commit.get_combined_status()
@@ -207,10 +210,12 @@ def get_failing_circleci_logs(
         # if all are success, break
         if all(status.state == "success" for status in all_statuses):
             failing_statuses = []
+            logger.debug(f"Exiting polling for CircleCI as all statuses are success. Statuses were: {all_statuses}")
             break
         # if any of the statuses are failure, return those statuses
         failing_statuses = [status for status in all_statuses if status.state == "failure"]
         if failing_statuses:
+            logger.debug(f"Exiting polling for CircleCI as some statuses are failing. Statuses were: {all_statuses}")
             break
         # if any of the statuses are pending, sleep and try again
         if any(status.state == "pending" for status in all_statuses):
