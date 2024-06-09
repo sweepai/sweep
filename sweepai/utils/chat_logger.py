@@ -41,7 +41,7 @@ class ChatLogger(BaseModel):
         super().__init__(data=data, **kwargs)  # Call the BaseModel's __init__ method
         key = MONGODB_URI
         if key is None:
-            logger.warning("Chat history logger has no key")
+            logger.warning(f"Chat history logger has no key")
             return
         if not mock:
             try:
@@ -60,12 +60,12 @@ class ChatLogger(BaseModel):
                 )
                 self.expiration = datetime.utcnow() + timedelta(days=1)
             except Exception as e:
-                logger.warning("Chat history could not connect to MongoDB")
-                logger.warning(e)
+                logger.warning(f"Chat history could not connect to MongoDB")
+                logger.warning(f"{e}")
 
     def _add_chat(self, additional_data):
         if self.chat_collection is None:
-            logger.error("Chat collection is not initialized")
+            logger.error(f"Chat collection is not initialized")
             return
         document = {
             **self.data,
@@ -83,7 +83,7 @@ class ChatLogger(BaseModel):
 
     def _add_successful_ticket(self, gpt3=False):
         if self.ticket_collection is None:
-            logger.error("Ticket Collection Does Not Exist")
+            logger.error(f"Ticket Collection Does Not Exist")
             return
 
         username = self.data.get("assignee", self.data["username"])
@@ -121,7 +121,7 @@ class ChatLogger(BaseModel):
         self, use_date: bool = False, gpt3: bool = False, purchased: bool = False
     ) -> int:
         if self.ticket_collection is None:
-            logger.error("Ticket Collection Does Not Exist")
+            logger.error(f"Ticket Collection Does Not Exist")
             return
         username = self.data["username"]
         cache_key = self._cache_key(
@@ -144,7 +144,7 @@ class ChatLogger(BaseModel):
 
     def _get_user_field(self, field: str):
         if self.ticket_collection is None:
-            logger.error("Ticket Collection Does Not Exist")
+            logger.error(f"Ticket Collection Does Not Exist")
             return None
 
         username = self.data["username"]
@@ -174,7 +174,7 @@ class ChatLogger(BaseModel):
         if IS_SELF_HOSTED:
             return False
         if self.ticket_collection is None:
-            logger.error("Ticket Collection Does Not Exist")
+            logger.error(f"Ticket Collection Does Not Exist")
             return True
         purchased_tickets = self.get_ticket_count(purchased=True)
         if self.is_paying_user():
