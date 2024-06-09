@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 import git
 from github import Github
 from loguru import logger
+import yaml
 
 from sweepai.agents.modify_utils import validate_and_parse_function_call
 from sweepai.agents.search_agent import extract_xml_tag
@@ -401,6 +402,21 @@ def chat_codebase(
         k=k
     )
 
+# this is messy; its modular so we can move it elsewhere later
+def get_repo_specific_description(cloned_repo: MockClonedRepo):
+    try:
+        sweep_yaml_contents = cloned_repo.get_file_contents("sweep.yaml")
+        sweep_yaml = yaml.safe_load(sweep_yaml_contents)
+        description = sweep_yaml.get("description", "")
+        system_prompt_formatted_description = f"\nThis is a user provided description of the codebase. Keep this in mind if it is relevant to their query:\n<codebase_description>\n{description}\n</codebase_description>\n"
+        return system_prompt_formatted_description
+    except FileNotFoundError:
+        logger.info(f"No .sweep.yaml file present in {cloned_repo.repo_full_name}.")
+        return ""
+    except Exception as e:
+        logger.error(f"Error reading .sweep.yaml file: {e}")
+        return ""
+
 @posthog_trace
 def chat_codebase_stream(
     username: str,
@@ -415,11 +431,11 @@ def chat_codebase_stream(
 ):
     if not snippets:
         raise ValueError("No snippets were sent.")
+    org_name, repo = repo_name.split("/")
+    cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
+    cloned_repo.git_repo.git.pull()
+    repo_specific_description = get_repo_specific_description(cloned_repo=cloned_repo)
     use_openai = model.startswith("gpt")
-    # Stream
-    chat_gpt = ChatGPT.from_system_message_string(
-        prompt_string=system_message
-    )
     snippets_message = relevant_snippets_message.format(
         repo_name=repo_name,
         joined_relevant_snippets="\n".join([
@@ -429,12 +445,12 @@ def chat_codebase_stream(
                 content=snippet.content
             )
             for i, snippet in enumerate(snippets)
-        ])
+        ]),
+        repo_specific_description=repo_specific_description
     )
-
-    org_name, repo = repo_name.split("/")
-    cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
-    cloned_repo.git_repo.git.pull()
+    chat_gpt: ChatGPT = ChatGPT.from_system_message_string(
+        prompt_string=system_message
+    )
 
     pr_snippets = []
     for message in messages:
@@ -478,7 +494,8 @@ def chat_codebase_stream(
                     content=snippet.content
                 )
                 for i, snippet in enumerate(other_relevant_snippets)
-            ])
+            ]),
+            repo_specific_description=repo_specific_description
         )
 
     chat_gpt.messages = [
