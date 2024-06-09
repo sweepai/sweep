@@ -33,16 +33,17 @@ def wrap_xml_tags_with_details(text: str) -> str:
         return f"<details><summary>&lt;{tag}&gt;</summary>\n\n```xml\n{content}\n```\n\n</details>"
     return re.sub(r'<([^>]+)>(.*?)</\1>', replace_tag_pair, text, flags=re.DOTALL)
 
-functions_to_unique_f_locals_getter = {
-    "on_ticket": lambda x: x["issue_url"].number,
-    "review_pr": lambda x: x["pr"].number,
-}
+functions_to_unique_f_locals_string_getter = {
+    "on_ticket": lambda x: f"issue_{x["issue_url"].number}",
+    "review_pr": lambda x: f"pr_{x["pr"].number}",
+    "on_failing_github_actions": lambda x: f"pr_{x["pull_request"].number}",
+} # just need to add the function name and the lambda to get the unique f_locals
 
 def save_messages_for_visualization(messages: list[Message], use_openai: bool):
     current_datetime = datetime.now(pst_timezone)
-    current_year = current_datetime.strftime("%Y_%h_%d")
-    current_hour_minute_second = current_datetime.strftime("%I:%M%p
-    subfolder = f"sweepai_messages/{current_year}"
+    current_year_month_day = current_datetime.strftime("%Y_%h_%d")
+    current_hour_minute = current_datetime.strftime("%I:%M%p")
+    subfolder = f"sweepai_messages/{current_year_month_day}"
     llm_type = "openai" if use_openai else "anthropic"
     
     os.makedirs(subfolder, exist_ok=True)
@@ -50,11 +51,17 @@ def save_messages_for_visualization(messages: list[Message], use_openai: bool):
     frames = stack()
     function_names = [frame.function for frame in frames]
     for i, function_name in enumerate(function_names):
-        if function_name in functions_to_unique_f_locals_getter:
-            unique_f_locals = functions_to_unique_f_locals_getter[function_name](frames[i].frame.f_locals)
+        if function_name in functions_to_unique_f_locals_string_getter:
+            unique_f_locals = functions_to_unique_f_locals_string_getter[function_name](frames[i].frame.f_locals)
             subfolder = os.path.join(subfolder, f"{function_name}_{unique_f_locals}")
             os.makedirs(subfolder, exist_ok=True)
             break
+        else:
+            # terminate on the second to last item
+            if i == len(function_names) - 2:
+                subfolder = os.path.join(subfolder, f"{function_name}_{current_hour_minute}")
+                os.makedirs(subfolder, exist_ok=True)
+
     caller_function_name = "unknown"
     if len(function_names) < 2:
         caller_function_name = "unknown"
