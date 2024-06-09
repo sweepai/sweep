@@ -1,6 +1,5 @@
 from copy import deepcopy
 from math import log
-import os
 import subprocess
 import urllib
 from dataclasses import dataclass, field
@@ -603,11 +602,8 @@ def generate_file_imports(graph,
 def parse_query_for_files(
     query: str, rcm: RepoContextManager
 ) -> tuple[RepoContextManager, nx.DiGraph]:
-    # use cloned_repo to attempt to find any files names that appear in the query
-    repo_full_name = rcm.cloned_repo.repo_full_name
-    repo_name = repo_full_name.split("/")[-1]
-    repo_group_name = repo_full_name.split("/")[0]
-    code_files_to_add = set([])
+    MAX_FILES_TO_ADD = 5
+    code_files_to_add = []
     code_files_to_check = set(list(rcm.cloned_repo.get_file_list()))
     code_files_uri_encoded = [
         urllib.parse.quote(file_path) for file_path in code_files_to_check
@@ -615,30 +611,23 @@ def parse_query_for_files(
     # check if any code files are mentioned in the query
     for file, file_uri_encoded in zip(code_files_to_check, code_files_uri_encoded):
         if file in query or file_uri_encoded in query:
-            code_files_to_add.add(file)
-    for code_file in code_files_to_add:
+            code_files_to_add.append((file, file))
+        # check this separately to match a/b/c.py with b/c.py
+        elif len(file.split('/')) >= 2:
+            last_two_parts = '/'.join(file.split('/')[-2:])
+            if (last_two_parts in query or urllib.parse.quote(last_two_parts) in query) and len(last_two_parts) > 5:
+                # this can be improved by bumping out other matches if it's a "better" match (e.g. more specific)
+                code_files_to_add.append((file, last_two_parts))
+    # sort by where the match was found in the query
+    code_files_to_add = sorted(
+        code_files_to_add,
+        key=lambda x: query.index(x[1]) if x[1] in query else urllib.parse.unquote(query).index(x[1]), # must exist in query because we matched something
+    )
+    # convert to a deduplicated list of file paths
+    code_files_to_add = list(dict.fromkeys([file for file, _ in code_files_to_add]))
+    for code_file in code_files_to_add[:MAX_FILES_TO_ADD]:
         rcm.append_relevant_file_paths(code_file)
-    # only for enterprise
-    try:
-        pathing = (
-            f"{repo_group_name}_import_graphs/{repo_name}/{repo_name}_import_tree.txt"
-        )
-        if not os.path.exists(pathing):
-            return rcm, None
-        graph = load_graph_from_file(pathing)
-    except Exception as e:
-        logger.error(
-            f"Error loading import tree: {e}, skipping step and setting import_tree to empty string"
-        )
-        return rcm, None
-    files = set(list(graph.nodes()))
-    files_uri_encoded = [urllib.parse.quote(file_path) for file_path in files]
-    for file, file_uri_encoded in zip(files, files_uri_encoded):
-        if (file in query or file_uri_encoded in query) and (
-            file not in code_files_to_add
-        ):
-            rcm.append_relevant_file_paths(file)
-    return rcm, graph
+    return rcm, None
 
 
 # do not ignore repo_context_manager

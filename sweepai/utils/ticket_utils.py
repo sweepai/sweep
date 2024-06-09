@@ -513,7 +513,7 @@ def fetch_relevant_files(
 ):
     logger.info("Fetching relevant files...")
     try:
-        search_query = (title + summary + replies_text).strip("\n")
+        search_query = f"{title}\n{summary}\n{replies_text}".strip("\n")
         replies_text = f"\n{replies_text}" if replies_text else ""
         formatted_query = (f"{title.strip()}\n{summary.strip()}" + replies_text).strip(
             "\n"
@@ -532,6 +532,7 @@ def fetch_relevant_files(
         # repo_context_manager, import_graph = integrate_graph_retrieval(search_query, repo_context_manager)
 
         parse_query_for_files(search_query, repo_context_manager)
+        repo_context_manager = add_relevant_files_to_top_snippets(repo_context_manager)
         yield "Here are the files I've found so far. I'm currently selecting a subset of the files to edit.\n", repo_context_manager
 
         repo_context_manager = get_relevant_context(

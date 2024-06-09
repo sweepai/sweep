@@ -128,7 +128,7 @@ Single, detailed, specific natural language search question to search the codeba
 
 relevant_snippets_message = """# Codebase
 Repo: {repo_name}
-
+{repo_specific_description}
 # Relevant codebase files:
 Here are the initial search results from the codebase. These will be your primary reference to solve the problem:
 
@@ -162,7 +162,7 @@ pr_format = """Here are the contents of the referenced pull request {url}:
 
 relevant_snippets_message_for_pr = """# Codebase
 Repo: {repo_name}
-
+{repo_specific_description}
 # Full files from the pull request:
 Here are the files from pull request:
 

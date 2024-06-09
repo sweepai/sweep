@@ -29,6 +29,7 @@ def modify(
         return previous_modify_files_dict
 
     # handles renames in cloned_repo
+    # TODO: handle deletions here - it can cause crashes
     for file_path, new_file_path in renames_dict.items():
         file_contents = cloned_repo.get_file_contents(file_path)
         with open(os.path.join(cloned_repo.repo_dir, new_file_path), "w") as f:
