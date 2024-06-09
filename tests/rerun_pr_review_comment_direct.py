@@ -1,9 +1,13 @@
+import hashlib
+import hmac
 import html
+import json
 
 import typer
 from fastapi.testclient import TestClient
 
 from sweepai.api import app
+from sweepai.config.server import WEBHOOK_SECRET
 from sweepai.utils.github_utils import get_github_client, get_installation_id, get_installation
 
 
@@ -62,12 +66,25 @@ def update_pr_review_comments(
     pr_url: str = pr_url or typer.prompt("PR URL")
     print("Fetching issue metadata...")
     comment_requests = fetch_pr_review_request(pr_url)
+    comment_requests = [comment_requests[-1]]
     print("Sending request...")
 
     client = TestClient(app)
+    
     for request in comment_requests:
+        sha = ""
+        if WEBHOOK_SECRET:
+            sha = hmac.new(
+                WEBHOOK_SECRET.encode("utf-8"),
+                msg=json.dumps(request).encode("utf-8"),
+                digestmod=hashlib.sha256,
+            ).hexdigest()
         response = client.post(
-            "/", json=request, headers={"X-GitHub-Event": "pull_request_review_comment"}
+            "/", json=request, 
+            headers={
+                "X-GitHub-Event": "pull_request_review_comment",
+                "X-Hub-Signature-256": f"sha256={sha}"
+            },
         )
         print(response)
 

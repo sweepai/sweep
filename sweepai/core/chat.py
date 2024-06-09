@@ -423,9 +423,9 @@ class ChatGPT(MessageList):
         if assistant_message_content:
             self.messages.append(Message(role="assistant", content=assistant_message_content))
         temperature = temperature or self.temperature or default_temperature
-        messages_string = '\n\n'.join([message.content for message in self.messages])
         if verbose:
-            logger.debug(f"Calling anthropic with model {model}\nMessages:{messages_string}\nInput:\n{content}")
+            # messages_string_to_log = '\n\n'.join([message.content for message in self.messages])
+            logger.debug(f"Calling anthropic with model {model}\nInput:\n{content}")
         system_message = "\n\n".join([message.content for message in self.messages if message.role == "system"])
         content = ""
         e = None
