@@ -7,7 +7,7 @@ import {
     CommandInput,
   } from "./command"
   import { Command as CommandPrimitive } from "cmdk"
-  import { useState, useRef, useCallback, type KeyboardEvent } from "react"
+  import { useState, useRef, useCallback, type KeyboardEvent, useEffect } from "react"
   
   import { Skeleton } from "./skeleton"
   
@@ -42,7 +42,7 @@ import {
     const [isOpen, setOpen] = useState(false)
     const [selected, setSelected] = useState<Option>(value as Option)
     const [inputValue, setInputValue] = useState<string>(value?.label || "")
-  
+
     const handleKeyDown = useCallback(
       (event: KeyboardEvent<HTMLDivElement>) => {
         const input = inputRef.current
@@ -97,7 +97,13 @@ import {
       },
       [onValueChange],
     )
-  
+
+    useEffect(() => {
+        if (value) {
+            setInputValue(value.label)
+        }
+    }, [value?.label])
+
     return (
       <CommandPrimitive onKeyDown={handleKeyDown} className="w-full">
         <div>

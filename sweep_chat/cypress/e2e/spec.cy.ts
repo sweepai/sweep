@@ -22,7 +22,7 @@ describe('sweep chat', () => {
 
     cy.get(':nth-child(5) > .flex').type(testMessage + "{enter}")
     cy.wait(1000)
-    cy.get(':nth-child(5) > .inline-flex').click()
+    cy.get('.bg-destructive').click()
     cy.on('uncaught:exception', (err, runnable) => {
       expect(err.message).to.include('No snippets found');
       return false;
