@@ -54,7 +54,8 @@ def cleaned_rg_output(root_directory: str, sweep_config: SweepConfig, output: st
     for block in output.split("\n\n"):
         if not block.strip():
             continue
-        file_path, *contents = block.split("\n")
+        full_file_path, *contents = block.split("\n")
+        file_path = full_file_path[len(root_directory) + 1:]
         if sweep_config.is_file_excluded_aggressive(root_directory, file_path):
             continue
         results[file_path.removeprefix(root_directory).removeprefix("/")] = "\n".join(contents)
@@ -109,3 +110,10 @@ def manual_code_check(file_contents: str, code_snippet: str) -> tuple[int, bool]
         if new_code in file_contents:
             return indent, True
     return -1, False
+
+# splits the output of ripgrep into a line number and the rest of the code line
+def parse_ripgrep_line(line: str):
+    if ":" not in line:
+        return -1, ""
+    line_number, code_line = line.split(":", 1)
+    return int(line_number), code_line

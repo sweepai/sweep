@@ -8,6 +8,8 @@ from github.PullRequest import PullRequest
 from loguru import logger
 
 from sweepai.chat.api import posthog_trace
+from sweepai.config.client import SweepConfig
+from sweepai.core.dynamic_context_bot import DynamicContextBot
 from sweepai.core.review_utils import (
     cluster_patches,
     decompose_code_review_by_group,
@@ -116,6 +118,8 @@ def review_pr(
                     error_message=str(error),
                 )
                 return {"success": False, "reason": str(error)}
+            # context_bot = DynamicContextBot()
+            # context_bot.use_ripgrep(["test"], "target", cloned_repo)
             pr_issue = repository.get_issue(number=pr.number)
             reaction_eyes = pr_issue.create_reaction("eyes")
             # get all comments on the pr
