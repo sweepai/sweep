@@ -337,7 +337,7 @@ def get_gha_enabled(repo: Repository) -> bool:
         return True
     try:
         gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
-            "gha_enabled", False
+            "gha_enabled", True
         )
         return gha_enabled
     except Exception:
@@ -346,6 +346,25 @@ def get_gha_enabled(repo: Repository) -> bool:
         )
         return True
 
+@lru_cache(maxsize=None)
+def get_config_key_value(repo: Repository, key_name: str) -> bool:
+    try:
+        contents = repo.get_contents("sweep.yaml")
+    except Exception:
+        logger.info(
+            "No sweep.yaml found, falling back to True"
+        )
+        return None
+    try:
+        key_value = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
+            key_name, None
+        )
+        return key_value
+    except Exception:
+        logger.info(
+            "Error when getting gha enabled, falling back to True"
+        )
+        return None
 
 @lru_cache(maxsize=None)
 def get_description(repo: Repository) -> dict:

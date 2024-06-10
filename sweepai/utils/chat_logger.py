@@ -59,9 +59,8 @@ class ChatLogger(BaseModel):
                     "expiration", expireAfterSeconds=2419200
                 )
                 self.expiration = datetime.utcnow() + timedelta(days=1)
-            except Exception as e:
-                logger.warning("Chat history could not connect to MongoDB")
-                logger.warning(e)
+            except Exception:
+                logger.info("Chat history could not connect to MongoDB")
 
     def _add_chat(self, additional_data):
         if self.chat_collection is None:
