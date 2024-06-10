@@ -1,6 +1,7 @@
 from functools import wraps
 import traceback
 from typing import Any, Callable
+import uuid
 from diskcache import Cache
 import jsonpatch
 from copy import deepcopy
@@ -33,6 +34,9 @@ app = FastAPI()
 
 auth_cache = Cache(f'{CACHE_DIRECTORY}/auth_cache') 
 repo_cache = f"{CACHE_DIRECTORY}/repos"
+message_cache = f"{CACHE_DIRECTORY}/messages"
+
+os.makedirs(message_cache, exist_ok=True)
 
 DEFAULT_K = 8
 
@@ -721,6 +725,46 @@ def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, s
         return f"SUCCESS\n\nHere are the relevant files to your search request:\n{new_snippets_string}", new_snippets_to_add[:k]
     else:
         return "ERROR\n\nTool not found.", []
+
+@app.post("/backend/messages/save")
+async def write_message_to_disk(
+    repo_name: str = Body(...),
+    messages: list[Message] = Body(...),
+    snippets: list[Snippet] = Body(...),
+    message_id: str = Body(""),
+):
+    if not message_id:
+        message_id = str(uuid.uuid4())
+    try:
+        with open(f"{CACHE_DIRECTORY}/messages/{message_id}.json", "w") as file:
+            json.dump({
+                "repo_name": repo_name,
+                "messages": [message.model_dump() for message in messages],
+                "snippets": [snippet.model_dump() for snippet in snippets]
+            }, file)
+        return {"status": "success", "message": "Message written to disk successfully.", "message_id": message_id}
+    except Exception as e:
+        logger.error(f"Failed to write message to disk: {str(e)}")
+        return {"status": "error", "message": "Failed to write message to disk."}
+
+@app.get("/backend/messages/load/{message_id}")
+async def read_message_from_disk(
+    message_id: str,
+):
+    try:
+        with open(f"{CACHE_DIRECTORY}/messages/{message_id}.json", "r") as file:
+            message_data = json.load(file)
+        return {
+            "status": "success",
+            "message": "Message read from disk successfully.",
+            "data": message_data
+        }
+    except FileNotFoundError:
+        return {"status": "error", "message": "Message not found."}
+    except Exception as e:
+        logger.error(f"Failed to read message from disk: {str(e)}")
+        return {"status": "error", "message": "Failed to read message from disk."}
+
 
 if __name__ == "__main__":
     import fastapi.testclient
