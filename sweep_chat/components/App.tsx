@@ -6,7 +6,7 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { FaCheck, FaCog, FaGithub, FaPencilAlt, FaStop } from "react-icons/fa";
+import { FaCheck, FaCog, FaGithub, FaPencilAlt, FaShareAlt, FaStop } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -468,9 +468,9 @@ function getJSONPrefix(buffer: string): [any[], number] {
       }
     }
   }
-  if (currentIndex == 0) {
-    console.log(buffer);
-  }
+  // if (currentIndex == 0) {
+  //   console.log(buffer); // TODO: optimize later
+  // }
   return [results, currentIndex];
 }
 
@@ -583,17 +583,21 @@ const parsePullRequests = async (repoName: string, message: string, octokit: Oct
   } 
 }
 
-function App() {
-  const [repoName, setRepoName] = useLocalStorage<string>("repoName", "")
-  const [repoNameValid, setRepoNameValid] = useLocalStorage<boolean>("repoNameValid", false)
+function App({
+  defaultMessageId = ""
+}: {
+  defaultMessageId?: string
+}) {
+  const [repoName, setRepoName] = useState<string>("")
+  const [repoNameValid, setRepoNameValid] = useState<boolean>(false)
 
   const [repoNameDisabled, setRepoNameDisabled] = useState<boolean>(false)
 
   const [k, setK] = useLocalStorage<number>("k", DEFAULT_K)
   const [model, setModel] = useLocalStorage<keyof typeof modelMap>("model", "claude-3-opus-20240229")
-  const [snippets, setSnippets] = useLocalStorage<Snippet[]>("snippets", [])
-  const [messages, setMessages] = useLocalStorage<Message[]>("messages", [])
-  const [currentMessage, setCurrentMessage] = useLocalStorage<string>("currentMessage", "")
+  const [snippets, setSnippets] = useState<Snippet[]>([])
+  const [messages, setMessages] = useState<Message[]>([])
+  const [currentMessage, setCurrentMessage] = useState<string>("")
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const isStream = useRef<boolean>(false)
   const [showSurvey, setShowSurvey] = useState<boolean>(false)
@@ -605,6 +609,39 @@ function App() {
   const posthog = usePostHog();
   const [octokit, setOctokit] = useState<Octokit | null>(null)
   const [repos, setRepos] = useState<Repository[]>([])
+
+  const [messagesId, setMessagesId] = useState<string>(defaultMessageId)
+
+  useEffect(() => {
+    console.log(defaultMessageId)
+    if (defaultMessageId) {
+      (async () => {
+        const response = await fetch(`/backend/messages/load/${defaultMessageId}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            // @ts-ignore
+            "Authorization": `Bearer ${session?.user.accessToken}`
+          }
+        })
+        const data = await response.json()
+        if (data.status == "success") {
+          const { repo_name, messages, snippets } = data.data
+          console.log(repo_name, messages, snippets)
+          setRepoName(repo_name)
+          setRepoNameValid(true)
+          setMessages(messages)
+          setSnippets(snippets)
+        } else {
+          toast({
+            title: "Failed to load message",
+            description: `The following error has occurred: ${data.error}. Sometimes, logging out and logging back in can resolve this issue.`,
+            variant: "destructive"
+          });
+        }
+      })()
+    }
+  }, [defaultMessageId])
 
   useEffect(() => {
     if (messagesContainerRef.current) {
@@ -664,6 +701,34 @@ function App() {
   }
 
   const lastAssistantMessageIndex = messages.findLastIndex((message) => message.role === "assistant" && message.content.trim().length > 0)
+
+  const save = async (
+    currentRepoName: string,
+    currentMessages: Message[],
+    currentSnippets: Snippet[],
+  ) => {
+    const saveResponse = await fetch("/backend/messages/save", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        // @ts-ignore
+        "Authorization": `Bearer ${session?.user.accessToken}`
+      },
+      body: JSON.stringify(
+        messagesId ?
+        {repo_name: currentRepoName || repoName, messages: currentMessages || messages, snippets: currentSnippets || snippets, message_id: messagesId}
+        :
+        {repo_name: currentRepoName || repoName, messages: currentMessages || messages, snippets: currentSnippets || snippets}
+      )
+    })
+    const { message_id } = await saveResponse.json()
+    if (!messagesId) {
+      setMessagesId(message_id)
+      const updatedUrl = `/c/${message_id}`;
+      window.history.pushState({}, '', updatedUrl);
+    }
+    console.log("saved")
+  }
 
   const startStream = async (
     message: string,
@@ -749,6 +814,13 @@ function App() {
         throw e;
       }
     }
+
+    save(
+      repoName,
+      newMessages,
+      currentSnippets
+    );
+
     const chatResponse = await fetch("/backend/chat", {
       method: "POST",
       headers: {
@@ -814,6 +886,16 @@ function App() {
         lastMessage
       ])
     }
+
+    save(
+      repoName,
+      [
+        ...newMessages,
+        ...streamedMessages.slice(0, streamedMessages.length - 1),
+        lastMessage
+      ],
+      currentSnippets
+    );
 
     const surveyID = process.env.NEXT_PUBLIC_SURVEY_ID
     if (surveyID && !localStorage.getItem(`hasInteractedWithSurvey_${surveyID}`)) {
@@ -1017,7 +1099,7 @@ function App() {
                 isStream.current = false;
               }}
             >
-              <FaStop />
+              <FaStop />&nbsp;&nbsp;Stop
             </Button>
           ) : (
             <Button
@@ -1028,10 +1110,12 @@ function App() {
                 setCurrentMessage("");
                 setIsLoading(false);
                 setSnippets([]);
+                setMessagesId("");
+                window.history.pushState({}, '', '/');
               }}
               disabled={isLoading}
             >
-              <FaArrowsRotate />
+              <FaArrowsRotate />&nbsp;&nbsp;Reset
             </Button>
           )}
           <Input
@@ -1057,6 +1141,47 @@ function App() {
             placeholder="Type a message..."
             disabled={isLoading}
           />
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button
+                className="ml-2"
+                variant="secondary"
+                onClick={async () => {
+                }}
+                disabled={isLoading}
+              >
+                <FaShareAlt />&nbsp;&nbsp;Share
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="w-[800px] p-16">
+              <h2 className="text-2xl font-bold mb-4 text-center">
+                Share the Conversation
+              </h2>
+              <p className="text-center">
+                Share your chat session with a team member.
+              </p>
+              <Input
+                value={`${window.location.origin}/c/${messagesId}`}
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/c/${messagesId}`)
+                  toast({
+                    title: "Link copied",
+                    description: "The link to your current session has been copied to your clipboard.",
+                  })
+                }}
+                disabled
+              />
+              <Button className="mt-2" variant="secondary" onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/c/${messagesId}`)
+                toast({
+                  title: "Link copied",
+                  description: "The link to your current session has been copied to your clipboard.",
+                })
+              }}>
+                Copy
+              </Button>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
     </main>
@@ -1064,14 +1189,16 @@ function App() {
 }
 
 export default function WrappedApp({
-  session
+  session,
+  ...props
 }: {
   session: Session | null;
+  [key: string]: any;
 }) {
   return (
     <PostHogProvider>
       <SessionProvider session={session}>
-        <App />
+        <App {...props} />
       </SessionProvider>
     </PostHogProvider>
   )
