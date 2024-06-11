@@ -10,6 +10,7 @@ from diskcache import Cache
 from loguru import logger
 from redis import Redis
 from tqdm import tqdm
+from sweepai.utils.streamable_functions import streamable
 
 from sweepai.utils.timer import Timer
 from sweepai.config.server import CACHE_DIRECTORY, FILE_CACHE_DISABLED, REDIS_URL
@@ -107,6 +108,7 @@ def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
     return docs
 
 
+@streamable
 def prepare_index_from_snippets(
     snippets: list[Snippet],
     len_repo_cache_dir: int = 0,
@@ -119,6 +121,7 @@ def prepare_index_from_snippets(
     index = CustomIndex(
         cache_path=cache_path
     )
+    yield "Tokenizing documents...", index
     all_tokens = []
     try:
         with Timer() as timer:
@@ -144,6 +147,7 @@ def prepare_index_from_snippets(
                 all_tokens[misses[i]] = token
                 token_cache[all_docs[misses[i]].content + CACHE_VERSION] = token
         logger.debug(f"Tokenizing documents took {timer.time_elapsed} seconds")
+        yield "Building lexical index...", index
         all_titles = [doc.title for doc in all_docs]
         with Timer() as timer:
             index.add_documents(
@@ -153,6 +157,7 @@ def prepare_index_from_snippets(
     except FileNotFoundError as e:
         logger.exception(e)
 
+    yield "Index built", index
     return index
 
 
@@ -215,7 +220,7 @@ def get_lexical_cache_key(
     repo_directory = os.path.basename(repo_directory)
     return f"{repo_directory}_{commit_hash}_{CACHE_VERSION}_{seed}"
 
-@file_cache(ignore_params=["sweep_config", "ticket_progress"])
+@streamable
 def prepare_lexical_search_index(
     repo_directory: str,
     sweep_config: SweepConfig,
@@ -224,6 +229,7 @@ def prepare_lexical_search_index(
 ):
     lexical_cache_key = get_lexical_cache_key(repo_directory, seed=seed)
 
+    yield "Collecting snippets...", [], None
     snippets_results = snippets_cache.get(lexical_cache_key)
     if snippets_results is None:
         snippets, file_list = directory_to_chunks(
@@ -233,14 +239,25 @@ def prepare_lexical_search_index(
     else:
         snippets, file_list = snippets_results
 
+    yield "Building index...", snippets, None
+    # for message, index in prepare_index_from_snippets.stream(
+    #     snippets,
+    #     len_repo_cache_dir=len(repo_directory) + 1,
+    #     do_not_use_file_cache=do_not_use_file_cache,
+    #     cache_path=f"{CACHE_DIRECTORY}/lexical_index_cache/{lexical_cache_key}"
+    # ):
+    #     yield message, index
     index = prepare_index_from_snippets(
         snippets,
         len_repo_cache_dir=len(repo_directory) + 1,
         do_not_use_file_cache=do_not_use_file_cache,
         cache_path=f"{CACHE_DIRECTORY}/lexical_index_cache/{lexical_cache_key}"
     )
+        # yield message, index
+    
+    yield "Lexical index built.", snippets, index
 
-    return file_list, snippets, index
+    return snippets, index
 
 
 if __name__ == "__main__":
