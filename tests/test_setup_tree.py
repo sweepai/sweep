@@ -44,9 +44,9 @@ if __name__ == "__main__":
             for file_name in tqdm(file_list)
             if filter_file(directory, file_name, sweep_config)
         ]
-    file_list = [file.split(directory)[1] for file in file_list]
+    truncated_file_list = [file.split(directory)[1] for file in file_list]
 
-    def render_directory_tree(file_list):
+    def render_directory_tree(file_list, max_depth=None):
         tree = {}
         for path in file_list:
             parts = path.split('/')
@@ -55,6 +55,8 @@ if __name__ == "__main__":
                 current = current.setdefault(part, {})
 
         def render_tree(node, level=0):
+            if max_depth is not None and level >= max_depth:
+                return ""
             dir_tree_string = ""
             for key, value in node.items():
                 dir_tree_string += "  " * level + key + "\n"
@@ -62,5 +64,29 @@ if __name__ == "__main__":
             return dir_tree_string
 
         return render_tree(tree).strip()
-    print(render_directory_tree(file_list))
+    print(render_directory_tree(truncated_file_list))
+    def analyze_subfolder_distribution(file_list):
+        subfolders = {}
+        for path in file_list:
+            parts = path.split('/')
+            for i in range(len(parts)):
+                subfolder = '/'.join(parts[:i+1])
+                subfolders[subfolder] = subfolders.get(subfolder, 0) + 1
+
+        total_files = len(file_list)
+        print(f"Total files: {total_files}")
+        print("File distribution by subfolder (>0.5% of total files or parent not included):")
+
+        def should_include(subfolder):
+            percentage = (subfolders[subfolder] / total_files) * 100
+            if percentage > 0.5:
+                return True
+            parent = '/'.join(subfolder.split('/')[:-1])
+            return parent and parent not in subfolders
+
+        for subfolder, count in subfolders.items():
+            if subfolder and should_include(subfolder):
+                percentage = (count / total_files) * 100
+                print(f"{subfolder}: {count} files ({percentage:.2f}%)")
+    print(analyze_subfolder_distribution(truncated_file_list))
     breakpoint()
