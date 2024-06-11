@@ -117,7 +117,7 @@ Then, determine if you have sufficient information to answer the user's question
 # 2. User Response
 
 <user_response>
-Write a complete helpful response to the user's question in full detail, addressing all of the user's requests. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations.
+Write a complete helpful response to the user's question in full detail, addressing all of the user's requests. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When showing code examples, only show MINIMAL excerpts of code that address the user's question.
 
 When suggesting adding new code, ensure the new code is perfect and runs on the first try. When suggesting code changes, write the changes as diffs.
 </user_response>
@@ -169,6 +169,7 @@ openai_system_message = """You are a helpful assistant that will answer a user's
 Guidelines:
 - When suggesting adding new code, ensure the new code is perfect and runs on the first try. When suggesting code changes, write the changes as diffs.
 - When you are uncertain about details such as a type definition in the codebase, search the codebase to find the required information.
+- When showing code examples, only show MINIMAL excerpts of code that address the user's question.
 
 In this environment, you have access to a code search tool to assist in fulfilling the user request:
 
