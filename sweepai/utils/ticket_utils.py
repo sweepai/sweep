@@ -163,6 +163,7 @@ def multi_get_top_k_snippets(
         logger.info(f"Lexical indexing took {timer.time_elapsed} seconds")
         for snippet in snippets:
             snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
+        yield "Searching lexical index...", [], snippets, []
         with Timer() as timer:
             content_to_lexical_score_list = [search_index(query, lexical_index) for query in queries]
         logger.info(f"Lexical search took {timer.time_elapsed} seconds")
