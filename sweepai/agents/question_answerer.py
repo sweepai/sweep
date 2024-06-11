@@ -3,8 +3,7 @@ import re
 import subprocess
 
 from loguru import logger
-from sweepai.agents.agent_utils import Parameter, build_tool_call_handler, tool
-from sweepai.agents.modify import validate_and_parse_function_call
+from sweepai.agents.agent_utils import Parameter, build_tool_call_handler, tool, validate_and_parse_function_call
 from sweepai.core.chat import ChatGPT
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
@@ -398,6 +397,7 @@ def rag(
         function_call = validate_and_parse_function_call(
             response,
             chat_gpt,
+            tools
         )
 
         if function_call is None:

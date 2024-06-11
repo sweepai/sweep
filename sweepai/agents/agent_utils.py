@@ -1,35 +1,15 @@
 # ensure that all additional_messages are 32768 characters at most, if not split them
 from dataclasses import dataclass
+import re
 import textwrap
 from typing import Callable
+from sweepai.core.chat import ChatGPT, parse_function_call_parameters
 from sweepai.core.entities import Message
 from typing import get_type_hints
 
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 
 MAX_CHARS = 32000
-
-def ensure_additional_messages_length(additional_messages: list[Message]) -> list[Message]:
-    for i, additional_message in enumerate(additional_messages):
-        if len(additional_message.content) > MAX_CHARS:
-            wrapper = textwrap.TextWrapper(width=MAX_CHARS, replace_whitespace=False)
-            new_messages = wrapper.wrap(additional_message.content)
-            # replace the original message with the broken up messages
-            for j, new_message in enumerate(new_messages):
-                if j == 0:
-                    additional_messages[i] = Message(
-                        role=additional_message.role,
-                        content=new_message,
-                    )
-                else:
-                    additional_messages.insert(
-                        i + j,
-                        Message(
-                            role=additional_message.role,
-                            content=new_message,
-                        ),
-                    )
-    return additional_messages
 
 @dataclass
 class Parameter:
@@ -100,9 +80,39 @@ def build_tool_call_handler(tools: list[Tool]):
             return "ERROR\n\nInvalid tool name. Must be one of the following: " + ", ".join([tool.name for tool in tools])
     return handle_tool_call
 
-if __name__ == "__main__":
-    @tool(name="test", description="test", parameters=["test"])
-    def test(test):
-        return test
 
-    print(test("test"))
+def parse_function_calls(response_contents: str, tools: list[Tool]) -> list[dict[str, str]]:
+    tool_call_parameters = {tool.name: tool.parameters for tool in tools}
+    tool_calls = []
+    # first get all tool calls
+    for tool_name in tool_call_parameters.keys():
+        tool_call_regex = rf'<{tool_name}>(?P<function_call>.*?)<\/{tool_name}>'
+        tool_call_matches = re.finditer(tool_call_regex, response_contents, re.DOTALL)
+        # now we extract its parameters
+        for tool_call_match in tool_call_matches:
+            tool_call_contents = tool_call_match.group("function_call")
+            # get parameters based off of tool name
+            parameters = tool_call_parameters[tool_name]
+            tool_call = { "tool": tool_name, 
+                        "arguments": parse_function_call_parameters(tool_call_contents, parameters) 
+                        }
+            tool_calls.append(tool_call)
+    return tool_calls
+
+def validate_and_parse_function_call(
+    function_calls_string: str, chat_gpt: ChatGPT, tools: list[Tool]
+) -> AnthropicFunctionCall:
+    function_calls = parse_function_calls(
+        function_calls_string.strip("\n") + "\n</function_call>",
+        tools
+    )
+    if len(function_calls) > 0:
+        function_calls[0] = AnthropicFunctionCall(
+            function_name=function_calls[0]['tool'],
+            function_parameters=function_calls[0]['arguments'],
+        )
+        if "<function_call>" in function_calls_string:
+            chat_gpt.messages[-1].content = (
+                chat_gpt.messages[-1].content.rstrip("\n") + "\n</function_call>"
+            )
+    return function_calls[0] if len(function_calls) > 0 else None

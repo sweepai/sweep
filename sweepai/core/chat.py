@@ -11,7 +11,6 @@ import backoff
 from loguru import logger
 from pydantic import BaseModel
 
-from sweepai.agents.agent_utils import ensure_additional_messages_length
 from sweepai.config.client import get_description
 from sweepai.config.server import (
     ALTERNATE_AWS,
@@ -83,6 +82,28 @@ model_to_max_tokens = {
     "gpt-3.5-turbo-16k-0613": 16000,
 }
 default_temperature = 0.1
+
+def ensure_additional_messages_length(additional_messages: list[Message]) -> list[Message]:
+    for i, additional_message in enumerate(additional_messages):
+        if len(additional_message.content) > MAX_CHARS:
+            wrapper = textwrap.TextWrapper(width=MAX_CHARS, replace_whitespace=False)
+            new_messages = wrapper.wrap(additional_message.content)
+            # replace the original message with the broken up messages
+            for j, new_message in enumerate(new_messages):
+                if j == 0:
+                    additional_messages[i] = Message(
+                        role=additional_message.role,
+                        content=new_message,
+                    )
+                else:
+                    additional_messages.insert(
+                        i + j,
+                        Message(
+                            role=additional_message.role,
+                            content=new_message,
+                        ),
+                    )
+    return additional_messages
 
 class MessageList(BaseModel):
     messages: list[Message] = [
