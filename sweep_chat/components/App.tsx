@@ -721,13 +721,15 @@ function App({
         {repo_name: currentRepoName || repoName, messages: currentMessages || messages, snippets: currentSnippets || snippets}
       )
     })
-    const { message_id } = await saveResponse.json()
-    if (!messagesId) {
-      setMessagesId(message_id)
-      const updatedUrl = `/c/${message_id}`;
-      window.history.pushState({}, '', updatedUrl);
+    const saveData = await saveResponse.json()
+    if (saveData.status == "success") {
+      const { message_id } = saveData
+      if (!messagesId && message_id) {
+        setMessagesId(message_id)
+        const updatedUrl = `/c/${message_id}`;
+        window.history.pushState({}, '', updatedUrl);
+      }
     }
-    console.log("saved")
   }
 
   const startStream = async (
@@ -1066,6 +1068,9 @@ function App({
             message={message}
             className={index == lastAssistantMessageIndex ? "bg-slate-700" : ""}
             onEdit={async (content) => {
+              isStream.current = false;
+              setIsLoading(false);
+
               const pulls = await parsePullRequests(repoName, content, octokit!)
 
               const newMessages: Message[] = [
@@ -1128,8 +1133,11 @@ function App({
                   messages,
                   currentMessage,
                 });
+                let newMessages: Message[] = [...messages, { content: currentMessage, role: "user" }];
+                setMessages(newMessages);
+                setCurrentMessage("");
                 const pulls = await parsePullRequests(repoName, currentMessage, octokit!)
-                const newMessages: Message[] = [...messages, { content: currentMessage, role: "user", annotations: { pulls } }];
+                newMessages = [...messages, { content: currentMessage, role: "user", annotations: { pulls } }];
                 setMessages(newMessages);
                 setCurrentMessage("");
                 startStream(currentMessage, newMessages, snippets, { pulls })
