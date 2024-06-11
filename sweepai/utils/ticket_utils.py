@@ -145,6 +145,7 @@ def multi_get_top_k_snippets(
     """
     Handles multiple queries at once now. Makes the vector search faster.
     """
+    yield "Fetching configs...", [], [], []
     sweep_config: SweepConfig = SweepConfig()
     blocked_dirs = get_blocked_dirs(cloned_repo.repo)
     sweep_config.exclude_dirs += blocked_dirs
@@ -152,15 +153,17 @@ def multi_get_top_k_snippets(
     if use_repo_dir:
         repository_directory = cloned_repo.repo_dir
     with Timer() as timer:
-        _, snippets, lexical_index = prepare_lexical_search_index(
+        for message, snippets, lexical_index in prepare_lexical_search_index.stream(
             repository_directory,
             sweep_config,
             do_not_use_file_cache=do_not_use_file_cache,
             seed=seed
-        )
+        ):
+            yield message, [], snippets, []
         logger.info(f"Lexical indexing took {timer.time_elapsed} seconds")
         for snippet in snippets:
             snippet.file_path = snippet.file_path[len(cloned_repo.cached_dir) + 1 :]
+        yield "Searching lexical index...", [], snippets, []
         with Timer() as timer:
             content_to_lexical_score_list = [search_index(query, lexical_index) for query in queries]
         logger.info(f"Lexical search took {timer.time_elapsed} seconds")

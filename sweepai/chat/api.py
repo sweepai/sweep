@@ -16,7 +16,7 @@ import yaml
 
 from sweepai.agents.modify_utils import validate_and_parse_function_call
 from sweepai.agents.search_agent import extract_xml_tag
-from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, system_message, function_response, format_message, pr_format, relevant_snippets_message_for_pr
+from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, anthropic_system_message, function_response, anthropic_format_message, pr_format, relevant_snippets_message_for_pr, openai_format_message, openai_system_message
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import CACHE_DIRECTORY
 from sweepai.core.chat import ChatGPT
@@ -297,7 +297,7 @@ def search_codebase_endpoint_post(
     username = Github(access_token).get_user().login
     token = g.token if isinstance(g, CustomGithub) else access_token
     def stream_response():
-        yield json.dumps(["Building lexical index...", []])
+        yield json.dumps(["Starting search...", []])
         for message, snippets in wrapped_search_codebase.stream(
             username,
             repo_name,
@@ -324,21 +324,28 @@ def wrapped_search_codebase(
 ):
     org_name, repo = repo_name.split("/")
     if not os.path.exists(f"{repo_cache}/{repo}"):
+        yield "Cloning repository...", []
         print(f"Cloning {repo_name} to {repo_cache}/{repo}")
         git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"{repo_cache}/{repo}")
         print(f"Cloned {repo_name} to {repo_cache}/{repo}")
-    cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
-    cloned_repo.pull()
-    pr_snippets, skipped_pr_snippets, pulls_messages = get_pr_snippets(
-        repo_name,
-        annotations,
-        cloned_repo,
-    )
-    if pulls_messages:
+        yield "Repository cloned.", []
+        cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
+    else:
+        cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
+        cloned_repo.pull()
+        yield "Repository pulled.", []
+    if annotations:
+        yield "Getting pull request snippets...", []
+        pr_snippets, skipped_pr_snippets, pulls_messages = get_pr_snippets(
+            repo_name,
+            annotations,
+            cloned_repo,
+        )
         if pulls_messages.count("<pull_request>") > 1:
             query += "\n\nHere are the mentioned pull request(s):\n\n" + pulls_messages
         else:
             query += "\n\n" + pulls_messages
+        yield "Got pull request snippets.", []
     for message, snippets in search_codebase.stream(
         repo_name,
         query,
@@ -452,6 +459,7 @@ def chat_codebase_stream(
         ]),
         repo_specific_description=repo_specific_description
     )
+    system_message = anthropic_system_message if not model.startswith("gpt") else openai_system_message
     chat_gpt: ChatGPT = ChatGPT.from_system_message_string(
         prompt_string=system_message
     )
@@ -688,6 +696,7 @@ def chat_codebase_stream(
                     yield patch.to_string()
                 previous_state = current_state
 
+    format_message = anthropic_format_message if not model.startswith("gpt") else openai_format_message
     return StreamingResponse(
         postprocessed_stream(
             messages[-1].content + "\n\n" + format_message,

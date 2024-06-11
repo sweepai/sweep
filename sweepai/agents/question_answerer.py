@@ -26,12 +26,6 @@ search_codebase - Provide a search question as natural language and this will pe
 <question>
 Detailed, specific natural language search question to search the codebase for relevant snippets. This should be in the form of a natural language question, like "What is the structure of the User model in the authentication module?"
 </question>
-<include_docs>
-Include documentation in the search results. Default is false. (optional)
-</include_docs>
-<include_tests>
-Include test files in the search results. Default is false. (optional)
-</include_tests>
 </search_codebase>
 
 view_file - View the contents of a file in the codebase.
@@ -93,17 +87,6 @@ Where are the push notification configurations and registration logic implemente
 
 Notice that the `query` parameter is an extremely detailed, specific natural language search question.
 
-<search_codebase>
-<question>
-Where is the documentation that details how to configure the authentication module for the Stripe payments webhook? Is anything related to this detailed in docs/reference/stripe-configuration.mdx?
-</question>
-<include_docs>
-true
-</include_docs>
-</search_codebase>
-
-Notice that `include_docs` is set to true since we are retrieving documentation in this case. Also notice how the question is very specific, directed, with references to specific files or modules.
-
 To submit the final response to the user's question:
 
 <submit_task>
@@ -162,13 +145,10 @@ Once you have collected and analyzed the relevant snippets, use the `submit_task
 
 You MUST call them like this:
 <function_call>
-<invoke>
-<tool_name>$TOOL_NAME</tool_name>
-<parameters>
+<tool_name>
 <$PARAMETER_NAME>$PARAMETER_VALUE</$PARAMETER_NAME>
 ...
-</parameters>
-</invoke>
+</tool_name>
 </function_call>
 
 Here are the tools available:
@@ -189,7 +169,7 @@ Don't know why but few-shot examples confuse Haiku.
 NO_TOOL_CALL_PROMPT = """FAILURE
 Your last function call was incorrectly formatted.
 
-Make sure you provide XML tags for function_call, invoke, tool_name and parameters for all function calls. Check the examples section for reference.
+Make sure you provide XML tags for function_call, tool_name and parameters for all function calls. Check the examples section for reference.
 
 Resolve this error by following these steps:
 1. In a scratchpad, list the tag name of each XML blocks of your last assistant message.
@@ -198,12 +178,9 @@ Resolve this error by following these steps:
 4. Finally, re-invoke your last function call with the corrected format, with the contents copied over."""
 
 DEFAULT_FUNCTION_CALL = """<function_call>
-<invoke>
-<tool_name>search_codebase</tool_name>
-<parameters>
-<question>{question}</question>{flags}
-</parameters>
-</invoke>
+<search_codebase>
+<question>{question}</question>
+</search_codebase>
 </function_call>"""
 
 DUPLICATE_QUESTION_MESSAGE = """You've already asked this question: {question}
@@ -266,7 +243,7 @@ def search_codebase(
     *args,
     **kwargs,
 ):
-    rcm = prep_snippets(
+    snippets = prep_snippets(
         cloned_repo,
         question,
         use_multi_query=False,
@@ -274,8 +251,7 @@ def search_codebase(
         *args,
         **kwargs
     )
-    rcm.current_top_snippets = [snippet for snippet in rcm.current_top_snippets][:5]
-    return rcm
+    return snippets[:5]
 
 def rag(
     question: str,
@@ -298,13 +274,10 @@ def rag(
         "request": question,
     }
 
+    function_call_response = ""
     for iter_num in range(10):
         if iter_num == 0:
             flags = ""
-            if "test" in question:
-                flags += "\n<include_tests>true</include_tests>"
-            if "docs" in question or "documentation" in question:
-                flags += "\n<include_docs>true</include_docs>"
             response = DEFAULT_FUNCTION_CALL.format(
                 question=question,
                 flags=flags,
@@ -337,24 +310,20 @@ def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: Clon
         if "question" not in function_call.function_parameters:
             return "Please provide a question to search the codebase."
         question = function_call.function_parameters["question"].strip()
-        include_docs = function_call.function_parameters.get("include_docs", "false") == "true"
-        include_tests = function_call.function_parameters.get("include_tests", "false") == "true"
         previously_asked_question = deepcopy(llm_state["visited_questions"])
         if not question.strip():
             return "Question cannot be empty. Please provide a detailed, specific natural language search question to search the codebase for relevant snippets."
-        if question in llm_state["visited_questions"] and not include_docs and not include_tests:
+        if question in llm_state["visited_questions"]:
             # breakpoint()
             return DUPLICATE_QUESTION_MESSAGE.format(question=question)
         llm_state["visited_questions"].add(question)
-        rcm = search_codebase(
+        retrieved_snippets = search_codebase(
             question=question,
             cloned_repo=cloned_repo,
-            include_docs=include_docs,
-            include_tests=include_tests,
         )
         snippets = []
         prev_visited_snippets = deepcopy(llm_state["visited_snippets"])
-        for snippet in rcm.current_top_snippets[::-1]:
+        for snippet in retrieved_snippets[::-1]:
             if snippet.denotation not in llm_state["visited_snippets"]:
                 expand_size = 100
                 snippets.append(SNIPPET_FORMAT.format(
@@ -365,17 +334,13 @@ def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: Clon
             else:
                 snippets.append(f"Snippet already retrieved previously: {snippet.denotation}")
         snippets_string = "\n\n".join(snippets)
-        snippets_string += f"\n\nYour last search query was \"{question}\". Here is a list of all the files retrieved in this search query:\n" + "\n".join([f"- {snippet.denotation}" for snippet in rcm.current_top_snippets])
+        snippets_string += f"\n\nYour last search query was \"{question}\". Here is a list of all the files retrieved in this search query:\n" + "\n".join([f"- {snippet.denotation}" for snippet in retrieved_snippets])
         if prev_visited_snippets:
             snippets_string += "\n\nHere is a list of all the files retrieved previously:\n" + "\n".join([f"- {snippet}" for snippet in sorted(list(prev_visited_snippets))])
         snippets_string += f"\n\nThe above are the snippets that are found in decreasing order of relevance to the search query \"{function_call.function_parameters.get('question')}\"."
         if previously_asked_question:
             snippets_string += "\n\nYou have already asked the following questions so do not ask them again:\n" + "\n".join([f"- {question}" for question in previously_asked_question])
         warning_messages = ""
-        if "test" in question and not include_tests:
-            warning_messages += "\n\nWARNING\n\nThe search query contains the word 'test'. You may need to toggle the include_tests flag to find relevant information."
-        if ("docs" in question or "documentation" in question) and not include_docs:
-            warning_messages += "\n\nWARNING\n\nThe search query contains the word 'doc'. You may need to toggle the include_docs flag to find relevant information."
         return snippets_string + SEARCH_RESULT_INSTRUCTIONS.format(
             request=llm_state["request"],
             visited_questions="\n".join(sorted(list(llm_state["visited_questions"])))

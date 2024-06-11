@@ -136,7 +136,7 @@ if __name__ == "__main__":
     directory = "sweepai/core"
     directory = "sweepai/agents"
 
-    _, snippets, lexical_index = prepare_lexical_search_index(
+    snippets, lexical_index = prepare_lexical_search_index(
         cloned_repo.repo_dir,
         SweepConfig(),
     )
