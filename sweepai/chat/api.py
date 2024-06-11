@@ -15,7 +15,7 @@ import yaml
 
 from sweepai.agents.modify_utils import validate_and_parse_function_call
 from sweepai.agents.search_agent import extract_xml_tag
-from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, system_message, function_response, format_message, pr_format, relevant_snippets_message_for_pr
+from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, anthropic_system_message, function_response, anthropic_format_message, pr_format, relevant_snippets_message_for_pr, openai_format_message, openai_system_message
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import CACHE_DIRECTORY
 from sweepai.core.chat import ChatGPT
@@ -448,6 +448,7 @@ def chat_codebase_stream(
         ]),
         repo_specific_description=repo_specific_description
     )
+    system_message = anthropic_system_message if not model.startswith("gpt") else openai_system_message
     chat_gpt: ChatGPT = ChatGPT.from_system_message_string(
         prompt_string=system_message
     )
@@ -684,6 +685,7 @@ def chat_codebase_stream(
                     yield patch.to_string()
                 previous_state = current_state
 
+    format_message = anthropic_format_message if not model.startswith("gpt") else openai_format_message
     return StreamingResponse(
         postprocessed_stream(
             messages[-1].content + "\n\n" + format_message,

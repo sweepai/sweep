@@ -449,6 +449,7 @@ class ChatGPT(MessageList):
                         new_content = chunk.choices[0].delta.content
                         if new_content:
                             streamed_text += new_content
+                        print(new_content, end="", flush=True)
                         yield new_content
                         if chunk.choices[0].finish_reason == "stop":
                             break
