@@ -150,7 +150,7 @@ tool_call_parameters = {
     "make_change": ["justification", "file_name", "original_code", "new_code", "replace_all"],
     "create_file": ["justification", "file_name", "new_code"],
     "submit_task": ["justification"],
-    "search_codebase": ["query", "include_docs", "include_tests"],
+    "search_codebase": ["query", "question", "include_docs", "include_tests"],
 }
 
 # returns a dictionary of the tool call parameters, assumes correct
