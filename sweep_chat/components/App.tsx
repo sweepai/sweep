@@ -1133,8 +1133,11 @@ function App({
                   messages,
                   currentMessage,
                 });
+                let newMessages: Message[] = [...messages, { content: currentMessage, role: "user" }];
+                setMessages(newMessages);
+                setCurrentMessage("");
                 const pulls = await parsePullRequests(repoName, currentMessage, octokit!)
-                const newMessages: Message[] = [...messages, { content: currentMessage, role: "user", annotations: { pulls } }];
+                newMessages = [...messages, { content: currentMessage, role: "user", annotations: { pulls } }];
                 setMessages(newMessages);
                 setCurrentMessage("");
                 startStream(currentMessage, newMessages, snippets, { pulls })
