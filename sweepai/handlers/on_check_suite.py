@@ -11,6 +11,7 @@ import requests
 
 from github.Repository import Repository
 from github.CommitStatus import CommitStatus
+from sweepai.config.client import get_config_key_value
 from sweepai.config.server import CIRCLE_CI_PAT
 from sweepai.logn.cache import file_cache
 from sweepai.utils.github_utils import get_token
@@ -227,6 +228,11 @@ def get_failing_circleci_logs(
             logger.debug(f"Polling to see if CircleCI has finished... {total_poll_attempts}.")
             sleep(CIRCLECI_SLEEP_DURATION_SECONDS)
             continue
+    # filter out statuses that are not allowed
+    # this only executes if allowed_cicd_names is not None
+    allowed_cicd_names = get_config_key_value(repo, "allowed_cicd_names")
+    if allowed_cicd_names:
+        failing_statuses = [status for status in failing_statuses if any(cicd_name in status.context.lower() for cicd_name in allowed_cicd_names)]
     # done polling
     for status_detail in failing_statuses:
         # CircleCI run detected
