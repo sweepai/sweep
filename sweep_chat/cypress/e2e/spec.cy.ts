@@ -46,5 +46,8 @@ describe('sweep chat', () => {
 
     // Validate response from the LLM
     cy.get(':nth-child(3) > .transition-color', { timeout: 30000 }).should("contain.text", "Analysis")
+    cy.url().then(url => {
+      expect(url.length).to.be.greaterThan(50);
+    });
   })
 })
