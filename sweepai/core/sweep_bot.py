@@ -298,8 +298,9 @@ def get_error_message(
                 previous_fcr_occurrences = [contains_ignoring_whitespace(fcr["new_code"][0], original_code) for fcr in previous_parsed_fcrs]
                 # check if the previous fcr comprises > 50% of the original code's lines
                 # this means that it has a high chance to be valid once the previous diffs are applied
-                max_occurrence_lines = max([x[1] - x[0] for x in previous_fcr_occurrences if x])
-                if max_occurrence_lines > len(original_code.splitlines()) // 2:
+                all_previous_occurrences = [x[1] - x[0] if x else 0 for x in previous_fcr_occurrences]
+
+                if all_previous_occurrences and max(all_previous_occurrences) > len(original_code.splitlines()) // 2:
                     previous_fcr_in_original_code = True
                 if not contains_ignoring_whitespace(original_code, file_contents) and not original_code_in_previous_fcr and not previous_fcr_in_original_code:
                     threshold = 50
