@@ -463,36 +463,6 @@ class ChatGPT(MessageList):
                     print(f"Streamed {len(streamed_text)} characters in {time.time() - start_time:.2f}s")
                     response = streamed_text
                     return response
-                    # pylint: disable=E1129
-                    # with client.messages.stream(
-                    #     model=model,
-                    #     temperature=temperature,
-                    #     max_tokens=max_tokens,
-                    #     messages=message_dicts,
-                    #     system=system_message,  
-                    #     timeout=60,
-                    # ) as stream_:
-                    #     streamed_text = ""
-                    #     try:
-                    #         if verbose:
-                    #             print(f"Connected to {model}...")
-
-                    #         for i, token in enumerate(stream_.text_stream):
-                    #             if verbose:
-                    #                 if i == 0:
-                    #                     print(f"Time to first token: {time.time() - start_time:.2f}s")
-                    #                 print(token, end="", flush=True)
-                    #             streamed_text += token
-                    #             yield token
-                    #             for stop_sequence in stop_sequences:
-                    #                 if stop_sequence in streamed_text:
-                    #                     return truncate_text_based_on_stop_sequence(streamed_text, stop_sequences)
-                    #     except TimeoutError as te:
-                    #         logger.exception(te)
-                    #         raise te
-                    #     except Exception as e_:
-                    #         logger.exception(e_)
-                    #         raise e_
                 return
             return llm_stream()
         for i in range(NUM_ANTHROPIC_RETRIES):
