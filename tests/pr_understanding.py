@@ -8,6 +8,7 @@ from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig
 from sweepai.core.repo_parsing_utils import filter_file
+from sweepai.logn.cache import file_cache
 from sweepai.utils.github_utils import ClonedRepo, get_github_client, get_installation_id
 
 def build_file_graph(cloned_repo: ClonedRepo, k=400, sweep_config: SweepConfig = None):
@@ -85,11 +86,13 @@ if __name__ == "__main__":
     _, g = get_github_client(installation_id)
 
     repo = g.get_repo(REPO_FULL_NAME)
-    cloned_repo = ClonedRepo(REPO_FULL_NAME, installation_id, "master")
-    def get_graph(repo_name=REPO_FULL_NAME):
+    
+    @file_cache()
+    def get_graph(repo_name=REPO_FULL_NAME) -> Graph:
+        cloned_repo = ClonedRepo(REPO_FULL_NAME, installation_id, "master")
         file_graph = build_file_graph(cloned_repo, k=1000, sweep_config=sweep_config)
         return file_graph
-    file_graph = get_graph()
-    candidate_file = "webclient/src/app.tsx"
+    file_graph = get_graph(repo_name=REPO_FULL_NAME)
+    candidate_file = "sweepai/chat/api.py"
     top_relevant_files = get_relevant_neighbors(file_graph, candidate_file, top_k=30)
     print("\n\n")
