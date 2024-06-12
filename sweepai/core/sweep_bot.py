@@ -238,6 +238,7 @@ def get_error_message(
         return cloned_repo.get_file_contents(file_path)
     error_message = ""
     error_indices = []
+    previous_parsed_fcrs = []
     for i, file_change_request in enumerate(file_change_requests):
         if file_change_request.change_type == "modify":
             try:
@@ -269,6 +270,7 @@ def get_error_message(
                             error_indices.append(i)
                     continue
             parsed_fcr = parse_fcr(file_change_request)
+            previous_parsed_fcrs.append(parsed_fcr)
             if not parsed_fcr["original_code"]:
                 error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to provide an <original_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task, respond with <drop>{len(error_indices)}</drop>.\n</error>\n\n"
                 error_indices.append(i)
@@ -287,7 +289,19 @@ def get_error_message(
                 error_message += f"<error index=\"{len(error_indices)}\">\nThe <original_code> can not be empty. If you would like to append code, copy the code you want to append the new code after into the <original_code>, then copy the same code into <new_code>, then finally append the new code after <new_code>.\n</error>\n\n"
                 error_indices.append(i)
             else:
-                if not contains_ignoring_whitespace(original_code, file_contents):
+                # if it's present in a previous fcr's new_code, it's fine
+                original_code_in_previous_fcr = any(contains_ignoring_whitespace(original_code, fcr["new_code"][0]) for fcr in previous_parsed_fcrs)
+                # checking previous fcr in original code can lead to false positives if the previous fcr is VERY small and occurs
+                # but in practice it doesn't seem likely
+                # so we check if the previous fcr comprises > 50% of the original code
+                previous_fcr_in_original_code = False
+                previous_fcr_occurrences = [contains_ignoring_whitespace(fcr["new_code"][0], original_code) for fcr in previous_parsed_fcrs]
+                # check if the previous fcr comprises > 50% of the original code's lines
+                # this means that it has a high chance to be valid once the previous diffs are applied
+                max_occurrence_lines = max([x[1] - x[0] for x in previous_fcr_occurrences if x])
+                if max_occurrence_lines > len(original_code.splitlines()) // 2:
+                    previous_fcr_in_original_code = True
+                if not contains_ignoring_whitespace(original_code, file_contents) and not original_code_in_previous_fcr and not previous_fcr_in_original_code:
                     threshold = 50
                     best_match, current_best_score = find_best_match(original_code, file_contents, threshold=threshold, tokenized=True)
                     max_indentation = find_max_indentation(file_contents)
@@ -306,7 +320,6 @@ def get_error_message(
                     if not best_match.strip():
                         error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nBut the code is no where to be found in the file. There are also no similar code snippets in this file.{too_long_message}{ellipses_message}\n</error>\n\n"
                         continue
-
                     if best_score != 100:
                         if not check_valid_parentheses(best_match):
                             extended_match = find_smallest_valid_superspan(best_match, file_contents)

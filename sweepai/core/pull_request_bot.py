@@ -95,7 +95,9 @@ class PRSummaryBot(ChatGPT):
                     # use diff compare against original file data
                     file_diff = generate_diff(file_data['original_contents'], file_data['contents'])
                 file_diffs += f"<file_diffs file='{file_name}'>\n{file_diff}\n</file_diffs>"
-            
+        
+        if not file_diffs.strip():
+            return "No changes were made"
         formatted_user_prompt = commit_message_user_prompt.format(file_diffs=file_diffs)
         commit_message_response = self.chat_anthropic(
             content=formatted_user_prompt,
