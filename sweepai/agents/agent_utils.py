@@ -3,13 +3,15 @@ from dataclasses import dataclass
 import re
 import textwrap
 from typing import Callable
+from sweepai.agents.modify_utils import english_join
 from sweepai.core.chat import ChatGPT, parse_function_call_parameters
-from sweepai.core.entities import Message
 from typing import get_type_hints
 
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 
-MAX_CHARS = 32000
+"""
+ENTITIES AND ABSTRACTIONS LOGIC FOR TOOL CALLING START
+"""
 
 @dataclass
 class Parameter:
@@ -20,7 +22,7 @@ class Tool:
     name: str
     parameters: list[str]
     parameters_explanation: dict[str, str]
-    function: Callable
+    function: Callable[..., str]
     description: str = ""
 
     def get_xml(
@@ -61,25 +63,10 @@ def tool(**kwargs):
         )
     return decorator
 
-def build_tool_call_handler(tools: list[Tool]):
-    def handle_tool_call(function_call: AnthropicFunctionCall, **kwargs):
-        for tool in tools:
-            if function_call.function_name == tool.name:
-                for param in tool.parameters:
-                    if param not in function_call.function_parameters:
-                        return f"ERROR\n\nThe {param} parameter is missing from the function call."
-                function_kwargs = {
-                    **{k: v.strip() if isinstance(v, str) else v for k, v in function_call.function_parameters.items()},
-                }
-                param_names = tool.function.__code__.co_varnames[: tool.function.__code__.co_argcount]
-                for kwarg in kwargs:
-                    if kwarg in param_names:
-                        function_kwargs[kwarg] = kwargs[kwarg]
-                return tool(**function_kwargs)
-        else:
-            return "ERROR\n\nInvalid tool name. Must be one of the following: " + ", ".join([tool.name for tool in tools])
-    return handle_tool_call
 
+"""
+ENTITIES AND ABSTRACTIONS LOGIC FOR TOOL CALLING END, START OF FUNCTION PARSING LOGIC
+"""
 
 def parse_function_calls(response_contents: str, tools: list[Tool]) -> list[dict[str, str]]:
     tool_call_parameters = {tool.name: tool.parameters for tool in tools}
@@ -116,3 +103,81 @@ def validate_and_parse_function_call(
                 chat_gpt.messages[-1].content.rstrip("\n") + "\n</function_call>"
             )
     return function_calls[0] if len(function_calls) > 0 else None
+
+"""
+END OF FUNCTION PARSING LOGIC, START OF TOOL CALL HANDLING
+"""
+
+def handle_function_call(
+    function_call: AnthropicFunctionCall,
+    tools: list[Tool],
+    **kwargs
+):
+    for tool in tools:
+        if function_call.function_name == tool.name:
+            for param in tool.parameters:
+                if param not in function_call.function_parameters:
+                    return f"ERROR\n\nThe {param} parameter is missing from the function call."
+            function_kwargs = {
+                **{k: v.strip() if isinstance(v, str) else v for k, v in function_call.function_parameters.items()},
+            }
+            param_names = tool.function.__code__.co_varnames[: tool.function.__code__.co_argcount]
+            for kwarg in kwargs:
+                if kwarg in param_names:
+                    function_kwargs[kwarg] = kwargs[kwarg]
+            return tool(**function_kwargs)
+    else:
+        return "ERROR\n\nInvalid tool name. Must be one of the following: " + ", ".join([tool.name for tool in tools])
+
+NO_TOOL_CALL_PROMPT = """FAILURE
+Your last function call was incorrectly formatted.
+
+Make sure you provide XML tags for function_call, tool_name and parameters for all function calls. Check the examples section for reference.
+
+Resolve this error by following these steps:
+1. In a scratchpad, list the tag name of each XML blocks of your last assistant message.
+2. Based on the XML blocks and the contents, determine the last function call you we're trying to make.
+3. Describe why your last function call was incorrectly formatted.
+4. Finally, re-invoke your last function call with the corrected format, with the contents copied over.
+
+The tools available are {tools}."""
+
+def get_function_call(
+    chat_gpt: ChatGPT,
+    user_message: str,
+    tools: list[Tool],
+    llm_kwargs: dict,
+    **kwargs
+):
+    """
+    Get's and handles tool calls, returning the function call and output.
+    """
+    response = chat_gpt.chat_anthropic(
+        user_message,
+        stop_sequences=["\n</function_call>"],
+        **llm_kwargs
+    ) + "</function_call>"
+
+    function_call = validate_and_parse_function_call(
+        response,
+        chat_gpt,
+        tools
+    )
+
+    if function_call is None:
+        user_message = NO_TOOL_CALL_PROMPT.format(
+            tools=english_join([tool.name for tool in tools])
+        )
+    else:
+        function_call_response = handle_function_call(
+            function_call,
+            tools,
+            **kwargs
+        )
+        user_message = f"<function_output>\n{function_call_response}\n</function_output>"
+    
+    return function_call_response, function_call
+
+"""
+END OF TOOL CALL HANDLING
+"""

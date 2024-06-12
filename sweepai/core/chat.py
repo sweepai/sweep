@@ -1,6 +1,7 @@
 from math import inf
 import os
 import re
+import textwrap
 import time
 import traceback
 from typing import Any, Callable, Iterator, Literal
@@ -83,6 +84,8 @@ model_to_max_tokens = {
 }
 default_temperature = 0.1
 
+MAX_CHARS = 32000
+
 def ensure_additional_messages_length(additional_messages: list[Message]) -> list[Message]:
     for i, additional_message in enumerate(additional_messages):
         if len(additional_message.content) > MAX_CHARS:
@@ -119,22 +122,6 @@ class MessageList(BaseModel):
         cleaned_messages = [message.to_openai() for message in self.messages]
         return cleaned_messages
 
-    def delete_messages_from_chat(
-        self, key_to_delete: str, delete_user=True, delete_assistant=True
-    ):
-        self.messages = [
-            message
-            for message in self.messages
-            if not (
-                key_to_delete in (message.key or "")
-                and (
-                    delete_user
-                    and message.role == "user"
-                    or delete_assistant
-                    and message.role == "assistant"
-                )
-            )  # Only delete if message matches key to delete and role should be deleted
-        ]
 
 def determine_model_from_chat_logger(chat_logger: ChatLogger, model: str):
     if chat_logger is not None:
@@ -219,45 +206,11 @@ class ChatGPT(MessageList):
     prev_message_states: list[list[Message]] = []
     model: ChatModel = DEFAULT_GPT4_MODEL
     chat_logger: ChatLogger | None = None
-    human_message: HumanMessagePrompt | None = None
     file_change_paths: list[str] = []
-    cloned_repo: ClonedRepo | None = None
     temperature: float = default_temperature
 
     class Config:
         arbitrary_types_allowed = True
-
-    @classmethod
-    def from_system_message_content(
-        cls,
-        human_message: HumanMessagePrompt,
-        is_reply: bool = False,
-        chat_logger=None,
-        cloned_repo: ClonedRepo | None = None,
-        **kwargs,
-    ):
-        content = system_message_prompt
-        repo = kwargs.get("repo")
-        if repo:
-            repo_info = get_description(repo)
-            repo_description = repo_info["description"]
-            repo_info["rules"]
-            if repo_description:
-                content += f"{repo_description_prefix_prompt}\n{repo_description}"
-        messages = [Message(role="system", content=content, key="system")]
-
-        added_messages = human_message.construct_prompt()  # [ { role, content }, ... ]
-        for msg in added_messages:
-            messages.append(Message(**msg))
-        messages = ensure_additional_messages_length(messages)
-
-        return cls(
-            messages=messages,
-            human_message=human_message,
-            chat_logger=chat_logger,
-            cloned_repo=cloned_repo,
-            **kwargs,
-        )
 
     @classmethod
     def from_system_message_string(
@@ -268,23 +221,6 @@ class ChatGPT(MessageList):
             chat_logger=chat_logger,
             **kwargs,
         )
-
-    def delete_messages_from_chat(
-        self, key_to_delete: str, delete_user=True, delete_assistant=True
-    ):
-        self.messages = [
-            message
-            for message in self.messages
-            if not (
-                key_to_delete in (message.key or "")
-                and (
-                    delete_user
-                    and message.role == "user"
-                    or delete_assistant
-                    and message.role == "assistant"
-                )
-            )  # Only delete if message matches key to delete and role should be deleted
-        ]
 
     def chat(
         self,

@@ -3,7 +3,7 @@ import re
 import subprocess
 
 from loguru import logger
-from sweepai.agents.agent_utils import Parameter, build_tool_call_handler, tool, validate_and_parse_function_call
+from sweepai.agents.agent_utils import Parameter, get_function_call, tool
 from sweepai.core.chat import ChatGPT
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
@@ -124,7 +124,6 @@ def ripgrep(
     """
     Search for a keyword in the codebase.
     """
-    # response = subprocess.run(["rg", "-i", query], check=True, capture_output=True, text=True, cwd=cloned_repo.repo_dir)
     response = subprocess.run(
         " ".join([
             "rg",
@@ -220,8 +219,6 @@ def submit_task(
         return "DONE"
 
 tools = [semantic_search, ripgrep, view_file, submit_task]
-
-handle_function_call = build_tool_call_handler(tools)
 
 tools_available = """You have access to the following tools to assist in fulfilling the user request:
 
@@ -386,27 +383,21 @@ def rag(
         "request": question,
     }
 
-    function_call_response = ""
     for iter_num in range(10):
-        response = chat_gpt.chat_anthropic(
-            user_message,
-            stop_sequences=["\n</function_call>"],
-            use_openai=True
-        ) + "</function_call>"
-
-        function_call = validate_and_parse_function_call(
-            response,
+        function_call_response, function_call = get_function_call(
             chat_gpt,
-            tools
+            user_message,
+            tools,
+            llm_kwargs={
+                "use_openai": True,
+            },
+            cloned_repo=cloned_repo,
+            llm_state=llm_state,
         )
 
-        if function_call is None:
-            user_message = NO_TOOL_CALL_PROMPT.format(question=question, visited_questions="\n".join(sorted(list(llm_state["visited_questions"]))))
-        else:
-            function_call_response = handle_function_call(function_call, cloned_repo=cloned_repo, llm_state=llm_state)
-            user_message = f"<function_output>\n{function_call_response}\n</function_output>"
+        user_message = f"<function_call>\n{function_call_response}\n</function_call>"
         
-        if "DONE" == function_call_response:
+        if function_call_response == "DONE":
             return function_call.function_parameters.get("answer"), function_call.function_parameters.get("sources")
     raise QuestionAnswererException("Could not complete the task. The information may not exist in the codebase.")
 
