@@ -230,7 +230,7 @@ def get_pointwise_reranked_snippet_scores(
     Ranks 6-100 are reranked using Cohere. Then we divide the scores by 1_000_000 to make them comparable to the original scores.
     """
 
-    if not COHERE_API_KEY or not VOYAGE_API_KEY:
+    if not COHERE_API_KEY and not VOYAGE_API_KEY:
         return snippet_scores
 
     rerank_scores = copy.deepcopy(snippet_scores)
