@@ -7,13 +7,12 @@ import traceback
 from typing import Any, Callable, Iterator, Literal
 
 from anthropic import Anthropic, BadRequestError, AnthropicBedrock, Stream
-from anthropic.types import MessageStreamEvent, MessageStartEvent
+from anthropic.types import MessageStreamEvent
 from openai import OpenAI
 import backoff
 from loguru import logger
 from pydantic import BaseModel
 
-from sweepai.config.client import get_description
 from sweepai.config.server import (
     ALTERNATE_AWS,
     ANTHROPIC_AVAILABLE,
@@ -24,16 +23,14 @@ from sweepai.config.server import (
     PAREA_API_KEY
 )
 from sweepai.core.entities import Message
-from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
+from sweepai.core.prompts import system_message_prompt
 from sweepai.core.viz_utils import save_messages_for_visualization
 from sweepai.logn.cache import file_cache
 from sweepai.utils.anthropic_client import sanitize_anthropic_messages
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.image_utils import create_message_with_images
 from sweepai.utils.openai_proxy import OpenAIProxy
-from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.str_utils import truncate_text_based_on_stop_sequence
 from sweepai.utils.tiktoken_utils import Tiktoken
 from parea import Parea

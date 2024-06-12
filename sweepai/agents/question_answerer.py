@@ -5,7 +5,6 @@ import subprocess
 from loguru import logger
 from sweepai.agents.agent_utils import Parameter, get_function_call, tool
 from sweepai.core.chat import ChatGPT
-from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
 from sweepai.utils.ticket_utils import prep_snippets
 from sweepai.core.entities import SNIPPET_FORMAT, Snippet
@@ -252,7 +251,7 @@ def submit_task(
     """
     error_message = ""
     try:
-        snippets = parse_sources(sources, cloned_repo)
+        parse_sources(sources, cloned_repo)
     except Exception as e:
         return str(e)
     if error_message:
