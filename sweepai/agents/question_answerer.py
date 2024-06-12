@@ -8,7 +8,7 @@ from sweepai.core.chat import ChatGPT
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
 from sweepai.utils.ticket_utils import prep_snippets
-from sweepai.core.entities import SNIPPET_FORMAT
+from sweepai.core.entities import SNIPPET_FORMAT, Snippet
 
 class QuestionAnswererException(Exception):
     def __init__(self, message):
@@ -46,9 +46,26 @@ Otherwise, if you have found all the relevant information to answer the user's r
 
 Remember to use the valid function call format for either options."""
 
+def search_codebase(
+    question: str,
+    cloned_repo: ClonedRepo,
+    *args,
+    **kwargs,
+):
+    snippets = prep_snippets(
+        cloned_repo,
+        question,
+        use_multi_query=False,
+        NUM_SNIPPETS_TO_KEEP=0,
+        skip_analyze_agent=True,
+        *args,
+        **kwargs
+    )
+    return snippets[:5]
+
 @tool()
 def semantic_search(
-    question: Parameter("Detailed, specific natural language search question to search the codebase for relevant snippets."),
+    question: Parameter("A single, detailed, specific natural language search question to search the codebase for relevant snippets."),
     cloned_repo: ClonedRepo,
     llm_state: dict,
 ):
@@ -58,7 +75,7 @@ def semantic_search(
     if question in llm_state["visited_questions"]:
         return DUPLICATE_QUESTION_MESSAGE.format(question=question)
     llm_state["visited_questions"].add(question)
-    retrieved_snippets = semantic_search(
+    retrieved_snippets = search_codebase(
         question=question,
         cloned_repo=cloned_repo,
     )
@@ -115,6 +132,18 @@ Otherwise, if you have found all the relevant information to answer the user's r
 
 Remember to use the valid function call format for either options."""
 
+def post_filter_ripgrep_results(
+    results: str,
+    max_line_length: int = 300,
+):
+    output = ""
+    for line in results.splitlines():
+        if len(line) < 300:
+            output += line + "\n"
+        else:
+            output += line[:300] + f"... (omitted {len(line) - 300} characters)\n"
+    return output.strip("\n")
+
 @tool()
 def ripgrep(
     query: Parameter("The keyword to search for in the codebase."),
@@ -142,7 +171,8 @@ def ripgrep(
     )
     if response.returncode != 0:
         return f"Error running ripgrep:\n\n{response.stderr}"
-    return f"Here are ALL occurrences of '{query}' in the codebase:\n\n```{response.stdout}```\n" + RIPGREP_SEARCH_RESULT_INSTRUCTIONS.format(
+    results = post_filter_ripgrep_results(response.stdout)
+    return f"Here are ALL occurrences of '{query}' in the codebase:\n\n```{results}```\n" + RIPGREP_SEARCH_RESULT_INSTRUCTIONS.format(
         request=llm_state["request"],
         visited_questions="\n".join(sorted(list(llm_state["visited_questions"])))
     )
@@ -187,6 +217,29 @@ justification and the section of the file that is relevant
 </sources>"""
 
 
+def parse_sources(sources: str, cloned_repo: ClonedRepo):
+    source_pattern = re.compile(r"<source>\s+<file_path>(?P<file_path>.*?)</file_path>\s+<start_line>(?P<start_line>\d+?)</start_line>\s+<end_line>(?P<end_line>\d+?)</end_line>\s+<justification>(?P<justification>.*?)</justification>\s+</source>", re.DOTALL)
+    source_matches = source_pattern.finditer(sources)
+    snippets = []
+    for source in source_matches:
+        file_path = source.group("file_path")
+        start_line = source.group("start_line")
+        end_line = source.group("end_line")
+        justification = source.group("justification")
+        snippets.append(Snippet(
+            content=cloned_repo.get_file_contents(file_path),
+            start=start_line,
+            end=end_line,
+            file_path=file_path,
+        ))
+        if not file_path or not start_line or not end_line or not justification:
+            raise Exception(CORRECTED_SUBMIT_SOURCES_FORMAT + f"\n\nThe following source is missing one of the required fields:\n\n{source.group(0)}")
+        try:
+            cloned_repo.get_file_contents(file_path)
+        except FileNotFoundError:
+            raise Exception(f"ERROR\n\nThe file path '{file_path}' does not exist in the codebase. Please provide a valid file path.")
+    return snippets
+
 @tool()
 def submit_task(
     answer: Parameter("The answer to the user's question."),
@@ -198,21 +251,10 @@ def submit_task(
     Once you have collected and analyzed the relevant snippets, use this tool to submit the final response to the user's question.
     """
     error_message = ""
-    source_pattern = re.compile(r"<source>\s+<file_path>(?P<file_path>.*?)</file_path>\s+<start_line>(?P<start_line>\d+?)</start_line>\s+<end_line>(?P<end_line>\d+?)</end_line>\s+<justification>(?P<justification>.*?)</justification>\s+</source>", re.DOTALL)
-    source_matches = source_pattern.finditer(sources)
-    for source in source_matches:
-        file_path = source.group("file_path")
-        start_line = source.group("start_line")
-        end_line = source.group("end_line")
-        justification = source.group("justification")
-        if not file_path or not start_line or not end_line or not justification:
-            error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + f"\n\nThe following source is missing one of the required fields:\n\n{source.group(0)}"
-            break
-        try:
-            cloned_repo.get_file_contents(file_path)
-        except FileNotFoundError:
-            error_message = f"ERROR\n\nThe file path '{file_path}' does not exist in the codebase. Please provide a valid file path."
-            break
+    try:
+        snippets = parse_sources(sources, cloned_repo)
+    except Exception as e:
+        return str(e)
     if error_message:
         return error_message
     else:
@@ -232,12 +274,12 @@ To search the codebase for relevant snippets:
 <function_call>
 <semantic_search>
 <question>
-Where are the push notification configurations and registration logic implemented using the Firebase Cloud Messaging library in the mobile app codebase?
+Where are the push notification configurations and registration logic implemented using in the mobile app codebase?
 </question>
 </semantic_search>
 </function_call>
 
-Notice that the `query` parameter is an extremely detailed, specific natural language search question.
+Notice that the `query` parameter is a single, detailed, specific natural language search question. Be sure to ask only one question.
 
 To search for a keyword:
 
@@ -351,22 +393,6 @@ DEFAULT_FUNCTION_CALL = """<function_call>
 </semantic_search>
 </function_call>"""
 
-
-def semantic_search(
-    question: str,
-    cloned_repo: ClonedRepo,
-    *args,
-    **kwargs,
-):
-    snippets = prep_snippets(
-        cloned_repo,
-        question,
-        use_multi_query=False,
-        NUM_SNIPPETS_TO_KEEP=0,
-        *args,
-        **kwargs
-    )
-    return snippets[:5]
 
 def rag(
     question: str,

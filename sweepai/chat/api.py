@@ -74,9 +74,9 @@ def get_pr_snippets(
                 num_changes_per_patch = [patch.changes.count("\n+") + patch.changes.count("\n-") for patch in patches]
                 if max(num_changes_per_patch) > 10 \
                     or file_contents.count("\n") + 1 < 10 * file_data["changes"]:
-                    print(f"adding {file_path}")
-                    print(num_changes_per_patch)
-                    print(file_contents.count("\n"))
+                    # print(f"adding {file_path}")
+                    # print(num_changes_per_patch)
+                    # print(file_contents.count("\n"))
                     pr_snippets.append(Snippet.from_file(file_path, file_contents))
                 else:
                     skipped_pr_snippets.append(Snippet.from_file(file_path, file_contents))
@@ -453,7 +453,7 @@ def chat_codebase_stream(
             relevant_snippet_template.format(
                 i=i,
                 file_path=snippet.file_path,
-                content=snippet.content
+                content=snippet.get_snippet(add_lines=False)
             )
             for i, snippet in enumerate(snippets)
         ]),
@@ -680,26 +680,35 @@ def chat_codebase_stream(
     
     def postprocessed_stream(*args, use_patch=False, **kwargs):
         previous_state = []
-        for messages in stream_state(*args, **kwargs):
-            if not use_patch:
-                yield json.dumps([
-                    message.model_dump()
-                    for message in messages
-                ])
-            else:
-                current_state = [
-                    message.model_dump()
-                    for message in messages
-                ]
-                patch = jsonpatch.JsonPatch.from_diff(previous_state, current_state)
-                if patch:
-                    yield patch.to_string()
-                previous_state = current_state
+        try:
+            for messages in stream_state(*args, **kwargs):
+                if not use_patch:
+                    yield json.dumps([
+                        message.model_dump()
+                        for message in messages
+                    ])
+                else:
+                    current_state = [
+                        message.model_dump()
+                        for message in messages
+                    ]
+                    patch = jsonpatch.JsonPatch.from_diff(previous_state, current_state)
+                    if patch:
+                        yield patch.to_string()
+                    previous_state = current_state
+        except Exception as e:
+            print(e)
+            yield json.dumps([
+                {
+                    "op": "error",
+                    "value": "ERROR\n\n" + str(e)
+                }
+            ])
 
     format_message = anthropic_format_message if not model.startswith("gpt") else openai_format_message
     return StreamingResponse(
         postprocessed_stream(
-            messages[-1].content + "\n\n" + format_message,
+            f"Here is the user's message:\n<user_message>\n{messages[-1].content}\n</user_message>\n\n" + format_message,
             snippets,
             messages,
             access_token,

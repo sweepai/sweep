@@ -147,6 +147,7 @@ def get_function_call(
     user_message: str,
     tools: list[Tool],
     llm_kwargs: dict,
+    no_tool_call_prompt: str = NO_TOOL_CALL_PROMPT,
     **kwargs
 ):
     """
@@ -165,7 +166,7 @@ def get_function_call(
     )
 
     if function_call is None:
-        user_message = NO_TOOL_CALL_PROMPT.format(
+        user_message = no_tool_call_prompt.format(
             tools=english_join([tool.name for tool in tools])
         )
     else:

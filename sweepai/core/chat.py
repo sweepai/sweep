@@ -6,7 +6,8 @@ import time
 import traceback
 from typing import Any, Callable, Iterator, Literal
 
-from anthropic import Anthropic, BadRequestError, AnthropicBedrock
+from anthropic import Anthropic, BadRequestError, AnthropicBedrock, Stream
+from anthropic.types import MessageStreamEvent, MessageStartEvent
 from openai import OpenAI
 import backoff
 from loguru import logger
@@ -523,27 +524,33 @@ class ChatGPT(MessageList):
                         start_time = time.time()
                         if verbose:
                             print(f"In queue with model {model}...")
-                        with client.messages.stream(
+                        response: Stream[MessageStreamEvent] = client.messages.create(
                             model=model,
-                            temperature=temperature,
-                            max_tokens=max_tokens,
                             messages=message_dicts,
-                            system=system_message,  
-                        ) as stream:
-                            streamed_text = ""
-                            if verbose:
-                                print(f"Started stream in {time.time() - start_time:.2f}s!")
-                            for i, text in enumerate(stream.text_stream):
-                                if verbose:
-                                    if i == 0:
-                                        print(f"Time to first token: {time.time() - start_time:.2f}s")
-                                    print(text, end="", flush=True)
-                                if text:
-                                    streamed_text += text
-                                    for stop_sequence in stop_sequences:
-                                        if stop_sequence in streamed_text:
-                                            return truncate_text_based_on_stop_sequence(streamed_text, stop_sequences)
-                        response = stream.get_final_message().content[0].text
+                            max_tokens=max_tokens,
+                            temperature=temperature,
+                            system=system_message,
+                            stream=True
+                        )
+                        streamed_text = ""
+                        for event in response:
+                            match event.type:
+                                case "message_start":
+                                    print(f"Starting stream with {event.message.usage.input_tokens} input tokens in {time.time() - start_time:.2f}s")
+                                case "content_block_delta":
+                                    streamed_text += event.delta.text
+                                    print(event.delta.text, end="", flush=True)
+                                    if any(stop_sequence in streamed_text for stop_sequence in stop_sequences):
+                                        print(f"Stop sequence hit after {time.time() - start_time:.2f}s")
+                                        return truncate_text_based_on_stop_sequence(streamed_text, stop_sequences)
+                                case "content_block_stop":
+                                    print()
+                                    break
+                                case _:
+                                    print(event)
+                        print(f"Streamed {len(streamed_text)} characters in {time.time() - start_time:.2f}s")
+                        response = streamed_text
+
                         if verbose:
                             print("Done streaming results!")
                         # manually chop off text after any stop tokens because including stop sequences makes the llms lazy

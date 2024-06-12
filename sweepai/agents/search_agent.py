@@ -1,5 +1,5 @@
-from sweepai.agents.modify import validate_and_parse_function_call
-from sweepai.agents.question_answerer import CORRECTED_SUBMIT_SOURCES_FORMAT, QuestionAnswererException, rag
+from sweepai.agents.agent_utils import Parameter, handle_function_call, tool, validate_and_parse_function_call
+from sweepai.agents.question_answerer import CORRECTED_SUBMIT_SOURCES_FORMAT, QuestionAnswererException, rag, parse_sources
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Snippet
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
@@ -7,71 +7,125 @@ from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
 from sweepai.utils.str_utils import extract_xml_tag
 from sweepai.utils.ticket_utils import prep_snippets
 
-tools_available = """You have access to the following tools to assist in fulfilling the user request:
-<tool_description>
-<tool_name>ask_questions_about_codebase</tool_name>
-<description>
-</description>
-<parameters>
-<parameter>
-<name>questions</name>
-<type>str</type>
-<description>
-A list of detailed, specific natural language search question to ask about the codebase. This should be in the form of a natural language question, like "How do we the user-provided password hash against the stored hash from the database in the user-authentication service?". Each question will be provided to the assistant with no additional context, so be sure to refer to provide full context of the issue for each question. The question should be based on the current codebase. One question per line.
-</description>
-</parameter>
-</parameters>
-</tool_description>
+"""
+Needed this explanation for Opus, might not need it for GPT-4o
+"""
+ASK_QUESTIONS_RESULT_INSTRUCTIONS = """
 
-<tool_description>
-<tool_name>submit_task</tool_name>
-<description>
-Once you have found all the information you need to resolve the issue, use this tool to submit the final response to start writing code changes.
-</description>
-<parameters>
-<parameter>
-<name>plan</name>
-<type>str</type>
-<description>
-Extremely highly detailed step-by-step plan of the code changes you will make in the repo to fix the bug or implement the feature to resolve the user's issue. 
-If you have any doubts of the correctness of your answer, you should ask more questions using the `ask_questions_about_codebase` tool.
-You will use actionable terms like "change" and "add" to describe the changes you will make, referencing specific methods or modules, instead of terms like "investigate" or "look into", as these should just be done by asking more questions.
-</description>
-</parameter>
-<parameter>
-<name>explanation</name>
-<type>str</type>
-<description>
-List each snippet mentioned in the plan and the role it plays in the plan. Do NOT actually advise the user to make the changes, just explain how each particular snippet could be used.
-</description>
-</parameter>
-<parameter>
-<name>sources</name>
-<type>str</type>
-<description>
-Code files you referenced in your <answer>. Only include sources that are DIRECTLY REFERENCED in your answer, do not provide anything vaguely related. Keep this section MINIMAL. These must be full paths and not symlinks of aliases to files. Include all referenced utility functions and type definitions. Follow this format:
-path/to/file.ext - justification and which section of the file is needed
-path/to/other/file.ext - justification and which section of the file is needed
-</description>
-</parameter>
-</parameters>
-</tool_description>"""
+Recall that the user's original request is:
+
+<issue>
+{request}
+</issue>{scratchpad}
+
+Remember that the three steps are:
+Step A. Root cause analysis - where is the bug or missing feature occurring in the codebase?
+    - How does the functionality currently work in the codebase and consequently where does the bug or missing feature occur?
+Step B. Implementation - what are useful modules in the codebase that can be helpful for implementing the desired change?
+    - Is there a similar functionality we can reference in the codebase to understand how to implement the desired change?
+    - What types of utility modules, type definitions, and abstractions would be useful? Brainstorm useful utility modules we will need to use and ask a question about each one of them.
+Step C. Testing - how can we test the changes made to the codebase?
+    - Determine if and where there are the unit tests located that would need to be updated to reflect the changes made to the codebase.
+
+Remember to be specific with your questions with full context, since the assistant is only provided your questions and not the context of the issue.
+
+First, summarize the key points from the previous answers.
+
+Then, think step-by-step in a single <scratchpad> block to determine if the answers you received so far is 100% complete and sufficient to move onto the next step.
+
+If the answers received are not 100% complete and suffiient, you will need to ask more follow-up questions to complete the current step, use the `ask_questions_about_codebase` tool again to ask more detailed, specific questions about the codebase.
+
+Otherwise, if you have enough information to move onto the next step, first determine the step you were just on and what the next step is. Then, proceed to list out information you will need to complete the next step. Lastly, brainstorm questions to ask about the codebase to find the information needed to answer the user's question.
+
+If have just completed the last step, use the `submit_task` tool to submit the final detailed step-by-step plan of what to change. Each step of the instructions should be actionable and specific, like "change" or "add", instead of "investigate" or "look into". If you must say "investigate", it means you have insufficient information and should ask more questions using the `ask_questions_about_codebase` tool."""
+
+SCRATCHPAD_PROMPT = """
+
+And here is your planning in your scratchpad prior to the last `ask_questions_about_codebase` call:
+<scratchpad>
+{scratchpad}
+</scratchpad>"""
+
+@tool()
+def ask_questions_about_codebase(
+    questions: Parameter("A list of detailed, specific natural language search question to ask about the codebase. This should be in the form of a natural language question, like 'How do we the user-provided password hash against the stored hash from the database in the user-authentication service?'"),
+    cloned_repo: ClonedRepo,
+    github_issue: str,
+    llm_state: dict
+):
+    results = ""
+    relevant_snippets = []
+    for question in questions.splitlines():
+        if not question.strip():
+            continue
+        try:
+            answer, sources = rag(question, cloned_repo)
+        except QuestionAnswererException as e:
+            results += f"<question>\n{question}\n</question>\n<error>\n{e.message}\n</error>\n\n"
+            continue
+        relevant_snippets = parse_sources(sources, cloned_repo)
+        results += f"<question>\n{question}\n</question>\n<answer>\n{answer}\n\nSources:\n{sources}\n</answer>\n\n"
+        llm_state["questions_and_answers"].append((question, answer, sources))
+    relevant_files_string = ""
+    for snippet in relevant_snippets:
+        relevant_files_string += f"<snippet>\n<file_path>\n{snippet.denotation}\n</file_path>\n<source>\n{snippet.get_snippet(add_lines=False)}\n</source>\n</snippet>\n"
+    if relevant_files_string:
+        relevant_files_string = f"Here is a list of files cited in the answers to the questions:\n{relevant_files_string}\n\n"
+    scratchpad = llm_state["scratchpad"]
+    results = relevant_files_string + results.strip() + ASK_QUESTIONS_RESULT_INSTRUCTIONS.format(
+        request=github_issue,
+        scratchpad=SCRATCHPAD_PROMPT.format(scratchpad=scratchpad)
+    )
+    return results
+
+@tool()
+def submit_task(
+    plan: Parameter("Extremely detailed step-by-step plan of the code changes you will make in the repo to fix the bug or implement the feature to resolve the user's issue."),
+    explanation: Parameter("List each snippet mentioned in the plan and the role it plays in the plan."),
+    sources: Parameter("Code files you referenced in your <answer>. Only include sources that are DIRECTLY REFERENCED in your answer, do not provide anything vaguely related."),
+    cloned_repo: ClonedRepo
+):
+    error_message = ""
+    source_pattern = re.compile(r"<source>\s+<file_path>(?P<file_path>.*?)</file_path>\s+<start_line>(?P<start_line>\d+?)</start_line>\s+<end_line>(?P<end_line>\d+?)</end_line>\s+<justification>(?P<justification>.*?)</justification>\s+</source>", re.DOTALL)
+    source_matches = source_pattern.finditer(sources)
+    for source in source_matches:
+        file_path = source.group("file_path")
+        start_line = source.group("start_line")
+        end_line = source.group("end_line")
+        justification = source.group("justification")
+        if not file_path or not start_line or not end_line or not justification:
+            error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + f"\n\nThe following source is missing one of the required fields:\n\n{source.group(0)}"
+            break
+        try:
+            cloned_repo.get_file_contents(file_path)
+        except FileNotFoundError:
+            error_message = f"ERROR\n\nThe file path '{file_path}' does not exist in the codebase. Please provide a valid file path."
+            break
+    if error_message:
+        return error_message
+    else:
+        return "DONE"
+
+tools = [
+    ask_questions_about_codebase,
+    submit_task
+]
+
+tools_available = """You have access to the following tools to assist in fulfilling the user request:
+""" + "\n".join([tool.get_xml() for tool in tools])
 
 example_tool_calls = """Here are examples of how to use the tools:
 
 To ask questions about the codebase:
 <function_call>
-<invoke>
-<tool_name>ask_questions_about_codebase</tool_name>
-<parameters>
+<ask_questions_about_codebase>
 <questions>
 How do we the user-provided password hash against the stored hash from the database in the user-authentication service?
 How are GraphQL mutations constructed for updating a user's profile information, and what specific fields are being updated?
 How do the current React components render the product carousel on the homepage, and what library is being used for the carousel functionality?
 How do we currently implement the endpoint handler for processing incoming webhook events from Stripe in the backend API, and how are the events being validated and parsed?
 </questions>
-</parameters>
-</invoke>
+</ask_questions_about_codebase>
 </function_call>
 
 Notice that the `query` parameter is an extremely detailed, specific natural language search question.
@@ -161,13 +215,10 @@ Once you have collected and analyzed the relevant snippets, use the `submit_task
 
 You MUST call them like this:
 <function_call>
-<invoke>
-<tool_name>$TOOL_NAME</tool_name>
-<parameters>
+<$TOOL_NAME>
 <$PARAMETER_NAME>$PARAMETER_VALUE</$PARAMETER_NAME>
 ...
-</parameters>
-</invoke>
+</$TOOL_NAME>
 </function_call>
 
 Here are the tools available:
@@ -193,25 +244,20 @@ Your last function call was incorrectly formatted. Here is are examples of corre
 For example, to search the codebase for relevant snippets:
 
 <function_call>
-<invoke>
-<tool_name>ask_questions_about_codebase</tool_name>
-<parameters>
+<ask_questions_about_codebase>
 <questions>
 Where is the function that compares the user-provided password hash against the stored hash from the database in the user-authentication service?
 Where is the code that constructs the GraphQL mutation for updating a user's profile information, and what specific fields are being updated?
 Where are the React components that render the product carousel on the homepage, and what library is being used for the carousel functionality?
 Where is the endpoint handler for processing incoming webhook events from Stripe in the backend API, and how are the events being validated and parsed?
 </questions>
-</parameters>
-</invoke>
+</ask_questions_about_codebase>
 </function_call>
 
 If you have sufficient sources to answer the question, call the submit_task function with an extremely detailed, well-referenced response in the following format:
 
 <function_call>
-<invoke>
-<tool_name>submit_task</tool_name>
-<parameters>
+<submit_task>
 <analysis>
 For each snippet, summarize the contents and what it deals with. Indicate all sections of code that are relevant to the user's question. Think step-by-step to reason about how the snippets relate to the question.
 </analysis>
@@ -225,47 +271,10 @@ Code files you referenced in your <answer>. Only include sources that are DIRECT
 path/to/file.ext
 path/to/other/file.ext
 </sources>
-</parameters>
-</invoke>
+</submit_task>
 </function_call>
 
 First, in a scratchpad, think step-by-step to identify precisely where you have malformatted the function call. Double-check that you have opening and closing tags for function_call, invoke, tool_name, and parameters. Then, you may make additional search queries using `ask_questions_about_codebase` or submit the task using `submit_task`."""
-
-ASK_QUESTIONS_RESULT_INSTRUCTIONS = """
-
-Recall that the user's original request is:
-
-<issue>
-{request}
-</issue>{scratchpad}
-
-Remember that the three steps are:
-Step A. Root cause analysis - where is the bug or missing feature occurring in the codebase?
-    - How does the functionality currently work in the codebase and consequently where does the bug or missing feature occur?
-Step B. Implementation - what are useful modules in the codebase that can be helpful for implementing the desired change?
-    - Is there a similar functionality we can reference in the codebase to understand how to implement the desired change?
-    - What types of utility modules, type definitions, and abstractions would be useful? Brainstorm useful utility modules we will need to use and ask a question about each one of them.
-Step C. Testing - how can we test the changes made to the codebase?
-    - Determine if and where there are the unit tests located that would need to be updated to reflect the changes made to the codebase.
-
-Remember to be specific with your questions with full context, since the assistant is only provided your questions and not the context of the issue.
-
-First, summarize the key points from the previous answers.
-
-Then, think step-by-step in a single <scratchpad> block to determine if the answers you received so far is 100% complete and sufficient to move onto the next step.
-
-If the answers received are not 100% complete and suffiient, you will need to ask more follow-up questions to complete the current step, use the `ask_questions_about_codebase` tool again to ask more detailed, specific questions about the codebase.
-
-Otherwise, if you have enough information to move onto the next step, first determine the step you were just on and what the next step is. Then, proceed to list out information you will need to complete the next step. Lastly, brainstorm questions to ask about the codebase to find the information needed to answer the user's question.
-
-If have just completed the last step, use the `submit_task` tool to submit the final detailed step-by-step plan of what to change. Each step of the instructions should be actionable and specific, like "change" or "add", instead of "investigate" or "look into". If you must say "investigate", it means you have insufficient information and should ask more questions using the `ask_questions_about_codebase` tool."""
-
-SCRATCHPAD_PROMPT = """
-
-And here is your planning in your scratchpad prior to the last `ask_questions_about_codebase` call:
-<scratchpad>
-{scratchpad}
-</scratchpad>"""
 
 def search_codebase(
     question: str,
@@ -278,6 +287,7 @@ def search_codebase(
         question,
         use_multi_query=False,
         NUM_SNIPPETS_TO_KEEP=0,
+        skip_analyze_agent=True,
         *args,
         **kwargs
     )
@@ -288,12 +298,6 @@ def search(
     github_issue: str,
     cloned_repo: ClonedRepo,
 ):
-
-    # snippets_text = "\n\n".join([SNIPPET_FORMAT.format(
-    #     denotation=snippet.denotation,
-    #     contents=snippet.content,
-    # ) for snippet in rcm.current_top_snippets[::-1]])
-
     chat_gpt = ChatGPT.from_system_message_string(
         prompt_string=search_agent_instructions + tools_available + "\n\n" + example_tool_calls,
     )
@@ -316,16 +320,18 @@ def search(
 
         function_call = validate_and_parse_function_call(
             response,
-            chat_gpt
+            chat_gpt,
+            tools=tools
         )
 
         scratchpad = extract_xml_tag(response, "scratchpad") or ""
         llm_state["scratchpad"] += "\n" + scratchpad
 
         if function_call is None:
+            function_call_response = ""
             user_message = NO_TOOL_CALL_PROMPT
         else:
-            function_call_response = handle_function_call(function_call, cloned_repo, github_issue, llm_state)
+            function_call_response = handle_function_call(function_call, tools, cloned_repo=cloned_repo, github_issue=github_issue, llm_state=llm_state)
             user_message = f"<function_output>\n{function_call_response}\n</function_output>"
         
         if "DONE" == function_call_response:
@@ -341,80 +347,6 @@ def search(
             }
     raise Exception("Failed to complete the task.")
 
-def handle_function_call(function_call: AnthropicFunctionCall, cloned_repo: ClonedRepo, github_issue, llm_state: dict):
-    if function_call.function_name == "ask_questions_about_codebase":
-        if "questions" not in function_call.function_parameters:
-            return "Please provide a question to search the codebase."
-        questions = function_call.function_parameters["questions"].strip()
-        results = ""
-        relevant_snippets = []
-        for question in questions.splitlines():
-            if not question.strip():
-                continue
-            try:
-                answer, sources = rag(question, cloned_repo)
-            except QuestionAnswererException as e:
-                results += f"<question>\n{question}\n</question>\n<error>\n{e.message}\n</error>\n\n"
-                continue
-            for line in sources.splitlines():
-                snippet_denotation  = line.split(" - ")[0]
-                file_path, line_numbers = snippet_denotation.split(":")
-                start_line, end_line = line_numbers.split("-")
-                if file_path not in relevant_snippets:
-                    relevant_snippets.append(Snippet(
-                        content=cloned_repo.get_file_contents(file_path),
-                        start=start_line,
-                        end=end_line,
-                        file_path=file_path,
-                    ))
-            results += f"<question>\n{question}\n</question>\n<answer>\n{answer}\n\nSources:\n{sources}\n</answer>\n\n"
-            llm_state["questions_and_answers"].append((question, answer, sources))
-        relevant_files_string = ""
-        for snippet in relevant_snippets:
-            relevant_files_string += f"<snippet>\n<file_path>\n{snippet.denotation}\n</file_path>\n<source>\n{snippet.get_snippet(add_lines=False)}\n</source>\n</snippet>\n"
-        if relevant_files_string:
-            relevant_files_string = f"Here is a list of files cited in the answers to the questions:\n{relevant_files_string}\n\n"
-        scratchpad = llm_state["scratchpad"]
-        results = relevant_files_string + results.strip() + ASK_QUESTIONS_RESULT_INSTRUCTIONS.format(
-            request=github_issue,
-            scratchpad=SCRATCHPAD_PROMPT.format(scratchpad=scratchpad)
-        )
-        print(results)
-        # breakpoint()
-        return results
-    elif function_call.function_name == "submit_task":
-        for key in ("plan", "explanation", "sources"):
-            if key not in function_call.function_parameters:
-                return f"Please provide a {key} to submit the task."
-        error_message = ""
-        sources = function_call.function_parameters["sources"]
-        for line in sources.splitlines():
-            if not line.strip():
-                continue
-            if " - " not in line:
-                error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + "\n\nYour sources are missing the ' - ' delimiter before the justification block."
-                break
-            snippet_denotation  = line.split(" - ")[0]
-            if ":" not in snippet_denotation:
-                error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + "\n\nSnippet denotations must be in the format 'path/to/file.ext:a-b', containing the file path and line numbers deliminated by a ':'."
-                break
-            file_path, line_numbers = snippet_denotation.split(":")
-            if "-" not in line_numbers:
-                error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + "\n\nSnippet denotations must be in the format 'path/to/file.ext:a-b', and the line numbers must include a start and end line deliminated by a '-'."
-                break
-            start_line, end_line = line_numbers.split("-")
-            try:
-                cloned_repo.get_file_contents(file_path)
-            except FileNotFoundError:
-                error_message = f"ERROR\n\nThe file path '{file_path}' does not exist in the codebase."
-                break
-        if error_message:
-            return error_message
-        else:
-            return "DONE"
-    else:
-        return "ERROR\n\nInvalid tool name."
-
 if __name__ == "__main__":
     cloned_repo = MockClonedRepo(
         _repo_dir = "/tmp/sweep",
@@ -422,7 +354,8 @@ if __name__ == "__main__":
     )
     try:
         search(
-            "Fix the parallelization bug in our vector DB.",
+            # "Fix the parallelization bug in our vector DB.",
+            "In vector_db.py, migrate our KNN algorithm to use HNSW instead",
             cloned_repo,
         )
     except Exception as e:
