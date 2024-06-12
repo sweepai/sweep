@@ -440,6 +440,7 @@ def chat_codebase_stream(
     model: str = "claude-3-opus-20240229",
     use_patch: bool = False,
 ):
+    EXPAND_SIZE = 100
     if not snippets:
         raise ValueError("No snippets were sent.")
     org_name, repo = repo_name.split("/")
@@ -452,8 +453,8 @@ def chat_codebase_stream(
         joined_relevant_snippets="\n".join([
             relevant_snippet_template.format(
                 i=i,
-                file_path=snippet.file_path,
-                content=snippet.get_snippet(add_lines=False)
+                file_path=snippet.file_denotation,
+                content=snippet.expand(EXPAND_SIZE).get_snippet(add_lines=False)
             )
             for i, snippet in enumerate(snippets)
         ]),
@@ -494,16 +495,16 @@ def chat_codebase_stream(
             pr_files="\n".join([
                 relevant_snippet_template.format(
                     i=i,
-                    file_path=snippet.file_path,
-                    content=snippet.content
+                    file_path=snippet.file_denotation,
+                    content=snippet.expand(EXPAND_SIZE).get_snippet(add_lines=False)
                 )
                 for i, snippet in enumerate(relevant_pr_snippets)
             ]),
             joined_relevant_snippets="\n".join([
                 relevant_snippet_template.format(
                     i=i,
-                    file_path=snippet.file_path,
-                    content=snippet.content
+                    file_path=snippet.file_denotation,
+                    content=snippet.expand(EXPAND_SIZE).get_snippet(add_lines=False)
                 )
                 for i, snippet in enumerate(other_relevant_snippets)
             ]),
