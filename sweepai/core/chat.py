@@ -382,7 +382,10 @@ class ChatGPT(MessageList):
         temperature = temperature or self.temperature or default_temperature
         if verbose:
             # messages_string_to_log = '\n\n'.join([message.content for message in self.messages])
-            logger.debug(f"Calling anthropic with model {model}\nInput:\n{content}")
+            if use_openai:
+                logger.debug(f"Calling openai with model {model}\nInput:\n{content}")
+            else:
+                logger.debug(f"Calling anthropic with model {model}\nInput:\n{content}")
         system_message = "\n\n".join([message.content for message in self.messages if message.role == "system"])
         content = ""
         e = None

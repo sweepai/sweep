@@ -48,6 +48,7 @@ Remember to use the valid function call format for either options."""
 def search_codebase(
     question: str,
     cloned_repo: ClonedRepo,
+    k=5,
     *args,
     **kwargs,
 ):
@@ -60,7 +61,7 @@ def search_codebase(
         *args,
         **kwargs
     )
-    return snippets[:5]
+    return snippets[:k]
 
 @tool()
 def semantic_search(
@@ -169,7 +170,10 @@ def ripgrep(
         cwd=cloned_repo.repo_dir,
     )
     if response.returncode != 0:
-        return f"Error running ripgrep:\n\n{response.stderr}"
+        if not response.stderr:
+            return f"No results found for '{query}' in the codebase."
+        else:
+            return f"Error running ripgrep:\n\n{response.stderr}"
     results = post_filter_ripgrep_results(response.stdout)
     return f"Here are ALL occurrences of '{query}' in the codebase:\n\n```{results}```\n" + RIPGREP_SEARCH_RESULT_INSTRUCTIONS.format(
         request=llm_state["request"],
@@ -225,18 +229,22 @@ def parse_sources(sources: str, cloned_repo: ClonedRepo):
         start_line = source.group("start_line")
         end_line = source.group("end_line")
         justification = source.group("justification")
+        try:
+            content = cloned_repo.get_file_contents(file_path)
+        except FileNotFoundError:
+            similar_files = cloned_repo.get_similar_file_paths(file_path)
+            if similar_files:
+                raise Exception(f"ERROR\n\nThe file path '{file_path}' does not exist in the codebase. Did you mean: {similar_files}?")
+            else:
+                raise Exception(f"ERROR\n\nThe file path '{file_path}' does not exist in the codebase. Please provide a valid file path.")
         snippets.append(Snippet(
-            content=cloned_repo.get_file_contents(file_path),
-            start=start_line,
-            end=end_line,
+            content=content,
+            start=int(start_line),
+            end=max(int(start_line) + 1, int(end_line)),
             file_path=file_path,
         ))
         if not file_path or not start_line or not end_line or not justification:
             raise Exception(CORRECTED_SUBMIT_SOURCES_FORMAT + f"\n\nThe following source is missing one of the required fields:\n\n{source.group(0)}")
-        try:
-            cloned_repo.get_file_contents(file_path)
-        except FileNotFoundError:
-            raise Exception(f"ERROR\n\nThe file path '{file_path}' does not exist in the codebase. Please provide a valid file path.")
     return snippets
 
 @tool()
