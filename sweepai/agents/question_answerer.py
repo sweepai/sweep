@@ -221,32 +221,41 @@ justification and the section of the file that is relevant
 [additional sources...]
 </sources>"""
 
+FILE_NOT_FOUND_ERROR = """ERROR
+
+The following files do not exist in the codebase:
+{file_paths}
+
+Solve this by following these steps:
+1. Think about what the correct file is in <scratchpad></scratchpad> XML tags.
+2. Make the submit function call again with the corrected file path in <function_call></function_call> XML tags. You must also include the <plan></plan>, <explanation></explanation> and <sources></sources> XML tags.
+
+YOU WILL USE THE XML TAGS. Otherwise, the assistant will not be able to parse the answer."""
+
 
 def parse_sources(sources: str, cloned_repo: ClonedRepo):
-    source_pattern = re.compile(r"<source>\s+<file_path>(?P<file_path>.*?)</file_path>\s+<start_line>(?P<start_line>\d+?)</start_line>\s+<end_line>(?P<end_line>\d+?)</end_line>\s+<justification>(?P<justification>.*?)</justification>\s+</source>", re.DOTALL)
+    source_pattern = re.compile(r"<source>\s+<file_path>(?P<file_path>.*?)</file_path>\s+<start_line>(?P<start_line>\d+?)</start_line>\s+<end_line>(?P<end_line>\d+?)</end_line>\s+(<justification>(?P<justification>.*?)</justification>\s+)?</source>", re.DOTALL)
     source_matches = source_pattern.finditer(sources)
     snippets = []
+    missing_files = []
     for source in source_matches:
         file_path = source.group("file_path")
         start_line = source.group("start_line")
         end_line = source.group("end_line")
-        justification = source.group("justification")
         try:
             content = cloned_repo.get_file_contents(file_path)
         except FileNotFoundError:
-            similar_files = cloned_repo.get_similar_file_paths(file_path)
-            if similar_files:
-                raise Exception(f"ERROR\n\nThe file path '{file_path}' does not exist in the codebase. Did you mean: {similar_files}?")
-            else:
-                raise Exception(f"ERROR\n\nThe file path '{file_path}' does not exist in the codebase. Please provide a valid file path.")
+            missing_files.append(file_path)
         snippets.append(Snippet(
             content=content,
             start=int(start_line),
             end=max(int(start_line) + 1, int(end_line)),
             file_path=file_path,
         ))
-        if not file_path or not start_line or not end_line or not justification:
+        if not file_path or not start_line or not end_line:
             raise Exception(CORRECTED_SUBMIT_SOURCES_FORMAT + f"\n\nThe following source is missing one of the required fields:\n\n{source.group(0)}")
+    if missing_files:
+        raise Exception(FILE_NOT_FOUND_ERROR.format(file_paths="\n".join(missing_files)))
     return snippets
 
 @tool()

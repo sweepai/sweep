@@ -217,17 +217,6 @@ def ask_question_about_codebase(
     )
     return results
 
-FILE_NOT_FOUND_ERROR = """ERROR
-
-The following files do not exist in the codebase:
-{file_paths}
-
-Solve this by following these steps:
-1. Think about what the correct file is in <scratchpad></scratchpad> XML tags.
-2. Make the submit function call again with the corrected file path in <function_call></function_call> XML tags. You must also include the <plan></plan>, <explanation></explanation> and <sources></sources> XML tags.
-
-YOU WILL USE THE XML TAGS. Otherwise, the assistant will not be able to parse the answer."""
-
 @tool()
 def submit_task(
     plan: Parameter("Extremely detailed step-by-step plan of the code changes you will make in the repo to fix the bug or implement the feature to resolve the user's issue."),
@@ -236,23 +225,10 @@ def submit_task(
     cloned_repo: ClonedRepo
 ):
     error_message = ""
-    source_pattern = re.compile(r"<source>\s+<file_path>(?P<file_path>.*?)</file_path>\s+<start_line>(?P<start_line>\d+?)</start_line>\s+<end_line>(?P<end_line>\d+?)</end_line>\s+<justification>(?P<justification>.*?)</justification>\s+</source>", re.DOTALL)
-    source_matches = source_pattern.finditer(sources)
-    missing_files = []
-    for source in source_matches:
-        file_path = source.group("file_path")
-        start_line = source.group("start_line")
-        end_line = source.group("end_line")
-        justification = source.group("justification")
-        if not file_path or not start_line or not end_line or not justification:
-            error_message = CORRECTED_SUBMIT_SOURCES_FORMAT + f"\n\nThe following source is missing one of the required fields:\n\n{source.group(0)}"
-            break
-        try:
-            cloned_repo.get_file_contents(file_path)
-        except FileNotFoundError:
-            missing_files.append(file_path)
-    if missing_files:
-        error_message = FILE_NOT_FOUND_ERROR.format(file_paths="\n".join(missing_files))
+    try:
+        parse_sources(sources, cloned_repo)
+    except Exception as e:
+        error_message = str(e)
     if error_message:
         return error_message
     else:
@@ -310,6 +286,7 @@ def search(
             user_message = f"<function_output>\n{function_call_response}\n</function_output>"
         
         if "DONE" == function_call_response:
+            breakpoint()
             for question, answer, sources in llm_state["questions_and_answers"]:
                 print(f"Question: {question}")
                 print(f"Answer:\n{answer}")
