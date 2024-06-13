@@ -18,7 +18,6 @@ from sweepai.core.review_utils import (
     get_pr_changes,
     get_pr_summary_from_patches,
     group_vote_review_pr,
-    review_pr_detailed_checks,
 )
 from sweepai.dataclasses.codereview import GroupedFilesForReview, PRReviewCommentThread
 from sweepai.utils.concurrency_utils import fire_and_forget_wrapper
@@ -159,15 +158,15 @@ def review_pr(
             # convert code_review_by_group to be by file for easier rendering
             code_review_by_file = decompose_code_review_by_group(code_review_by_group)
             # do more specific checks now, i.e. duplicated util functions
-            code_review_by_file = review_pr_detailed_checks(
-                username,
-                cloned_repo,
-                pr_changes,
-                code_review_by_file,
-                pull_request_info,
-                formatted_comment_threads,
-                chat_logger=chat_logger,
-            )
+            # code_review_by_file = review_pr_detailed_checks(
+            #     username,
+            #     cloned_repo,
+            #     pr_changes,
+            #     code_review_by_file,
+            #     pull_request_info,
+            #     formatted_comment_threads,
+            #     chat_logger=chat_logger,
+            # )
             # after 50 minutes have passed refresh token to re get pr
             if time() - review_pr_start_time > 50 * 60:
                 _, _ , repository = refresh_token(repository.full_name, installation_id)

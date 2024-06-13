@@ -1,18 +1,18 @@
 from math import inf
 import os
 import re
+import textwrap
 import time
 import traceback
 from typing import Any, Callable, Iterator, Literal
 
-from anthropic import Anthropic, BadRequestError, AnthropicBedrock
+from anthropic import Anthropic, BadRequestError, AnthropicBedrock, Stream
+from anthropic.types import MessageStreamEvent
 from openai import OpenAI
 import backoff
 from loguru import logger
 from pydantic import BaseModel
 
-from sweepai.agents.agent_utils import ensure_additional_messages_length
-from sweepai.config.client import get_description
 from sweepai.config.server import (
     ALTERNATE_AWS,
     ANTHROPIC_AVAILABLE,
@@ -23,16 +23,14 @@ from sweepai.config.server import (
     PAREA_API_KEY
 )
 from sweepai.core.entities import Message
-from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
+from sweepai.core.prompts import system_message_prompt
 from sweepai.core.viz_utils import save_messages_for_visualization
 from sweepai.logn.cache import file_cache
 from sweepai.utils.anthropic_client import sanitize_anthropic_messages
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.image_utils import create_message_with_images
 from sweepai.utils.openai_proxy import OpenAIProxy
-from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.str_utils import truncate_text_based_on_stop_sequence
 from sweepai.utils.tiktoken_utils import Tiktoken
 from parea import Parea
@@ -84,6 +82,30 @@ model_to_max_tokens = {
 }
 default_temperature = 0.1
 
+MAX_CHARS = 32000
+
+def ensure_additional_messages_length(additional_messages: list[Message]) -> list[Message]:
+    for i, additional_message in enumerate(additional_messages):
+        if len(additional_message.content) > MAX_CHARS:
+            wrapper = textwrap.TextWrapper(width=MAX_CHARS, replace_whitespace=False)
+            new_messages = wrapper.wrap(additional_message.content)
+            # replace the original message with the broken up messages
+            for j, new_message in enumerate(new_messages):
+                if j == 0:
+                    additional_messages[i] = Message(
+                        role=additional_message.role,
+                        content=new_message,
+                    )
+                else:
+                    additional_messages.insert(
+                        i + j,
+                        Message(
+                            role=additional_message.role,
+                            content=new_message,
+                        ),
+                    )
+    return additional_messages
+
 class MessageList(BaseModel):
     messages: list[Message] = [
         Message(
@@ -98,22 +120,6 @@ class MessageList(BaseModel):
         cleaned_messages = [message.to_openai() for message in self.messages]
         return cleaned_messages
 
-    def delete_messages_from_chat(
-        self, key_to_delete: str, delete_user=True, delete_assistant=True
-    ):
-        self.messages = [
-            message
-            for message in self.messages
-            if not (
-                key_to_delete in (message.key or "")
-                and (
-                    delete_user
-                    and message.role == "user"
-                    or delete_assistant
-                    and message.role == "assistant"
-                )
-            )  # Only delete if message matches key to delete and role should be deleted
-        ]
 
 def determine_model_from_chat_logger(chat_logger: ChatLogger, model: str):
     if chat_logger is not None:
@@ -149,8 +155,10 @@ def determine_model_from_chat_logger(chat_logger: ChatLogger, model: str):
 tool_call_parameters = {
     "make_change": ["justification", "file_name", "original_code", "new_code", "replace_all"],
     "create_file": ["justification", "file_name", "new_code"],
-    "submit_task": ["justification"],
+    "submit_task": ["sources", "justification", "answer"],
     "search_codebase": ["query", "question", "include_docs", "include_tests"],
+    "semantic_search": ["query", "question", "include_docs", "include_tests"],
+    "ripgrep": ["query"],
 }
 
 # returns a dictionary of the tool call parameters, assumes correct
@@ -196,45 +204,11 @@ class ChatGPT(MessageList):
     prev_message_states: list[list[Message]] = []
     model: ChatModel = DEFAULT_GPT4_MODEL
     chat_logger: ChatLogger | None = None
-    human_message: HumanMessagePrompt | None = None
     file_change_paths: list[str] = []
-    cloned_repo: ClonedRepo | None = None
     temperature: float = default_temperature
 
     class Config:
         arbitrary_types_allowed = True
-
-    @classmethod
-    def from_system_message_content(
-        cls,
-        human_message: HumanMessagePrompt,
-        is_reply: bool = False,
-        chat_logger=None,
-        cloned_repo: ClonedRepo | None = None,
-        **kwargs,
-    ):
-        content = system_message_prompt
-        repo = kwargs.get("repo")
-        if repo:
-            repo_info = get_description(repo)
-            repo_description = repo_info["description"]
-            repo_info["rules"]
-            if repo_description:
-                content += f"{repo_description_prefix_prompt}\n{repo_description}"
-        messages = [Message(role="system", content=content, key="system")]
-
-        added_messages = human_message.construct_prompt()  # [ { role, content }, ... ]
-        for msg in added_messages:
-            messages.append(Message(**msg))
-        messages = ensure_additional_messages_length(messages)
-
-        return cls(
-            messages=messages,
-            human_message=human_message,
-            chat_logger=chat_logger,
-            cloned_repo=cloned_repo,
-            **kwargs,
-        )
 
     @classmethod
     def from_system_message_string(
@@ -245,23 +219,6 @@ class ChatGPT(MessageList):
             chat_logger=chat_logger,
             **kwargs,
         )
-
-    def delete_messages_from_chat(
-        self, key_to_delete: str, delete_user=True, delete_assistant=True
-    ):
-        self.messages = [
-            message
-            for message in self.messages
-            if not (
-                key_to_delete in (message.key or "")
-                and (
-                    delete_user
-                    and message.role == "user"
-                    or delete_assistant
-                    and message.role == "assistant"
-                )
-            )  # Only delete if message matches key to delete and role should be deleted
-        ]
 
     def chat(
         self,
@@ -475,36 +432,37 @@ class ChatGPT(MessageList):
                         } for message in self.messages if message.role != "system"
                     ]
                     message_dicts = sanitize_anthropic_messages(message_dicts)
-                    # pylint: disable=E1129
-                    with client.messages.stream(
-                        model=model,
-                        temperature=temperature,
-                        max_tokens=max_tokens,
-                        messages=message_dicts,
-                        system=system_message,  
-                        timeout=60,
-                    ) as stream_:
-                        streamed_text = ""
-                        try:
-                            if verbose:
-                                print(f"Connected to {model}...")
 
-                            for i, token in enumerate(stream_.text_stream):
-                                if verbose:
-                                    if i == 0:
-                                        print(f"Time to first token: {time.time() - start_time:.2f}s")
-                                    print(token, end="", flush=True)
-                                streamed_text += token
-                                yield token
-                                for stop_sequence in stop_sequences:
-                                    if stop_sequence in streamed_text:
-                                        return truncate_text_based_on_stop_sequence(streamed_text, stop_sequences)
-                        except TimeoutError as te:
-                            logger.exception(te)
-                            raise te
-                        except Exception as e_:
-                            logger.exception(e_)
-                            raise e_
+                    start_time = time.time()
+                    print(f"In queue with model {model}...")
+                    response: Stream[MessageStreamEvent] = client.messages.create(
+                        model=model,
+                        messages=message_dicts,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        system=system_message,
+                        stream=True
+                    )
+                    streamed_text = ""
+                    for event in response:
+                        match event.type:
+                            case "message_start":
+                                print(f"Starting stream with {event.message.usage.input_tokens} input tokens in {time.time() - start_time:.2f}s")
+                            case "content_block_delta":
+                                streamed_text += event.delta.text
+                                print(event.delta.text, end="", flush=True)
+                                yield event.delta.text
+                                if any(stop_sequence in streamed_text for stop_sequence in stop_sequences):
+                                    print(f"Stop sequence hit after {time.time() - start_time:.2f}s")
+                                    return truncate_text_based_on_stop_sequence(streamed_text, stop_sequences)
+                            case "content_block_stop":
+                                print()
+                                break
+                            case _:
+                                print(event)
+                    print(f"Streamed {len(streamed_text)} characters in {time.time() - start_time:.2f}s")
+                    response = streamed_text
+                    return response
                 return
             return llm_stream()
         for i in range(NUM_ANTHROPIC_RETRIES):
@@ -564,27 +522,33 @@ class ChatGPT(MessageList):
                         start_time = time.time()
                         if verbose:
                             print(f"In queue with model {model}...")
-                        with client.messages.stream(
+                        response: Stream[MessageStreamEvent] = client.messages.create(
                             model=model,
-                            temperature=temperature,
-                            max_tokens=max_tokens,
                             messages=message_dicts,
-                            system=system_message,  
-                        ) as stream:
-                            streamed_text = ""
-                            if verbose:
-                                print(f"Started stream in {time.time() - start_time:.2f}s!")
-                            for i, text in enumerate(stream.text_stream):
-                                if verbose:
-                                    if i == 0:
-                                        print(f"Time to first token: {time.time() - start_time:.2f}s")
-                                    print(text, end="", flush=True)
-                                if text:
-                                    streamed_text += text
-                                    for stop_sequence in stop_sequences:
-                                        if stop_sequence in streamed_text:
-                                            return truncate_text_based_on_stop_sequence(streamed_text, stop_sequences)
-                        response = stream.get_final_message().content[0].text
+                            max_tokens=max_tokens,
+                            temperature=temperature,
+                            system=system_message,
+                            stream=True
+                        )
+                        streamed_text = ""
+                        for event in response:
+                            match event.type:
+                                case "message_start":
+                                    print(f"Starting stream with {event.message.usage.input_tokens} input tokens in {time.time() - start_time:.2f}s")
+                                case "content_block_delta":
+                                    streamed_text += event.delta.text
+                                    print(event.delta.text, end="", flush=True)
+                                    if any(stop_sequence in streamed_text for stop_sequence in stop_sequences):
+                                        print(f"Stop sequence hit after {time.time() - start_time:.2f}s")
+                                        return truncate_text_based_on_stop_sequence(streamed_text, stop_sequences)
+                                case "content_block_stop":
+                                    print()
+                                    break
+                                case _:
+                                    print(event)
+                        print(f"Streamed {len(streamed_text)} characters in {time.time() - start_time:.2f}s")
+                        response = streamed_text
+
                         if verbose:
                             print("Done streaming results!")
                         # manually chop off text after any stop tokens because including stop sequences makes the llms lazy
