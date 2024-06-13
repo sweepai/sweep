@@ -7,6 +7,7 @@ from sweepai.config.client import SweepConfig
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Snippet
 from sweepai.core.snippet_utils import convert_lines_to_and_merge_ranges
+from sweepai.core.vector_db import cosine_similarity, embed_text_array
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.ripgrep_utils import cleaned_rg_output, parse_ripgrep_line
 
@@ -31,6 +32,7 @@ class DynamicContextBot(ChatGPT):
         """
         sweep_config = SweepConfig()
         snippets: list[Snippet] = []
+        sorted_snippets: list[Snippet] = []
         directory = cloned_repo.repo_dir
         rg_command_base = ["rg", "-n", "--heading"]
         results = []
@@ -94,7 +96,19 @@ class DynamicContextBot(ChatGPT):
                 # now we have all the snippets, we can filter them based on the target
                 snippet_contents = [snippet.get_snippet(add_lines=False) for snippet in snippets]
                 # embed and them compare with the target
+                embedded_snippet_contents = embed_text_array(snippet_contents)[0]
+                embedded_query = embed_text_array([target])[0]
+                similarity_scores = cosine_similarity(embedded_query, embedded_snippet_contents).tolist()[0]
+                # update scores for each snippet
+                for i, snippet in enumerate(snippets):
+                    snippet.score = similarity_scores[i]
+                sorted_snippets = sorted(snippets, key=lambda x: x.score, reverse=True)
             except Exception as e:
                 logger.warning(f"Error running ripgrep: {e}")
                 continue
-        return snippets[:k]
+        return sorted_snippets[:k]
+    
+if __name__ == "__main__":
+    pass
+    # context_bot = DynamicContextBot()
+    # context_bot.use_ripgrep(["test"], "target", cloned_repo)

@@ -118,8 +118,6 @@ def review_pr(
                     error_message=str(error),
                 )
                 return {"success": False, "reason": str(error)}
-            # context_bot = DynamicContextBot()
-            # context_bot.use_ripgrep(["test"], "target", cloned_repo)
             pr_issue = repository.get_issue(number=pr.number)
             reaction_eyes = pr_issue.create_reaction("eyes")
             # get all comments on the pr
