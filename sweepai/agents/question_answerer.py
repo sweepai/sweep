@@ -43,6 +43,8 @@ Option B: Submit the task
 
 Otherwise, if you have found all the relevant information to answer the user's request, submit the task using submit_task. If you submit, ensure that the <answer> includes relevant implementations, usages and examples of code wherever possible. Ensure that the <sources> section is MINIMAL and only includes all files you reference in your answer, and is correctly formatted, with each line contains a file path, start line, end line, and justification like in the example in the instructions.
 
+If you have exhausted all search options and still have not found the answer, you can submit an answer with everything you've searched for and found, clarifying that you can not find the answer.
+
 Remember to use the valid function call format for either options."""
 
 def search_codebase(
