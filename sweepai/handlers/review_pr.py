@@ -18,7 +18,6 @@ from sweepai.core.review_utils import (
     get_pr_changes,
     get_pr_summary_from_patches,
     group_vote_review_pr,
-    review_pr_detailed_checks,
 )
 from sweepai.dataclasses.codereview import GroupedFilesForReview, PRReviewCommentThread
 from sweepai.utils.concurrency_utils import fire_and_forget_wrapper
