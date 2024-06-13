@@ -307,7 +307,7 @@ def commit_multi_file_changes(
     branch: str,
     renames_dict: dict[str, str] = {},
 ):
-    assert file_changes
+    assert file_changes or renames_dict
     repo = cloned_repo.repo
     if renames_dict:
         blobs_to_commit = []
@@ -349,6 +349,8 @@ def commit_multi_file_changes(
         # update ref of branch
         ref = f"heads/{branch}"
         repo.get_git_ref(ref).edit(sha=commit.sha)
+        if not file_changes:
+            return commit
     blobs_to_commit = []
     # convert to blob
     for path, content in file_changes.items():
