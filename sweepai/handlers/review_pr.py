@@ -8,8 +8,6 @@ from github.PullRequest import PullRequest
 from loguru import logger
 
 from sweepai.chat.api import posthog_trace
-from sweepai.config.client import SweepConfig
-from sweepai.core.dynamic_context_bot import DynamicContextBot
 from sweepai.core.review_utils import (
     cluster_patches,
     decompose_code_review_by_group,

@@ -1,6 +1,4 @@
-from dataclasses import dataclass
 import subprocess
-import traceback
 
 from loguru import logger
 from sweepai.config.client import SweepConfig
