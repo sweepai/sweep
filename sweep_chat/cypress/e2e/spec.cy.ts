@@ -22,7 +22,7 @@ describe('sweep chat', () => {
 
     cy.get(':nth-child(5) > .flex').type(testMessage + "{enter}")
     cy.wait(1000)
-    cy.get(':nth-child(5) > .inline-flex').click()
+    cy.get('.bg-destructive').click()
     cy.on('uncaught:exception', (err, runnable) => {
       expect(err.message).to.include('No snippets found');
       return false;
@@ -46,5 +46,8 @@ describe('sweep chat', () => {
 
     // Validate response from the LLM
     cy.get(':nth-child(3) > .transition-color', { timeout: 30000 }).should("contain.text", "Analysis")
+    cy.url().then(url => {
+      expect(url.length).to.be.greaterThan(50);
+    });
   })
 })

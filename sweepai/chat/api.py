@@ -1,6 +1,7 @@
 from functools import wraps
 import traceback
 from typing import Any, Callable
+import uuid
 from diskcache import Cache
 import jsonpatch
 from copy import deepcopy
@@ -15,7 +16,7 @@ import yaml
 
 from sweepai.agents.modify_utils import validate_and_parse_function_call
 from sweepai.agents.search_agent import extract_xml_tag
-from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, system_message, function_response, format_message, pr_format, relevant_snippets_message_for_pr
+from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, anthropic_system_message, function_response, anthropic_format_message, pr_format, relevant_snippets_message_for_pr, openai_format_message, openai_system_message
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import CACHE_DIRECTORY
 from sweepai.core.chat import ChatGPT
@@ -33,6 +34,9 @@ app = FastAPI()
 
 auth_cache = Cache(f'{CACHE_DIRECTORY}/auth_cache') 
 repo_cache = f"{CACHE_DIRECTORY}/repos"
+message_cache = f"{CACHE_DIRECTORY}/messages"
+
+os.makedirs(message_cache, exist_ok=True)
 
 DEFAULT_K = 8
 
@@ -70,9 +74,9 @@ def get_pr_snippets(
                 num_changes_per_patch = [patch.changes.count("\n+") + patch.changes.count("\n-") for patch in patches]
                 if max(num_changes_per_patch) > 10 \
                     or file_contents.count("\n") + 1 < 10 * file_data["changes"]:
-                    print(f"adding {file_path}")
-                    print(num_changes_per_patch)
-                    print(file_contents.count("\n"))
+                    # print(f"adding {file_path}")
+                    # print(num_changes_per_patch)
+                    # print(file_contents.count("\n"))
                     pr_snippets.append(Snippet.from_file(file_path, file_contents))
                 else:
                     skipped_pr_snippets.append(Snippet.from_file(file_path, file_contents))
@@ -293,7 +297,7 @@ def search_codebase_endpoint_post(
     username = Github(access_token).get_user().login
     token = g.token if isinstance(g, CustomGithub) else access_token
     def stream_response():
-        yield json.dumps(["Building lexical index...", []])
+        yield json.dumps(["Starting search...", []])
         for message, snippets in wrapped_search_codebase.stream(
             username,
             repo_name,
@@ -320,21 +324,28 @@ def wrapped_search_codebase(
 ):
     org_name, repo = repo_name.split("/")
     if not os.path.exists(f"{repo_cache}/{repo}"):
+        yield "Cloning repository...", []
         print(f"Cloning {repo_name} to {repo_cache}/{repo}")
         git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"{repo_cache}/{repo}")
         print(f"Cloned {repo_name} to {repo_cache}/{repo}")
-    cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
-    cloned_repo.pull()
-    pr_snippets, skipped_pr_snippets, pulls_messages = get_pr_snippets(
-        repo_name,
-        annotations,
-        cloned_repo,
-    )
-    if pulls_messages:
+        yield "Repository cloned.", []
+        cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
+    else:
+        cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
+        cloned_repo.pull()
+        yield "Repository pulled.", []
+    if annotations:
+        yield "Getting pull request snippets...", []
+        pr_snippets, skipped_pr_snippets, pulls_messages = get_pr_snippets(
+            repo_name,
+            annotations,
+            cloned_repo,
+        )
         if pulls_messages.count("<pull_request>") > 1:
             query += "\n\nHere are the mentioned pull request(s):\n\n" + pulls_messages
         else:
             query += "\n\n" + pulls_messages
+        yield "Got pull request snippets.", []
     for message, snippets in search_codebase.stream(
         repo_name,
         query,
@@ -429,6 +440,7 @@ def chat_codebase_stream(
     model: str = "claude-3-opus-20240229",
     use_patch: bool = False,
 ):
+    EXPAND_SIZE = 100
     if not snippets:
         raise ValueError("No snippets were sent.")
     org_name, repo = repo_name.split("/")
@@ -441,13 +453,14 @@ def chat_codebase_stream(
         joined_relevant_snippets="\n".join([
             relevant_snippet_template.format(
                 i=i,
-                file_path=snippet.file_path,
-                content=snippet.content
+                file_path=snippet.file_denotation,
+                content=snippet.expand(EXPAND_SIZE).get_snippet(add_lines=False)
             )
             for i, snippet in enumerate(snippets)
         ]),
         repo_specific_description=repo_specific_description
     )
+    system_message = anthropic_system_message if not model.startswith("gpt") else openai_system_message
     chat_gpt: ChatGPT = ChatGPT.from_system_message_string(
         prompt_string=system_message
     )
@@ -482,16 +495,16 @@ def chat_codebase_stream(
             pr_files="\n".join([
                 relevant_snippet_template.format(
                     i=i,
-                    file_path=snippet.file_path,
-                    content=snippet.content
+                    file_path=snippet.file_denotation,
+                    content=snippet.expand(EXPAND_SIZE).get_snippet(add_lines=False)
                 )
                 for i, snippet in enumerate(relevant_pr_snippets)
             ]),
             joined_relevant_snippets="\n".join([
                 relevant_snippet_template.format(
                     i=i,
-                    file_path=snippet.file_path,
-                    content=snippet.content
+                    file_path=snippet.file_denotation,
+                    content=snippet.expand(EXPAND_SIZE).get_snippet(add_lines=False)
                 )
                 for i, snippet in enumerate(other_relevant_snippets)
             ]),
@@ -668,25 +681,35 @@ def chat_codebase_stream(
     
     def postprocessed_stream(*args, use_patch=False, **kwargs):
         previous_state = []
-        for messages in stream_state(*args, **kwargs):
-            if not use_patch:
-                yield json.dumps([
-                    message.model_dump()
-                    for message in messages
-                ])
-            else:
-                current_state = [
-                    message.model_dump()
-                    for message in messages
-                ]
-                patch = jsonpatch.JsonPatch.from_diff(previous_state, current_state)
-                if patch:
-                    yield patch.to_string()
-                previous_state = current_state
+        try:
+            for messages in stream_state(*args, **kwargs):
+                if not use_patch:
+                    yield json.dumps([
+                        message.model_dump()
+                        for message in messages
+                    ])
+                else:
+                    current_state = [
+                        message.model_dump()
+                        for message in messages
+                    ]
+                    patch = jsonpatch.JsonPatch.from_diff(previous_state, current_state)
+                    if patch:
+                        yield patch.to_string()
+                    previous_state = current_state
+        except Exception as e:
+            print(e)
+            yield json.dumps([
+                {
+                    "op": "error",
+                    "value": "ERROR\n\n" + str(e)
+                }
+            ])
 
+    format_message = anthropic_format_message if not model.startswith("gpt") else openai_format_message
     return StreamingResponse(
         postprocessed_stream(
-            messages[-1].content + "\n\n" + format_message,
+            f"Here is the user's message:\n<user_message>\n{messages[-1].content}\n</user_message>\n\n" + format_message,
             snippets,
             messages,
             access_token,
@@ -721,6 +744,46 @@ def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, s
         return f"SUCCESS\n\nHere are the relevant files to your search request:\n{new_snippets_string}", new_snippets_to_add[:k]
     else:
         return "ERROR\n\nTool not found.", []
+
+@app.post("/backend/messages/save")
+async def write_message_to_disk(
+    repo_name: str = Body(...),
+    messages: list[Message] = Body(...),
+    snippets: list[Snippet] = Body(...),
+    message_id: str = Body(""),
+):
+    if not message_id:
+        message_id = str(uuid.uuid4())
+    try:
+        with open(f"{CACHE_DIRECTORY}/messages/{message_id}.json", "w") as file:
+            json.dump({
+                "repo_name": repo_name,
+                "messages": [message.model_dump() for message in messages],
+                "snippets": [snippet.model_dump() for snippet in snippets]
+            }, file)
+        return {"status": "success", "message": "Message written to disk successfully.", "message_id": message_id}
+    except Exception as e:
+        logger.error(f"Failed to write message to disk: {str(e)}")
+        return {"status": "error", "message": "Failed to write message to disk."}
+
+@app.get("/backend/messages/load/{message_id}")
+async def read_message_from_disk(
+    message_id: str,
+):
+    try:
+        with open(f"{CACHE_DIRECTORY}/messages/{message_id}.json", "r") as file:
+            message_data = json.load(file)
+        return {
+            "status": "success",
+            "message": "Message read from disk successfully.",
+            "data": message_data
+        }
+    except FileNotFoundError:
+        return {"status": "error", "message": "Message not found."}
+    except Exception as e:
+        logger.error(f"Failed to read message from disk: {str(e)}")
+        return {"status": "error", "message": "Failed to read message from disk."}
+
 
 if __name__ == "__main__":
     import fastapi.testclient
