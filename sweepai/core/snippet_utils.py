@@ -12,6 +12,7 @@ def convert_lines_to_and_merge_ranges(
         return []
     ranges = []
     lines.sort()
+    range_size = max(0, range_size) # ensure at least one line is present
     for line in lines:
         if offset:
             line += offset
