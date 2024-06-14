@@ -5,7 +5,6 @@ import { Input } from "../components/ui/input"
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { FaCheck, FaCog, FaComments, FaGithub, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
@@ -34,10 +33,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Label } from "./ui/label";
 import PulsingLoader from "./shared/PulsingLoader";
 import * as Diff from "diff";
+import { codeStyle, DEFAULT_K, modelMap } from "@/lib/constants";
+import { Repository, Snippet, FileDiff, PullRequest, Message, CodeSuggestion } from "@/lib/types";
 
 import { Octokit } from "octokit";
+import { sliceLines, renderPRDiffs, getJSONPrefix } from "@/lib/str_utils";
 
-const codeStyle = dracula;
 
 if (typeof window !== 'undefined') {
   posthog.init(
@@ -50,71 +51,9 @@ if (typeof window !== 'undefined') {
   posthog.debug(false)
 }
 
-type Repository = any;
-
-interface Snippet {
-  content: string;
-  start: number;
-  end: number;
-  file_path: string;
-  type_name: "source" | "tests" | "dependencies" | "tools" | "docs";
-  score: number;
-}
-
-interface FileDiff {
-  sha: string;
-  filename: string;
-  status: "modified" | "added" | "removed" | "renamed" | "copied" | "changed" | "unchanged";
-  additions: number;
-  deletions: number;
-  changes: number;
-  blob_url: string;
-  raw_url: string;
-  contents_url: string;
-  patch?: string | undefined;
-  previous_filename?: string | undefined;
-}
-
-interface PullRequest {
-  number: number;
-  repo_name: string;
-  title: string;
-  body: string;
-  labels: string[];
-  status: string;
-  file_diffs: FileDiff[]
-}
-
-interface Message {
-  content: string; // This is the message content or function output
-  role: "user" | "assistant" | "function";
-  function_call?: {
-    function_name: string;
-    function_parameters: Record<string, any>;
-    is_complete: boolean;
-    snippets?: Snippet[];
-  }; // This is the function input
-  annotations?: {
-    pulls?: PullRequest[]
-  }
-}
-
-const modelMap: Record<string, string> = {
-  "claude-3-opus-20240229": "Opus",
-  "claude-3-sonnet-20240229": "Sonnet",
-  "claude-3-haiku-20240307": "Haiku",
-  "gpt-4o": "GPT-4o",
-}
-
-const DEFAULT_K: number = 8
-
-const sliceLines = (content: string, start: number, end: number) => {
-  return content.split("\n").slice(Math.max(start - 1, 0), end).join("\n");
-}
+const CODE_CHANGE_PATTERN = /<code_change>\s*<original_code>(?<originalCode>[\s\S]+?)($|<\/original_code>\s*($|<new_code>(?<newCode>[\s\S]+?)($|<\/new_code>)\s*($|(?<closingTag><\/code_change>))))/gs;
 
 const MarkdownRenderer = ({ content, className }: { content: string, className?: string }) => {
-  const CODE_CHANGE_PATTERN = /<code_change>\s*<original_code>(?<originalCode>[\s\S]+?)($|<\/original_code>\s*($|<new_code>(?<newCode>[\s\S]+?)($|<\/new_code>)\s*($|(?<closingTag><\/code_change>))))/gs;
-
   const matches = Array.from(content.matchAll(CODE_CHANGE_PATTERN));
   let transformedContent = content;
 
@@ -269,12 +208,6 @@ const roleToColor = {
 }
 
 const sum = (arr: number[]) => arr.reduce((acc, cur) => acc + cur, 0)
-
-const renderPRDiffs = (pr: PullRequest) => {
-  return pr.file_diffs.map((diff, index) => (
-    `@@ ${diff.filename} @@\n${diff.patch}`
-  )).join("\n\n")
-}
 
 const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (content: string) => void }) => {
   // TODO: finish this implementation
@@ -445,133 +378,111 @@ const FeedbackBlock = ({ message, index }: { message: Message, index: number }) 
   )
 }
 
-const MessageDisplay = ({ message, className, onEdit, repoName, branch, index }: { message: Message, className?: string, onEdit: (content: string) => void, repoName: string, branch: string, index: number }) => {
+const MessageDisplay = ({
+  message,
+  className,
+  onEdit,
+  repoName,
+  branch,
+  onApplyChanges,
+  index
+}: {
+  message: Message,
+  className?: string,
+  onEdit: (content: string) => void,
+  repoName: string,
+  branch: string,
+  onApplyChanges: (codeSuggestions: CodeSuggestion[]) => void,
+  index: number
+}) => {
   if (message.role === "user") {
     return <UserMessageDisplay message={message} onEdit={onEdit} />
   }
+  const matches = Array.from(message.content.matchAll(CODE_CHANGE_PATTERN));
   return (
-    <div className={`flex justify-start`}>
-        <div
-          className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] text-left w-[80%]
-            ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
-        >
-          {message.role === "function" ? (
-            <Accordion type="single" collapsible className="w-full" defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}>
-              <AccordionItem value="function" className="border-none">
-                <AccordionTrigger className="border-none py-0 text-left">
-                  <div className="text-xs text-gray-400 flex align-center">
-                    {!message.function_call!.is_complete ? (
-                      <PulsingLoader size={0.5} />
-                    ) : (
-                      <FaCheck
-                        className="inline-block mr-2"
-                        style={{ marginTop: 2 }}
-                      />
-                    )}
-                    <span>{getFunctionCallHeaderString(message.function_call)}</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className={`pb-0 ${message.content && message.function_call?.function_name === "search_codebase" && !message.function_call?.is_complete ? "pt-6" : "pt-0"}`}>
-                  {message.function_call?.function_name === "search_codebase" && message.content && !message.function_call.is_complete && (
-                    <span className="p-4 pl-2">
-                      {message.content}
-                    </span>
-                  )}
-                  {message.function_call!.snippets ? (
-                    <div className="pb-0 pt-4">
-                      {message.function_call!.snippets.map((snippet, index) => (
-                        <SnippetBadge
-                          key={index}
-                          snippet={snippet}
-                          repoName={repoName}
-                          branch={branch}
+    <>
+      <div className={`flex justify-start`}>
+          <div
+            className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] text-left w-[80%]
+              ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
+          >
+            {message.role === "function" ? (
+              <Accordion type="single" collapsible className="w-full" defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}>
+                <AccordionItem value="function" className="border-none">
+                  <AccordionTrigger className="border-none py-0 text-left">
+                    <div className="text-xs text-gray-400 flex align-center">
+                      {!message.function_call!.is_complete ? (
+                        <PulsingLoader size={0.5} />
+                      ) : (
+                        <FaCheck
+                          className="inline-block mr-2"
+                          style={{ marginTop: 2 }}
                         />
-                      ))}
+                      )}
+                      <span>{getFunctionCallHeaderString(message.function_call)}</span>
                     </div>
-                  ) : (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
-                    <MarkdownRenderer content={message.content} className="reactMarkdown mt-4 mb-0 py-2" />
-                  ) : (
-                    <SyntaxHighlighter
-                      language="xml"
-                      style={codeStyle}
-                      customStyle={{
-                        backgroundColor: 'transparent',
-                        whiteSpace: 'pre-wrap',
-                        maxHeight: '300px',
-                      }}
-                      className="rounded-xl p-4"
-                    >
-                      {message.content}
-                    </SyntaxHighlighter>
-                  )
-                  )}
-                  <FeedbackBlock message={message} index={index} />
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          ) : message.role === "assistant" ? (
-            <>
-              <MarkdownRenderer content={message.content} className="reactMarkdown mb-0 py-2" />
-              <FeedbackBlock message={message} index={index} />
-            </>
-          ) : (
-            <UserMessageDisplay message={message} onEdit={onEdit} />
-          )}
+                  </AccordionTrigger>
+                  <AccordionContent className={`pb-0 ${message.content && message.function_call?.function_name === "search_codebase" && !message.function_call?.is_complete ? "pt-6" : "pt-0"}`}>
+                    {message.function_call?.function_name === "search_codebase" && message.content && !message.function_call.is_complete && (
+                      <span className="p-4 pl-2">
+                        {message.content}
+                      </span>
+                    )}
+                    {message.function_call!.snippets ? (
+                      <div className="pb-0 pt-4">
+                        {message.function_call!.snippets.map((snippet, index) => (
+                          <SnippetBadge
+                            key={index}
+                            snippet={snippet}
+                            repoName={repoName}
+                            branch={branch}
+                          />
+                        ))}
+                      </div>
+                    ) : (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
+                      <MarkdownRenderer content={message.content} className="reactMarkdown mt-4 mb-0 py-2" />
+                    ) : (
+                      <SyntaxHighlighter
+                        language="xml"
+                        style={codeStyle}
+                        customStyle={{
+                          backgroundColor: 'transparent',
+                          whiteSpace: 'pre-wrap',
+                          maxHeight: '300px',
+                        }}
+                        className="rounded-xl p-4"
+                      >
+                        {message.content}
+                      </SyntaxHighlighter>
+                    )
+                    )}
+                    <FeedbackBlock message={message} index={index} />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            ) : message.role === "assistant" ? (
+              <>
+                <MarkdownRenderer content={message.content} className="reactMarkdown mb-0 py-2" />
+                <FeedbackBlock message={message} index={index} />
+              </>
+            ) : (
+              <UserMessageDisplay message={message} onEdit={onEdit} />
+            )}
+        </div>
       </div>
-    </div>
+      {matches.length > 0 && (
+        <div className="flex justify-start w-[80%]">
+          <Button className="mb-4 bg-blue-900 hover:bg-blue-800 text-zinc-200" onClick={() => onApplyChanges(matches.map((match) => ({
+            originalCode: match.groups?.originalCode || "",
+            newCode: match.groups?.newCode || "",
+          })))}>
+            Apply suggested changes?
+          </Button>
+        </div>
+      )}
+    </>
   );
 };
-
-function getJSONPrefix(buffer: string): [any[], number] {
-  let stack: string[] = [];
-  const matchingBrackets: Record<string, string> = {
-    '[': ']',
-    '{': '}',
-    '(': ')'
-  };
-  var currentIndex = 0;
-  const results = [];
-  let inString = false;
-  let escapeNext = false;
-
-  for (let i = 0; i < buffer.length; i++) {
-    const char = buffer[i];
-
-    if (escapeNext) {
-      escapeNext = false;
-      continue;
-    }
-
-    if (char === '\\') {
-      escapeNext = true;
-      continue;
-    }
-
-    if (char === '"') {
-      inString = !inString;
-    }
-
-    if (!inString) {
-      if (matchingBrackets[char]) {
-        stack.push(char);
-      } else if (matchingBrackets[stack[stack.length - 1]] === char) {
-        stack.pop();
-        if (stack.length === 0) {
-          try {
-            results.push(JSON.parse(buffer.slice(currentIndex, i + 1)));
-            currentIndex = i + 1;
-          } catch (e) {
-            continue;
-          }
-        }
-      }
-    }
-  }
-  // if (currentIndex == 0) {
-  //   console.log(buffer); // TODO: optimize later
-  // }
-  return [results, currentIndex];
-}
 
 async function* streamMessages(
   reader: ReadableStreamDefaultReader<Uint8Array>,
@@ -1209,6 +1120,9 @@ function App({
                 startStream(content, newMessages, snippets, { pulls })
               }
             }}
+            onApplyChanges={(codeSuggestions: CodeSuggestion[]) => {
+              alert("Applying changes")
+            }}
           />
         ))}
         {isLoading && (
@@ -1217,6 +1131,16 @@ function App({
           </div>
         )}
       </div>
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button>
+            Apply suggested changes
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          Hello world
+        </DialogContent>
+      </Dialog>
       {repoNameValid && (
         <div className={`flex w-full`}>
           {isStream.current ? (
