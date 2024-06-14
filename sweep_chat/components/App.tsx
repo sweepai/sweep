@@ -33,6 +33,7 @@ import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Label } from "./ui/label";
 import PulsingLoader from "./shared/PulsingLoader";
+import * as Diff from "diff";
 
 import { Octokit } from "octokit";
 
@@ -112,6 +113,42 @@ const sliceLines = (content: string, start: number, end: number) => {
 }
 
 const MarkdownRenderer = ({ content, className }: { content: string, className?: string }) => {
+  const CODE_CHANGE_PATTERN = /<code_change>\s*<original_code>(?<originalCode>[\s\S]+?)($|<\/original_code>\s*($|<new_code>(?<newCode>[\s\S]+?)($|<\/new_code>)\s*($|(?<closingTag><\/code_change>))))/gs;
+
+  const matches = Array.from(content.matchAll(CODE_CHANGE_PATTERN));
+  let transformedContent = content;
+
+  for (const match of matches) {
+    let { originalCode, newCode, closingTag } = match.groups || {};
+    if (newCode == null) {
+      transformedContent = transformedContent.replace(match[0], "**Code suggestions:**\n```diff\n" + originalCode + "\n```");
+    } else {
+      let diffLines = Diff.diffLines(originalCode.trim(), newCode.trim())
+      if (!closingTag) {
+        if (diffLines.length >= 2) {
+          const lastDiff = diffLines[diffLines.length - 1];
+          const secondLastDiff = diffLines[diffLines.length - 2];
+          if (lastDiff.added && lastDiff.value.trim().split("\n").length === 1 && secondLastDiff.removed && secondLastDiff.value.trim().split("\n").length > 1) {
+            const temp = diffLines[diffLines.length - 1];
+            diffLines[diffLines.length - 1] = diffLines[diffLines.length - 2];
+            diffLines[diffLines.length - 2] = temp;
+            diffLines[diffLines.length - 2].value = "";
+            diffLines[diffLines.length - 1].removed = false;
+          }
+        }
+      }
+      const formattedChange = "**Code suggestions:**\n```diff\n" + diffLines.map(({ added, removed, value }: { added: boolean, removed: boolean, value: string }, index: number): string => {
+        let symbol = added ? "+" : removed ? "-" : " "
+        if (index === diffLines.length - 1 && index === diffLines.length - 2 && removed && !closingTag) {
+          symbol = " "
+        }
+        const results = symbol + value.trimEnd().replaceAll("\n", "\n" + symbol)
+        return results
+      }).join("\n").trim() + "\n```";
+      transformedContent = transformedContent.replace(match[0], formattedChange);
+    }
+  }
+
   return (
     <Markdown
       className={`${className} reactMarkdown`}
@@ -144,7 +181,7 @@ const MarkdownRenderer = ({ content, className }: { content: string, className?:
         }
       }}
     >
-      {content}
+      {transformedContent}
     </Markdown>
   )
 }
