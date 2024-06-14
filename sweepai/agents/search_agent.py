@@ -286,7 +286,6 @@ def search(
             user_message = f"<function_output>\n{function_call_response}\n</function_output>"
         
         if "DONE" == function_call_response:
-            breakpoint()
             for question, answer, sources in llm_state["questions_and_answers"]:
                 print(f"Question: {question}")
                 print(f"Answer:\n{answer}")
