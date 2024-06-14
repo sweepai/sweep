@@ -6,7 +6,7 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { FaCheck, FaCog, FaGithub, FaPencilAlt, FaShareAlt, FaStop } from "react-icons/fa";
+import { FaCheck, FaCog, FaComments, FaGithub, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -30,7 +30,7 @@ import { ReadableStreamDefaultReadResult } from "stream/web";
 import { Textarea } from "./ui/textarea";
 import { Slider } from "./ui/slider";
 import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Label } from "./ui/label";
 import PulsingLoader from "./shared/PulsingLoader";
 
@@ -160,17 +160,23 @@ const typeNameToColor = {
 const SnippetBadge = ({
   snippet,
   className,
+  repoName,
+  branch,
   button,
 }: {
   snippet: Snippet;
   className?: string;
+  repoName: string;
+  branch: string;
   button?: JSX.Element;
 }) => {
   return (
     <HoverCard openDelay={300} closeDelay={200}>
       <div className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 ${typeNameToColor[snippet.type_name]} ${className || ""} `} style={{ opacity: `${Math.max(Math.min(1, snippet.score), 0.2)}` }}>
         <HoverCardTrigger asChild>
-          <Button variant="link" className="text-sm py-0 px-1 h-6 leading-4">
+          <Button variant="link" className="text-sm py-0 px-1 h-6 leading-4" onClick={() => {
+            window.open(`https://github.com/${repoName}/blob/${branch}/${snippet.file_path}`, "_blank")
+          }}>
             <span>
               {snippet.end > snippet.content.split('\n').length - 3 && snippet.start == 0 ?
                 snippet.file_path : `${snippet.file_path}:${snippet.start}-${snippet.end}`
@@ -193,7 +199,7 @@ const SnippetBadge = ({
             backgroundColor: 'transparent',
             whiteSpace: 'pre-wrap',
           }}
-          className="rounded-xl max-h-80 overflow-y-auto p-4 w-full"
+          className="rounded-xl max-h-[600px] overflow-y-auto p-4 w-full"
         >
           {sliceLines(snippet.content, snippet.start, snippet.end)}
         </SyntaxHighlighter>
@@ -258,7 +264,8 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
   return (
     <>
       <div className="flex justify-end">
-        <FaPencilAlt className="inline-block mr-2 mt-3 hover:cursor-pointer" onClick={handleClick} />&nbsp;
+        {!isEditing && <FaPencilAlt className="inline-block text-zinc-400 mr-2 mt-3 hover:cursor-pointer hover:text-zinc-200 hover:drop-shadow-md" onClick={handleClick} />}
+        &nbsp;
         <div className="bg-zinc-800 transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] hover:bg-zinc-700 hover:cursor-pointer text-right" onClick={handleClick}>
           <div className={`text-sm text-white`}>
             {isEditing ? (
@@ -352,72 +359,127 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
     );
 }
 
-const MessageDisplay = ({ message, className, onEdit }: { message: Message, className?: string, onEdit: (content: string) => void }) => {
+const FeedbackBlock = ({ message, index }: { message: Message, index: number }) => {
+  const [isLiked, setIsLiked] = useState(false);
+  const [isDisliked, setIsDisliked] = useState(false);
+  return (
+    <div className="flex justify-end my-2">
+      <FaThumbsUp
+        className={`inline-block text-lg ${isLiked ? "text-green-500 cursor-not-allowed" : "text-zinc-400 hover:cursor-pointer hover:text-zinc-200 hover:drop-shadow-md"}`}
+        onClick={() => {
+          if (isLiked) {
+            return
+          }
+          posthog.capture("message liked", {
+            message: message,
+            index: index,
+          })
+          toast({
+            title: "We received your like",
+            description: "Thank you for your feedback! If you would like to share any highlights, feel free to shoot us a message on Slack!",
+            variant: "default",
+            duration: 2000,
+          })
+          setIsLiked(true)
+          setIsDisliked(false)
+        }}
+      />
+      <FaThumbsDown
+        className={`inline-block ml-3 text-lg ${isDisliked ? "text-red-500 cursor-not-allowed" : "text-zinc-400 hover:cursor-pointer hover:text-zinc-200 hover:drop-shadow-md"}`}
+        onClick={() => {
+          if (isDisliked) {
+            return
+          }
+          posthog.capture("message disliked", {
+            message: message,
+            index: index,
+          })
+          toast({
+            title: "We received your dislike",
+            description: "Thank you for your feedback! If you would like to report any persistent issues, feel free to shoot us a message on Slack!",
+            variant: "default",
+            duration: 2000,
+          })
+          setIsDisliked(true)
+          setIsLiked(false)
+        }}
+      />
+    </div>
+  )
+}
+
+const MessageDisplay = ({ message, className, onEdit, repoName, branch, index }: { message: Message, className?: string, onEdit: (content: string) => void, repoName: string, branch: string, index: number }) => {
   if (message.role === "user") {
     return <UserMessageDisplay message={message} onEdit={onEdit} />
   }
   return (
     <div className={`flex justify-start`}>
-      <div
-        className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] text-left w-[80%]
-          ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
-      >
-        {message.role === "function" ? (
-          <Accordion type="single" collapsible className="w-full" defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}>
-            <AccordionItem value="function" className="border-none">
-              <AccordionTrigger className="border-none py-0 text-left">
-                <div className="text-xs text-gray-400 flex align-center">
-                  {!message.function_call!.is_complete ? (
-                    <PulsingLoader size={0.5} />
-                  ) : (
-                    <FaCheck
-                      className="inline-block mr-2"
-                      style={{ marginTop: 2 }}
-                    />
-                  )}
-                  <span>{getFunctionCallHeaderString(message.function_call)}</span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className={`pb-0 ${message.content && message.function_call?.function_name === "search_codebase" && !message.function_call?.is_complete ? "pt-6" : "pt-0"}`}>
-                {message.function_call?.function_name === "search_codebase" && message.content && !message.function_call.is_complete && (
-                  <span className="p-4 pl-2">
-                    {message.content}
-                  </span>
-                )}
-                {message.function_call!.snippets ? (
-                  <div className="pb-0 pt-4">
-                    {message.function_call!.snippets.map((snippet, index) => (
-                      <SnippetBadge
-                        key={index}
-                        snippet={snippet}
+        <div
+          className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] text-left w-[80%]
+            ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
+        >
+          {message.role === "function" ? (
+            <Accordion type="single" collapsible className="w-full" defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}>
+              <AccordionItem value="function" className="border-none">
+                <AccordionTrigger className="border-none py-0 text-left">
+                  <div className="text-xs text-gray-400 flex align-center">
+                    {!message.function_call!.is_complete ? (
+                      <PulsingLoader size={0.5} />
+                    ) : (
+                      <FaCheck
+                        className="inline-block mr-2"
+                        style={{ marginTop: 2 }}
                       />
-                    ))}
+                    )}
+                    <span>{getFunctionCallHeaderString(message.function_call)}</span>
                   </div>
-                ) : (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
-                  <MarkdownRenderer content={message.content} className="reactMarkdown mt-4 mb-0 py-2" />
-                ) : (
-                  <SyntaxHighlighter
-                    language="xml"
-                    style={codeStyle}
-                    customStyle={{
-                      backgroundColor: 'transparent',
-                      whiteSpace: 'pre-wrap',
-                      maxHeight: '300px',
-                    }}
-                    className="rounded-xl p-4"
-                  >
-                    {message.content}
-                  </SyntaxHighlighter>
-                )
-                )}
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        ) : message.role === "assistant" ? (
-          <MarkdownRenderer content={message.content} className="reactMarkdown mb-0 py-2" />
-        ) : (
-          <UserMessageDisplay message={message} onEdit={onEdit} />
-        )}
+                </AccordionTrigger>
+                <AccordionContent className={`pb-0 ${message.content && message.function_call?.function_name === "search_codebase" && !message.function_call?.is_complete ? "pt-6" : "pt-0"}`}>
+                  {message.function_call?.function_name === "search_codebase" && message.content && !message.function_call.is_complete && (
+                    <span className="p-4 pl-2">
+                      {message.content}
+                    </span>
+                  )}
+                  {message.function_call!.snippets ? (
+                    <div className="pb-0 pt-4">
+                      {message.function_call!.snippets.map((snippet, index) => (
+                        <SnippetBadge
+                          key={index}
+                          snippet={snippet}
+                          repoName={repoName}
+                          branch={branch}
+                        />
+                      ))}
+                    </div>
+                  ) : (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
+                    <MarkdownRenderer content={message.content} className="reactMarkdown mt-4 mb-0 py-2" />
+                  ) : (
+                    <SyntaxHighlighter
+                      language="xml"
+                      style={codeStyle}
+                      customStyle={{
+                        backgroundColor: 'transparent',
+                        whiteSpace: 'pre-wrap',
+                        maxHeight: '300px',
+                      }}
+                      className="rounded-xl p-4"
+                    >
+                      {message.content}
+                    </SyntaxHighlighter>
+                  )
+                  )}
+                  <FeedbackBlock message={message} index={index} />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          ) : message.role === "assistant" ? (
+            <>
+              <MarkdownRenderer content={message.content} className="reactMarkdown mb-0 py-2" />
+              <FeedbackBlock message={message} index={index} />
+            </>
+          ) : (
+            <UserMessageDisplay message={message} onEdit={onEdit} />
+          )}
       </div>
     </div>
   );
@@ -589,12 +651,13 @@ function App({
   defaultMessageId?: string
 }) {
   const [repoName, setRepoName] = useState<string>("")
+  const [branch, setBranch] = useState<string>("main")
   const [repoNameValid, setRepoNameValid] = useState<boolean>(false)
 
   const [repoNameDisabled, setRepoNameDisabled] = useState<boolean>(false)
 
   const [k, setK] = useLocalStorage<number>("k", DEFAULT_K)
-  const [model, setModel] = useLocalStorage<keyof typeof modelMap>("model", "claude-3-opus-20240229")
+  const [model, setModel] = useLocalStorage<keyof typeof modelMap>("model", "gpt-4o")
   const [snippets, setSnippets] = useState<Snippet[]>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [currentMessage, setCurrentMessage] = useState<string>("")
@@ -928,24 +991,8 @@ function App({
           }}
         />
       )}
-      <div className="flex justify-between w-full px-2 items-middle">
-        <h1 className="text-4xl font-bold mb-6">Sweep Search</h1>
-        <div className="flex items-center mb-4">
-          <img
-            className="rounded-full w-10 h-10 mr-4"
-            src={session!.user!.image || ""}
-            alt={session!.user!.name || ""}
-          />
-          <div>
-            <p className="text-lg font-bold">{session!.user!.username! || session!.user!.name}</p>
-            <p className="text-sm text-gray-400">{session!.user!.email}</p>
-          </div>
-          <Button className="ml-4" variant="secondary" onClick={() => signOut()}>
-            Sign Out
-          </Button>
-        </div>
-      </div>
       <div className={`mb-4 w-full flex items-center ${repoNameValid ? "" : "grow"}`}>
+        {/* <img src="https://avatars.githubusercontent.com/u/170980334?v=4" className="w-12 h-12 rounded-full" /> */}
         <AutoComplete
           options={repos.map((repo) => ({label: repo.full_name, value: repo.full_name}))}
           placeholder="Repository name"
@@ -1010,6 +1057,13 @@ function App({
               })
             }
             setRepoNameDisabled(false);
+            if (octokit) {
+              const repo = await octokit.rest.repos.get({
+                owner: cleanedRepoName.split("/")[0],
+                repo: cleanedRepoName.split("/")[1]
+              })
+              setBranch(repo.data.default_branch)
+            }
           }}
         />
         <Dialog>
@@ -1056,6 +1110,36 @@ function App({
             </div>
           </DialogContent>
         </Dialog>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="outline-none">
+            <div className="flex items-center">
+              <img
+                className="rounded-full w-12 h-12 m-0 ml-2"
+                src={session!.user!.image || ""}
+                alt={session!.user!.name || ""}
+              />
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>
+              <p className="text-md font-bold">{session!.user!.username! || session!.user!.name}</p>
+            </DropdownMenuLabel>
+            {session?.user?.email && (
+              <DropdownMenuItem>
+                {session.user.email}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="cursor-pointer" onClick={() => setShowSurvey((prev) => !prev)}>
+              <FaComments className="mr-2"/>
+              Feedback
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer" onClick={() => signOut()}>
+              <FaSignOutAlt className="mr-2"/>
+              Sign Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       <div
         ref={messagesContainerRef}
@@ -1065,7 +1149,10 @@ function App({
         {messages.map((message, index) => (
           <MessageDisplay
             key={index}
+            index={index}
             message={message}
+            repoName={repoName}
+            branch={branch}
             className={index == lastAssistantMessageIndex ? "bg-slate-700" : ""}
             onEdit={async (content) => {
               isStream.current = false;

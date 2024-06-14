@@ -43,11 +43,14 @@ Option B: Submit the task
 
 Otherwise, if you have found all the relevant information to answer the user's request, submit the task using submit_task. If you submit, ensure that the <answer> includes relevant implementations, usages and examples of code wherever possible. Ensure that the <sources> section is MINIMAL and only includes all files you reference in your answer, and is correctly formatted, with each line contains a file path, start line, end line, and justification like in the example in the instructions.
 
+If you have exhausted all search options and still have not found the answer, you can submit an answer with everything you've searched for and found, clarifying that you can not find the answer.
+
 Remember to use the valid function call format for either options."""
 
 def search_codebase(
     question: str,
     cloned_repo: ClonedRepo,
+    k=5,
     *args,
     **kwargs,
 ):
@@ -60,7 +63,7 @@ def search_codebase(
         *args,
         **kwargs
     )
-    return snippets[:5]
+    return snippets[:k]
 
 @tool()
 def semantic_search(
@@ -169,7 +172,10 @@ def ripgrep(
         cwd=cloned_repo.repo_dir,
     )
     if response.returncode != 0:
-        return f"Error running ripgrep:\n\n{response.stderr}"
+        if not response.stderr:
+            return f"No results found for '{query}' in the codebase."
+        else:
+            return f"Error running ripgrep:\n\n{response.stderr}"
     results = post_filter_ripgrep_results(response.stdout)
     return f"Here are ALL occurrences of '{query}' in the codebase:\n\n```{results}```\n" + RIPGREP_SEARCH_RESULT_INSTRUCTIONS.format(
         request=llm_state["request"],
@@ -215,28 +221,41 @@ justification and the section of the file that is relevant
 [additional sources...]
 </sources>"""
 
+FILE_NOT_FOUND_ERROR = """ERROR
+
+The following files do not exist in the codebase:
+{file_paths}
+
+Solve this by following these steps:
+1. Think about what the correct file is in <scratchpad></scratchpad> XML tags.
+2. Make the submit function call again with the corrected file path in <function_call></function_call> XML tags. You must also include the <plan></plan>, <explanation></explanation> and <sources></sources> XML tags.
+
+YOU WILL USE THE XML TAGS. Otherwise, the assistant will not be able to parse the answer."""
+
 
 def parse_sources(sources: str, cloned_repo: ClonedRepo):
-    source_pattern = re.compile(r"<source>\s+<file_path>(?P<file_path>.*?)</file_path>\s+<start_line>(?P<start_line>\d+?)</start_line>\s+<end_line>(?P<end_line>\d+?)</end_line>\s+<justification>(?P<justification>.*?)</justification>\s+</source>", re.DOTALL)
+    source_pattern = re.compile(r"<source>\s+<file_path>(?P<file_path>.*?)</file_path>\s+<start_line>(?P<start_line>\d+?)</start_line>\s+<end_line>(?P<end_line>\d+?)</end_line>\s+(<justification>(?P<justification>.*?)</justification>\s+)?</source>", re.DOTALL)
     source_matches = source_pattern.finditer(sources)
     snippets = []
+    missing_files = []
     for source in source_matches:
         file_path = source.group("file_path")
         start_line = source.group("start_line")
         end_line = source.group("end_line")
-        justification = source.group("justification")
+        try:
+            content = cloned_repo.get_file_contents(file_path)
+        except FileNotFoundError:
+            missing_files.append(file_path)
         snippets.append(Snippet(
-            content=cloned_repo.get_file_contents(file_path),
-            start=start_line,
-            end=end_line,
+            content=content,
+            start=int(start_line),
+            end=max(int(start_line) + 1, int(end_line)),
             file_path=file_path,
         ))
-        if not file_path or not start_line or not end_line or not justification:
+        if not file_path or not start_line or not end_line:
             raise Exception(CORRECTED_SUBMIT_SOURCES_FORMAT + f"\n\nThe following source is missing one of the required fields:\n\n{source.group(0)}")
-        try:
-            cloned_repo.get_file_contents(file_path)
-        except FileNotFoundError:
-            raise Exception(f"ERROR\n\nThe file path '{file_path}' does not exist in the codebase. Please provide a valid file path.")
+    if missing_files:
+        raise Exception(FILE_NOT_FOUND_ERROR.format(file_paths="\n".join(missing_files)))
     return snippets
 
 @tool()
