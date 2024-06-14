@@ -4,7 +4,7 @@ import re
 import textwrap
 from typing import Callable
 from sweepai.agents.modify_utils import english_join
-from sweepai.core.chat import ChatGPT, parse_function_call_parameters
+from sweepai.core.chat import ChatGPT, continuous_llm_calls, parse_function_call_parameters
 from typing import get_type_hints
 
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
@@ -153,11 +153,17 @@ def get_function_call(
     """
     Get's and handles tool calls, returning the function call and output.
     """
-    response = chat_gpt.chat_anthropic(
-        user_message,
+    # response = chat_gpt.chat_anthropic(
+    #     user_message,
+    #     stop_sequences=["\n</function_call>"],
+    #     **llm_kwargs
+    # ) + "</function_call>"
+    response = continuous_llm_calls(
+        chat_gpt,
+        content=user_message,
         stop_sequences=["\n</function_call>"],
         **llm_kwargs
-    ) + "</function_call>"
+    )
 
     function_call = validate_and_parse_function_call(
         response,
@@ -169,6 +175,7 @@ def get_function_call(
         user_message = no_tool_call_prompt.format(
             tools=english_join([tool.name for tool in tools])
         )
+        function_call_response = user_message
     else:
         function_call_response = handle_function_call(
             function_call,

@@ -351,7 +351,10 @@ class Snippet(BaseModel):
 
     @property
     def xml(self):
-        return f"""<snippet source="{self.file_path}:{self.start}-{self.end}">\n{self.get_snippet()}\n</snippet>"""
+        return SNIPPET_FORMAT.format(
+            denotation=self.file_denotation,
+            contents=self.get_snippet()
+        )
 
     def get_xml(self, add_lines: bool = True):
         return f"""<snippet source="{self.file_path}:{self.start}-{self.end}">\n{self.get_snippet(add_lines)}\n</snippet>"""

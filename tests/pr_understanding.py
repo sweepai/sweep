@@ -24,9 +24,9 @@ def build_file_graph(cloned_repo: ClonedRepo, k=400, sweep_config: SweepConfig =
             break
         # remove merge commits - super noisy
         cleaned_message = "".join([i for i in commit.message.lower() if i.isalnum()])
-        if cleaned_message.startswith("merge"):
-            logger.info(f"Skipping merge commit: {commit.message} with {len(commit.stats.files)} files")
-            continue
+        # if cleaned_message.startswith("merge"):
+        #     logger.info(f"Skipping merge commit: {commit.message} with {len(commit.stats.files)} files")
+        #     continue
         git_commit_files.append(commit.stats.files)
 
     for idx, commit_stats_files in tqdm(enumerate(git_commit_files)):
@@ -89,7 +89,8 @@ if __name__ == "__main__":
     
     @file_cache()
     def get_graph(repo_name=REPO_FULL_NAME) -> Graph:
-        cloned_repo = ClonedRepo(REPO_FULL_NAME, installation_id, "master")
+        default_branch = repo.default_branch
+        cloned_repo = ClonedRepo(REPO_FULL_NAME, installation_id, default_branch)
         file_graph = build_file_graph(cloned_repo, k=1000, sweep_config=sweep_config)
         return file_graph
     file_graph = get_graph(repo_name=REPO_FULL_NAME)

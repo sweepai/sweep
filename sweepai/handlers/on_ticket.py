@@ -11,6 +11,7 @@ from time import time
 from github import BadCredentialsException
 from github.PullRequest import PullRequest as GithubPullRequest
 from loguru import logger
+from sweepai.agents.search_agent import search
 
 
 from sweepai.chat.api import posthog_trace
@@ -485,6 +486,14 @@ def on_ticket(
                     ),
                     1,
                 )
+
+                # # Search agent
+                # search_agent_results = search(
+                #     internal_message_summary,
+                #     cloned_repo,
+                #     repo_context_manager.current_top_snippets + repo_context_manager.read_only_snippets,
+                # )
+                # breakpoint()
 
                 cloned_repo = repo_context_manager.cloned_repo
                 user_token, g, repo = refresh_token(repo_full_name, installation_id)
