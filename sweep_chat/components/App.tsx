@@ -6,7 +6,7 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { FaCheck, FaCog, FaGithub, FaPencilAlt, FaShareAlt, FaStop, FaThumbsDown, FaThumbsUp } from "react-icons/fa";
+import { FaCheck, FaCog, FaComments, FaGithub, FaPencilAlt, FaShareAlt, FaStop, FaThumbsDown, FaThumbsUp } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -1066,6 +1066,14 @@ function App({
             setRepoNameDisabled(false);
           }}
         />
+        <Button
+          variant="outline"
+          className="ml-4"
+          onClick={() => setShowSurvey((prev) => !prev)}
+        >
+          <FaComments className="mr-2"/>
+          Feedback
+        </Button>
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="outline" className="ml-4">
