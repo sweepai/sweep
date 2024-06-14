@@ -22,6 +22,7 @@ from sweepai.config.server import CACHE_DIRECTORY
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
 from sweepai.core.review_utils import split_diff_into_patches
+from sweepai.core.sweep_bot import get_files_to_change, get_files_to_change_for_chat
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import CustomGithub, MockClonedRepo, get_github_client, get_installation_id
 from sweepai.utils.event_logger import posthog
@@ -674,6 +675,9 @@ def chat_codebase_stream(
             else:
                 break
         yield new_messages
+
+        last_assistant_message = [message.content for message in new_messages if message.role == "assistant"][-1]
+
         posthog.capture(metadata["username"], "chat_codebase complete", properties={
             **metadata,
             "messages": [message.model_dump() for message in messages],
