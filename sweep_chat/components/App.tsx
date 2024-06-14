@@ -370,7 +370,7 @@ const FeedbackBlock = ({ message, index }: { message: Message, index: number }) 
           })
           toast({
             title: "We received your like",
-            description: "Thank you for your feedback!",
+            description: "Thank you for your feedback! If you would like to share any highlights, feel free to shoot us a message on Slack!",
             variant: "default",
             duration: 2000,
           })
@@ -390,7 +390,7 @@ const FeedbackBlock = ({ message, index }: { message: Message, index: number }) 
           })
           toast({
             title: "We received your dislike",
-            description: "Thank you for your feedback!",
+            description: "Thank you for your feedback! If you would like to report any persistent issues, feel free to shoot us a message on Slack!",
             variant: "default",
             duration: 2000,
           })
