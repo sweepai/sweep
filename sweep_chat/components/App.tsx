@@ -6,7 +6,7 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { FaCheck, FaCog, FaGithub, FaPencilAlt, FaShareAlt, FaStop } from "react-icons/fa";
+import { FaCheck, FaCog, FaGithub, FaPencilAlt, FaShareAlt, FaStop, FaThumbsDown, FaThumbsUp } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -258,7 +258,8 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
   return (
     <>
       <div className="flex justify-end">
-        <FaPencilAlt className="inline-block mr-2 mt-3 hover:cursor-pointer" onClick={handleClick} />&nbsp;
+        {!isEditing && <FaPencilAlt className="inline-block text-zinc-400 mr-2 mt-3 hover:cursor-pointer hover:text-zinc-200 hover:drop-shadow-md" onClick={handleClick} />}
+        &nbsp;
         <div className="bg-zinc-800 transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] hover:bg-zinc-700 hover:cursor-pointer text-right" onClick={handleClick}>
           <div className={`text-sm text-white`}>
             {isEditing ? (
@@ -352,72 +353,125 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
     );
 }
 
-const MessageDisplay = ({ message, className, onEdit }: { message: Message, className?: string, onEdit: (content: string) => void }) => {
+const FeedbackBlock = ({ message, index }: { message: Message, index: number }) => {
+  const [isLiked, setIsLiked] = useState(false);
+  const [isDisliked, setIsDisliked] = useState(false);
+  return (
+    <div className="flex justify-end my-2">
+      <FaThumbsUp
+        className={`inline-block text-lg ${isLiked ? "text-green-500 cursor-not-allowed" : "text-zinc-400 hover:cursor-pointer hover:text-zinc-200 hover:drop-shadow-md"}`}
+        onClick={() => {
+          if (isLiked) {
+            return
+          }
+          posthog.capture("message liked", {
+            message: message,
+            index: index,
+          })
+          toast({
+            title: "We received your like",
+            description: "Thank you for your feedback!",
+            variant: "default",
+            duration: 2000,
+          })
+          setIsLiked(true)
+          setIsDisliked(false)
+        }}
+      />
+      <FaThumbsDown
+        className={`inline-block ml-3 text-lg ${isDisliked ? "text-red-500 cursor-not-allowed" : "text-zinc-400 hover:cursor-pointer hover:text-zinc-200 hover:drop-shadow-md"}`}
+        onClick={() => {
+          if (isDisliked) {
+            return
+          }
+          posthog.capture("message disliked", {
+            message: message,
+            index: index,
+          })
+          toast({
+            title: "We received your dislike",
+            description: "Thank you for your feedback!",
+            variant: "default",
+            duration: 2000,
+          })
+          setIsDisliked(true)
+          setIsLiked(false)
+        }}
+      />
+    </div>
+  )
+}
+
+const MessageDisplay = ({ message, className, onEdit, index }: { message: Message, className?: string, onEdit: (content: string) => void, index: number }) => {
   if (message.role === "user") {
     return <UserMessageDisplay message={message} onEdit={onEdit} />
   }
   return (
     <div className={`flex justify-start`}>
-      <div
-        className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] text-left w-[80%]
-          ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
-      >
-        {message.role === "function" ? (
-          <Accordion type="single" collapsible className="w-full" defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}>
-            <AccordionItem value="function" className="border-none">
-              <AccordionTrigger className="border-none py-0 text-left">
-                <div className="text-xs text-gray-400 flex align-center">
-                  {!message.function_call!.is_complete ? (
-                    <PulsingLoader size={0.5} />
-                  ) : (
-                    <FaCheck
-                      className="inline-block mr-2"
-                      style={{ marginTop: 2 }}
-                    />
-                  )}
-                  <span>{getFunctionCallHeaderString(message.function_call)}</span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className={`pb-0 ${message.content && message.function_call?.function_name === "search_codebase" && !message.function_call?.is_complete ? "pt-6" : "pt-0"}`}>
-                {message.function_call?.function_name === "search_codebase" && message.content && !message.function_call.is_complete && (
-                  <span className="p-4 pl-2">
-                    {message.content}
-                  </span>
-                )}
-                {message.function_call!.snippets ? (
-                  <div className="pb-0 pt-4">
-                    {message.function_call!.snippets.map((snippet, index) => (
-                      <SnippetBadge
-                        key={index}
-                        snippet={snippet}
+        <div
+          className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] text-left w-[80%]
+            ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
+        >
+          {message.role === "function" ? (
+            <Accordion type="single" collapsible className="w-full" defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}>
+              <AccordionItem value="function" className="border-none">
+                <AccordionTrigger className="border-none py-0 text-left">
+                  <div className="text-xs text-gray-400 flex align-center">
+                    {!message.function_call!.is_complete ? (
+                      <PulsingLoader size={0.5} />
+                    ) : (
+                      <FaCheck
+                        className="inline-block mr-2"
+                        style={{ marginTop: 2 }}
                       />
-                    ))}
+                    )}
+                    <span>{getFunctionCallHeaderString(message.function_call)}</span>
                   </div>
-                ) : (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
-                  <MarkdownRenderer content={message.content} className="reactMarkdown mt-4 mb-0 py-2" />
-                ) : (
-                  <SyntaxHighlighter
-                    language="xml"
-                    style={codeStyle}
-                    customStyle={{
-                      backgroundColor: 'transparent',
-                      whiteSpace: 'pre-wrap',
-                      maxHeight: '300px',
-                    }}
-                    className="rounded-xl p-4"
-                  >
-                    {message.content}
-                  </SyntaxHighlighter>
-                )
-                )}
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        ) : message.role === "assistant" ? (
-          <MarkdownRenderer content={message.content} className="reactMarkdown mb-0 py-2" />
-        ) : (
-          <UserMessageDisplay message={message} onEdit={onEdit} />
-        )}
+                </AccordionTrigger>
+                <AccordionContent className={`pb-0 ${message.content && message.function_call?.function_name === "search_codebase" && !message.function_call?.is_complete ? "pt-6" : "pt-0"}`}>
+                  {message.function_call?.function_name === "search_codebase" && message.content && !message.function_call.is_complete && (
+                    <span className="p-4 pl-2">
+                      {message.content}
+                    </span>
+                  )}
+                  {message.function_call!.snippets ? (
+                    <div className="pb-0 pt-4">
+                      {message.function_call!.snippets.map((snippet, index) => (
+                        <SnippetBadge
+                          key={index}
+                          snippet={snippet}
+                        />
+                      ))}
+                    </div>
+                  ) : (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
+                    <MarkdownRenderer content={message.content} className="reactMarkdown mt-4 mb-0 py-2" />
+                  ) : (
+                    <SyntaxHighlighter
+                      language="xml"
+                      style={codeStyle}
+                      customStyle={{
+                        backgroundColor: 'transparent',
+                        whiteSpace: 'pre-wrap',
+                        maxHeight: '300px',
+                      }}
+                      className="rounded-xl p-4"
+                    >
+                      {message.content}
+                    </SyntaxHighlighter>
+                  )
+                  )}
+                  <FeedbackBlock message={message} index={index} />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          ) : message.role === "assistant" ? (
+            <>
+              <MarkdownRenderer content={message.content} className="reactMarkdown mb-0 py-2" />
+              <FeedbackBlock message={message} index={index} />
+            </>
+          ) : (
+            <UserMessageDisplay message={message} onEdit={onEdit} />
+          )}
       </div>
     </div>
   );
@@ -594,7 +648,7 @@ function App({
   const [repoNameDisabled, setRepoNameDisabled] = useState<boolean>(false)
 
   const [k, setK] = useLocalStorage<number>("k", DEFAULT_K)
-  const [model, setModel] = useLocalStorage<keyof typeof modelMap>("model", "claude-3-opus-20240229")
+  const [model, setModel] = useLocalStorage<keyof typeof modelMap>("model", "gpt-4o")
   const [snippets, setSnippets] = useState<Snippet[]>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [currentMessage, setCurrentMessage] = useState<string>("")
