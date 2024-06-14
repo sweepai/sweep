@@ -160,7 +160,7 @@ def get_function_call(
     # ) + "</function_call>"
     response = continuous_llm_calls(
         chat_gpt,
-        user_message,
+        content=user_message,
         stop_sequences=["\n</function_call>"],
         **llm_kwargs
     )
