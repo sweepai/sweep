@@ -160,17 +160,23 @@ const typeNameToColor = {
 const SnippetBadge = ({
   snippet,
   className,
+  repoName,
+  branch,
   button,
 }: {
   snippet: Snippet;
   className?: string;
+  repoName: string;
+  branch: string;
   button?: JSX.Element;
 }) => {
   return (
     <HoverCard openDelay={300} closeDelay={200}>
       <div className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 ${typeNameToColor[snippet.type_name]} ${className || ""} `} style={{ opacity: `${Math.max(Math.min(1, snippet.score), 0.2)}` }}>
         <HoverCardTrigger asChild>
-          <Button variant="link" className="text-sm py-0 px-1 h-6 leading-4">
+          <Button variant="link" className="text-sm py-0 px-1 h-6 leading-4" onClick={() => {
+            window.open(`https://github.com/${repoName}/blob/${branch}/${snippet.file_path}`, "_blank")
+          }}>
             <span>
               {snippet.end > snippet.content.split('\n').length - 3 && snippet.start == 0 ?
                 snippet.file_path : `${snippet.file_path}:${snippet.start}-${snippet.end}`
@@ -193,7 +199,7 @@ const SnippetBadge = ({
             backgroundColor: 'transparent',
             whiteSpace: 'pre-wrap',
           }}
-          className="rounded-xl max-h-80 overflow-y-auto p-4 w-full"
+          className="rounded-xl max-h-[600px] overflow-y-auto p-4 w-full"
         >
           {sliceLines(snippet.content, snippet.start, snippet.end)}
         </SyntaxHighlighter>
@@ -402,7 +408,7 @@ const FeedbackBlock = ({ message, index }: { message: Message, index: number }) 
   )
 }
 
-const MessageDisplay = ({ message, className, onEdit, index }: { message: Message, className?: string, onEdit: (content: string) => void, index: number }) => {
+const MessageDisplay = ({ message, className, onEdit, repoName, branch, index }: { message: Message, className?: string, onEdit: (content: string) => void, repoName: string, branch: string, index: number }) => {
   if (message.role === "user") {
     return <UserMessageDisplay message={message} onEdit={onEdit} />
   }
@@ -440,6 +446,8 @@ const MessageDisplay = ({ message, className, onEdit, index }: { message: Messag
                         <SnippetBadge
                           key={index}
                           snippet={snippet}
+                          repoName={repoName}
+                          branch={branch}
                         />
                       ))}
                     </div>
@@ -643,6 +651,7 @@ function App({
   defaultMessageId?: string
 }) {
   const [repoName, setRepoName] = useState<string>("")
+  const [branch, setBranch] = useState<string>("main")
   const [repoNameValid, setRepoNameValid] = useState<boolean>(false)
 
   const [repoNameDisabled, setRepoNameDisabled] = useState<boolean>(false)
@@ -1048,6 +1057,13 @@ function App({
               })
             }
             setRepoNameDisabled(false);
+            if (octokit) {
+              const repo = await octokit.rest.repos.get({
+                owner: cleanedRepoName.split("/")[0],
+                repo: cleanedRepoName.split("/")[1]
+              })
+              setBranch(repo.data.default_branch)
+            }
           }}
         />
         <Dialog>
@@ -1135,6 +1151,8 @@ function App({
             key={index}
             index={index}
             message={message}
+            repoName={repoName}
+            branch={branch}
             className={index == lastAssistantMessageIndex ? "bg-slate-700" : ""}
             onEdit={async (content) => {
               isStream.current = false;
