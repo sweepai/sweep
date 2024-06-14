@@ -1,4 +1,5 @@
 import { Message, PullRequest } from "./types";
+import * as Diff from "diff";
 
 export const renderPRDiffs = (pr: PullRequest) => {
   return pr.file_diffs.map((diff, index) => (
@@ -78,3 +79,14 @@ export const getFunctionCallHeaderString = (functionCall: Message["function_call
       return `${functionCall?.function_name}(${Object.entries(functionCall?.function_parameters!).map(([key, value]) => `${key}="${value}"`).join(", ")})`
   }
 }
+
+export const getDiff = (originalCode: string, newCode: string) => {
+    const diffLines = Diff.diffLines(originalCode.trim(), newCode.trim())
+    const formattedChange = diffLines.map(({ added, removed, value }: { added: boolean, removed: boolean, value: string }, index: number): string => {
+        let symbol = added ? "+" : removed ? "-" : " "
+        const results = symbol + value.trimEnd().replaceAll("\n", "\n" + symbol)
+        return results
+    }).join("\n").trim();
+    return formattedChange
+}
+

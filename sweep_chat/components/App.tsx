@@ -35,10 +35,19 @@ import { codeStyle, DEFAULT_K, modelMap, roleToColor, typeNameToColor } from "@/
 import { Repository, Snippet, FileDiff, PullRequest, Message, CodeSuggestion } from "@/lib/types";
 
 import { Octokit } from "octokit";
-import { renderPRDiffs, getJSONPrefix, getFunctionCallHeaderString } from "@/lib/str_utils";
+import { renderPRDiffs, getJSONPrefix, getFunctionCallHeaderString, getDiff } from "@/lib/str_utils";
 import { CODE_CHANGE_PATTERN, MarkdownRenderer } from "./shared/MarkdownRenderer";
 import { SnippetBadge } from "./shared/SnippetBadge";
 import { posthog } from "@/lib/posthog";
+
+import CodeMirrorMerge from 'react-codemirror-merge';
+import { javascript } from '@codemirror/lang-javascript';
+import { dracula } from '@uiw/codemirror-theme-dracula';
+import { EditorView } from 'codemirror';
+import { EditorState } from '@codemirror/state';
+
+const Original = CodeMirrorMerge.Original
+const Modified = CodeMirrorMerge.Modified
 
 const sum = (arr: number[]) => arr.reduce((acc, cur) => acc + cur, 0)
 
@@ -231,7 +240,10 @@ const MessageDisplay = ({
   if (message.role === "user") {
     return <UserMessageDisplay message={message} onEdit={onEdit} />
   }
-  const matches = Array.from(message.content.matchAll(CODE_CHANGE_PATTERN));
+  let matches = Array.from(message.content.matchAll(CODE_CHANGE_PATTERN));
+  if (matches.some((match) => !match.groups?.closingTag)) {
+    matches = []
+  }
   return (
     <>
       <div className={`flex justify-start`}>
@@ -306,6 +318,7 @@ const MessageDisplay = ({
       {matches.length > 0 && (
         <div className="flex justify-start w-[80%]">
           <Button className="mb-4 bg-blue-900 hover:bg-blue-800 text-zinc-200" onClick={() => onApplyChanges(matches.map((match) => ({
+            filePath: match.groups?.filePath || "",
             originalCode: match.groups?.originalCode || "",
             newCode: match.groups?.newCode || "",
           })))}>
@@ -434,7 +447,6 @@ function App({
   const [repoName, setRepoName] = useState<string>("")
   const [branch, setBranch] = useState<string>("main")
   const [repoNameValid, setRepoNameValid] = useState<boolean>(false)
-
   const [repoNameDisabled, setRepoNameDisabled] = useState<boolean>(false)
 
   const [k, setK] = useLocalStorage<number>("k", DEFAULT_K)
@@ -445,6 +457,8 @@ function App({
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const isStream = useRef<boolean>(false)
   const [showSurvey, setShowSurvey] = useState<boolean>(false)
+
+  const [suggestedChanges, setSuggestedChanges] = useState<CodeSuggestion[]>([])
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -954,7 +968,8 @@ function App({
               }
             }}
             onApplyChanges={(codeSuggestions: CodeSuggestion[]) => {
-              alert("Applying changes")
+              console.log(codeSuggestions)
+              setSuggestedChanges(codeSuggestions)
             }}
           />
         ))}
@@ -964,14 +979,39 @@ function App({
           </div>
         )}
       </div>
-      <Dialog>
-        <DialogTrigger asChild>
-          <Button>
-            Apply suggested changes
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          Hello world
+      <Dialog open={suggestedChanges.length > 0} onOpenChange={(open) => {
+        if (!open) {
+          setSuggestedChanges([])
+        }
+      }}>
+        <DialogContent className="max-w-none fit-content p-16 max-h-[90%] overflow-y-auto">
+          <div>
+            {suggestedChanges.map((suggestion, index) => (
+              <div className="fit-content mb-6">
+                <div className="w-full text-md bg-zinc-800 p-3 rounded-t-md">
+                  <code>
+                    {suggestion.filePath}
+                  </code>
+                </div>
+                <CodeMirrorMerge
+                  theme={dracula}
+                  revertControls={"b-to-a"}
+                >
+                  <Original
+                    value={suggestion.originalCode}
+                    extensions={[EditorView.editable.of(false), EditorState.readOnly.of(true), javascript({ jsx: true })]}
+                  />
+                  <Modified
+                    value={suggestion.newCode}
+                    extensions={[EditorView.editable.of(true), EditorState.readOnly.of(false), javascript({ jsx: true })]}
+                  />
+                </CodeMirrorMerge>
+              </div>
+            ))}
+            <Button className="mt-0 bg-blue-900 text-white hover:bg-blue-800">
+              Create pull request
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
       {repoNameValid && (

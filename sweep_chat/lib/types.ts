@@ -48,6 +48,7 @@ interface Message {
 }
 
 interface CodeSuggestion {
+  filePath: string;
   originalCode: string;
   newCode: string;
 }
