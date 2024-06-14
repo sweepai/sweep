@@ -34,7 +34,7 @@ def wrap_xml_tags_with_details(text: str) -> str:
     return re.sub(r'<([^>]+)>(.*?)</\1>', replace_tag_pair, text, flags=re.DOTALL)
 
 functions_to_unique_f_locals_string_getter = {
-    "on_ticket": lambda x: "issue_" + str({x["issue_number"]}),
+    "on_ticket": lambda x: "issue_" + str(x["issue_number"]),
     "review_pr": lambda x: "pr_" + str(x["pr"].number),
     "on_failing_github_actions": lambda x: "pr_" + str(x["pull_request"].number),
 } # just need to add the function name and the lambda to get the unique f_locals

@@ -528,9 +528,8 @@ def on_ticket(
                 ):
                     planning_markdown = render_fcrs(file_change_requests)
                     edit_sweep_comment(user_facing_message + planning_markdown, 2, step_complete=False)
-
                 edit_sweep_comment(user_facing_message + planning_markdown, 2)
-                raise_on_no_file_change_requests(title, summary, edit_sweep_comment, file_change_requests)
+                raise_on_no_file_change_requests(title, summary, edit_sweep_comment, file_change_requests, renames_dict)
             except Exception as e:
                 logger.exception(e)
                 # title and summary are defined elsewhere
@@ -569,7 +568,7 @@ def on_ticket(
                     renames_dict=renames_dict
                 )
                 pull_request_bot = PRSummaryBot()
-                commit_message = pull_request_bot.get_commit_message(modify_files_dict, chat_logger=chat_logger)[:50]
+                commit_message = pull_request_bot.get_commit_message(modify_files_dict, renames_dict=renames_dict, chat_logger=chat_logger)[:50]
                 modify_files_dict_history.append(copy.deepcopy(modify_files_dict))
                 new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
                 previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)

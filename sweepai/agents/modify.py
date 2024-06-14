@@ -25,8 +25,6 @@ def modify(
 ) -> dict[str, dict[str, str]]:
     # join fcr in case of duplicates
     use_openai = True
-    if not fcrs:
-        return previous_modify_files_dict
 
     # handles renames in cloned_repo
     # TODO: handle deletions here - it can cause crashes
@@ -36,6 +34,10 @@ def modify(
             f.write(file_contents)
         os.remove(os.path.join(cloned_repo.repo_dir, file_path))
     
+    # handle renames first
+    if not fcrs:
+        return previous_modify_files_dict
+
     user_message = create_user_message(
         fcrs=fcrs,
         request=request,
@@ -63,7 +65,7 @@ def modify(
     chat_gpt.messages = [Message(role="system", content=full_instructions)]
     try:
         if compiled_fcr := compile_fcr(fcrs[0], 0):
-            chat_gpt.messages.append(Message(role="user", content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}"))
+            chat_gpt.messages.append(Message(role="user", content=f"Here is the initial user request, plan, and state of the code files:\n{user_message}"))
             function_calls_string = compiled_fcr
             chat_gpt.messages.append(Message( # this will happen no matter what
                 role="assistant",
@@ -78,7 +80,7 @@ def modify(
             logger.info(f"Using model: {model}")
             function_calls_string = continuous_llm_calls(
                 chat_gpt,
-                content=f"Here is the intial user request, plan, and state of the code files:\n{user_message}",
+                content=f"Here is the initial user request, plan, and state of the code files:\n{user_message}",
                 model=model,
                 message_key="user_request",
                 stop_sequences=["</function_call>"],
