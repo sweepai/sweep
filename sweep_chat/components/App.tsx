@@ -983,39 +983,9 @@ function App({
         />
       )}
       <div className="flex justify-between w-full px-2 items-middle">
-        <img src="https://avatars.githubusercontent.com/u/170980334?v=4" className="w-12 h-12 m-4 mt-6 ml-0 mt-0 rounded-full" />
-        <DropdownMenu>
-          <DropdownMenuTrigger className="outline-none">
-            <div className="flex items-center">
-              <img
-                className="rounded-full w-12 h-12 m-4 mr-0 mt-0"
-                src={session!.user!.image || ""}
-                alt={session!.user!.name || ""}
-              />
-            </div>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>
-              <p className="text-md font-bold">{session!.user!.username! || session!.user!.name}</p>
-            </DropdownMenuLabel>
-            {session?.user?.email && (
-              <DropdownMenuItem>
-                {session.user.email}
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer" onClick={() => setShowSurvey((prev) => !prev)}>
-              <FaComments className="mr-2"/>
-              Feedback
-            </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer" onClick={() => signOut()}>
-              <FaSignOutAlt className="mr-2"/>
-              Sign Out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
       <div className={`mb-4 w-full flex items-center ${repoNameValid ? "" : "grow"}`}>
+        {/* <img src="https://avatars.githubusercontent.com/u/170980334?v=4" className="w-12 h-12 rounded-full" /> */}
         <AutoComplete
           options={repos.map((repo) => ({label: repo.full_name, value: repo.full_name}))}
           placeholder="Repository name"
@@ -1126,6 +1096,36 @@ function App({
             </div>
           </DialogContent>
         </Dialog>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="outline-none">
+            <div className="flex items-center">
+              <img
+                className="rounded-full w-12 h-12 m-0 ml-2"
+                src={session!.user!.image || ""}
+                alt={session!.user!.name || ""}
+              />
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>
+              <p className="text-md font-bold">{session!.user!.username! || session!.user!.name}</p>
+            </DropdownMenuLabel>
+            {session?.user?.email && (
+              <DropdownMenuItem>
+                {session.user.email}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="cursor-pointer" onClick={() => setShowSurvey((prev) => !prev)}>
+              <FaComments className="mr-2"/>
+              Feedback
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer" onClick={() => signOut()}>
+              <FaSignOutAlt className="mr-2"/>
+              Sign Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       <div
         ref={messagesContainerRef}
