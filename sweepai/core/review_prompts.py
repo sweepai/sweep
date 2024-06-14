@@ -63,7 +63,7 @@ Added a new categorization system for snippets in `multi_prep_snippets` and upda
     2a. Determine whether there are any functional issues, bugs, edge cases, or error conditions that the code changes introduce or fail to properly handle. Consider the line-by-line analysis from step 1b. (1 paragraph)
     2b. Identify any other potential issues that the code changes may introduce that were not captured by 2a. This could include accidental changes such as commented out code. (1 paragraph)
     2c. Only include issues that you are very confident will cause serious issues that prevent the pull request from being merged. For example, focus only on functional code changes and ignore changes to strings and comments that are purely descriptive.
-    2d. Do not make assumptions about existing functions or code.
+    2d. Do not make assumptions about existing functions or code. Assume all existing code and system configurations are correct and functioning as intended.
 
 Answer each of the above questions in step 2 in the following format:
 <issue_identification>

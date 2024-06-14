@@ -218,7 +218,9 @@ def on_comment(
             # Generate diffs for this PR
             pr_diff_string = ""
             if pr_number:
-                pr_changes, dropped_files, unsuitable_files = get_pr_changes(repo, pr)
+                pr_changes, _dropped_files, _unsuitable_files = get_pr_changes(
+                    repo, pr, cloned_repo
+                )
                 patches = []
                 source_codes = []
                 for file_name, pr_change in pr_changes.items():
