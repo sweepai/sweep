@@ -29,7 +29,7 @@ RUN curl -sSL https://astral.sh/uv/install.sh -o /install.sh && chmod 755 /insta
 
 COPY requirements.txt ./
 
-RUN uv venv && uv pip install --no-cache -r requirements.txt
+RUN pip install --no-cache -r requirements.txt
 
 RUN npm install -g prettier@2.0.4 @types/react @types/react-dom typescript eslint@8.57.0 
 RUN npm install react react-dom
