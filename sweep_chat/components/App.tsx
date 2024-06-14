@@ -982,8 +982,6 @@ function App({
           }}
         />
       )}
-      <div className="flex justify-between w-full px-2 items-middle">
-      </div>
       <div className={`mb-4 w-full flex items-center ${repoNameValid ? "" : "grow"}`}>
         {/* <img src="https://avatars.githubusercontent.com/u/170980334?v=4" className="w-12 h-12 rounded-full" /> */}
         <AutoComplete
