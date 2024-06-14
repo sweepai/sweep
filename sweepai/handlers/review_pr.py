@@ -159,7 +159,6 @@ def review_pr(
                 multiprocess=True,
                 chat_logger=chat_logger,
             )
-            breakpoint()
             # convert code_review_by_group to be by file for easier rendering
             code_review_by_file = decompose_code_review_by_group(code_review_by_group)
             # do more specific checks now, i.e. duplicated util functions
