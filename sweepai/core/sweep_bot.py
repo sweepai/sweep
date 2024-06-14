@@ -162,6 +162,8 @@ def parse_renames(renames_string: str):
         if not old_name:
             continue
         new_name = new_name_pattern.search(rename_match).group(1)
+        if old_name.strip() == new_name.strip():
+            continue
         rename_dict[old_name.strip()] = new_name.strip()
     return rename_dict
 
