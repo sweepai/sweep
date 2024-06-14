@@ -681,6 +681,40 @@ def get_function_name(file_name: str, source_code: str, line_number: int):
 
     return function_name
 
+def extract_definitions(file_name, code):
+    ext = file_name.split(".")[-1]
+    if ext in extension_to_language:
+        language = extension_to_language[ext]
+    else:
+        return None
+
+    type_mapping_per_language = {
+        "typescript": ["class_declaration", "method_definition"],
+        "tsx": ["function_declaration", "class_declaration", "method_definition"],
+        "javascript": ["function_declaration", "class_declaration", "method_definition"]
+    }
+    function_type_strings = type_mapping_per_language.get(language)
+
+    parser = get_parser(language)
+    tree = parser.parse(bytes(code, "utf8"))
+
+    def traverse_node(node):
+        if node.type in function_type_strings:
+            if node.type == "class_declaration":
+                class_name = node.child_by_field_name("name").text.decode("utf8")
+                print(f"Class: {class_name}")
+            elif node.type == "function_declaration":
+                function_name = node.child_by_field_name("name").text.decode("utf8")
+                print(f"Function: {function_name}")
+            elif node.type == "method_definition":
+                method_name = node.child_by_field_name("name").text.decode("utf8")
+                print(f"Method: {method_name}")
+
+        for child in node.children:
+            traverse_node(child)
+
+    traverse_node(tree.root_node)
+
 if __name__ == "__main__":
     test_code = """
 import React from 'react';
@@ -738,6 +772,8 @@ export default function CallToAction() {
     );
 }
 """
+    extract_definitions("main.tsx", typescript_code)
+    breakpoint()
     python_code = """\
 import math
 import pandas

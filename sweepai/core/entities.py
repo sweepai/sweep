@@ -395,6 +395,12 @@ class Snippet(BaseModel):
     @property
     def denotation(self):
         return f"{self.file_path}:{self.start}-{self.end}"
+    
+    @property
+    def file_denotation(self):
+        if self.start <= 0 and self.end >= self.content.count("\n") + 1:
+            return f"{self.file_path}"
+        return f"{self.file_path}:{self.start}-{self.end}" 
 
     @classmethod
     def from_file(
