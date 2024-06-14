@@ -64,10 +64,12 @@ Added a new categorization system for snippets in `multi_prep_snippets` and upda
     2b. Identify any other potential issues that the code changes may introduce that were not captured by 2a. This could include accidental changes such as commented out code. (1 paragraph)
     2c. Only include issues that you are very confident will cause serious issues that prevent the pull request from being merged. For example, focus only on functional code changes and ignore changes to strings and comments that are purely descriptive.
     2d. Do not make assumptions about existing functions or code. Assume all existing code and system configurations are correct and functioning as intended.
+    2e. Do not raise issues over functions being called without error handling. You do not have enough context to determine if the functions are being called correctly.
+    2f. You must take into account the intentions of the pull request when identifying issues. Are the the code changes in line with the intentions of the pull request? If the answer is yes then this is not an issue.
 
 Answer each of the above questions in step 2 in the following format:
 <issue_identification>
-{{Include all answers to the question posed in 2a, 2b, 2c, 2d, 2e. Example: 2a: A potential...}}
+{{Include all answers to the question posed in 2a, to 2f. Example: 2a: A potential...}}
 </issue_identification>
 """
 user_prompt_special_rules_format = """
@@ -173,7 +175,9 @@ The issues that have already been identified should not be raised again.
     1c. Answer the following questions in addition to the ones you generated in steps 1a. Is this reported issue accurate (double check that the previous reviewer was not mistaken, YOU MUST include the corresponding patch for proof)? If the answer to this question is no, then the issue is not severe. 
     1d. Determine whether or not this issue is severe enough to prevent the pull request from being merged or not. For example, any potential logical error is considered severe.
     1e. Take note of some common issues: Accidently removing or commenting out lines of code that has functional utility. In this case double check if this change was intentional or accidental.
-    1f. Finally was this issue already raised in a comment thread? If yes, then this issue has already been identified and you should not raise it again. You must also provide proof by referencing the exact comment where this issue was raised.
+    1f. Take into account the intentions of the pull request when identifying issues. Are the code changes in line with the intentions of the pull request? If the answer is yes then this is not an issue.
+    1g. Is this issue related to potential secuirty vulnerabilities? If yes, then this issue is NOT severe and should not be included.
+    1h. Finally was this issue already raised in a comment thread? If yes, then this issue has already been identified and you should not raise it again. You must also provide proof by referencing the exact comment where this issue was raised.
 """
 user_prompt_review_special_rules = """
 In addition to all the above questions you must answer in step 1, the following rules also apply to this file as defined by the user themselves:
@@ -191,7 +195,12 @@ user_prompt_review_analysis_format = """
 Deliver your analysis including all questions and answers in the following format:
 <thoughts>
 <thinking>
-{{Analysis of the issue, include ALL the questions and answers}}
+{{Analysis of the issue, include ALL the questions and answers.
+Answer in this format: 
+1a. Answer for question 1a...
+1b. ...
+...
+1g. Answer for question 1g...}}
 </thinking>
 ...
 </thoughts>"""
