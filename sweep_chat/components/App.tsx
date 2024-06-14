@@ -1127,6 +1127,7 @@ function App({
         {messages.map((message, index) => (
           <MessageDisplay
             key={index}
+            index={index}
             message={message}
             className={index == lastAssistantMessageIndex ? "bg-slate-700" : ""}
             onEdit={async (content) => {
