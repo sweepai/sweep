@@ -599,7 +599,7 @@ class PRReviewBot(ChatGPT):
                 file_names=code_review_by_group.get_all_file_names(), 
                 potential_issues=potential_issues_string, 
                 pull_request_info=pull_request_info,
-                pr_changes=f"{all_other_pr_changes}\n\n{formatted_pr_changes_by_group[group_name]}",
+                pr_changes=f"{all_other_pr_changes}\n\n{formatted_pr_changes_by_group[group_name].rendered_changes}",
                 comment_threads=comment_threads_string
             )
             special_rules = self.get_special_rules(cloned_repo, file_names)
