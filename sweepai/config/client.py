@@ -344,7 +344,7 @@ class SweepConfig(BaseModel):
                 cwd=repo_dir,
             )
             result = json.loads(response.stdout)
-            type = result[file_name]["mime_type"]
+            type = result[file_name]["type"]
             vendored = result[file_name]['vendored']
             generated = result[file_name]['generated']
             language = result[file_name]["language"]
