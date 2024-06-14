@@ -6,7 +6,7 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { FaCheck, FaCog, FaComments, FaGithub, FaPencilAlt, FaShareAlt, FaStop, FaThumbsDown, FaThumbsUp } from "react-icons/fa";
+import { FaCheck, FaCog, FaComments, FaGithub, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -30,7 +30,7 @@ import { ReadableStreamDefaultReadResult } from "stream/web";
 import { Textarea } from "./ui/textarea";
 import { Slider } from "./ui/slider";
 import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Label } from "./ui/label";
 import PulsingLoader from "./shared/PulsingLoader";
 
@@ -983,21 +983,37 @@ function App({
         />
       )}
       <div className="flex justify-between w-full px-2 items-middle">
-        <h1 className="text-4xl font-bold mb-6">Sweep Search</h1>
-        <div className="flex items-center mb-4">
-          <img
-            className="rounded-full w-10 h-10 mr-4"
-            src={session!.user!.image || ""}
-            alt={session!.user!.name || ""}
-          />
-          <div>
-            <p className="text-lg font-bold">{session!.user!.username! || session!.user!.name}</p>
-            <p className="text-sm text-gray-400">{session!.user!.email}</p>
-          </div>
-          <Button className="ml-4" variant="secondary" onClick={() => signOut()}>
-            Sign Out
-          </Button>
-        </div>
+        <img src="https://avatars.githubusercontent.com/u/170980334?v=4" className="w-12 h-12 m-4 mt-6 ml-0 mt-0 rounded-full" />
+        <DropdownMenu>
+          <DropdownMenuTrigger className="outline-none">
+            <div className="flex items-center">
+              <img
+                className="rounded-full w-12 h-12 m-4 mr-0 mt-0"
+                src={session!.user!.image || ""}
+                alt={session!.user!.name || ""}
+              />
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>
+              <p className="text-md font-bold">{session!.user!.username! || session!.user!.name}</p>
+            </DropdownMenuLabel>
+            {session?.user?.email && (
+              <DropdownMenuItem>
+                {session.user.email}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="cursor-pointer" onClick={() => setShowSurvey((prev) => !prev)}>
+              <FaComments className="mr-2"/>
+              Feedback
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer" onClick={() => signOut()}>
+              <FaSignOutAlt className="mr-2"/>
+              Sign Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       <div className={`mb-4 w-full flex items-center ${repoNameValid ? "" : "grow"}`}>
         <AutoComplete
@@ -1066,14 +1082,6 @@ function App({
             setRepoNameDisabled(false);
           }}
         />
-        <Button
-          variant="outline"
-          className="ml-4"
-          onClick={() => setShowSurvey((prev) => !prev)}
-        >
-          <FaComments className="mr-2"/>
-          Feedback
-        </Button>
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="outline" className="ml-4">
