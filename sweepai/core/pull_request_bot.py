@@ -87,15 +87,16 @@ class PRSummaryBot(ChatGPT):
                 file_diff = generate_diff(file_data['original_contents'], file_data['contents'])
                 file_diffs += f"<file_diffs file='{file_name}'>\n{file_diff}\n</file_diffs>"
         else:
-            for file_name, file_data in modify_files_dict.items():
-                # use incremental diff, compare against previous file data
-                if file_name in previous_modify_files_dict:
-                    previous_file_data = previous_modify_files_dict[file_name]
-                    file_diff = generate_diff(previous_file_data['contents'], file_data['contents'])
-                else:
-                    # use diff compare against original file data
-                    file_diff = generate_diff(file_data['original_contents'], file_data['contents'])
-                file_diffs += f"<file_diffs file='{file_name}'>\n{file_diff}\n</file_diffs>"
+            if modify_files_dict:
+                for file_name, file_data in modify_files_dict.items():
+                    # use incremental diff, compare against previous file data
+                    if file_name in previous_modify_files_dict:
+                        previous_file_data = previous_modify_files_dict[file_name]
+                        file_diff = generate_diff(previous_file_data['contents'], file_data['contents'])
+                    else:
+                        # use diff compare against original file data
+                        file_diff = generate_diff(file_data['original_contents'], file_data['contents'])
+                    file_diffs += f"<file_diffs file='{file_name}'>\n{file_diff}\n</file_diffs>"
         for file_name, new_file_name in renames_dict.items():
             file_diff = f"File {file_name} was renamed to {new_file_name}"
             file_diffs += f"<file_diffs file='{file_name}'>\n{file_diff}\n</file_diffs>"
