@@ -287,6 +287,9 @@ def get_pointwise_reranked_snippet_scores(
     return new_snippet_scores
 
 def process_snippets(type_name, *args, **kwargs):
+    snippets_subset = args[1]
+    if not snippets_subset:
+        return type_name, {}
     return type_name, get_pointwise_reranked_snippet_scores(*args, **kwargs)
 
 @streamable
@@ -353,10 +356,7 @@ def multi_prep_snippets(
                 # Fallback to sequential processing
                 logger.warning(e)
                 for type_name, snippets_subset in separated_snippets:
-                    if snippets_subset:
-                        new_content_to_lexical_score_by_type[type_name] = process_snippets(type_name, queries[0], snippets_subset, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, rerank_count[type_name], {})[1]
-                    else:
-                        new_content_to_lexical_score_by_type[type_name] = {}
+                    new_content_to_lexical_score_by_type[type_name] = process_snippets(type_name, queries[0], snippets_subset, content_to_lexical_score, NUM_SNIPPETS_TO_KEEP, rerank_count[type_name], {})[1]
         logger.info(f"Reranked snippets took {timer.time_elapsed} seconds")
 
         for type_name, snippets_subset in separated_snippets:
