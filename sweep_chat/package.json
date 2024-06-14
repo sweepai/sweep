@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "e2e:run": "cypress run",
-    "e2e:open": "cypress open",
+    "e2e:open": "cypress open --e2e -b electron -d",
     "e2e:ci": "start-server-and-test start 3000 e2e:run"
   },
   "dependencies": {
