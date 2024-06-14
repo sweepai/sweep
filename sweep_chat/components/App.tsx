@@ -22,7 +22,6 @@ import { toast } from "@/components/ui/use-toast";
 import { useSession, signIn, SessionProvider, signOut } from "next-auth/react";
 import { Session } from "next-auth";
 import { PostHogProvider, usePostHog } from "posthog-js/react";
-import posthog from "posthog-js";
 import Survey from "./Survey";
 import * as jsonpatch from 'fast-json-patch';
 import { ReadableStreamDefaultReadResult } from "stream/web";
@@ -32,180 +31,14 @@ import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Label } from "./ui/label";
 import PulsingLoader from "./shared/PulsingLoader";
-import * as Diff from "diff";
-import { codeStyle, DEFAULT_K, modelMap } from "@/lib/constants";
+import { codeStyle, DEFAULT_K, modelMap, roleToColor, typeNameToColor } from "@/lib/constants";
 import { Repository, Snippet, FileDiff, PullRequest, Message, CodeSuggestion } from "@/lib/types";
 
 import { Octokit } from "octokit";
-import { sliceLines, renderPRDiffs, getJSONPrefix } from "@/lib/str_utils";
-
-
-if (typeof window !== 'undefined') {
-  posthog.init(
-    process.env.NEXT_PUBLIC_POSTHOG_KEY!,
-    {
-      api_host: "/ingest",
-      ui_host: "https://us.posthog.com"
-    }
-  )
-  posthog.debug(false)
-}
-
-const CODE_CHANGE_PATTERN = /<code_change>\s*<original_code>(?<originalCode>[\s\S]+?)($|<\/original_code>\s*($|<new_code>(?<newCode>[\s\S]+?)($|<\/new_code>)\s*($|(?<closingTag><\/code_change>))))/gs;
-
-const MarkdownRenderer = ({ content, className }: { content: string, className?: string }) => {
-  const matches = Array.from(content.matchAll(CODE_CHANGE_PATTERN));
-  let transformedContent = content;
-
-  for (const match of matches) {
-    let { originalCode, newCode, closingTag } = match.groups || {};
-    if (newCode == null) {
-      transformedContent = transformedContent.replace(match[0], "**Code suggestions:**\n```diff\n" + originalCode + "\n```");
-    } else {
-      let diffLines = Diff.diffLines(originalCode.trim(), newCode.trim())
-      if (!closingTag) {
-        if (diffLines.length >= 2) {
-          const lastDiff = diffLines[diffLines.length - 1];
-          const secondLastDiff = diffLines[diffLines.length - 2];
-          if (lastDiff.added && lastDiff.value.trim().split("\n").length === 1 && secondLastDiff.removed && secondLastDiff.value.trim().split("\n").length > 1) {
-            const temp = diffLines[diffLines.length - 1];
-            diffLines[diffLines.length - 1] = diffLines[diffLines.length - 2];
-            diffLines[diffLines.length - 2] = temp;
-            diffLines[diffLines.length - 2].value = "";
-            diffLines[diffLines.length - 1].removed = false;
-          }
-        }
-      }
-      const formattedChange = "**Code suggestions:**\n```diff\n" + diffLines.map(({ added, removed, value }: { added: boolean, removed: boolean, value: string }, index: number): string => {
-        let symbol = added ? "+" : removed ? "-" : " "
-        if (index === diffLines.length - 1 && index === diffLines.length - 2 && removed && !closingTag) {
-          symbol = " "
-        }
-        const results = symbol + value.trimEnd().replaceAll("\n", "\n" + symbol)
-        return results
-      }).join("\n").trim() + "\n```";
-      transformedContent = transformedContent.replace(match[0], formattedChange);
-    }
-  }
-
-  return (
-    <Markdown
-      className={`${className} reactMarkdown`}
-      remarkPlugins={[remarkGfm]}
-      components={{
-        code(props) {
-          const { children, className, node, ref, ...rest } = props
-          const match = /language-(\w+)/.exec(className || '')
-          return match ? (
-            <SyntaxHighlighter
-              {...rest} // eslint-disable-line
-              PreTag="div"
-              language={match[1]}
-              style={codeStyle}
-              customStyle={{
-                backgroundColor: '#333',
-              }}
-              className="rounded-xl"
-            >
-              {String(children).replace(/\n$/, '')}
-            </SyntaxHighlighter>
-          ) : (
-            <code
-              {...rest}
-              className={`rounded-xl ${className}`}
-            >
-              {children}
-            </code>
-          )
-        }
-      }}
-    >
-      {transformedContent}
-    </Markdown>
-  )
-}
-
-const typeNameToColor = {
-  "source": "bg-blue-900",
-  "tests": "bg-green-900",
-  "dependencies": "bg-zinc-600",
-  "tools": "bg-purple-900",
-  "docs": "bg-yellow-900",
-}
-
-const SnippetBadge = ({
-  snippet,
-  className,
-  repoName,
-  branch,
-  button,
-}: {
-  snippet: Snippet;
-  className?: string;
-  repoName: string;
-  branch: string;
-  button?: JSX.Element;
-}) => {
-  return (
-    <HoverCard openDelay={300} closeDelay={200}>
-      <div className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 ${typeNameToColor[snippet.type_name]} ${className || ""} `} style={{ opacity: `${Math.max(Math.min(1, snippet.score), 0.2)}` }}>
-        <HoverCardTrigger asChild>
-          <Button variant="link" className="text-sm py-0 px-1 h-6 leading-4" onClick={() => {
-            window.open(`https://github.com/${repoName}/blob/${branch}/${snippet.file_path}`, "_blank")
-          }}>
-            <span>
-              {snippet.end > snippet.content.split('\n').length - 3 && snippet.start == 0 ?
-                snippet.file_path : `${snippet.file_path}:${snippet.start}-${snippet.end}`
-              }
-            </span>
-            {
-              snippet.type_name !== "source" && (
-                <code className="ml-2 bg-opacity-20 bg-black text-white rounded p-1 px-2 text-xs">{snippet.type_name}</code>
-              )
-            }
-          </Button>
-        </HoverCardTrigger>
-      </div>
-      <HoverCardContent className="w-[800px] mr-2" style={{ opacity: 1 }}>
-        <SyntaxHighlighter
-          PreTag="div"
-          language="python"
-          style={codeStyle}
-          customStyle={{
-            backgroundColor: 'transparent',
-            whiteSpace: 'pre-wrap',
-          }}
-          className="rounded-xl max-h-[600px] overflow-y-auto p-4 w-full"
-        >
-          {sliceLines(snippet.content, snippet.start, snippet.end)}
-        </SyntaxHighlighter>
-      </HoverCardContent>
-    </HoverCard>
-  )
-}
-
-const getFunctionCallHeaderString = (functionCall: Message["function_call"]) => {
-switch (functionCall?.function_name) {
-  case "analysis":
-    return functionCall.is_complete ? "Analysis" : "Analyzing..."
-  case "self_critique":
-    return functionCall.is_complete ? "Self critique" : "Self critiquing..."
-  case "search_codebase":
-    if (functionCall!.function_parameters?.query) {
-      return functionCall.is_complete ? `Search codebase for "${functionCall.function_parameters.query.trim()}"` : `Searching codebase for "${functionCall.function_parameters.query.trim()}"...`
-    } else {
-      return functionCall.is_complete ? "Search codebase" : "Searching codebase..."
-    }
-  default:
-    return `${functionCall?.function_name}(${Object.entries(functionCall?.function_parameters!).map(([key, value]) => `${key}="${value}"`).join(", ")})`
-}
-}
-
-const roleToColor = {
-  "user": "bg-zinc-600",
-  "assistant": "bg-zinc-700",
-  "function": "bg-zinc-800",
-}
+import { renderPRDiffs, getJSONPrefix, getFunctionCallHeaderString } from "@/lib/str_utils";
+import { CODE_CHANGE_PATTERN, MarkdownRenderer } from "./shared/MarkdownRenderer";
+import { SnippetBadge } from "./shared/SnippetBadge";
+import { posthog } from "@/lib/posthog";
 
 const sum = (arr: number[]) => arr.reduce((acc, cur) => acc + cur, 0)
 
