@@ -1,11 +1,9 @@
-import re
 from sweepai.agents.agent_utils import Parameter, handle_function_call, tool, validate_and_parse_function_call
-from sweepai.agents.question_answerer import CORRECTED_SUBMIT_SOURCES_FORMAT, QuestionAnswererException, rag, parse_sources, search_codebase
+from sweepai.agents.question_answerer import QuestionAnswererException, rag, parse_sources, search_codebase
 from sweepai.core.chat import ChatGPT, continuous_llm_calls
 from sweepai.core.entities import Snippet
 from sweepai.utils.github_utils import ClonedRepo, MockClonedRepo
 from sweepai.utils.str_utils import extract_xml_tag
-from sweepai.utils.ticket_utils import prep_snippets
 
 example_tool_calls = """Here are examples of how to use the tools:
 

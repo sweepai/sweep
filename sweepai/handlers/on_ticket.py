@@ -11,7 +11,6 @@ from time import time
 from github import BadCredentialsException
 from github.PullRequest import PullRequest as GithubPullRequest
 from loguru import logger
-from sweepai.agents.search_agent import search
 
 
 from sweepai.chat.api import posthog_trace
