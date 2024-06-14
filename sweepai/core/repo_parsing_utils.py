@@ -72,10 +72,10 @@ def _filter_file(directory: str, file: str, sweep_config: SweepConfig) -> bool:
     if len(data) / line_count > 200:
         return False
     # check token density, if it is greater than 2, then it is likely not human readable
-    token_count = tiktoken_client.count(data)
+    token_count = tiktoken_client.count(data[:1000])
     if token_count == 0:
         return False
-    if len(data) / token_count < 2 and len(data) > 100:
+    if len(data[:1000]) / token_count < 2 and len(data) > 100:
         return False
     return True
 
