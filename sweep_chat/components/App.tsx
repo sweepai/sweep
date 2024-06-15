@@ -461,6 +461,8 @@ function App({
   const [suggestedChanges, setSuggestedChanges] = useState<CodeSuggestion[]>([])
   const [openSuggestionDialog, setOpenSuggestionDialog] = useState<boolean>(false)
   const [isProcessingSuggestedChanges, setIsProcessingSuggestedChanges] = useState<boolean>(false)
+  const [isCreatingPullRequest, setIsCreatingPullRequest] = useState<boolean>(false)
+  const [pullRequestURL, setPullRequestURL] = useState<string>("")
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -1020,78 +1022,84 @@ function App({
             </div>
           )}
           <div style={{ opacity: isProcessingSuggestedChanges ? 0.5 : 1, pointerEvents: isProcessingSuggestedChanges ? 'none' : 'auto' }}>
-            {suggestedChanges.map((suggestion, index) => (
-              <div className="fit-content mb-6" key={index}>
-                <div className="w-full text-sm bg-zinc-800 p-2 rounded-t-md">
-                  <code>
-                    {suggestion.filePath} {isProcessingSuggestedChanges ? "(processing)" : <FaCheck style={{display: "inline", marginTop: -2}}/>}
-                  </code>
+            {!pullRequestURL ? suggestedChanges.map((suggestion, index) => (
+              <>
+                <div className="fit-content mb-6" key={index}>
+                  <div className="w-full text-sm bg-zinc-800 p-2 rounded-t-md">
+                    <code>
+                      {suggestion.filePath} {isProcessingSuggestedChanges ? "(processing)" : <FaCheck style={{display: "inline", marginTop: -2}}/>}
+                    </code>
+                  </div>
+                  <CodeMirrorMerge
+                    theme={dracula}
+                    revertControls={"b-to-a"}
+                    collapseUnchanged={{
+                      margin: 3,
+                      minSize: 4,
+                    }}
+                  >
+                    <Original
+                      value={suggestion.originalCode}
+                      extensions={[EditorView.editable.of(false), EditorState.readOnly.of(true), javascript({ jsx: true })]}
+                    />
+                    <Modified
+                      value={suggestion.newCode}
+                      extensions={[EditorView.editable.of(true), EditorState.readOnly.of(false), javascript({ jsx: true })]}
+                      onChange={(value) => {
+                        setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
+                      }}
+                    />
+                  </CodeMirrorMerge>
                 </div>
-                <CodeMirrorMerge
-                  theme={dracula}
-                  revertControls={"b-to-a"}
-                  collapseUnchanged={{
-                    margin: 3,
-                    minSize: 4,
+                <Button 
+                  className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
+                  onClick={async () => {
+                    setIsCreatingPullRequest(true)
+                    const file_changes = suggestedChanges.reduce((acc: Record<string, string>, suggestion: CodeSuggestion) => {
+                      acc[suggestion.filePath] = suggestion.newCode;
+                      return acc;
+                    }, {})
+                    console.log(file_changes)
+                    try {
+                      const response = await fetch(
+                        `/backend/create_pull`,
+                        {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${session?.user.accessToken!}`
+                          },
+                          body: JSON.stringify({
+                            repo_name: repoName,
+                            file_changes: file_changes,
+                            branch: "sweep-chat-patch-" + new Date().toISOString().split("T")[0], // use ai for better branch name, title, and body later
+                            title: "Sweep Chat Suggested Changes",
+                            body: "Suggested changes by Sweep Chat. Link from https://sweep.chat.",
+                          }),
+                        }
+                      )
+                      const {pull_url: pullURL, new_branch: newBranch} = await response.json()
+                      setPullRequestURL(pullURL)
+                    } catch (e) {
+                      toast({
+                        title: "Error",
+                        description: `An error occurred while creating the pull request: ${e}`,
+                        variant: "destructive",
+                        duration: Infinity,
+                      })
+                    } finally {
+                      setIsCreatingPullRequest(false)
+                    }
                   }}
                 >
-                  <Original
-                    value={suggestion.originalCode}
-                    extensions={[EditorView.editable.of(false), EditorState.readOnly.of(true), javascript({ jsx: true })]}
-                  />
-                  <Modified
-                    value={suggestion.newCode}
-                    extensions={[EditorView.editable.of(true), EditorState.readOnly.of(false), javascript({ jsx: true })]}
-                  />
-                </CodeMirrorMerge>
+                  Create pull request
+                </Button>
+              </>
+            )): (
+              <div className="flex justify-center items-center h-full">
+                <p>Pull request created: <a className="text-blue-500 hover:text-blue-400" href={pullRequestURL}>{pullRequestURL}</a></p>
               </div>
-            ))}
-            <Button 
-              className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
-              onClick={async () => {
-                // create branch
-                const [owner, repo] = repoName.split("/")
-                console.log(owner, repo)
-                const sha = await octokit!.rest.git.getRef({
-                  owner,
-                  repo,
-                  ref: `heads/${branch}`,
-                })
-                // console.log(sha)
-                // const branchName = `suggested-changes-${new Date().toISOString().split("T")[0]}`
-                // const branchResponse = await octokit!.rest.git.createRef({
-                //   owner: repoName.split("/")[0],
-                //   repo: repoName.split("/")[1],
-                //   ref: `refs/heads/${branchName}`,
-                //   sha: sha.data.object.sha,
-                // })
-                // // make changes
-                // for (const suggestion of suggestedChanges) {
-                //   const response = await octokit!.rest.git.updateRef({
-                //     owner: repoName.split("/")[0],
-                //     repo: repoName.split("/")[1],
-                //     ref: `refs/heads/${branchName}`,
-                //     sha: suggestion.newCode,
-                //   })
-                // }
-                // console.log(branchResponse)
-                // // create pull request
-                // const pullsResponse = await octokit!.rest.pulls.create({
-                //   owner: repoName.split("/")[0],
-                //   repo: repoName.split("/")[1],
-                //   title: "Sweep Chat Suggested Changes",
-                //   body: "Suggested changes by Sweep Chat",
-                //   head: branchName,
-                //   base: branch,
-                // })
-                // console.log(pullsResponse)
-                // setSuggestedChanges([])
-                // setOpenSuggestionDialog(false)
-                // setIsProcessingSuggestedChanges(false)
-              }}
-            >
-              Create pull request
-            </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
