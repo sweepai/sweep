@@ -196,7 +196,7 @@ def is_blocked(file_path: str, blocked_dirs: list[str]):
             return {"success": True, "path": blocked_dir}
     return {"success": False}
 
-def validate_file_change_requests(
+def set_fcr_change_type(
     file_change_requests: list[FileChangeRequest],
     cloned_repo: ClonedRepo,
     renames_dict: dict[str, str] = {},
@@ -210,15 +210,8 @@ def validate_file_change_requests(
             try:
                 get_file_contents(fcr.filename)
             except FileNotFoundError as e:
-                logger.warning(f"Failed to get file contents for {fcr.filename} due to {e}, trying prefixes")
-                for file_path in cloned_repo.get_file_list():
-                    if file_path.endswith(fcr.filename):
-                        logger.info(f"Found similar file {fcr.filename} at {file_path}")
-                        get_file_contents(file_path)
-                        fcr.filename = file_path
-                        break
-                else:
-                    fcr.change_type = "create" # need better handling
+                logger.info(f"Failed to get file contents for {fcr.filename} due to {e}")
+                fcr.change_type = "create"
         elif fcr.change_type == "create":
             try:
                 cloned_repo.get_file_contents(fcr.filename)
@@ -232,6 +225,7 @@ def get_error_message(
     updated_files: dict[str, dict[str, str]] = {},
     renames_dict: dict[str, str] = {},
 ):
+    set_fcr_change_type(file_change_requests, cloned_repo, renames_dict=renames_dict)
     def get_file_contents(file_path):
         if file_path in renames_dict.values():
             file_path = [k for k, v in renames_dict.items() if v == file_path][0]
@@ -722,7 +716,6 @@ def get_files_to_change(
     relevant_modules_match = pattern.search(files_to_change_response)
     if relevant_modules_match:
         relevant_modules = [relevant_module.strip() for relevant_module in relevant_modules_match.group(1).split("\n") if relevant_module.strip()]
-    print("relevant_modules", relevant_modules)
     file_change_requests = []
     try:
         for re_match in re.finditer(
@@ -734,7 +727,6 @@ def get_files_to_change(
             file_change_requests.append(file_change_request)
         
         yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm currently just making some edits:\n", file_change_requests
-        
         error_message, error_indices = get_error_message(
             file_change_requests,
             cloned_repo,
@@ -785,7 +777,7 @@ def get_files_to_change(
             logger.debug("New indices", error_indices)
             yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm currently just making some edits:\n", file_change_requests
 
-        validate_file_change_requests(file_change_requests, cloned_repo, renames_dict=renames_dict)
+        set_fcr_change_type(file_change_requests, cloned_repo, renames_dict=renames_dict)
         yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm done making edits and now I'm just validating the changes using a linter to catch any mistakes like syntax errors or undefined variables:\n", file_change_requests
         return renames_dict, file_change_requests, files_to_change_response
     except RegexMatchError as e:
@@ -1102,7 +1094,7 @@ def get_files_to_change_for_on_comment(
             logger.debug("New indices", error_indices)
             yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm currently just making some edits:\n", file_change_requests
 
-        validate_file_change_requests(file_change_requests, cloned_repo, renames_dict=renames_dict)
+        set_fcr_change_type(file_change_requests, cloned_repo, renames_dict=renames_dict)
         yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm done making edits and now I'm just validating the changes using a linter to catch any mistakes like syntax errors or undefined variables:\n", file_change_requests
         return renames_dict, file_change_requests, files_to_change_response
     except RegexMatchError as e:
@@ -1640,7 +1632,7 @@ def get_files_to_change_for_gha(
             logger.debug("New indices", error_indices)
 
         # breakpoint()
-        validate_file_change_requests(file_change_requests, cloned_repo)
+        set_fcr_change_type(file_change_requests, cloned_repo)
         return file_change_requests, files_to_change_response
     except RegexMatchError as e:
         print("RegexMatchError", e)
