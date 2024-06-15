@@ -1131,84 +1131,82 @@ function App({
             )}
             <div style={{ opacity: (isProcessingSuggestedChanges || isCreatingPullRequest) ? 0.5 : 1, pointerEvents: (isProcessingSuggestedChanges || isCreatingPullRequest) ? 'none' : 'auto' }}>
               {suggestedChanges.map((suggestion, index) => (
-                <>
-                  <div className="fit-content mb-6" key={index}>
-                    <div className="w-full text-sm bg-zinc-800 p-2 rounded-t-md">
-                      <code>
-                        {suggestion.filePath} {isProcessingSuggestedChanges ? "(processing)" : <FaCheck style={{display: "inline", marginTop: -2}}/>}
-                      </code>
-                    </div>
-                    {reactCodeMirrors[index]}
+                <div className="fit-content mb-6" key={index}>
+                  <div className="w-full text-sm bg-zinc-800 p-2 rounded-t-md">
+                    <code>
+                      {suggestion.filePath} {isProcessingSuggestedChanges ? "(processing)" : <FaCheck style={{display: "inline", marginTop: -2}}/>}
+                    </code>
                   </div>
-                  <Input
-                    value={pullRequestTitle || ""}
-                    onChange={(e) => setPullRequestTitle(e.target.value)}
-                    placeholder="Pull Request Title"
-                    className="w-full mb-4 text-zinc-300"
-                    disabled={pullRequestTitle == null}
-                  />
-                  <Textarea
-                    value={pullRequestBody || ""}
-                    onChange={(e) => setPullRequestBody(e.target.value)}
-                    placeholder="Pull Request Body"
-                    className="w-full mb-4 text-zinc-300"
-                    disabled={pullRequestBody == null}
-                    rows={8}
-                  />
-                  <Button 
-                    className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
-                    onClick={async () => {
-                      setIsCreatingPullRequest(true)
-                      const file_changes = suggestedChanges.reduce((acc: Record<string, string>, suggestion: CodeSuggestion) => {
-                        acc[suggestion.filePath] = suggestion.newCode;
-                        return acc;
-                      }, {})
-                      console.log(file_changes)
-                      try {
-                        const response = await authorizedFetch(
-                          `/backend/create_pull`,
-                          {
-                            body: JSON.stringify({
-                              repo_name: repoName,
-                              file_changes: file_changes,
-                              branch: "sweep-chat-patch-" + new Date().toISOString().split("T")[0], // use ai for better branch name, title, and body later
-                              title: pullRequestTitle,
-                              body: pullRequestBody + `\n\nSuggested changes by Sweep Chat, from ${window.location.origin}/c/${messagesId}`,
-                            }),
-                          }
-                        )
-                        const data = await response.json()
-                        const {pull_request: pullRequest} = data
-                        console.log(pullRequest)
-                        setPullRequest(pullRequest)
-                        setMessages([
-                          ...messages,
-                          {
-                            content: `Pull request created: [https://github.com/${repoName}/pull/${pullRequest.number}](https://github.com/${repoName}/pull/${pullRequest.number})`,
-                            role: "assistant",
-                            annotations: {
-                              pulls: [pullRequest]
-                            }
-                          }
-                        ])
-                        save(repoName, messages, snippets, suggestedChanges, pullRequest)
-                      } catch (e) {
-                        toast({
-                          title: "Error",
-                          description: `An error occurred while creating the pull request: ${e}`,
-                          variant: "destructive",
-                          duration: Infinity,
-                        })
-                      } finally {
-                        setIsCreatingPullRequest(false)
-                        setOpenSuggestionDialog(false)
-                      }
-                    }}
-                  >
-                    Create Pull Request
-                  </Button>
-                </>
+                  {reactCodeMirrors[index]}
+                </div>
               ))}
+              <Input
+                value={pullRequestTitle || ""}
+                onChange={(e) => setPullRequestTitle(e.target.value)}
+                placeholder="Pull Request Title"
+                className="w-full mb-4 text-zinc-300"
+                disabled={pullRequestTitle == null}
+              />
+              <Textarea
+                value={pullRequestBody || ""}
+                onChange={(e) => setPullRequestBody(e.target.value)}
+                placeholder="Pull Request Body"
+                className="w-full mb-4 text-zinc-300"
+                disabled={pullRequestBody == null}
+                rows={8}
+              />
+              <Button 
+                className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
+                onClick={async () => {
+                  setIsCreatingPullRequest(true)
+                  const file_changes = suggestedChanges.reduce((acc: Record<string, string>, suggestion: CodeSuggestion) => {
+                    acc[suggestion.filePath] = suggestion.newCode;
+                    return acc;
+                  }, {})
+                  console.log(file_changes)
+                  try {
+                    const response = await authorizedFetch(
+                      `/backend/create_pull`,
+                      {
+                        body: JSON.stringify({
+                          repo_name: repoName,
+                          file_changes: file_changes,
+                          branch: "sweep-chat-patch-" + new Date().toISOString().split("T")[0], // use ai for better branch name, title, and body later
+                          title: pullRequestTitle,
+                          body: pullRequestBody + `\n\nSuggested changes by Sweep Chat, from ${window.location.origin}/c/${messagesId}`,
+                        }),
+                      }
+                    )
+                    const data = await response.json()
+                    const {pull_request: pullRequest} = data
+                    console.log(pullRequest)
+                    setPullRequest(pullRequest)
+                    setMessages([
+                      ...messages,
+                      {
+                        content: `Pull request created: [https://github.com/${repoName}/pull/${pullRequest.number}](https://github.com/${repoName}/pull/${pullRequest.number})`,
+                        role: "assistant",
+                        annotations: {
+                          pulls: [pullRequest]
+                        }
+                      }
+                    ])
+                    save(repoName, messages, snippets, suggestedChanges, pullRequest)
+                  } catch (e) {
+                    toast({
+                      title: "Error",
+                      description: `An error occurred while creating the pull request: ${e}`,
+                      variant: "destructive",
+                      duration: Infinity,
+                    })
+                  } finally {
+                    setIsCreatingPullRequest(false)
+                    setOpenSuggestionDialog(false)
+                  }
+                }}
+              >
+                Create Pull Request
+              </Button>
             </div>
           </div>
         )}

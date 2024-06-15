@@ -15,6 +15,7 @@ const roleToColor = {
   "function": "bg-zinc-800",
 }
 
+// these colors don't pop up for some reason, todo
 const typeNameToColor = {
   "source": "bg-blue-900",
   "tests": "bg-green-900",
