@@ -503,6 +503,7 @@ function App({
   const [pullRequestBody, setPullRequestBody] = useState<string | null>("Suggested changes by Sweep Chat.")
   const [isCreatingPullRequest, setIsCreatingPullRequest] = useState<boolean>(false)
   const [pullRequest, setPullRequest] = useState<PullRequest | null>(null)
+  const [featureBranch, setFeatureBranch] = useState<string>("sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -626,13 +627,7 @@ function App({
           messages: currentMessages || messages, 
           snippets: currentSnippets || snippets, 
           message_id: messagesId || "",
-          code_suggestions: (currentSuggestedChanges || suggestedChanges).map(suggestion => {
-            return {
-              file_path: suggestion.filePath,
-              original_code: suggestion.originalCode,
-              new_code: suggestion.newCode,
-            }
-          }),
+          code_suggestions: currentSuggestedChanges || suggestedChanges,
           pull_request: currentPullRequest || pullRequest
         }
       )
@@ -1012,6 +1007,7 @@ function App({
             onEdit={async (content) => {
               isStream.current = false;
               setIsLoading(false);
+              setOpenSuggestionDialog(false);
 
               const pulls = await parsePullRequests(repoName, content, octokit!)
 
@@ -1079,7 +1075,7 @@ function App({
         {openSuggestionDialog && (
           <div className="bg-zinc-900 rounded-xl p-4 mt-8">
             <div className="flex justify-between mb-4">
-              <p className="text-zinc-400 flex items-center">Suggested Changes</p>
+              <Input className="flex items-center w-[400px]" value={featureBranch} onChange={(e) => setFeatureBranch(e.target.value)} placeholder="Feature Branch Name" />
               <Button
                 className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
                 onClick={() => setOpenSuggestionDialog(false)}
@@ -1089,7 +1085,7 @@ function App({
               </Button>
             </div>
             {(isProcessingSuggestedChanges || isCreatingPullRequest) && (
-              <div className="flex justify-around w-full py-2">
+              <div className="flex justify-around w-full py-2 mb-4">
                 <p>{isProcessingSuggestedChanges ? "Validating and auto-fixing suggested changes..." : "Creating pull request..."}</p>
               </div>
             )}
