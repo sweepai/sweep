@@ -328,11 +328,12 @@ def validate_change(
                                 return f"You have a mismatch in parentheses in <original_code>. Your <original_code> has {original_code.count(left)} opening and {original_code.count(right)} closing parentheses:\n```\n{original_code}\n```\nYou can correct this by extending the code to the following:\n```\n{best_superspan}\n```"
                         if not best_superspan:
                             # use naive error message otherwise
+                            error_message = ""
                             if old_parentheses_diff != 0:
                                 error_message += f" Your <original_code> has {original_code.count(left)} opening and {original_code.count(right)} closing parentheses:\n```\n{original_code}\n```\n"
                             if new_parentheses_diff != 0:
                                 error_message += f" Your <new_code> has {new_code.count(left)} opening and {new_code.count(right)} closing parentheses:\n```\n{new_code}\n```\n"
-                            return "Make sure the number of opening and closing parentheses match in both <original_code> and <new_code>, otherwise the changes will cause a syntax error."
+                            return error_message + "Make sure the number of opening and closing parentheses match in both <original_code> and <new_code>, otherwise the changes will cause a syntax error."
 
 # todo: integrate this into the main function
 def get_error_message(

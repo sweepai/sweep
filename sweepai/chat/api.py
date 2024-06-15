@@ -24,7 +24,6 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message, Snippet
 from sweepai.core.pull_request_bot import get_pr_summary_for_chat
 from sweepai.core.review_utils import split_diff_into_patches
-from sweepai.core.sweep_bot import get_error_message, get_files_to_change, get_files_to_change_for_chat, validate_change
 from sweepai.dataclasses.code_suggestions import CodeSuggestion
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import ClonedRepo, CustomGithub, MockClonedRepo, clean_branch_name, commit_multi_file_changes, create_branch, get_github_client, get_installation_id
@@ -679,7 +678,7 @@ def chat_codebase_stream(
                 break
         yield new_messages
 
-        last_assistant_message = [message.content for message in new_messages if message.role == "assistant"][-1]
+        # last_assistant_message = [message.content for message in new_messages if message.role == "assistant"][-1]
 
         posthog.capture(metadata["username"], "chat_codebase complete", properties={
             **metadata,
@@ -822,7 +821,7 @@ async def create_pull(
         repo=repo
     )
     
-    results = commit_multi_file_changes(
+    commit_multi_file_changes(
         cloned_repo,
         file_changes,
         commit_message=f"Updated {len(file_changes)} files",
