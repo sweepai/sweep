@@ -26,7 +26,7 @@ from sweepai.core.review_utils import split_diff_into_patches
 from sweepai.core.sweep_bot import get_error_message, get_files_to_change, get_files_to_change_for_chat, validate_change
 from sweepai.dataclasses.code_suggestions import CodeSuggestion
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
-from sweepai.utils.github_utils import ClonedRepo, CustomGithub, MockClonedRepo, get_github_client, get_installation_id
+from sweepai.utils.github_utils import ClonedRepo, CustomGithub, MockClonedRepo, commit_multi_file_changes, create_branch, get_github_client, get_installation_id
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.str_utils import get_hash
 from sweepai.utils.streamable_functions import streamable
@@ -808,6 +808,54 @@ async def autofix(
         "success": True,
         "modify_files_dict": modify_files_dict
     }
+
+@app.post("/backend/create_pull")
+async def create_pull(
+    repo_name: str = Body(...),
+    file_changes: dict[str, str] = Body(...),
+    branch: str = Body(...),
+    title: str = Body(...),
+    body: str = Body(...),
+    access_token: str = Depends(get_token_header)
+):
+    with Timer() as timer:
+        g = get_authenticated_github_client(repo_name, access_token)
+    logger.debug(f"Getting authenticated GitHub client took {timer.time_elapsed} seconds")
+    if not g:
+        return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
+
+    org_name, repo_name_ = repo_name.split("/")
+    
+    _token, g = get_github_client_from_org(org_name) # TODO: handle users as well
+    
+    repo = g.get_repo(repo_name)
+    default_branch = repo.default_branch
+    
+    new_branch = create_branch(repo, branch, default_branch)
+    
+    cloned_repo = MockClonedRepo(
+        f"{repo_cache}/{repo_name_}",
+        repo_name,
+        token=access_token,
+        repo=repo
+    )
+    
+    results = commit_multi_file_changes(
+        cloned_repo,
+        file_changes,
+        commit_message=f"Updated {len(file_changes)} files",
+        branch=new_branch,
+    )
+    
+    title = title or "Sweep AI Pull Request"
+    pull_url = repo.create_pull(
+        title=title,
+        body=body,
+        head=new_branch,
+        base=default_branch,
+    )
+    return {"success": True, "pull_url": pull_url.html_url, "new_branch": new_branch}
+
 
 @app.post("/backend/messages/save")
 async def write_message_to_disk(
