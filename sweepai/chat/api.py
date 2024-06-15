@@ -22,11 +22,11 @@ from sweepai.config.client import SweepConfig
 from sweepai.config.server import CACHE_DIRECTORY, GITHUB_APP_ID, GITHUB_APP_PEM
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message, Snippet
+from sweepai.core.pull_request_bot import get_pr_summary_for_chat
 from sweepai.core.review_utils import split_diff_into_patches
-from sweepai.core.sweep_bot import get_error_message, get_files_to_change, get_files_to_change_for_chat, validate_change
 from sweepai.dataclasses.code_suggestions import CodeSuggestion
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
-from sweepai.utils.github_utils import ClonedRepo, CustomGithub, MockClonedRepo, commit_multi_file_changes, create_branch, get_github_client, get_installation_id
+from sweepai.utils.github_utils import ClonedRepo, CustomGithub, MockClonedRepo, clean_branch_name, commit_multi_file_changes, create_branch, get_github_client, get_installation_id
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.str_utils import get_hash
 from sweepai.utils.streamable_functions import streamable
@@ -678,7 +678,7 @@ def chat_codebase_stream(
                 break
         yield new_messages
 
-        last_assistant_message = [message.content for message in new_messages if message.role == "assistant"][-1]
+        # last_assistant_message = [message.content for message in new_messages if message.role == "assistant"][-1]
 
         posthog.capture(metadata["username"], "chat_codebase complete", properties={
             **metadata,
@@ -704,7 +704,6 @@ def chat_codebase_stream(
                         yield patch.to_string()
                     previous_state = current_state
         except Exception as e:
-            print(e)
             yield json.dumps([
                 {
                     "op": "error",
@@ -786,8 +785,6 @@ async def autofix(
         relevant_filepaths=[code_suggestion.file_path for code_suggestion in code_suggestions],
     )
 
-    print(modify_files_dict)
-    
     return {
         "success": True,
         "modify_files_dict": modify_files_dict
@@ -824,7 +821,7 @@ async def create_pull(
         repo=repo
     )
     
-    results = commit_multi_file_changes(
+    commit_multi_file_changes(
         cloned_repo,
         file_changes,
         commit_message=f"Updated {len(file_changes)} files",
@@ -832,31 +829,90 @@ async def create_pull(
     )
     
     title = title or "Sweep AI Pull Request"
-    pull_url = repo.create_pull(
+    pull_request = repo.create_pull(
         title=title,
         body=body,
         head=new_branch,
         base=default_branch,
     )
-    return {"success": True, "pull_url": pull_url.html_url, "new_branch": new_branch}
+    file_diffs = pull_request.get_files()
 
+    return {
+        "success": True,
+        "pull_request": {
+            "number": pull_request.number,
+            "repo_name": repo_name,
+            "title": title,
+            "body": body,
+            "labels": [],
+            "status": "open",
+            "file_diffs": [
+                {
+                    "sha": file.sha,
+                    "filename": file.filename,
+                    "status": file.status,
+                    "additions": file.additions,
+                    "deletions": file.deletions,
+                    "changes": file.changes,
+                    "blob_url": file.blob_url,
+                    "raw_url": file.raw_url,
+                    "contents_url": file.contents_url,
+                    "patch": file.patch,
+                    "previous_filename": file.previous_filename,
+                }
+                for file in file_diffs
+            ],
+        },
+        "new_branch": new_branch
+    }
+
+@app.post("/backend/create_pull_metadata")
+async def create_pull_metadata(
+    repo_name: str = Body(...),
+    modify_files_dict: dict = Body(...),
+    messages: list[Message] = Body(...),
+    access_token: str = Depends(get_token_header)
+):
+    with Timer() as timer:
+        g = get_authenticated_github_client(repo_name, access_token)
+    logger.debug(f"Getting authenticated GitHub client took {timer.time_elapsed} seconds")
+    if not g:
+        return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
+
+    title, description = get_pr_summary_for_chat(
+        repo_name=repo_name,
+        messages=messages,
+        modify_files_dict=modify_files_dict,
+    )
+
+    return {
+        "success": True,
+        "title": title,
+        "description": description,
+        "branch": clean_branch_name(title),
+    }
 
 @app.post("/backend/messages/save")
 async def write_message_to_disk(
     repo_name: str = Body(...),
     messages: list[Message] = Body(...),
     snippets: list[Snippet] = Body(...),
+    code_suggestions: list = Body([]),
+    pull_request: dict | None = Body(None),
     message_id: str = Body(""),
 ):
     if not message_id:
         message_id = str(uuid.uuid4())
     try:
+        data = {
+            "repo_name": repo_name,
+            "messages": [message.model_dump() for message in messages],
+            "snippets": [snippet.model_dump() for snippet in snippets],
+            "code_suggestions": [code_suggestion.__dict__ for code_suggestion in code_suggestions],
+            "pull_request": pull_request,
+        }
         with open(f"{CACHE_DIRECTORY}/messages/{message_id}.json", "w") as file:
-            json.dump({
-                "repo_name": repo_name,
-                "messages": [message.model_dump() for message in messages],
-                "snippets": [snippet.model_dump() for snippet in snippets]
-            }, file)
+            json.dump(data, file)
         return {"status": "success", "message": "Message written to disk successfully.", "message_id": message_id}
     except Exception as e:
         logger.error(f"Failed to write message to disk: {str(e)}")
