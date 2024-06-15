@@ -7,7 +7,7 @@ from sweepai.core.entities import Message
 from sweepai.handlers.create_pr import INSTRUCTIONS_FOR_REVIEW
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
-from sweepai.utils.str_utils import BOT_SUFFIX
+from sweepai.utils.str_utils import BOT_SUFFIX, extract_xml_tag
 from sweepai.utils.ticket_rendering_utils import get_branch_diff_text
 
 
@@ -71,6 +71,7 @@ class PRSummaryBot(ChatGPT):
     def get_commit_message(
         self, 
         modify_files_dict: dict[str, dict[str, str]], 
+        renames_dict: dict[str, str] = {},
         previous_modify_files_dict: dict[str, dict[str, str]] = {},
         chat_logger: ChatLogger = None
     ):
@@ -86,15 +87,19 @@ class PRSummaryBot(ChatGPT):
                 file_diff = generate_diff(file_data['original_contents'], file_data['contents'])
                 file_diffs += f"<file_diffs file='{file_name}'>\n{file_diff}\n</file_diffs>"
         else:
-            for file_name, file_data in modify_files_dict.items():
-                # use incremental diff, compare against previous file data
-                if file_name in previous_modify_files_dict:
-                    previous_file_data = previous_modify_files_dict[file_name]
-                    file_diff = generate_diff(previous_file_data['contents'], file_data['contents'])
-                else:
-                    # use diff compare against original file data
-                    file_diff = generate_diff(file_data['original_contents'], file_data['contents'])
-                file_diffs += f"<file_diffs file='{file_name}'>\n{file_diff}\n</file_diffs>"
+            if modify_files_dict:
+                for file_name, file_data in modify_files_dict.items():
+                    # use incremental diff, compare against previous file data
+                    if file_name in previous_modify_files_dict:
+                        previous_file_data = previous_modify_files_dict[file_name]
+                        file_diff = generate_diff(previous_file_data['contents'], file_data['contents'])
+                    else:
+                        # use diff compare against original file data
+                        file_diff = generate_diff(file_data['original_contents'], file_data['contents'])
+                    file_diffs += f"<file_diffs file='{file_name}'>\n{file_diff}\n</file_diffs>"
+        for file_name, new_file_name in renames_dict.items():
+            file_diff = f"File {file_name} was renamed to {new_file_name}"
+            file_diffs += f"<file_diffs file='{file_name}'>\n{file_diff}\n</file_diffs>"
         
         if not file_diffs.strip():
             return "No changes were made"
@@ -163,3 +168,54 @@ class PRSummaryBot(ChatGPT):
                     f" #{issue_number}.\n\n---\n{GHA_SUMMARY_START}{GHA_SUMMARY_END}\n\n{INSTRUCTIONS_FOR_REVIEW}{BOT_SUFFIX}"
                 )
         return pr_changes
+
+pr_summary_for_chat_system_prompt = """You are a helpful, excellent developer who is creating a pull request for a feature or bug fix. You need to write a pull request description that the changes in this pull request. You will always describe changes from higher to lower level, describing the purpose and value and then the details of the changes."""
+
+pr_summary_for_chat_prompt = """\
+Write a pull request description that reflects all changes in this pull request, for the repository {repo_name}.
+
+Here is the conversation history that led to the changes:
+<conversation>
+{conversation}
+</conversation>
+
+Here are the changes:
+<diffs>
+{diffs}
+</diffs>
+
+Format your response using the following XML tags:
+<pr_title>
+Title of the pull request.
+</pr_title>
+<pr_description>
+# Purpose
+Briefly describe the purpose of this pull request.
+# Description
+Description of the functional changes made in this pull request.
+# Summary
+Concise bulleted description of the pull request. Markdown format `variables`, `files`, and `directories` like this.
+</pr_description>"""
+
+def get_pr_summary_for_chat(
+    repo_name: str,
+    messages: list[Message],
+    modify_files_dict: dict,
+):
+    conversation_string = ""
+    for message in messages:
+        conversation_string += f"{message.role}:\n\n{message.content}\n"
+    diff_text = "\n\n".join([f"{file_name}:\n" + generate_diff(file_contents['original_contents'], file_contents['contents']) for file_name, file_contents in modify_files_dict.items()])
+    response = call_llm(
+        system_prompt=pr_summary_for_chat_system_prompt,
+        user_prompt=pr_summary_for_chat_prompt,
+        params={
+            "repo_name": repo_name,
+            "conversation": conversation_string,
+            "diffs": diff_text,
+        },
+    )
+
+    title = extract_xml_tag(response, "pr_title")
+    description = extract_xml_tag(response, "pr_description")
+    return title, description

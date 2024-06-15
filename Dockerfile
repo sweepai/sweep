@@ -9,8 +9,11 @@ WORKDIR /app
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git curl redis-server npm build-essential pkg-config libssl-dev \
+       cmake pkg-config libicu-dev zlib1g-dev libcurl4-openssl-dev libssl-dev ruby-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+RUN gem install github-linguist
 
 RUN curl -LO https://github.com/BurntSushi/ripgrep/releases/download/13.0.0/ripgrep_13.0.0_amd64.deb && \
     dpkg -i ripgrep_13.0.0_amd64.deb && \
@@ -26,7 +29,7 @@ RUN curl -sSL https://astral.sh/uv/install.sh -o /install.sh && chmod 755 /insta
 
 COPY requirements.txt ./
 
-RUN /root/.cargo/bin/uv pip install --no-cache -r requirements.txt
+RUN pip install --no-cache -r requirements.txt
 
 RUN npm install -g prettier@2.0.4 @types/react @types/react-dom typescript eslint@8.57.0 
 RUN npm install react react-dom
