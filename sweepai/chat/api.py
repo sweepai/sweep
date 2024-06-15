@@ -22,11 +22,12 @@ from sweepai.config.client import SweepConfig
 from sweepai.config.server import CACHE_DIRECTORY, GITHUB_APP_ID, GITHUB_APP_PEM
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message, Snippet
+from sweepai.core.pull_request_bot import get_pr_summary_for_chat
 from sweepai.core.review_utils import split_diff_into_patches
 from sweepai.core.sweep_bot import get_error_message, get_files_to_change, get_files_to_change_for_chat, validate_change
 from sweepai.dataclasses.code_suggestions import CodeSuggestion
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
-from sweepai.utils.github_utils import ClonedRepo, CustomGithub, MockClonedRepo, commit_multi_file_changes, create_branch, get_github_client, get_installation_id
+from sweepai.utils.github_utils import ClonedRepo, CustomGithub, MockClonedRepo, clean_branch_name, commit_multi_file_changes, create_branch, get_github_client, get_installation_id
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.str_utils import get_hash
 from sweepai.utils.streamable_functions import streamable
@@ -704,7 +705,6 @@ def chat_codebase_stream(
                         yield patch.to_string()
                     previous_state = current_state
         except Exception as e:
-            print(e)
             yield json.dumps([
                 {
                     "op": "error",
@@ -786,8 +786,6 @@ async def autofix(
         relevant_filepaths=[code_suggestion.file_path for code_suggestion in code_suggestions],
     )
 
-    print(modify_files_dict)
-    
     return {
         "success": True,
         "modify_files_dict": modify_files_dict
@@ -869,13 +867,38 @@ async def create_pull(
         "new_branch": new_branch
     }
 
+@app.post("/backend/create_pull_metadata")
+async def create_pull_metadata(
+    repo_name: str = Body(...),
+    modify_files_dict: dict = Body(...),
+    messages: list[Message] = Body(...),
+    access_token: str = Depends(get_token_header)
+):
+    with Timer() as timer:
+        g = get_authenticated_github_client(repo_name, access_token)
+    logger.debug(f"Getting authenticated GitHub client took {timer.time_elapsed} seconds")
+    if not g:
+        return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
+
+    title, description = get_pr_summary_for_chat(
+        repo_name=repo_name,
+        messages=messages,
+        modify_files_dict=modify_files_dict,
+    )
+
+    return {
+        "success": True,
+        "title": title,
+        "description": description,
+        "branch": clean_branch_name(title),
+    }
 
 @app.post("/backend/messages/save")
 async def write_message_to_disk(
     repo_name: str = Body(...),
     messages: list[Message] = Body(...),
     snippets: list[Snippet] = Body(...),
-    code_suggestions: list[CodeSuggestion] = Body([]),
+    code_suggestions: list = Body([]),
     pull_request: dict | None = Body(None),
     message_id: str = Body(""),
 ):
