@@ -589,6 +589,33 @@ function App({
     }
   }, [session?.user!.accessToken])
 
+  const reactCodeMirrors = useMemo(() => {
+    return suggestedChanges.map((suggestion, index) => (
+      <CodeMirrorMerge
+        theme={dracula}
+        revertControls={"b-to-a"}
+        collapseUnchanged={{
+          margin: 3,
+          minSize: 4,
+        }}
+        autoFocus={false}
+        key={index}
+      >
+        <Original
+          value={suggestion.originalCode}
+          extensions={[EditorView.editable.of(false), EditorState.readOnly.of(true), javascript({ jsx: true })]}
+        />
+        <Modified
+          value={suggestion.newCode}
+          extensions={[EditorState.readOnly.of(false), javascript({ jsx: true })]}
+          onChange={(value) => {
+            setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
+          }}
+        />
+      </CodeMirrorMerge>
+    ))
+  }, [suggestedChanges])
+
   if (session) {
     posthog.identify(
       session.user!.email!,
@@ -832,32 +859,6 @@ function App({
       message,
     });
   }
-
-  const reactCodeMirrors = useMemo(() => {
-    return suggestedChanges.map((suggestion, index) => (
-      <CodeMirrorMerge
-        theme={dracula}
-        revertControls={"b-to-a"}
-        collapseUnchanged={{
-          margin: 3,
-          minSize: 4,
-        }}
-        autoFocus={false}
-      >
-        <Original
-          value={suggestion.originalCode}
-          extensions={[EditorView.editable.of(false), EditorState.readOnly.of(true), javascript({ jsx: true })]}
-        />
-        <Modified
-          value={suggestion.newCode}
-          extensions={[EditorState.readOnly.of(false), javascript({ jsx: true })]}
-          onChange={(value) => {
-            setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
-          }}
-        />
-      </CodeMirrorMerge>
-    ))
-  }, [suggestedChanges])
 
   return (
     <main className="flex h-screen flex-col items-center justify-between p-12">
@@ -1113,7 +1114,7 @@ function App({
         {openSuggestionDialog && (
           <div className="bg-zinc-900 rounded-xl p-4 mt-8">
             <div className="flex justify-between mb-4">
-              <Input className="flex items-center w-[600px]" value={featureBranch} onChange={(e) => setFeatureBranch(e.target.value)} placeholder="Feature Branch Name" />
+              <Input className="flex items-center w-[600px]" value={featureBranch || ""} onChange={(e) => setFeatureBranch(e.target.value)} placeholder="Feature Branch Name" />
               <Button
                 className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
                 onClick={() => setOpenSuggestionDialog(false)}
