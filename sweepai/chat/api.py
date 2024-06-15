@@ -832,13 +832,42 @@ async def create_pull(
     )
     
     title = title or "Sweep AI Pull Request"
-    pull_url = repo.create_pull(
+    pull_request = repo.create_pull(
         title=title,
         body=body,
         head=new_branch,
         base=default_branch,
     )
-    return {"success": True, "pull_url": pull_url.html_url, "new_branch": new_branch}
+    file_diffs = pull_request.get_files()
+
+    return {
+        "success": True,
+        "pull_request": {
+            "number": pull_request.number,
+            "repo_name": repo_name,
+            "title": title,
+            "body": body,
+            "labels": [],
+            "status": "open",
+            "file_diffs": [
+                {
+                    "sha": file.sha,
+                    "filename": file.filename,
+                    "status": file.status,
+                    "additions": file.additions,
+                    "deletions": file.deletions,
+                    "changes": file.changes,
+                    "blob_url": file.blob_url,
+                    "raw_url": file.raw_url,
+                    "contents_url": file.contents_url,
+                    "patch": file.patch,
+                    "previous_filename": file.previous_filename,
+                }
+                for file in file_diffs
+            ],
+        },
+        "new_branch": new_branch
+    }
 
 
 @app.post("/backend/messages/save")
@@ -846,17 +875,22 @@ async def write_message_to_disk(
     repo_name: str = Body(...),
     messages: list[Message] = Body(...),
     snippets: list[Snippet] = Body(...),
+    code_suggestions: list[CodeSuggestion] = Body([]),
+    pull_request: dict | None = Body(None),
     message_id: str = Body(""),
 ):
     if not message_id:
         message_id = str(uuid.uuid4())
     try:
+        data = {
+            "repo_name": repo_name,
+            "messages": [message.model_dump() for message in messages],
+            "snippets": [snippet.model_dump() for snippet in snippets],
+            "code_suggestions": [code_suggestion.__dict__ for code_suggestion in code_suggestions],
+            "pull_request": pull_request,
+        }
         with open(f"{CACHE_DIRECTORY}/messages/{message_id}.json", "w") as file:
-            json.dump({
-                "repo_name": repo_name,
-                "messages": [message.model_dump() for message in messages],
-                "snippets": [snippet.model_dump() for snippet in snippets]
-            }, file)
+            json.dump(data, file)
         return {"status": "success", "message": "Message written to disk successfully.", "message_id": message_id}
     except Exception as e:
         logger.error(f"Failed to write message to disk: {str(e)}")
