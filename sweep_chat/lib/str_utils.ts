@@ -1,4 +1,5 @@
 import { Message, PullRequest } from "./types";
+// @ts-ignore
 import * as Diff from "diff";
 
 export const renderPRDiffs = (pr: PullRequest) => {
