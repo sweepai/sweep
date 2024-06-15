@@ -146,6 +146,9 @@ class FileChangeRequest(RegexMatchableBaseModel):
     destination_module: str | None = None
     commit_hash_url: str | None = None
 
+    def __repr__(self):
+        return f"START OF FCR\n\n{self.change_type.capitalize()}: {self.filename} with instructions:\n{self.instructions}\n\nEND OF FCR\n\n"
+
     def get_edit_url(self, repo_full_name: str, branch_name: str):
         url = f"https://github.com/{repo_full_name}/edit/{branch_name}/{self.filename}"
         if self.start_line and self.end_line:

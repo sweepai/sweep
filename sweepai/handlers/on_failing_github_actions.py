@@ -16,7 +16,7 @@ from sweepai.config.server import CIRCLE_CI_PAT, DEPLOYMENT_GHA_ENABLED
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
 from sweepai.core.pull_request_bot import GHA_SUMMARY_END, GHA_SUMMARY_START, PRSummaryBot
-from sweepai.core.sweep_bot import GHA_PROMPT, GHA_PROMPT_WITH_HISTORY, get_files_to_change_for_gha, validate_file_change_requests
+from sweepai.core.sweep_bot import GHA_PROMPT, GHA_PROMPT_WITH_HISTORY, get_files_to_change_for_gha, set_fcr_change_type
 from sweepai.handlers.create_pr import handle_file_change_requests
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, get_github_client, refresh_token, validate_and_sanitize_multi_file_changes
@@ -270,7 +270,7 @@ def on_failing_github_actions(
                 chat_logger=chat_logger,
                 use_openai=True
             )
-            validate_file_change_requests(file_change_requests, cloned_repo)
+            set_fcr_change_type(file_change_requests, cloned_repo)
             previous_modify_files_dict: dict[str, dict[str, str | list[str]]] | None = None
             modify_files_dict, _, file_change_requests = handle_file_change_requests(
                 file_change_requests=file_change_requests,
