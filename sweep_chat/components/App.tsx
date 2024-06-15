@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "../components/ui/input"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { FaCheck, FaCog, FaComments, FaGithub, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes } from "react-icons/fa";
@@ -499,11 +499,11 @@ function App({
   const [suggestedChanges, setSuggestedChanges] = useState<CodeSuggestion[]>([])
   const [openSuggestionDialog, setOpenSuggestionDialog] = useState<boolean>(false)
   const [isProcessingSuggestedChanges, setIsProcessingSuggestedChanges] = useState<boolean>(false)
-  const [pullRequestTitle, setPullRequestTitle] = useState<string | null>("Sweep Chat Suggested Changes")
-  const [pullRequestBody, setPullRequestBody] = useState<string | null>("Suggested changes by Sweep Chat.")
+  const [pullRequestTitle, setPullRequestTitle] = useState<string | null>(null)
+  const [pullRequestBody, setPullRequestBody] = useState<string | null>(null)
   const [isCreatingPullRequest, setIsCreatingPullRequest] = useState<boolean>(false)
   const [pullRequest, setPullRequest] = useState<PullRequest | null>(null)
-  const [featureBranch, setFeatureBranch] = useState<string>("sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
+  const [featureBranch, setFeatureBranch] = useState<string | null>(null)
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -515,17 +515,25 @@ function App({
 
   const [messagesId, setMessagesId] = useState<string>(defaultMessageId)
 
+  const authorizedFetch = useCallback((url: string, options: RequestInit = {}) => {
+    return fetch(url, {
+      method: "POST",
+      headers: {
+        ...options.headers,
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session?.user.accessToken}`
+      },
+      ...options,
+    })
+  }, [session?.user.accessToken])
+
+
   useEffect(() => {
     console.log(defaultMessageId)
     if (defaultMessageId) {
       (async () => {
-        const response = await fetch(`/backend/messages/load/${defaultMessageId}`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            // @ts-ignore
-            "Authorization": `Bearer ${session?.user.accessToken}`
-          }
+        const response = await authorizedFetch(`/backend/messages/load/${defaultMessageId}`, {
+          method: "GET"
         })
         const data = await response.json()
         if (data.status == "success") {
@@ -825,6 +833,32 @@ function App({
     });
   }
 
+  const reactCodeMirrors = useMemo(() => {
+    return suggestedChanges.map((suggestion, index) => (
+      <CodeMirrorMerge
+        theme={dracula}
+        revertControls={"b-to-a"}
+        collapseUnchanged={{
+          margin: 3,
+          minSize: 4,
+        }}
+        autoFocus={false}
+      >
+        <Original
+          value={suggestion.originalCode}
+          extensions={[EditorView.editable.of(false), EditorState.readOnly.of(true), javascript({ jsx: true })]}
+        />
+        <Modified
+          value={suggestion.newCode}
+          extensions={[EditorState.readOnly.of(false), javascript({ jsx: true })]}
+          onChange={(value) => {
+            setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
+          }}
+        />
+      </CodeMirrorMerge>
+    ))
+  }, [suggestedChanges])
+
   return (
     <main className="flex h-screen flex-col items-center justify-between p-12">
       <Toaster />
@@ -872,12 +906,8 @@ function App({
             var data = null
             try {
               setRepoNameDisabled(true);
-              const response = await fetch(`/backend/repo?repo_name=${cleanedRepoName}`, {
-                headers: {
-                  "Content-Type": "application/json",
-                  // @ts-ignore
-                  "Authorization": `Bearer ${session?.user.accessToken!}`
-                }
+              const response = await authorizedFetch(`/backend/repo?repo_name=${cleanedRepoName}`, {
+                method: "GET"
               });
               data = await response.json();
             } catch (e: any) {
@@ -1029,13 +1059,7 @@ function App({
                 setSuggestedChanges(codeSuggestions)
                 setIsProcessingSuggestedChanges(true);
                 (async () => {
-                  const response = await fetch(`/backend/autofix`, {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      // @ts-ignore
-                      "Authorization": `Bearer ${session?.user.accessToken!}`
-                    },
+                  const response = await authorizedFetch(`/backend/autofix`, {
                     body: JSON.stringify({
                       repo_name: repoName,
                       code_suggestions: codeSuggestions.map((suggestion: CodeSuggestion) => ({
@@ -1055,6 +1079,20 @@ function App({
                     })))
                     save(repoName, messages, snippets, suggestedChanges, pullRequest)
                     setIsProcessingSuggestedChanges(false);
+
+                    const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
+                      body: JSON.stringify({
+                        repo_name: repoName,
+                        modify_files_dict: data.modify_files_dict,
+                        messages: messages,
+                      }),
+                    })
+                    
+                    const prData = await prMetadata.json()
+                    const { title, description, branch: featureBranch } = prData
+                    setFeatureBranch(featureBranch || "sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
+                    setPullRequestTitle(title || "Sweep Chat Suggested Changes")
+                    setPullRequestBody(description || "Suggested changes by Sweep Chat.")
                   }
                 })();
                 setTimeout(() => {
@@ -1075,7 +1113,7 @@ function App({
         {openSuggestionDialog && (
           <div className="bg-zinc-900 rounded-xl p-4 mt-8">
             <div className="flex justify-between mb-4">
-              <Input className="flex items-center w-[400px]" value={featureBranch} onChange={(e) => setFeatureBranch(e.target.value)} placeholder="Feature Branch Name" />
+              <Input className="flex items-center w-[600px]" value={featureBranch} onChange={(e) => setFeatureBranch(e.target.value)} placeholder="Feature Branch Name" />
               <Button
                 className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
                 onClick={() => setOpenSuggestionDialog(false)}
@@ -1098,26 +1136,7 @@ function App({
                         {suggestion.filePath} {isProcessingSuggestedChanges ? "(processing)" : <FaCheck style={{display: "inline", marginTop: -2}}/>}
                       </code>
                     </div>
-                    <CodeMirrorMerge
-                      theme={dracula}
-                      revertControls={"b-to-a"}
-                      collapseUnchanged={{
-                        margin: 3,
-                        minSize: 4,
-                      }}
-                    >
-                      <Original
-                        value={suggestion.originalCode}
-                        extensions={[EditorView.editable.of(false), EditorState.readOnly.of(true), javascript({ jsx: true })]}
-                      />
-                      <Modified
-                        value={suggestion.newCode}
-                        extensions={[EditorView.editable.of(true), EditorState.readOnly.of(false), javascript({ jsx: true })]}
-                        onChange={(value) => {
-                          setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
-                        }}
-                      />
-                    </CodeMirrorMerge>
+                    {reactCodeMirrors[index]}
                   </div>
                   <Input
                     value={pullRequestTitle || ""}
@@ -1132,6 +1151,7 @@ function App({
                     placeholder="Pull Request Body"
                     className="w-full mb-4 text-zinc-300"
                     disabled={pullRequestBody == null}
+                    rows={5}
                   />
                   <Button 
                     className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
@@ -1143,14 +1163,9 @@ function App({
                       }, {})
                       console.log(file_changes)
                       try {
-                        const response = await fetch(
+                        const response = await authorizedFetch(
                           `/backend/create_pull`,
                           {
-                            method: "POST",
-                            headers: {
-                              "Content-Type": "application/json",
-                              "Authorization": `Bearer ${session?.user.accessToken!}`
-                            },
                             body: JSON.stringify({
                               repo_name: repoName,
                               file_changes: file_changes,
