@@ -764,28 +764,12 @@ async def autofix(
         return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
     
     org_name, repo = repo_name.split("/")
-    # cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
     installation_id = get_installation_id(org_name, GITHUB_APP_PEM, GITHUB_APP_ID)
     cloned_repo = ClonedRepo(
         repo_name,
         installation_id=installation_id,
         token=access_token
     )
-    # error_messages = ""
-    # for i, code_suggestion in enumerate(code_suggestions):
-    #     error_message = validate_change(
-    #         code_suggestion,
-    #         cloned_repo,
-    #         updated_files={},
-    #         renames_dict={},
-    #         index=i,
-    #     )
-    #     if error_message:
-    #         error_messages += error_message + "\n\n"
-    #     else:
-    #         code_suggestions[i].original_entire_code = cloned_repo.get_file_contents(code_suggestion.file_path)
-
-    # TODO: make this use file change requests later
 
     file_change_requests = [
         FileChangeRequest(
