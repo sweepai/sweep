@@ -166,6 +166,7 @@ class PRRequest(BaseModel):
             login: str
 
         user: User
+        title: str
         merged_by: MergedBy | None
         additions: int = 0
         deletions: int = 0

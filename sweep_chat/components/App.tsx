@@ -6,7 +6,7 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { FaCheck, FaCog, FaComments, FaGithub, FaPencilAlt, FaShareAlt, FaStop, FaThumbsDown, FaThumbsUp } from "react-icons/fa";
+import { FaCheck, FaCog, FaComments, FaGithub, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -30,7 +30,7 @@ import { ReadableStreamDefaultReadResult } from "stream/web";
 import { Textarea } from "./ui/textarea";
 import { Slider } from "./ui/slider";
 import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Label } from "./ui/label";
 import PulsingLoader from "./shared/PulsingLoader";
 
@@ -160,17 +160,23 @@ const typeNameToColor = {
 const SnippetBadge = ({
   snippet,
   className,
+  repoName,
+  branch,
   button,
 }: {
   snippet: Snippet;
   className?: string;
+  repoName: string;
+  branch: string;
   button?: JSX.Element;
 }) => {
   return (
     <HoverCard openDelay={300} closeDelay={200}>
       <div className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 ${typeNameToColor[snippet.type_name]} ${className || ""} `} style={{ opacity: `${Math.max(Math.min(1, snippet.score), 0.2)}` }}>
         <HoverCardTrigger asChild>
-          <Button variant="link" className="text-sm py-0 px-1 h-6 leading-4">
+          <Button variant="link" className="text-sm py-0 px-1 h-6 leading-4" onClick={() => {
+            window.open(`https://github.com/${repoName}/blob/${branch}/${snippet.file_path}`, "_blank")
+          }}>
             <span>
               {snippet.end > snippet.content.split('\n').length - 3 && snippet.start == 0 ?
                 snippet.file_path : `${snippet.file_path}:${snippet.start}-${snippet.end}`
@@ -193,7 +199,7 @@ const SnippetBadge = ({
             backgroundColor: 'transparent',
             whiteSpace: 'pre-wrap',
           }}
-          className="rounded-xl max-h-80 overflow-y-auto p-4 w-full"
+          className="rounded-xl max-h-[600px] overflow-y-auto p-4 w-full"
         >
           {sliceLines(snippet.content, snippet.start, snippet.end)}
         </SyntaxHighlighter>
@@ -402,7 +408,7 @@ const FeedbackBlock = ({ message, index }: { message: Message, index: number }) 
   )
 }
 
-const MessageDisplay = ({ message, className, onEdit, index }: { message: Message, className?: string, onEdit: (content: string) => void, index: number }) => {
+const MessageDisplay = ({ message, className, onEdit, repoName, branch, index }: { message: Message, className?: string, onEdit: (content: string) => void, repoName: string, branch: string, index: number }) => {
   if (message.role === "user") {
     return <UserMessageDisplay message={message} onEdit={onEdit} />
   }
@@ -440,6 +446,8 @@ const MessageDisplay = ({ message, className, onEdit, index }: { message: Messag
                         <SnippetBadge
                           key={index}
                           snippet={snippet}
+                          repoName={repoName}
+                          branch={branch}
                         />
                       ))}
                     </div>
@@ -643,6 +651,7 @@ function App({
   defaultMessageId?: string
 }) {
   const [repoName, setRepoName] = useState<string>("")
+  const [branch, setBranch] = useState<string>("main")
   const [repoNameValid, setRepoNameValid] = useState<boolean>(false)
 
   const [repoNameDisabled, setRepoNameDisabled] = useState<boolean>(false)
@@ -982,24 +991,8 @@ function App({
           }}
         />
       )}
-      <div className="flex justify-between w-full px-2 items-middle">
-        <h1 className="text-4xl font-bold mb-6">Sweep Search</h1>
-        <div className="flex items-center mb-4">
-          <img
-            className="rounded-full w-10 h-10 mr-4"
-            src={session!.user!.image || ""}
-            alt={session!.user!.name || ""}
-          />
-          <div>
-            <p className="text-lg font-bold">{session!.user!.username! || session!.user!.name}</p>
-            <p className="text-sm text-gray-400">{session!.user!.email}</p>
-          </div>
-          <Button className="ml-4" variant="secondary" onClick={() => signOut()}>
-            Sign Out
-          </Button>
-        </div>
-      </div>
       <div className={`mb-4 w-full flex items-center ${repoNameValid ? "" : "grow"}`}>
+        {/* <img src="https://avatars.githubusercontent.com/u/170980334?v=4" className="w-12 h-12 rounded-full" /> */}
         <AutoComplete
           options={repos.map((repo) => ({label: repo.full_name, value: repo.full_name}))}
           placeholder="Repository name"
@@ -1064,16 +1057,15 @@ function App({
               })
             }
             setRepoNameDisabled(false);
+            if (octokit) {
+              const repo = await octokit.rest.repos.get({
+                owner: cleanedRepoName.split("/")[0],
+                repo: cleanedRepoName.split("/")[1]
+              })
+              setBranch(repo.data.default_branch)
+            }
           }}
         />
-        <Button
-          variant="outline"
-          className="ml-4"
-          onClick={() => setShowSurvey((prev) => !prev)}
-        >
-          <FaComments className="mr-2"/>
-          Feedback
-        </Button>
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="outline" className="ml-4">
@@ -1118,6 +1110,36 @@ function App({
             </div>
           </DialogContent>
         </Dialog>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="outline-none">
+            <div className="flex items-center">
+              <img
+                className="rounded-full w-12 h-12 m-0 ml-2"
+                src={session!.user!.image || ""}
+                alt={session!.user!.name || ""}
+              />
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>
+              <p className="text-md font-bold">{session!.user!.username! || session!.user!.name}</p>
+            </DropdownMenuLabel>
+            {session?.user?.email && (
+              <DropdownMenuItem>
+                {session.user.email}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="cursor-pointer" onClick={() => setShowSurvey((prev) => !prev)}>
+              <FaComments className="mr-2"/>
+              Feedback
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer" onClick={() => signOut()}>
+              <FaSignOutAlt className="mr-2"/>
+              Sign Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       <div
         ref={messagesContainerRef}
@@ -1129,6 +1151,8 @@ function App({
             key={index}
             index={index}
             message={message}
+            repoName={repoName}
+            branch={branch}
             className={index == lastAssistantMessageIndex ? "bg-slate-700" : ""}
             onEdit={async (content) => {
               isStream.current = false;

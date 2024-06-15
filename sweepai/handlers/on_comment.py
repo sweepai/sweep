@@ -218,7 +218,9 @@ def on_comment(
             # Generate diffs for this PR
             pr_diff_string = ""
             if pr_number:
-                pr_changes, dropped_files, unsuitable_files = get_pr_changes(repo, pr)
+                pr_changes, _dropped_files, _unsuitable_files = get_pr_changes(
+                    repo, pr, cloned_repo
+                )
                 patches = []
                 source_codes = []
                 for file_name, pr_change in pr_changes.items():
@@ -272,7 +274,7 @@ def on_comment(
                 cloned_repo, search_query, use_multi_query=False
             )
 
-            pr_diffs, _dropped_files, _unsuitable_files = get_pr_changes(repo, pr)
+            pr_diffs, _dropped_files, _unsuitable_files = get_pr_changes(repo, pr, cloned_repo)
             snippets_modified = [Snippet.from_file(
                 pr_diff, cloned_repo.get_file_contents(pr_diff)
             ) for pr_diff in pr_diffs]
@@ -334,7 +336,7 @@ def on_comment(
             )
             logger.info("\n".join(generate_diff(file_data["original_contents"], file_data["contents"]) for file_data in modify_files_dict.values()))
             pull_request_bot = PRSummaryBot()
-            commit_message = pull_request_bot.get_commit_message(modify_files_dict, chat_logger=chat_logger)[:50]
+            commit_message = pull_request_bot.get_commit_message(modify_files_dict, renames_dict=renames_dict, chat_logger=chat_logger)[:50]
             new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
             previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
             new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, file_change_requests)

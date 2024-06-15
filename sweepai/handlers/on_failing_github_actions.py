@@ -283,13 +283,15 @@ def on_failing_github_actions(
             pull_request_bot = PRSummaryBot()
             if modify_files_dict_history:
                 commit_message = pull_request_bot.get_commit_message(
-                    modify_files_dict=modify_files_dict, 
+                    modify_files_dict=modify_files_dict,
+                    renames_dict={},
                     previous_modify_files_dict=modify_files_dict_history[-1], 
                     chat_logger=chat_logger
                 )[:50]
             else:
                 commit_message = pull_request_bot.get_commit_message(
                     modify_files_dict=modify_files_dict,
+                    renames_dict={},
                     chat_logger=chat_logger
                 )[:50]
             modify_files_dict_history.append(copy.deepcopy(modify_files_dict))
