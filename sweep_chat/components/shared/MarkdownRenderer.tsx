@@ -5,7 +5,7 @@ import remarkGfm from "remark-gfm";
 // @ts-ignore
 import * as Diff from "diff";
 
-const CODE_CHANGE_PATTERN = /<code_change>\s*<file_path>\n*(?<filePath>[\s\S]+?)\n*<\/file_path>\s*<original_code>\n*(?<originalCode>[\s\S]+?)\n*($|<\/original_code>\s*($|<new_code>\n*(?<newCode>[\s\S]+?)\n*($|<\/new_code>)\s*($|(?<closingTag><\/code_change>))))/gs;
+const CODE_CHANGE_PATTERN = /<code_change>\s*<file_path>\n*(?<filePath>[\s\S]+?)\n*<\/file_path>\s*<original_code>\n*(?<originalCode>[\s\S]*?)\n*($|<\/original_code>\s*($|<new_code>\n*(?<newCode>[\s\S]+?)\n*($|<\/new_code>)\s*($|(?<closingTag><\/code_change>))))/gs;
 
 const MarkdownRenderer = ({ content, className }: { content: string, className?: string }) => {
   const matches = Array.from(content.matchAll(CODE_CHANGE_PATTERN));
