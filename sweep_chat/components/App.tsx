@@ -1,12 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "../components/ui/input"
-import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { FaCheck, FaCog, FaComments, FaGithub, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp } from "react-icons/fa";
+import { FaCheck, FaCog, FaComments, FaGithub, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -23,7 +20,6 @@ import { toast } from "@/components/ui/use-toast";
 import { useSession, signIn, SessionProvider, signOut } from "next-auth/react";
 import { Session } from "next-auth";
 import { PostHogProvider, usePostHog } from "posthog-js/react";
-import posthog from "posthog-js";
 import Survey from "./Survey";
 import * as jsonpatch from 'fast-json-patch';
 import { ReadableStreamDefaultReadResult } from "stream/web";
@@ -33,210 +29,104 @@ import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Label } from "./ui/label";
 import PulsingLoader from "./shared/PulsingLoader";
+import { codeStyle, DEFAULT_K, modelMap, roleToColor, typeNameToColor } from "@/lib/constants";
+import { Repository, Snippet, FileDiff, PullRequest, Message, CodeSuggestion } from "@/lib/types";
 
 import { Octokit } from "octokit";
+import { renderPRDiffs, getJSONPrefix, getFunctionCallHeaderString, getDiff } from "@/lib/str_utils";
+import { CODE_CHANGE_PATTERN, MarkdownRenderer } from "./shared/MarkdownRenderer";
+import { SnippetBadge } from "./shared/SnippetBadge";
+import { posthog } from "@/lib/posthog";
 
-const codeStyle = dracula;
+import CodeMirrorMerge from 'react-codemirror-merge';
+import { javascript } from '@codemirror/lang-javascript';
+import { dracula } from '@uiw/codemirror-theme-dracula';
+import { EditorView } from 'codemirror';
+import { EditorState } from '@codemirror/state';
+import { debounce } from "lodash"
 
-if (typeof window !== 'undefined') {
-  posthog.init(
-    process.env.NEXT_PUBLIC_POSTHOG_KEY!,
-    {
-      api_host: "/ingest",
-      ui_host: "https://us.posthog.com"
-    }
-  )
-  posthog.debug(false)
-}
-
-type Repository = any;
-
-interface Snippet {
-  content: string;
-  start: number;
-  end: number;
-  file_path: string;
-  type_name: "source" | "tests" | "dependencies" | "tools" | "docs";
-  score: number;
-}
-
-interface FileDiff {
-  sha: string;
-  filename: string;
-  status: "modified" | "added" | "removed" | "renamed" | "copied" | "changed" | "unchanged";
-  additions: number;
-  deletions: number;
-  changes: number;
-  blob_url: string;
-  raw_url: string;
-  contents_url: string;
-  patch?: string | undefined;
-  previous_filename?: string | undefined;
-}
-
-interface PullRequest {
-  number: number;
-  repo_name: string;
-  title: string;
-  body: string;
-  labels: string[];
-  status: string;
-  file_diffs: FileDiff[]
-}
-
-interface Message {
-  content: string; // This is the message content or function output
-  role: "user" | "assistant" | "function";
-  function_call?: {
-    function_name: string;
-    function_parameters: Record<string, any>;
-    is_complete: boolean;
-    snippets?: Snippet[];
-  }; // This is the function input
-  annotations?: {
-    pulls?: PullRequest[]
-  }
-}
-
-const modelMap: Record<string, string> = {
-  "claude-3-opus-20240229": "Opus",
-  "claude-3-sonnet-20240229": "Sonnet",
-  "claude-3-haiku-20240307": "Haiku",
-  "gpt-4o": "GPT-4o",
-}
-
-const DEFAULT_K: number = 8
-
-const sliceLines = (content: string, start: number, end: number) => {
-  return content.split("\n").slice(Math.max(start - 1, 0), end).join("\n");
-}
-
-const MarkdownRenderer = ({ content, className }: { content: string, className?: string }) => {
-  return (
-    <Markdown
-      className={`${className} reactMarkdown`}
-      remarkPlugins={[remarkGfm]}
-      components={{
-        code(props) {
-          const { children, className, node, ref, ...rest } = props
-          const match = /language-(\w+)/.exec(className || '')
-          return match ? (
-            <SyntaxHighlighter
-              {...rest} // eslint-disable-line
-              PreTag="div"
-              language={match[1]}
-              style={codeStyle}
-              customStyle={{
-                backgroundColor: '#333',
-              }}
-              className="rounded-xl"
-            >
-              {String(children).replace(/\n$/, '')}
-            </SyntaxHighlighter>
-          ) : (
-            <code
-              {...rest}
-              className={`rounded-xl ${className}`}
-            >
-              {children}
-            </code>
-          )
-        }
-      }}
-    >
-      {content}
-    </Markdown>
-  )
-}
-
-const typeNameToColor = {
-  "source": "bg-blue-900",
-  "tests": "bg-green-900",
-  "dependencies": "bg-zinc-600",
-  "tools": "bg-purple-900",
-  "docs": "bg-yellow-900",
-}
-
-const SnippetBadge = ({
-  snippet,
-  className,
-  repoName,
-  branch,
-  button,
-}: {
-  snippet: Snippet;
-  className?: string;
-  repoName: string;
-  branch: string;
-  button?: JSX.Element;
-}) => {
-  return (
-    <HoverCard openDelay={300} closeDelay={200}>
-      <div className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 ${typeNameToColor[snippet.type_name]} ${className || ""} `} style={{ opacity: `${Math.max(Math.min(1, snippet.score), 0.2)}` }}>
-        <HoverCardTrigger asChild>
-          <Button variant="link" className="text-sm py-0 px-1 h-6 leading-4" onClick={() => {
-            window.open(`https://github.com/${repoName}/blob/${branch}/${snippet.file_path}`, "_blank")
-          }}>
-            <span>
-              {snippet.end > snippet.content.split('\n').length - 3 && snippet.start == 0 ?
-                snippet.file_path : `${snippet.file_path}:${snippet.start}-${snippet.end}`
-              }
-            </span>
-            {
-              snippet.type_name !== "source" && (
-                <code className="ml-2 bg-opacity-20 bg-black text-white rounded p-1 px-2 text-xs">{snippet.type_name}</code>
-              )
-            }
-          </Button>
-        </HoverCardTrigger>
-      </div>
-      <HoverCardContent className="w-[800px] mr-2" style={{ opacity: 1 }}>
-        <SyntaxHighlighter
-          PreTag="div"
-          language="python"
-          style={codeStyle}
-          customStyle={{
-            backgroundColor: 'transparent',
-            whiteSpace: 'pre-wrap',
-          }}
-          className="rounded-xl max-h-[600px] overflow-y-auto p-4 w-full"
-        >
-          {sliceLines(snippet.content, snippet.start, snippet.end)}
-        </SyntaxHighlighter>
-      </HoverCardContent>
-    </HoverCard>
-  )
-}
-
-const getFunctionCallHeaderString = (functionCall: Message["function_call"]) => {
-switch (functionCall?.function_name) {
-  case "analysis":
-    return functionCall.is_complete ? "Analysis" : "Analyzing..."
-  case "self_critique":
-    return functionCall.is_complete ? "Self critique" : "Self critiquing..."
-  case "search_codebase":
-    if (functionCall!.function_parameters?.query) {
-      return functionCall.is_complete ? `Search codebase for "${functionCall.function_parameters.query.trim()}"` : `Searching codebase for "${functionCall.function_parameters.query.trim()}"...`
-    } else {
-      return functionCall.is_complete ? "Search codebase" : "Searching codebase..."
-    }
-  default:
-    return `${functionCall?.function_name}(${Object.entries(functionCall?.function_parameters!).map(([key, value]) => `${key}="${value}"`).join(", ")})`
-}
-}
-
-const roleToColor = {
-  "user": "bg-zinc-600",
-  "assistant": "bg-zinc-700",
-  "function": "bg-zinc-800",
-}
+const Original = CodeMirrorMerge.Original
+const Modified = CodeMirrorMerge.Modified
 
 const sum = (arr: number[]) => arr.reduce((acc, cur) => acc + cur, 0)
 
-const renderPRDiffs = (pr: PullRequest) => {
-  return pr.file_diffs.map((diff, index) => (
-    `@@ ${diff.filename} @@\n${diff.patch}`
-  )).join("\n\n")
+const PullRequestHeader = ({ pr }: { pr: PullRequest }) => {
+  return (
+    <div className="bg-zinc-800 rounded-xl p-4 mb-2 text-left hover:bg-zinc-700 hover:cursor-pointer max-w-[800px]" onClick={() => {
+      window.open(`https://github.com/${pr.repo_name}/pull/${pr.number}`, "_blank")
+    }}>
+      <div className={`border-l-4 ${pr.status === "open" ? "border-green-500" : pr.status === "merged" ? "border-purple-500" : "border-red-500"} pl-4`}>
+        <div className="mb-2 font-bold text-md">
+          #{pr.number} {pr.title} 
+        </div>
+        <div className="mb-4 text-sm">
+          {pr.body}
+        </div>
+        <div className="text-xs text-zinc-300">
+          <div className="mb-1">{pr.repo_name}</div>
+          {pr.file_diffs.length} files changed <span className="text-green-500">+{sum(pr.file_diffs.map(diff => diff.additions))}</span> <span className="text-red-500">-{sum(pr.file_diffs.map(diff => diff.deletions))}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const PullRequestContent = ({ pr }: { pr: PullRequest }) => {
+  return (
+    <>
+      <div className="p-4">
+        <h2 className="text-sm font-semibold mb-2">
+          Files changed
+        </h2>
+        <div className="text-sm text-gray-300">
+          <ol>
+            {pr.file_diffs.map((file, index) => (
+              <li key={index} className="mb-1">
+                {file.filename} <span className={`${file.status === 'added' ? 'text-green-500' : file.status === 'removed' ? 'text-red-500' : 'text-gray-400'}`}>
+                  {file.status === 'added' ? <span className="text-green-500">Added (+{file.additions})</span> : file.status === 'removed' ? <span className="text-red-500">Deleted ({file.deletions})</span> : <><span className="text-green-500">+{file.additions}</span> <span className="text-red-500">-{file.deletions}</span></>}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+      <SyntaxHighlighter
+        language="diff"
+        style={codeStyle}
+        customStyle={{
+          backgroundColor: 'transparent',
+          whiteSpace: 'pre-wrap',
+        }}
+        className="rounded-xl p-4 text-xs w-full"
+      >
+        {renderPRDiffs(pr)}
+      </SyntaxHighlighter>
+    </>
+  )
+}
+
+const PullRequestDisplay = ({ pr, useHoverCard = true }: { pr: PullRequest, useHoverCard?: boolean }) => {
+  if (useHoverCard) {
+    return (
+      <HoverCard openDelay={300} closeDelay={200}>
+        <HoverCardTrigger>
+          <PullRequestHeader pr={pr} />
+        </HoverCardTrigger>
+        <HoverCardContent className="w-[800px] max-h-[600px] overflow-y-auto">
+          <PullRequestContent pr={pr} />
+        </HoverCardContent>
+      </HoverCard>
+    )
+  } else {
+    return (
+      <div className="flex justify-end flex-col">
+        <PullRequestHeader pr={pr} />
+        <div className="bg-zinc-800 rounded-xl p-4 mb-2 text-left max-w-[800px]">
+          <PullRequestContent pr={pr} />
+        </div>
+      </div>
+    )
+  }
 }
 
 const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (content: string) => void }) => {
@@ -304,55 +194,7 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
       </div>
       {!isEditing && message.annotations?.pulls?.map((pr) => (
         <div className="flex justify-end text-sm" key={pr.number}>
-          <HoverCard openDelay={300} closeDelay={200}>
-            <HoverCardTrigger>
-              <div className="bg-zinc-800 rounded-xl p-4 mb-2 text-left hover:bg-zinc-700 hover:cursor-pointer max-w-[600px]" onClick={() => {
-                window.open(`https://github.com/${pr.repo_name}/pull/${pr.number}`, "_blank")
-              }}>
-                <div className={`border-l-4 ${pr.status === "open" ? "border-green-500" : pr.status === "merged" ? "border-purple-500" : "border-red-500"} pl-4`}>
-                  <div className="mb-2 font-bold text-md">
-                    #{pr.number} {pr.title} 
-                  </div>
-                  <div className="mb-4 text-sm">
-                    {pr.body}
-                  </div>
-                  <div className="text-xs text-zinc-300">
-                    <div className="mb-1">{pr.repo_name}</div>
-                    {pr.file_diffs.length} files changed <span className="text-green-500">+{sum(pr.file_diffs.map(diff => diff.additions))}</span> <span className="text-red-500">-{sum(pr.file_diffs.map(diff => diff.deletions))}</span>
-                  </div>
-                </div>
-              </div>
-            </HoverCardTrigger>
-            <HoverCardContent className="w-[800px] max-h-[600px] overflow-y-auto">
-              <div className="p-4">
-                <h2 className="text-sm font-semibold mb-2">
-                  Files changed
-                </h2>
-                <div className="text-sm text-gray-300">
-                  <ol>
-                    {pr.file_diffs.map((file, index) => (
-                      <li key={index} className="mb-1">
-                        {file.filename} <span className={`${file.status === 'added' ? 'text-green-500' : file.status === 'removed' ? 'text-red-500' : 'text-gray-400'}`}>
-                          {file.status === 'added' ? <span className="text-green-500">Added (+{file.additions})</span> : file.status === 'removed' ? <span className="text-red-500">Deleted ({file.deletions})</span> : <><span className="text-green-500">+{file.additions}</span> <span className="text-red-500">-{file.deletions}</span></>}
-                        </span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              </div>
-              <SyntaxHighlighter
-                language="diff"
-                style={codeStyle}
-                customStyle={{
-                  backgroundColor: 'transparent',
-                  whiteSpace: 'pre-wrap',
-                }}
-                className="rounded-xl p-4 text-xs w-full"
-              >
-                {renderPRDiffs(pr)}
-              </SyntaxHighlighter>
-            </HoverCardContent>
-          </HoverCard>
+          <PullRequestDisplay pr={pr} />
         </div>
       ))}
     </>
@@ -408,133 +250,124 @@ const FeedbackBlock = ({ message, index }: { message: Message, index: number }) 
   )
 }
 
-const MessageDisplay = ({ message, className, onEdit, repoName, branch, index }: { message: Message, className?: string, onEdit: (content: string) => void, repoName: string, branch: string, index: number }) => {
+const MessageDisplay = ({
+  message,
+  className,
+  onEdit,
+  repoName,
+  branch,
+  onApplyChanges,
+  showApplySuggestedChangeButton,
+  index
+}: {
+  message: Message,
+  className?: string,
+  onEdit: (content: string) => void,
+  repoName: string,
+  branch: string,
+  onApplyChanges: (codeSuggestions: CodeSuggestion[]) => void,
+  showApplySuggestedChangeButton: boolean,
+  index: number
+}) => {
   if (message.role === "user") {
     return <UserMessageDisplay message={message} onEdit={onEdit} />
   }
+  let matches = Array.from(message.content.matchAll(CODE_CHANGE_PATTERN));
+  if (matches.some((match) => !match.groups?.closingTag)) {
+    matches = []
+  }
   return (
-    <div className={`flex justify-start`}>
-        <div
-          className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] text-left w-[80%]
-            ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
-        >
-          {message.role === "function" ? (
-            <Accordion type="single" collapsible className="w-full" defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}>
-              <AccordionItem value="function" className="border-none">
-                <AccordionTrigger className="border-none py-0 text-left">
-                  <div className="text-xs text-gray-400 flex align-center">
-                    {!message.function_call!.is_complete ? (
-                      <PulsingLoader size={0.5} />
-                    ) : (
-                      <FaCheck
-                        className="inline-block mr-2"
-                        style={{ marginTop: 2 }}
-                      />
-                    )}
-                    <span>{getFunctionCallHeaderString(message.function_call)}</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className={`pb-0 ${message.content && message.function_call?.function_name === "search_codebase" && !message.function_call?.is_complete ? "pt-6" : "pt-0"}`}>
-                  {message.function_call?.function_name === "search_codebase" && message.content && !message.function_call.is_complete && (
-                    <span className="p-4 pl-2">
-                      {message.content}
-                    </span>
-                  )}
-                  {message.function_call!.snippets ? (
-                    <div className="pb-0 pt-4">
-                      {message.function_call!.snippets.map((snippet, index) => (
-                        <SnippetBadge
-                          key={index}
-                          snippet={snippet}
-                          repoName={repoName}
-                          branch={branch}
-                        />
-                      ))}
-                    </div>
-                  ) : (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
-                    <MarkdownRenderer content={message.content} className="reactMarkdown mt-4 mb-0 py-2" />
-                  ) : (
-                    <SyntaxHighlighter
-                      language="xml"
-                      style={codeStyle}
-                      customStyle={{
-                        backgroundColor: 'transparent',
-                        whiteSpace: 'pre-wrap',
-                        maxHeight: '300px',
-                      }}
-                      className="rounded-xl p-4"
-                    >
-                      {message.content}
-                    </SyntaxHighlighter>
-                  )
-                  )}
+    <>
+      <div className={`flex justify-start`}>
+          {(!message.annotations?.pulls || message.annotations!.pulls?.length == 0) && (
+            <div
+              className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] text-left w-[80%]
+                ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
+            >
+              {message.role === "function" ? (
+                <Accordion type="single" collapsible className="w-full" defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}>
+                  <AccordionItem value="function" className="border-none">
+                    <AccordionTrigger className="border-none py-0 text-left">
+                      <div className="text-xs text-gray-400 flex align-center">
+                        {!message.function_call!.is_complete ? (
+                          <PulsingLoader size={0.5} />
+                        ) : (
+                          <FaCheck
+                            className="inline-block mr-2"
+                            style={{ marginTop: 2 }}
+                          />
+                        )}
+                        <span>{getFunctionCallHeaderString(message.function_call)}</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className={`pb-0 ${message.content && message.function_call?.function_name === "search_codebase" && !message.function_call?.is_complete ? "pt-6" : "pt-0"}`}>
+                      {message.function_call?.function_name === "search_codebase" && message.content && !message.function_call.is_complete && (
+                        <span className="p-4 pl-2">
+                          {message.content}
+                        </span>
+                      )}
+                      {message.function_call!.snippets ? (
+                        <div className="pb-0 pt-4">
+                          {message.function_call!.snippets.map((snippet, index) => (
+                            <SnippetBadge
+                              key={index}
+                              snippet={snippet}
+                              repoName={repoName}
+                              branch={branch}
+                            />
+                          ))}
+                        </div>
+                      ) : (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
+                        <MarkdownRenderer content={message.content} className="reactMarkdown mt-4 mb-0 py-2" />
+                      ) : (
+                        <SyntaxHighlighter
+                          language="xml"
+                          style={codeStyle}
+                          customStyle={{
+                            backgroundColor: 'transparent',
+                            whiteSpace: 'pre-wrap',
+                            maxHeight: '300px',
+                          }}
+                          className="rounded-xl p-4"
+                        >
+                          {message.content}
+                        </SyntaxHighlighter>
+                      )
+                      )}
+                      <FeedbackBlock message={message} index={index} />
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              ) : message.role === "assistant" ? (
+                <>
+                  <MarkdownRenderer content={message.content} className="reactMarkdown mb-0 py-2" />
                   <FeedbackBlock message={message} index={index} />
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          ) : message.role === "assistant" ? (
-            <>
-              <MarkdownRenderer content={message.content} className="reactMarkdown mb-0 py-2" />
-              <FeedbackBlock message={message} index={index} />
-            </>
-          ) : (
-            <UserMessageDisplay message={message} onEdit={onEdit} />
+                </>
+              ) : (
+                <UserMessageDisplay message={message} onEdit={onEdit} />
+              )}
+            </div>
           )}
       </div>
-    </div>
+      {showApplySuggestedChangeButton && matches.length > 0 && (
+        <div className="flex justify-start w-[80%]">
+          <Button className="mb-4 bg-blue-900 hover:bg-blue-800 text-zinc-200" onClick={() => onApplyChanges(matches.map((match) => ({
+            filePath: match.groups?.filePath || "",
+            originalCode: match.groups?.originalCode || "",
+            newCode: match.groups?.newCode || "",
+          })))}>
+            Apply Suggested Changes
+          </Button>
+        </div>
+      )}
+      {message.annotations?.pulls?.map((pr) => (
+        <div className="flex justify-start text-sm" key={pr.number}>
+          <PullRequestDisplay pr={pr} />
+        </div>
+      ))}
+    </>
   );
 };
-
-function getJSONPrefix(buffer: string): [any[], number] {
-  let stack: string[] = [];
-  const matchingBrackets: Record<string, string> = {
-    '[': ']',
-    '{': '}',
-    '(': ')'
-  };
-  var currentIndex = 0;
-  const results = [];
-  let inString = false;
-  let escapeNext = false;
-
-  for (let i = 0; i < buffer.length; i++) {
-    const char = buffer[i];
-
-    if (escapeNext) {
-      escapeNext = false;
-      continue;
-    }
-
-    if (char === '\\') {
-      escapeNext = true;
-      continue;
-    }
-
-    if (char === '"') {
-      inString = !inString;
-    }
-
-    if (!inString) {
-      if (matchingBrackets[char]) {
-        stack.push(char);
-      } else if (matchingBrackets[stack[stack.length - 1]] === char) {
-        stack.pop();
-        if (stack.length === 0) {
-          try {
-            results.push(JSON.parse(buffer.slice(currentIndex, i + 1)));
-            currentIndex = i + 1;
-          } catch (e) {
-            continue;
-          }
-        }
-      }
-    }
-  }
-  // if (currentIndex == 0) {
-  //   console.log(buffer); // TODO: optimize later
-  // }
-  return [results, currentIndex];
-}
 
 async function* streamMessages(
   reader: ReadableStreamDefaultReader<Uint8Array>,
@@ -653,7 +486,6 @@ function App({
   const [repoName, setRepoName] = useState<string>("")
   const [branch, setBranch] = useState<string>("main")
   const [repoNameValid, setRepoNameValid] = useState<boolean>(false)
-
   const [repoNameDisabled, setRepoNameDisabled] = useState<boolean>(false)
 
   const [k, setK] = useLocalStorage<number>("k", DEFAULT_K)
@@ -665,6 +497,15 @@ function App({
   const isStream = useRef<boolean>(false)
   const [showSurvey, setShowSurvey] = useState<boolean>(false)
 
+  const [suggestedChanges, setSuggestedChanges] = useState<CodeSuggestion[]>([])
+  const [openSuggestionDialog, setOpenSuggestionDialog] = useState<boolean>(false)
+  const [isProcessingSuggestedChanges, setIsProcessingSuggestedChanges] = useState<boolean>(false)
+  const [pullRequestTitle, setPullRequestTitle] = useState<string | null>(null)
+  const [pullRequestBody, setPullRequestBody] = useState<string | null>(null)
+  const [isCreatingPullRequest, setIsCreatingPullRequest] = useState<boolean>(false)
+  const [pullRequest, setPullRequest] = useState<PullRequest | null>(null)
+  const [featureBranch, setFeatureBranch] = useState<string | null>(null)
+
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const { data: session } = useSession()
@@ -675,26 +516,36 @@ function App({
 
   const [messagesId, setMessagesId] = useState<string>(defaultMessageId)
 
+  const authorizedFetch = useCallback((url: string, options: RequestInit = {}) => {
+    return fetch(url, {
+      method: "POST",
+      headers: {
+        ...options.headers,
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session?.user.accessToken}`
+      },
+      ...options,
+    })
+  }, [session?.user.accessToken])
+
+
   useEffect(() => {
     console.log(defaultMessageId)
     if (defaultMessageId) {
       (async () => {
-        const response = await fetch(`/backend/messages/load/${defaultMessageId}`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            // @ts-ignore
-            "Authorization": `Bearer ${session?.user.accessToken}`
-          }
+        const response = await authorizedFetch(`/backend/messages/load/${defaultMessageId}`, {
+          method: "GET"
         })
         const data = await response.json()
         if (data.status == "success") {
-          const { repo_name, messages, snippets } = data.data
+          const { repo_name, messages, snippets, code_suggestions, pull_request } = data.data
           console.log(repo_name, messages, snippets)
           setRepoName(repo_name)
           setRepoNameValid(true)
           setMessages(messages)
           setSnippets(snippets)
+          setSuggestedChanges(code_suggestions)
+          setPullRequest(pull_request)
         } else {
           toast({
             title: "Failed to load message",
@@ -739,6 +590,33 @@ function App({
     }
   }, [session?.user!.accessToken])
 
+  const reactCodeMirrors = useMemo(() => {
+    return suggestedChanges.map((suggestion, index) => (
+      <CodeMirrorMerge
+        theme={dracula}
+        revertControls={"b-to-a"}
+        collapseUnchanged={{
+          margin: 3,
+          minSize: 4,
+        }}
+        autoFocus={false}
+        key={index}
+      >
+        <Original
+          value={suggestion.originalCode}
+          extensions={[EditorView.editable.of(false), EditorState.readOnly.of(true), javascript({ jsx: true })]}
+        />
+        <Modified
+          value={suggestion.newCode}
+          extensions={[EditorState.readOnly.of(false), javascript({ jsx: true })]}
+          onChange={debounce((value: string) => {
+            setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
+          }, 1000)}
+        />
+      </CodeMirrorMerge>
+    ))
+  }, [suggestedChanges])
+
   if (session) {
     posthog.identify(
       session.user!.email!,
@@ -763,12 +641,14 @@ function App({
     )
   }
 
-  const lastAssistantMessageIndex = messages.findLastIndex((message) => message.role === "assistant" && message.content.trim().length > 0)
+  const lastAssistantMessageIndex = messages.findLastIndex((message) => message.role === "assistant" && !message.annotations?.pulls && message.content.trim().length > 0)
 
   const save = async (
     currentRepoName: string,
     currentMessages: Message[],
     currentSnippets: Snippet[],
+    currentSuggestedChanges: CodeSuggestion[] = [],
+    currentPullRequest: PullRequest | null = null
   ) => {
     const saveResponse = await fetch("/backend/messages/save", {
       method: "POST",
@@ -778,10 +658,14 @@ function App({
         "Authorization": `Bearer ${session?.user.accessToken}`
       },
       body: JSON.stringify(
-        messagesId ?
-        {repo_name: currentRepoName || repoName, messages: currentMessages || messages, snippets: currentSnippets || snippets, message_id: messagesId}
-        :
-        {repo_name: currentRepoName || repoName, messages: currentMessages || messages, snippets: currentSnippets || snippets}
+        {
+          repo_name: currentRepoName || repoName, 
+          messages: currentMessages || messages, 
+          snippets: currentSnippets || snippets, 
+          message_id: messagesId || "",
+          code_suggestions: currentSuggestedChanges || suggestedChanges,
+          pull_request: currentPullRequest || pullRequest
+        }
       )
     })
     const saveData = await saveResponse.json()
@@ -792,6 +676,8 @@ function App({
         const updatedUrl = `/c/${message_id}`;
         window.history.pushState({}, '', updatedUrl);
       }
+    } else {
+      console.warn("Failed to save message", saveData)
     }
   }
 
@@ -1022,12 +908,8 @@ function App({
             var data = null
             try {
               setRepoNameDisabled(true);
-              const response = await fetch(`/backend/repo?repo_name=${cleanedRepoName}`, {
-                headers: {
-                  "Content-Type": "application/json",
-                  // @ts-ignore
-                  "Authorization": `Bearer ${session?.user.accessToken!}`
-                }
+              const response = await authorizedFetch(`/backend/repo?repo_name=${cleanedRepoName}`, {
+                method: "GET"
               });
               data = await response.json();
             } catch (e: any) {
@@ -1157,6 +1039,7 @@ function App({
             onEdit={async (content) => {
               isStream.current = false;
               setIsLoading(false);
+              setOpenSuggestionDialog(false);
 
               const pulls = await parsePullRequests(repoName, content, octokit!)
 
@@ -1172,11 +1055,159 @@ function App({
                 startStream(content, newMessages, snippets, { pulls })
               }
             }}
+            onApplyChanges={(codeSuggestions: CodeSuggestion[]) => {
+              setOpenSuggestionDialog(true)
+              if (suggestedChanges.length == 0) {
+                setSuggestedChanges(codeSuggestions)
+                setIsProcessingSuggestedChanges(true);
+                (async () => {
+                  const response = await authorizedFetch(`/backend/autofix`, {
+                    body: JSON.stringify({
+                      repo_name: repoName,
+                      code_suggestions: codeSuggestions.map((suggestion: CodeSuggestion) => ({
+                        file_path: suggestion.filePath,
+                        original_code: suggestion.originalCode,
+                        new_code: suggestion.newCode,
+                      }))
+                    }), // TODO: casing should be automatically handled
+                  });
+                  const data = await response.json();
+                  console.log(data)
+                  if (data.modify_files_dict) {
+                    setSuggestedChanges(Object.entries(data.modify_files_dict).map(([filePath, { original_contents, contents }]: any) => ({
+                      filePath,
+                      originalCode: original_contents,
+                      newCode: contents,
+                    })))
+                    save(repoName, messages, snippets, suggestedChanges, pullRequest)
+                    setIsProcessingSuggestedChanges(false);
+
+                    const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
+                      body: JSON.stringify({
+                        repo_name: repoName,
+                        modify_files_dict: data.modify_files_dict,
+                        messages: messages,
+                      }),
+                    })
+                    
+                    const prData = await prMetadata.json()
+                    const { title, description, branch: featureBranch } = prData
+                    setFeatureBranch(featureBranch || "sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
+                    setPullRequestTitle(title || "Sweep Chat Suggested Changes")
+                    setPullRequestBody(description || "Suggested changes by Sweep Chat.")
+                  }
+                })();
+                setTimeout(() => {
+                  if (messagesContainerRef.current) {
+                    messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+                  }
+                }, 400);
+              }
+            }}
+            showApplySuggestedChangeButton={!openSuggestionDialog}
           />
         ))}
         {isLoading && (
           <div className="flex justify-around w-full py-2">
             <PulsingLoader size={1.5} />
+          </div>
+        )}
+        {openSuggestionDialog && (
+          <div className="bg-zinc-900 rounded-xl p-4 mt-8">
+            <div className="flex justify-between mb-4">
+              <Input className="flex items-center w-[600px]" value={featureBranch || ""} onChange={(e) => setFeatureBranch(e.target.value)} placeholder="Feature Branch Name" style={{ opacity: isProcessingSuggestedChanges ? 0.5 : 1 }} />
+              <Button
+                className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
+                onClick={() => setOpenSuggestionDialog(false)}
+                aria-label="Close"
+              >
+                <FaTimes />
+              </Button>
+            </div>
+            {(isProcessingSuggestedChanges || isCreatingPullRequest) && (
+              <div className="flex justify-around w-full py-2 mb-4">
+                <p>{isProcessingSuggestedChanges ? "Validating and auto-fixing suggested changes..." : "Creating pull request..."}</p>
+              </div>
+            )}
+            <div style={{ opacity: (isProcessingSuggestedChanges || isCreatingPullRequest) ? 0.5 : 1, pointerEvents: (isProcessingSuggestedChanges || isCreatingPullRequest) ? 'none' : 'auto' }}>
+              {suggestedChanges.map((suggestion, index) => (
+                <div className="fit-content mb-6" key={index}>
+                  <div className="w-full text-sm bg-zinc-800 p-2 rounded-t-md">
+                    <code>
+                      {suggestion.filePath} {isProcessingSuggestedChanges ? "(processing)" : <FaCheck style={{display: "inline", marginTop: -2}}/>}
+                    </code>
+                  </div>
+                  {reactCodeMirrors[index]}
+                </div>
+              ))}
+              <Input
+                value={pullRequestTitle || ""}
+                onChange={(e) => setPullRequestTitle(e.target.value)}
+                placeholder="Pull Request Title"
+                className="w-full mb-4 text-zinc-300"
+                disabled={pullRequestTitle == null}
+              />
+              <Textarea
+                value={pullRequestBody || ""}
+                onChange={(e) => setPullRequestBody(e.target.value)}
+                placeholder="Pull Request Body"
+                className="w-full mb-4 text-zinc-300"
+                disabled={pullRequestBody == null}
+                rows={8}
+              />
+              <Button 
+                className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
+                onClick={async () => {
+                  setIsCreatingPullRequest(true)
+                  const file_changes = suggestedChanges.reduce((acc: Record<string, string>, suggestion: CodeSuggestion) => {
+                    acc[suggestion.filePath] = suggestion.newCode;
+                    return acc;
+                  }, {})
+                  console.log(file_changes)
+                  try {
+                    const response = await authorizedFetch(
+                      `/backend/create_pull`,
+                      {
+                        body: JSON.stringify({
+                          repo_name: repoName,
+                          file_changes: file_changes,
+                          branch: "sweep-chat-patch-" + new Date().toISOString().split("T")[0], // use ai for better branch name, title, and body later
+                          title: pullRequestTitle,
+                          body: pullRequestBody + `\n\nSuggested changes by Sweep Chat, from ${window.location.origin}/c/${messagesId}`,
+                        }),
+                      }
+                    )
+                    const data = await response.json()
+                    const {pull_request: pullRequest} = data
+                    console.log(pullRequest)
+                    setPullRequest(pullRequest)
+                    setMessages([
+                      ...messages,
+                      {
+                        content: `Pull request created: [https://github.com/${repoName}/pull/${pullRequest.number}](https://github.com/${repoName}/pull/${pullRequest.number})`,
+                        role: "assistant",
+                        annotations: {
+                          pulls: [pullRequest]
+                        }
+                      }
+                    ])
+                    save(repoName, messages, snippets, suggestedChanges, pullRequest)
+                  } catch (e) {
+                    toast({
+                      title: "Error",
+                      description: `An error occurred while creating the pull request: ${e}`,
+                      variant: "destructive",
+                      duration: Infinity,
+                    })
+                  } finally {
+                    setIsCreatingPullRequest(false)
+                    setOpenSuggestionDialog(false)
+                  }
+                }}
+              >
+                Create Pull Request
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -1204,6 +1235,8 @@ function App({
                 setSnippets([]);
                 setMessagesId("");
                 window.history.pushState({}, '', '/');
+                setSuggestedChanges([])
+                setPullRequest(null)
               }}
               disabled={isLoading}
             >

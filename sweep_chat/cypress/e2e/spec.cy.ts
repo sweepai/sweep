@@ -8,19 +8,20 @@ describe('sweep chat', () => {
   });
 
   it("should provide a valid session", () => {
-    cy.get('.h-screen > .justify-between > .flex > .inline-flex').should('exist').and('have.text', 'Sign Out')
+    cy.get('.rounded-full').click()
+    cy.get("div:nth-child(4)").contains("Sign Out")
   });
 
   it("can set a repo", () => {
     cy.get("[tabindex=\"-1\"] > :nth-child(2) > .items-center > input").type("sweepai/sweep").blur()
-    cy.get(':nth-child(5) > .flex', { timeout: 10000 }).should('have.attr', 'placeholder', 'Type a message...')
+    cy.get(':nth-child(4) > .flex', { timeout: 10000 }).should('have.attr', 'placeholder', 'Type a message...')
   })
 
   it("can stop the chat", () => {
     cy.get("[tabindex=\"-1\"] > :nth-child(2) > .items-center > input").type("sweepai/sweep").blur()
-    cy.get(':nth-child(5) > .flex', { timeout: 10000 }).should('have.attr', 'placeholder', 'Type a message...')
+    cy.get(':nth-child(4) > .flex', { timeout: 10000 }).should('have.attr', 'placeholder', 'Type a message...')
 
-    cy.get(':nth-child(5) > .flex').type(testMessage + "{enter}")
+    cy.get(':nth-child(4) > .flex').type(testMessage + "{enter}")
     cy.wait(1000)
     cy.get('.bg-destructive').click()
     cy.on('uncaught:exception', (err, runnable) => {
@@ -31,17 +32,17 @@ describe('sweep chat', () => {
 
   it("can preview pull requests", () => {
     cy.get("[tabindex=\"-1\"] > :nth-child(2) > .items-center > input").type("sweepai/sweep").blur()
-    cy.get(':nth-child(5) > .flex', { timeout: 10000 }).should('have.attr', 'placeholder', 'Type a message...')
+    cy.get(':nth-child(4) > .flex', { timeout: 10000 }).should('have.attr', 'placeholder', 'Type a message...')
 
-    cy.get(':nth-child(5) > .flex').type(testPullRequestMessage + "{enter}")
+    cy.get(':nth-child(4) > .flex').type(testPullRequestMessage + "{enter}")
     cy.get('a > .bg-zinc-800').contains('Minor ticket utils fix')
   })
 
   it("can send a message", () => {
     cy.get("[tabindex=\"-1\"] > :nth-child(2) > .items-center > input").type("sweepai/sweep").blur()
-    cy.get(':nth-child(5) > .flex', { timeout: 10000 }).should('have.attr', 'placeholder', 'Type a message...')
+    cy.get(':nth-child(4) > .flex', { timeout: 10000 }).should('have.attr', 'placeholder', 'Type a message...')
 
-    cy.get(':nth-child(5) > .flex').type(testMessage + "{enter}")
+    cy.get(':nth-child(4) > .flex').type(testMessage + "{enter}")
     cy.get('.justify-end > .transition-color').should("contain.text", testMessage)
 
     // Validate response from the LLM

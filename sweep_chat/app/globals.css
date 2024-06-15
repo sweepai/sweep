@@ -139,3 +139,11 @@
     }
   }
 
+  .hljs-addition {
+    color: #1ae073;
+  }
+
+  .hljs-deletion {
+    color: #ff3333;
+  }
+
