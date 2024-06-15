@@ -43,6 +43,7 @@ import { javascript } from '@codemirror/lang-javascript';
 import { dracula } from '@uiw/codemirror-theme-dracula';
 import { EditorView } from 'codemirror';
 import { EditorState } from '@codemirror/state';
+import { debounce } from "lodash"
 
 const Original = CodeMirrorMerge.Original
 const Modified = CodeMirrorMerge.Modified
@@ -608,9 +609,9 @@ function App({
         <Modified
           value={suggestion.newCode}
           extensions={[EditorState.readOnly.of(false), javascript({ jsx: true })]}
-          onChange={(value) => {
+          onChange={debounce((value: string) => {
             setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
-          }}
+          }, 1000)}
         />
       </CodeMirrorMerge>
     ))
@@ -1152,7 +1153,7 @@ function App({
                     placeholder="Pull Request Body"
                     className="w-full mb-4 text-zinc-300"
                     disabled={pullRequestBody == null}
-                    rows={5}
+                    rows={8}
                   />
                   <Button 
                     className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
