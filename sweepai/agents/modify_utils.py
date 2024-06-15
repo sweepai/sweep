@@ -614,7 +614,7 @@ def find_smallest_valid_superspan(needle: str, haystack: str):
 def contains_ignoring_whitespace(needle: str, haystack: str):
     needle = "\n".join([line.rstrip() for line in needle.splitlines()])
     haystack = "\n".join([line.rstrip() for line in haystack.splitlines()])
-    max_indent = find_max_indentation(needle)
+    max_indent = find_max_indentation(haystack)
     for indent_size in range(0, max_indent + 2, 2):
         indented_needle = indent(needle, indent_size)
         if indented_needle in haystack:
@@ -889,10 +889,12 @@ def validate_indents(original_code, new_code, file_contents, correct_indent, rst
         original_code_lines = [line.rstrip() for line in original_code.split("\n")]
     else:
         original_code_lines = original_code.split("\n")
-    if len(original_code_lines) > 1 and (best_span := contains_ignoring_whitespace(original_code, file_contents)):
+    if len(original_code_lines) > 1:
         """This will match the whitespace from the code file itself"""
-        start_line, end_line = best_span
-        original_code = "\n".join(file_contents.split("\n")[start_line:end_line])
+        best_span = contains_ignoring_whitespace(original_code, file_contents)
+        if best_span:
+            start_line, end_line = best_span
+            original_code = "\n".join(file_contents.split("\n")[start_line:end_line])
     else:
         original_code = f'{correct_indent * " "}{original_code.lstrip()}'
     return original_code, new_code, original_code_lines
