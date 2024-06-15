@@ -2,10 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Input } from "../components/ui/input"
-import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { FaCheck, FaCog, FaComments, FaGithub, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp } from "react-icons/fa";
+import { FaCheck, FaCog, FaComments, FaGithub, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -50,6 +48,85 @@ const Original = CodeMirrorMerge.Original
 const Modified = CodeMirrorMerge.Modified
 
 const sum = (arr: number[]) => arr.reduce((acc, cur) => acc + cur, 0)
+
+const PullRequestHeader = ({ pr }: { pr: PullRequest }) => {
+  return (
+    <div className="bg-zinc-800 rounded-xl p-4 mb-2 text-left hover:bg-zinc-700 hover:cursor-pointer max-w-[800px]" onClick={() => {
+      window.open(`https://github.com/${pr.repo_name}/pull/${pr.number}`, "_blank")
+    }}>
+      <div className={`border-l-4 ${pr.status === "open" ? "border-green-500" : pr.status === "merged" ? "border-purple-500" : "border-red-500"} pl-4`}>
+        <div className="mb-2 font-bold text-md">
+          #{pr.number} {pr.title} 
+        </div>
+        <div className="mb-4 text-sm">
+          {pr.body}
+        </div>
+        <div className="text-xs text-zinc-300">
+          <div className="mb-1">{pr.repo_name}</div>
+          {pr.file_diffs.length} files changed <span className="text-green-500">+{sum(pr.file_diffs.map(diff => diff.additions))}</span> <span className="text-red-500">-{sum(pr.file_diffs.map(diff => diff.deletions))}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const PullRequestContent = ({ pr }: { pr: PullRequest }) => {
+  return (
+    <>
+      <div className="p-4">
+        <h2 className="text-sm font-semibold mb-2">
+          Files changed
+        </h2>
+        <div className="text-sm text-gray-300">
+          <ol>
+            {pr.file_diffs.map((file, index) => (
+              <li key={index} className="mb-1">
+                {file.filename} <span className={`${file.status === 'added' ? 'text-green-500' : file.status === 'removed' ? 'text-red-500' : 'text-gray-400'}`}>
+                  {file.status === 'added' ? <span className="text-green-500">Added (+{file.additions})</span> : file.status === 'removed' ? <span className="text-red-500">Deleted ({file.deletions})</span> : <><span className="text-green-500">+{file.additions}</span> <span className="text-red-500">-{file.deletions}</span></>}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+      <SyntaxHighlighter
+        language="diff"
+        style={codeStyle}
+        customStyle={{
+          backgroundColor: 'transparent',
+          whiteSpace: 'pre-wrap',
+        }}
+        className="rounded-xl p-4 text-xs w-full"
+      >
+        {renderPRDiffs(pr)}
+      </SyntaxHighlighter>
+    </>
+  )
+}
+
+const PullRequestDisplay = ({ pr, useHoverCard = true }: { pr: PullRequest, useHoverCard?: boolean }) => {
+  if (useHoverCard) {
+    return (
+      <HoverCard openDelay={300} closeDelay={200}>
+        <HoverCardTrigger>
+          <PullRequestHeader pr={pr} />
+        </HoverCardTrigger>
+        <HoverCardContent className="w-[800px] max-h-[600px] overflow-y-auto">
+          <PullRequestContent pr={pr} />
+        </HoverCardContent>
+      </HoverCard>
+    )
+  } else {
+    return (
+      <div className="flex justify-end flex-col">
+        <PullRequestHeader pr={pr} />
+        <div className="bg-zinc-800 rounded-xl p-4 mb-2 text-left max-w-[800px]">
+          <PullRequestContent pr={pr} />
+        </div>
+      </div>
+    )
+  }
+}
 
 const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (content: string) => void }) => {
   // TODO: finish this implementation
@@ -116,55 +193,7 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
       </div>
       {!isEditing && message.annotations?.pulls?.map((pr) => (
         <div className="flex justify-end text-sm" key={pr.number}>
-          <HoverCard openDelay={300} closeDelay={200}>
-            <HoverCardTrigger>
-              <div className="bg-zinc-800 rounded-xl p-4 mb-2 text-left hover:bg-zinc-700 hover:cursor-pointer max-w-[600px]" onClick={() => {
-                window.open(`https://github.com/${pr.repo_name}/pull/${pr.number}`, "_blank")
-              }}>
-                <div className={`border-l-4 ${pr.status === "open" ? "border-green-500" : pr.status === "merged" ? "border-purple-500" : "border-red-500"} pl-4`}>
-                  <div className="mb-2 font-bold text-md">
-                    #{pr.number} {pr.title} 
-                  </div>
-                  <div className="mb-4 text-sm">
-                    {pr.body}
-                  </div>
-                  <div className="text-xs text-zinc-300">
-                    <div className="mb-1">{pr.repo_name}</div>
-                    {pr.file_diffs.length} files changed <span className="text-green-500">+{sum(pr.file_diffs.map(diff => diff.additions))}</span> <span className="text-red-500">-{sum(pr.file_diffs.map(diff => diff.deletions))}</span>
-                  </div>
-                </div>
-              </div>
-            </HoverCardTrigger>
-            <HoverCardContent className="w-[800px] max-h-[600px] overflow-y-auto">
-              <div className="p-4">
-                <h2 className="text-sm font-semibold mb-2">
-                  Files changed
-                </h2>
-                <div className="text-sm text-gray-300">
-                  <ol>
-                    {pr.file_diffs.map((file, index) => (
-                      <li key={index} className="mb-1">
-                        {file.filename} <span className={`${file.status === 'added' ? 'text-green-500' : file.status === 'removed' ? 'text-red-500' : 'text-gray-400'}`}>
-                          {file.status === 'added' ? <span className="text-green-500">Added (+{file.additions})</span> : file.status === 'removed' ? <span className="text-red-500">Deleted ({file.deletions})</span> : <><span className="text-green-500">+{file.additions}</span> <span className="text-red-500">-{file.deletions}</span></>}
-                        </span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              </div>
-              <SyntaxHighlighter
-                language="diff"
-                style={codeStyle}
-                customStyle={{
-                  backgroundColor: 'transparent',
-                  whiteSpace: 'pre-wrap',
-                }}
-                className="rounded-xl p-4 text-xs w-full"
-              >
-                {renderPRDiffs(pr)}
-              </SyntaxHighlighter>
-            </HoverCardContent>
-          </HoverCard>
+          <PullRequestDisplay pr={pr} />
         </div>
       ))}
     </>
@@ -227,6 +256,7 @@ const MessageDisplay = ({
   repoName,
   branch,
   onApplyChanges,
+  showApplySuggestedChangeButton,
   index
 }: {
   message: Message,
@@ -235,6 +265,7 @@ const MessageDisplay = ({
   repoName: string,
   branch: string,
   onApplyChanges: (codeSuggestions: CodeSuggestion[]) => void,
+  showApplySuggestedChangeButton: boolean,
   index: number
 }) => {
   if (message.role === "user") {
@@ -247,85 +278,92 @@ const MessageDisplay = ({
   return (
     <>
       <div className={`flex justify-start`}>
-          <div
-            className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] text-left w-[80%]
-              ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
-          >
-            {message.role === "function" ? (
-              <Accordion type="single" collapsible className="w-full" defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}>
-                <AccordionItem value="function" className="border-none">
-                  <AccordionTrigger className="border-none py-0 text-left">
-                    <div className="text-xs text-gray-400 flex align-center">
-                      {!message.function_call!.is_complete ? (
-                        <PulsingLoader size={0.5} />
-                      ) : (
-                        <FaCheck
-                          className="inline-block mr-2"
-                          style={{ marginTop: 2 }}
-                        />
-                      )}
-                      <span>{getFunctionCallHeaderString(message.function_call)}</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className={`pb-0 ${message.content && message.function_call?.function_name === "search_codebase" && !message.function_call?.is_complete ? "pt-6" : "pt-0"}`}>
-                    {message.function_call?.function_name === "search_codebase" && message.content && !message.function_call.is_complete && (
-                      <span className="p-4 pl-2">
-                        {message.content}
-                      </span>
-                    )}
-                    {message.function_call!.snippets ? (
-                      <div className="pb-0 pt-4">
-                        {message.function_call!.snippets.map((snippet, index) => (
-                          <SnippetBadge
-                            key={index}
-                            snippet={snippet}
-                            repoName={repoName}
-                            branch={branch}
+          {(!message.annotations?.pulls || message.annotations!.pulls?.length == 0) && (
+            <div
+              className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] text-left w-[80%]
+                ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
+            >
+              {message.role === "function" ? (
+                <Accordion type="single" collapsible className="w-full" defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}>
+                  <AccordionItem value="function" className="border-none">
+                    <AccordionTrigger className="border-none py-0 text-left">
+                      <div className="text-xs text-gray-400 flex align-center">
+                        {!message.function_call!.is_complete ? (
+                          <PulsingLoader size={0.5} />
+                        ) : (
+                          <FaCheck
+                            className="inline-block mr-2"
+                            style={{ marginTop: 2 }}
                           />
-                        ))}
+                        )}
+                        <span>{getFunctionCallHeaderString(message.function_call)}</span>
                       </div>
-                    ) : (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
-                      <MarkdownRenderer content={message.content} className="reactMarkdown mt-4 mb-0 py-2" />
-                    ) : (
-                      <SyntaxHighlighter
-                        language="xml"
-                        style={codeStyle}
-                        customStyle={{
-                          backgroundColor: 'transparent',
-                          whiteSpace: 'pre-wrap',
-                          maxHeight: '300px',
-                        }}
-                        className="rounded-xl p-4"
-                      >
-                        {message.content}
-                      </SyntaxHighlighter>
-                    )
-                    )}
-                    <FeedbackBlock message={message} index={index} />
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            ) : message.role === "assistant" ? (
-              <>
-                <MarkdownRenderer content={message.content} className="reactMarkdown mb-0 py-2" />
-                <FeedbackBlock message={message} index={index} />
-              </>
-            ) : (
-              <UserMessageDisplay message={message} onEdit={onEdit} />
-            )}
-        </div>
+                    </AccordionTrigger>
+                    <AccordionContent className={`pb-0 ${message.content && message.function_call?.function_name === "search_codebase" && !message.function_call?.is_complete ? "pt-6" : "pt-0"}`}>
+                      {message.function_call?.function_name === "search_codebase" && message.content && !message.function_call.is_complete && (
+                        <span className="p-4 pl-2">
+                          {message.content}
+                        </span>
+                      )}
+                      {message.function_call!.snippets ? (
+                        <div className="pb-0 pt-4">
+                          {message.function_call!.snippets.map((snippet, index) => (
+                            <SnippetBadge
+                              key={index}
+                              snippet={snippet}
+                              repoName={repoName}
+                              branch={branch}
+                            />
+                          ))}
+                        </div>
+                      ) : (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
+                        <MarkdownRenderer content={message.content} className="reactMarkdown mt-4 mb-0 py-2" />
+                      ) : (
+                        <SyntaxHighlighter
+                          language="xml"
+                          style={codeStyle}
+                          customStyle={{
+                            backgroundColor: 'transparent',
+                            whiteSpace: 'pre-wrap',
+                            maxHeight: '300px',
+                          }}
+                          className="rounded-xl p-4"
+                        >
+                          {message.content}
+                        </SyntaxHighlighter>
+                      )
+                      )}
+                      <FeedbackBlock message={message} index={index} />
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              ) : message.role === "assistant" ? (
+                <>
+                  <MarkdownRenderer content={message.content} className="reactMarkdown mb-0 py-2" />
+                  <FeedbackBlock message={message} index={index} />
+                </>
+              ) : (
+                <UserMessageDisplay message={message} onEdit={onEdit} />
+              )}
+            </div>
+          )}
       </div>
-      {matches.length > 0 && (
+      {showApplySuggestedChangeButton && matches.length > 0 && (
         <div className="flex justify-start w-[80%]">
           <Button className="mb-4 bg-blue-900 hover:bg-blue-800 text-zinc-200" onClick={() => onApplyChanges(matches.map((match) => ({
             filePath: match.groups?.filePath || "",
             originalCode: match.groups?.originalCode || "",
             newCode: match.groups?.newCode || "",
           })))}>
-            Apply suggested changes
+            Apply Suggested Changes
           </Button>
         </div>
       )}
+      {message.annotations?.pulls?.map((pr) => (
+        <div className="flex justify-start text-sm" key={pr.number}>
+          <PullRequestDisplay pr={pr} />
+        </div>
+      ))}
     </>
   );
 };
@@ -461,8 +499,10 @@ function App({
   const [suggestedChanges, setSuggestedChanges] = useState<CodeSuggestion[]>([])
   const [openSuggestionDialog, setOpenSuggestionDialog] = useState<boolean>(false)
   const [isProcessingSuggestedChanges, setIsProcessingSuggestedChanges] = useState<boolean>(false)
+  const [pullRequestTitle, setPullRequestTitle] = useState<string | null>("Sweep Chat Suggested Changes")
+  const [pullRequestBody, setPullRequestBody] = useState<string | null>("Suggested changes by Sweep Chat.")
   const [isCreatingPullRequest, setIsCreatingPullRequest] = useState<boolean>(false)
-  const [pullRequestURL, setPullRequestURL] = useState<string>("")
+  const [pullRequest, setPullRequest] = useState<PullRequest | null>(null)
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -488,12 +528,14 @@ function App({
         })
         const data = await response.json()
         if (data.status == "success") {
-          const { repo_name, messages, snippets } = data.data
+          const { repo_name, messages, snippets, code_suggestions, pull_request } = data.data
           console.log(repo_name, messages, snippets)
           setRepoName(repo_name)
           setRepoNameValid(true)
           setMessages(messages)
           setSnippets(snippets)
+          setSuggestedChanges(code_suggestions)
+          setPullRequest(pull_request)
         } else {
           toast({
             title: "Failed to load message",
@@ -562,12 +604,14 @@ function App({
     )
   }
 
-  const lastAssistantMessageIndex = messages.findLastIndex((message) => message.role === "assistant" && message.content.trim().length > 0)
+  const lastAssistantMessageIndex = messages.findLastIndex((message) => message.role === "assistant" && !message.annotations?.pulls && message.content.trim().length > 0)
 
   const save = async (
     currentRepoName: string,
     currentMessages: Message[],
     currentSnippets: Snippet[],
+    currentSuggestedChanges: CodeSuggestion[] = [],
+    currentPullRequest: PullRequest | null = null
   ) => {
     const saveResponse = await fetch("/backend/messages/save", {
       method: "POST",
@@ -577,10 +621,20 @@ function App({
         "Authorization": `Bearer ${session?.user.accessToken}`
       },
       body: JSON.stringify(
-        messagesId ?
-        {repo_name: currentRepoName || repoName, messages: currentMessages || messages, snippets: currentSnippets || snippets, message_id: messagesId}
-        :
-        {repo_name: currentRepoName || repoName, messages: currentMessages || messages, snippets: currentSnippets || snippets}
+        {
+          repo_name: currentRepoName || repoName, 
+          messages: currentMessages || messages, 
+          snippets: currentSnippets || snippets, 
+          message_id: messagesId || "",
+          code_suggestions: (currentSuggestedChanges || suggestedChanges).map(suggestion => {
+            return {
+              file_path: suggestion.filePath,
+              original_code: suggestion.originalCode,
+              new_code: suggestion.newCode,
+            }
+          }),
+          pull_request: currentPullRequest || pullRequest
+        }
       )
     })
     const saveData = await saveResponse.json()
@@ -591,6 +645,8 @@ function App({
         const updatedUrl = `/c/${message_id}`;
         window.history.pushState({}, '', updatedUrl);
       }
+    } else {
+      console.warn("Failed to save message", saveData)
     }
   }
 
@@ -1001,11 +1057,18 @@ function App({
                       originalCode: original_contents,
                       newCode: contents,
                     })))
+                    save(repoName, messages, snippets, suggestedChanges, pullRequest)
                     setIsProcessingSuggestedChanges(false);
                   }
-                })()
+                })();
+                setTimeout(() => {
+                  if (messagesContainerRef.current) {
+                    messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+                  }
+                }, 400);
               }
             }}
+            showApplySuggestedChangeButton={!openSuggestionDialog}
           />
         ))}
         {isLoading && (
@@ -1013,96 +1076,130 @@ function App({
             <PulsingLoader size={1.5} />
           </div>
         )}
-      </div>
-      <Dialog open={openSuggestionDialog} onOpenChange={setOpenSuggestionDialog}>
-        <DialogContent className="max-w-none fit-content p-16 max-h-[90%] overflow-y-auto">
-          {isProcessingSuggestedChanges && (
-            <div className="flex justify-around w-full py-2">
-              <p>Validating and auto-fixing suggested changes...</p>
+        {openSuggestionDialog && (
+          <div className="bg-zinc-900 rounded-xl p-4 mt-8">
+            <div className="flex justify-between mb-4">
+              <p className="text-zinc-400 flex items-center">Suggested Changes</p>
+              <Button
+                className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
+                onClick={() => setOpenSuggestionDialog(false)}
+                aria-label="Close"
+              >
+                <FaTimes />
+              </Button>
             </div>
-          )}
-          <div style={{ opacity: isProcessingSuggestedChanges ? 0.5 : 1, pointerEvents: isProcessingSuggestedChanges ? 'none' : 'auto' }}>
-            {!pullRequestURL ? suggestedChanges.map((suggestion, index) => (
-              <>
-                <div className="fit-content mb-6" key={index}>
-                  <div className="w-full text-sm bg-zinc-800 p-2 rounded-t-md">
-                    <code>
-                      {suggestion.filePath} {isProcessingSuggestedChanges ? "(processing)" : <FaCheck style={{display: "inline", marginTop: -2}}/>}
-                    </code>
-                  </div>
-                  <CodeMirrorMerge
-                    theme={dracula}
-                    revertControls={"b-to-a"}
-                    collapseUnchanged={{
-                      margin: 3,
-                      minSize: 4,
-                    }}
-                  >
-                    <Original
-                      value={suggestion.originalCode}
-                      extensions={[EditorView.editable.of(false), EditorState.readOnly.of(true), javascript({ jsx: true })]}
-                    />
-                    <Modified
-                      value={suggestion.newCode}
-                      extensions={[EditorView.editable.of(true), EditorState.readOnly.of(false), javascript({ jsx: true })]}
-                      onChange={(value) => {
-                        setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
-                      }}
-                    />
-                  </CodeMirrorMerge>
-                </div>
-                <Button 
-                  className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
-                  onClick={async () => {
-                    setIsCreatingPullRequest(true)
-                    const file_changes = suggestedChanges.reduce((acc: Record<string, string>, suggestion: CodeSuggestion) => {
-                      acc[suggestion.filePath] = suggestion.newCode;
-                      return acc;
-                    }, {})
-                    console.log(file_changes)
-                    try {
-                      const response = await fetch(
-                        `/backend/create_pull`,
-                        {
-                          method: "POST",
-                          headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${session?.user.accessToken!}`
-                          },
-                          body: JSON.stringify({
-                            repo_name: repoName,
-                            file_changes: file_changes,
-                            branch: "sweep-chat-patch-" + new Date().toISOString().split("T")[0], // use ai for better branch name, title, and body later
-                            title: "Sweep Chat Suggested Changes",
-                            body: "Suggested changes by Sweep Chat. Link from https://sweep.chat.",
-                          }),
-                        }
-                      )
-                      const {pull_url: pullURL, new_branch: newBranch} = await response.json()
-                      setPullRequestURL(pullURL)
-                    } catch (e) {
-                      toast({
-                        title: "Error",
-                        description: `An error occurred while creating the pull request: ${e}`,
-                        variant: "destructive",
-                        duration: Infinity,
-                      })
-                    } finally {
-                      setIsCreatingPullRequest(false)
-                    }
-                  }}
-                >
-                  Create pull request
-                </Button>
-              </>
-            )): (
-              <div className="flex justify-center items-center h-full">
-                <p>Pull request created: <a className="text-blue-500 hover:text-blue-400" href={pullRequestURL}>{pullRequestURL}</a></p>
+            {(isProcessingSuggestedChanges || isCreatingPullRequest) && (
+              <div className="flex justify-around w-full py-2">
+                <p>{isProcessingSuggestedChanges ? "Validating and auto-fixing suggested changes..." : "Creating pull request..."}</p>
               </div>
             )}
+            <div style={{ opacity: (isProcessingSuggestedChanges || isCreatingPullRequest) ? 0.5 : 1, pointerEvents: (isProcessingSuggestedChanges || isCreatingPullRequest) ? 'none' : 'auto' }}>
+              {suggestedChanges.map((suggestion, index) => (
+                <>
+                  <div className="fit-content mb-6" key={index}>
+                    <div className="w-full text-sm bg-zinc-800 p-2 rounded-t-md">
+                      <code>
+                        {suggestion.filePath} {isProcessingSuggestedChanges ? "(processing)" : <FaCheck style={{display: "inline", marginTop: -2}}/>}
+                      </code>
+                    </div>
+                    <CodeMirrorMerge
+                      theme={dracula}
+                      revertControls={"b-to-a"}
+                      collapseUnchanged={{
+                        margin: 3,
+                        minSize: 4,
+                      }}
+                    >
+                      <Original
+                        value={suggestion.originalCode}
+                        extensions={[EditorView.editable.of(false), EditorState.readOnly.of(true), javascript({ jsx: true })]}
+                      />
+                      <Modified
+                        value={suggestion.newCode}
+                        extensions={[EditorView.editable.of(true), EditorState.readOnly.of(false), javascript({ jsx: true })]}
+                        onChange={(value) => {
+                          setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
+                        }}
+                      />
+                    </CodeMirrorMerge>
+                  </div>
+                  <Input
+                    value={pullRequestTitle || ""}
+                    onChange={(e) => setPullRequestTitle(e.target.value)}
+                    placeholder="Pull Request Title"
+                    className="w-full mb-4 text-zinc-300"
+                    disabled={pullRequestTitle == null}
+                  />
+                  <Textarea
+                    value={pullRequestBody || ""}
+                    onChange={(e) => setPullRequestBody(e.target.value)}
+                    placeholder="Pull Request Body"
+                    className="w-full mb-4 text-zinc-300"
+                    disabled={pullRequestBody == null}
+                  />
+                  <Button 
+                    className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
+                    onClick={async () => {
+                      setIsCreatingPullRequest(true)
+                      const file_changes = suggestedChanges.reduce((acc: Record<string, string>, suggestion: CodeSuggestion) => {
+                        acc[suggestion.filePath] = suggestion.newCode;
+                        return acc;
+                      }, {})
+                      console.log(file_changes)
+                      try {
+                        const response = await fetch(
+                          `/backend/create_pull`,
+                          {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                              "Authorization": `Bearer ${session?.user.accessToken!}`
+                            },
+                            body: JSON.stringify({
+                              repo_name: repoName,
+                              file_changes: file_changes,
+                              branch: "sweep-chat-patch-" + new Date().toISOString().split("T")[0], // use ai for better branch name, title, and body later
+                              title: pullRequestTitle,
+                              body: pullRequestBody + `\n\nSuggested changes by Sweep Chat, from ${window.location.origin}/c/${messagesId}`,
+                            }),
+                          }
+                        )
+                        const data = await response.json()
+                        const {pull_request: pullRequest} = data
+                        console.log(pullRequest)
+                        setPullRequest(pullRequest)
+                        setMessages([
+                          ...messages,
+                          {
+                            content: `Pull request created: [https://github.com/${repoName}/pull/${pullRequest.number}](https://github.com/${repoName}/pull/${pullRequest.number})`,
+                            role: "assistant",
+                            annotations: {
+                              pulls: [pullRequest]
+                            }
+                          }
+                        ])
+                        save(repoName, messages, snippets, suggestedChanges, pullRequest)
+                      } catch (e) {
+                        toast({
+                          title: "Error",
+                          description: `An error occurred while creating the pull request: ${e}`,
+                          variant: "destructive",
+                          duration: Infinity,
+                        })
+                      } finally {
+                        setIsCreatingPullRequest(false)
+                        setOpenSuggestionDialog(false)
+                      }
+                    }}
+                  >
+                    Create Pull Request
+                  </Button>
+                </>
+              ))}
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        )}
+      </div>
       {repoNameValid && (
         <div className={`flex w-full`}>
           {isStream.current ? (
@@ -1127,6 +1224,8 @@ function App({
                 setSnippets([]);
                 setMessagesId("");
                 window.history.pushState({}, '', '/');
+                setSuggestedChanges([])
+                setPullRequest(null)
               }}
               disabled={isLoading}
             >
