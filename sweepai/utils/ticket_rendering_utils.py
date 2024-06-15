@@ -340,9 +340,9 @@ def process_summary(summary, issue_number, repo_full_name, installation_id):
 
 
 def raise_on_no_file_change_requests(
-    title, summary, edit_sweep_comment, file_change_requests
+    title, summary, edit_sweep_comment, file_change_requests, renames_dict
 ):
-    if not file_change_requests:
+    if not file_change_requests and not renames_dict:
         if len(title + summary) < 60:
             edit_sweep_comment(
                 (

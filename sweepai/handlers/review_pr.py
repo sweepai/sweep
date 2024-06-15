@@ -118,10 +118,14 @@ def review_pr(
             pr_issue = repository.get_issue(number=pr.number)
             reaction_eyes = pr_issue.create_reaction("eyes")
             # get all comments on the pr
-            comment_threads: dict[str, list[PRReviewCommentThread]] = get_all_comments_for_review(repository.full_name, pr, installation_id)
+            comment_threads: dict[str, list[PRReviewCommentThread]] = get_all_comments_for_review(
+                repository.full_name, pr, installation_id
+            )
             formatted_comment_threads: dict[str, str] = format_comment_threads(comment_threads)
             # handle creating comments on the pr to tell the user we are going to begin reviewing the pr
-            pr_changes, dropped_files, unsuitable_files = get_pr_changes(repository, pr)
+            pr_changes, dropped_files, unsuitable_files = get_pr_changes(
+                repository, pr, cloned_repo
+            )
             # -1 group key means review those seperately
             grouped_files: dict[str, list[str]] = cluster_patches(pr_changes)
             # build another dict so that all files are in their own group

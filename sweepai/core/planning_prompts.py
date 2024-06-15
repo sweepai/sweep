@@ -166,6 +166,10 @@ anthropic_rename_prompt = """Your job is to handle all renames and deletions in 
 
 Identify all renames that would need to occur in the codebase to resolve the user's issue. Respond in the following format:
 
+<thinking>
+Analyse the issue and codebase to understand the problem. Identify all the renames that would need to occur in the codebase to resolve the issue. Be sure to use the FULL file path for each file.
+</thinking>
+
 <renames>
 <rename>
 <old_name>Current full file path of the file.</old_name>
