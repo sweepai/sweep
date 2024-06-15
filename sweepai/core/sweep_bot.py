@@ -50,6 +50,7 @@ from sweepai.core.on_comment_prompts import (
     plan_generation_steps_on_comment_system_prompt,
     plan_generation_steps_on_comment_prompt
 )
+from sweepai.dataclasses.code_suggestions import CodeSuggestion
 from sweepai.utils.chat_logger import ChatLogger
 # from sweepai.utils.previous_diff_utils import get_relevant_commits
 from sweepai.utils.diff import generate_diff
@@ -224,6 +225,116 @@ def validate_file_change_requests(
             except FileNotFoundError:
                 pass
 
+def validate_change(
+    code_suggestion: CodeSuggestion,
+    cloned_repo: ClonedRepo,
+    updated_files: dict[str, dict[str, str]] = {},
+    renames_dict: dict[str, str] = {},
+    index: int = 0,
+    raw_string: str = "",
+):
+    if not raw_string:
+        raw_string = f"<code_changes>\n<original_code>\n{code_suggestion.original_code}\n</original_code>\n<new_code>\n{code_suggestion.new_code}\n</new_code>\n</code_changes>"
+    def get_file_contents(file_path):
+        if file_path in renames_dict.values():
+            file_path = [k for k, v in renames_dict.items() if v == file_path][0]
+        if file_path in updated_files:
+            return updated_files[file_path]["contents"]
+        return cloned_repo.get_file_contents(file_path)
+    try:
+        file_contents = get_file_contents(code_suggestion.file_path)
+    except FileNotFoundError as e:
+        for file_path in cloned_repo.get_file_list():
+            if file_path.endswith(code_suggestion.file_path):
+                logger.info(f"Found similar file {code_suggestion.file_path} at {file_path}")
+                file_contents = get_file_contents(file_path)
+                code_suggestion.file_path = file_path
+        else:
+            if code_suggestion.original_code:
+                logger.warning(f"Failed to get file contents for {code_suggestion.file_path} due to {e}")
+                return f"The file `{code_suggestion.file_path}` does not exist. Double-check your spelling."
+    if not code_suggestion.original_code:
+        return f"You forgot to provide an <original_code> block. Here is what you provided in the instructions:\n```\n{raw_string}\n```\nIf you would like to drop this task, respond with <drop>{index}</drop>."
+    if not code_suggestion.new_code:
+        return f"You forgot to a <new_code> block. Here is what you provided in the instructions:\n```\n{raw_string}\n```\nIf you would like to drop this task, respond with <drop>{index}</drop>."
+    original_code = code_suggestion.original_code.strip("\n")
+    new_code = code_suggestion.new_code.strip("\n")
+    if original_code == new_code:
+        return f"<original_code> and <new_code> are the same. You must provide a different code snippet in <new_code>. Here is what you provided in the instructions:\n```\n{raw_string}\n```\nIf you would like to drop this task, respond with <drop>{index}</drop>."
+    if not original_code:
+        return f"The <original_code> can not be empty. If you would like to append code, copy the code you want to append the new code after into the <original_code>, then copy the same code into <new_code>, then finally append the new code after <new_code>. Here is what you provided in the instructions:\n```\n{raw_string}\n```\nIf you would like to drop this task, respond with <drop>{index}</drop>."
+    else:
+        # if it's present in a previous fcr's new_code, we're not concerned about it
+        original_code_in_previous_fcr = False # any(contains_ignoring_whitespace(original_code, fcr["new_code"][0]) for fcr in previous_parsed_fcrs)
+        
+        # checking previous fcr in original code can lead to false positives if the previous fcr is VERY small and occurs
+        # but in practice it doesn't seem likely
+        # so we check if the previous fcr comprises > 50% of the original code
+        previous_fcr_in_original_code = False
+        previous_fcr_occurrences = [] # [contains_ignoring_whitespace(fcr["new_code"][0], original_code) for fcr in previous_parsed_fcrs]
+
+        # check if the previous fcr comprises > 50% of the original code's lines
+        # this means that it has a high chance to be valid once the previous diffs are applied
+        all_previous_occurrences = [x[1] - x[0] if x else 0 for x in previous_fcr_occurrences]
+        if all_previous_occurrences and max(all_previous_occurrences) > len(original_code.splitlines()) // 2:
+            previous_fcr_in_original_code = True
+        if not contains_ignoring_whitespace(original_code, file_contents) and not original_code_in_previous_fcr and not previous_fcr_in_original_code:
+            threshold = 50
+            best_match, current_best_score = find_best_match(original_code, file_contents, threshold=threshold, tokenized=True)
+            max_indentation = find_max_indentation(file_contents)
+
+            best_score = 0
+            best_indent = 0
+            for indent_count in range(0, max_indentation, 2):
+                match_score = fuzz.ratio(indent(original_code, indent_count), best_match)
+                if match_score > best_score:
+                    best_score = match_score
+                    best_indent = indent_count
+            
+            too_long_message = f"\nAlso, the <original_code> block you provided is quite long, with {len(original_code.splitlines())} lines of code. Consider isolating <original_code> and <updated_code> to only the section you want to edit to avoid errors copying the code." if len(original_code.splitlines()) > 50 else ""
+            ellipses_message = "\nYou must copy code out in full and may not use ellipses, abbreviations, or any short-hand notation in your code." if "# ..." in original_code or "// ..." in original_code else ""
+
+            if not best_match.strip():
+                return f"<original_code> does not exist in `{code_suggestion.file_path}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nBut the code is no where to be found in the file. There are also no similar code snippets in this file.{too_long_message}{ellipses_message}"
+            if best_score != 100:
+                if not check_valid_parentheses(best_match):
+                    extended_match = find_smallest_valid_superspan(best_match, file_contents)
+                    if extended_match and extended_match.count("\n") - best_match.count('\n') < 20:
+                        best_match = extended_match
+                if best_score > 80:
+                    return f"<original_code> does not exist in `{code_suggestion.file_path}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}"
+                else:
+                    best_matches = find_best_matches(original_code, file_contents, threshold=threshold, tokenized=True)
+                    if len(best_matches) > 1:
+                        best_matches_string = "\n\n".join([f"Code match {i}:\n```\n{match_}\n```" for i, (match_, score) in enumerate(best_matches)])
+                        return f"<original_code> does not exist in `{code_suggestion.file_path}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify one of the following pieces of code instead?\n{best_matches_string}{too_long_message}{ellipses_message}"
+                    else:
+                        # Same as case > 80
+                        return f"<original_code> does not exist in `{code_suggestion.file_path}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}"
+        else:
+            # Check for parentheses mismatch, helps catch downstream syntax errors
+            file_path, ext = os.path.splitext(code_suggestion.file_path)
+            if ext.removeprefix(".") in ["java", "c", "cpp", "h", "hpp", "js", "ts", "jsx", "tsx", "go", "rs"]:
+                for parentheses in ["()", "{}", "[]"]:
+                    left, right = parentheses
+                    old_parentheses_diff = original_code.count(left) - original_code.count(right)
+                    new_parentheses_diff = new_code.count(left) - new_code.count(right)
+                    if old_parentheses_diff != new_parentheses_diff:
+                        # check for smallest surrounding span with corrected parentheses
+                        best_superspan = ""
+                        if new_parentheses_diff == 0:
+                            best_superspan = find_smallest_valid_superspan(original_code, file_contents)
+                            if best_superspan:
+                                return f"You have a mismatch in parentheses in <original_code>. Your <original_code> has {original_code.count(left)} opening and {original_code.count(right)} closing parentheses:\n```\n{original_code}\n```\nYou can correct this by extending the code to the following:\n```\n{best_superspan}\n```"
+                        if not best_superspan:
+                            # use naive error message otherwise
+                            if old_parentheses_diff != 0:
+                                error_message += f" Your <original_code> has {original_code.count(left)} opening and {original_code.count(right)} closing parentheses:\n```\n{original_code}\n```\n"
+                            if new_parentheses_diff != 0:
+                                error_message += f" Your <new_code> has {new_code.count(left)} opening and {new_code.count(right)} closing parentheses:\n```\n{new_code}\n```\n"
+                            return "Make sure the number of opening and closing parentheses match in both <original_code> and <new_code>, otherwise the changes will cause a syntax error."
+
+# todo: integrate this into the main function
 def get_error_message(
     file_change_requests: list[FileChangeRequest],
     cloned_repo: ClonedRepo,

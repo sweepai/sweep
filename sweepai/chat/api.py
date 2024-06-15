@@ -13,18 +13,20 @@ import git
 from github import Github
 from loguru import logger
 import yaml
+from sweepai.agents.modify import modify
 
 from sweepai.agents.modify_utils import validate_and_parse_function_call
 from sweepai.agents.search_agent import extract_xml_tag
 from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, anthropic_system_message, function_response, anthropic_format_message, pr_format, relevant_snippets_message_for_pr, openai_format_message, openai_system_message
 from sweepai.config.client import SweepConfig
-from sweepai.config.server import CACHE_DIRECTORY
+from sweepai.config.server import CACHE_DIRECTORY, GITHUB_APP_ID, GITHUB_APP_PEM
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message, Snippet
+from sweepai.core.entities import FileChangeRequest, Message, Snippet
 from sweepai.core.review_utils import split_diff_into_patches
-from sweepai.core.sweep_bot import get_files_to_change, get_files_to_change_for_chat
+from sweepai.core.sweep_bot import get_error_message, get_files_to_change, get_files_to_change_for_chat, validate_change
+from sweepai.dataclasses.code_suggestions import CodeSuggestion
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
-from sweepai.utils.github_utils import CustomGithub, MockClonedRepo, get_github_client, get_installation_id
+from sweepai.utils.github_utils import ClonedRepo, CustomGithub, MockClonedRepo, get_github_client, get_installation_id
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.str_utils import get_hash
 from sweepai.utils.streamable_functions import streamable
@@ -748,6 +750,64 @@ def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, s
         return f"SUCCESS\n\nHere are the relevant files to your search request:\n{new_snippets_string}", new_snippets_to_add[:k]
     else:
         return "ERROR\n\nTool not found.", []
+
+@app.post("/backend/autofix")
+async def autofix(
+    repo_name: str = Body(...),
+    code_suggestions: list[CodeSuggestion] = Body(...),
+    access_token: str = Depends(get_token_header)
+):
+    with Timer() as timer:
+        g = get_authenticated_github_client(repo_name, access_token)
+    logger.debug(f"Getting authenticated GitHub client took {timer.time_elapsed} seconds")
+    if not g:
+        return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
+    
+    org_name, repo = repo_name.split("/")
+    # cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
+    installation_id = get_installation_id(org_name, GITHUB_APP_PEM, GITHUB_APP_ID)
+    cloned_repo = ClonedRepo(
+        repo_name,
+        installation_id=installation_id,
+        token=access_token
+    )
+    # error_messages = ""
+    # for i, code_suggestion in enumerate(code_suggestions):
+    #     error_message = validate_change(
+    #         code_suggestion,
+    #         cloned_repo,
+    #         updated_files={},
+    #         renames_dict={},
+    #         index=i,
+    #     )
+    #     if error_message:
+    #         error_messages += error_message + "\n\n"
+    #     else:
+    #         code_suggestions[i].original_entire_code = cloned_repo.get_file_contents(code_suggestion.file_path)
+
+    # TODO: make this use file change requests later
+
+    file_change_requests = [
+        FileChangeRequest(
+            filename=code_suggestion.file_path,
+            change_type="modify",
+            instructions=f"<original_code>\n{code_suggestion.original_code}\n</original_code>\n\n<new_code>\n{code_suggestion.new_code}\n</new_code>",
+        ) 
+        for code_suggestion in code_suggestions
+    ]
+    modify_files_dict = modify(
+        fcrs=file_change_requests,
+        request="",
+        cloned_repo=cloned_repo,
+        relevant_filepaths=[code_suggestion.file_path for code_suggestion in code_suggestions],
+    )
+
+    print(modify_files_dict)
+    
+    return {
+        "success": True,
+        "modify_files_dict": modify_files_dict
+    }
 
 @app.post("/backend/messages/save")
 async def write_message_to_disk(
