@@ -1080,31 +1080,33 @@ function App({
                       }))
                     }), // TODO: casing should be automatically handled
                   });
-                  const data = await response.json();
-                  console.log(data)
-                  if (data.modify_files_dict) {
-                    setSuggestedChanges(Object.entries(data.modify_files_dict).map(([filePath, { original_contents, contents }]: any) => ({
-                      filePath,
-                      originalCode: original_contents,
-                      newCode: contents,
-                    })))
-                    save(repoName, messages, snippets, suggestedChanges, pullRequest)
-                    setIsProcessingSuggestedChanges(false);
+                  try {
+                    const data = await response.json();
+                    console.log(data)
+                    if (data.modify_files_dict) {
+                      setSuggestedChanges(Object.entries(data.modify_files_dict).map(([filePath, { original_contents, contents }]: any) => ({
+                        filePath,
+                        originalCode: original_contents,
+                        newCode: contents,
+                      })))
+                      save(repoName, messages, snippets, suggestedChanges, pullRequest)
+                      setIsProcessingSuggestedChanges(false);
 
-                    const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
-                      body: JSON.stringify({
-                        repo_name: repoName,
-                        modify_files_dict: data.modify_files_dict,
-                        messages: messages,
-                      }),
-                    })
-                    
-                    const prData = await prMetadata.json()
-                    const { title, description, branch: featureBranch } = prData
-                    setFeatureBranch(featureBranch || "sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
-                    setPullRequestTitle(title || "Sweep Chat Suggested Changes")
-                    setPullRequestBody(description || "Suggested changes by Sweep Chat.")
-                  } else {
+                      const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
+                        body: JSON.stringify({
+                          repo_name: repoName,
+                          modify_files_dict: data.modify_files_dict,
+                          messages: messages,
+                        }),
+                      })
+                      
+                      const prData = await prMetadata.json()
+                      const { title, description, branch: featureBranch } = prData
+                      setFeatureBranch(featureBranch || "sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
+                      setPullRequestTitle(title || "Sweep Chat Suggested Changes")
+                      setPullRequestBody(description || "Suggested changes by Sweep Chat.")
+                    }
+                  } catch {
                     toast({
                       title: "Failed to auto-fix changes!",
                       description: "This feature is still under development, so it's not completely reliable yet. We'll fix this for you shortly.",
