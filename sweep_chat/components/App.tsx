@@ -285,7 +285,11 @@ const MessageDisplay = ({
                 ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
             >
               {message.role === "function" ? (
-                <Accordion type="single" collapsible className="w-full" defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}>
+                <Accordion 
+                  type="single" 
+                  collapsible className="w-full" 
+                  defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}
+                >
                   <AccordionItem value="function" className="border-none">
                     <AccordionTrigger className="border-none py-0 text-left">
                       <div className="text-xs text-gray-400 flex align-center">
@@ -1237,6 +1241,9 @@ function App({
                 window.history.pushState({}, '', '/');
                 setSuggestedChanges([])
                 setPullRequest(null)
+                setFeatureBranch(null)
+                setPullRequestTitle(null)
+                setPullRequestBody(null)
               }}
               disabled={isLoading}
             >

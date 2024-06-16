@@ -5,6 +5,15 @@ import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/h
 import SyntaxHighlighter from "react-syntax-highlighter";
 import { Button } from "../ui/button";
 
+const MutePath = ({ path }: { path: string }) => {
+  return (
+    <span>
+      <span className="text-gray-400">{path.substring(0, path.lastIndexOf('/') + 1)}</span>
+      <span className="text-white">{path.substring(path.lastIndexOf('/') + 1)}</span>
+    </span>
+  );
+}
+
 const SnippetBadge = ({
   snippet,
   className,
@@ -27,7 +36,12 @@ const SnippetBadge = ({
           }}>
             <span>
               {snippet.end > snippet.content.split('\n').length - 3 && snippet.start == 0 ?
-                snippet.file_path : `${snippet.file_path}:${snippet.start}-${snippet.end}`
+                <MutePath path={snippet.file_path} /> : (
+                  <>
+                    <MutePath path={snippet.file_path}/>
+                    <span className="text-gray-400">:{snippet.start}-{snippet.end}</span>
+                  </>
+                )
               }
             </span>
             {
