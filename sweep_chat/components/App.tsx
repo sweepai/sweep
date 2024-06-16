@@ -285,7 +285,11 @@ const MessageDisplay = ({
                 ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
             >
               {message.role === "function" ? (
-                <Accordion type="single" collapsible className="w-full" defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}>
+                <Accordion 
+                  type="single" 
+                  collapsible className="w-full" 
+                  defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}
+                >
                   <AccordionItem value="function" className="border-none">
                     <AccordionTrigger className="border-none py-0 text-left">
                       <div className="text-xs text-gray-400 flex align-center">
@@ -794,10 +798,15 @@ function App({
     var streamedMessages: Message[] = []
     var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" } as Message]
     setMessages(respondedMessages);
+    let messageLength = newMessages.length;
     try {
       for await (const patch of streamMessages(reader, isStream)) {
         streamedMessages = jsonpatch.applyPatch(streamedMessages, patch).newDocument
         setMessages([...newMessages, ...streamedMessages])
+        if (streamedMessages.length > messageLength) {
+          save(repoName, newMessages, currentSnippets, suggestedChanges, pullRequest)
+          messageLength = streamedMessages.length;
+        }
       }
       if (!isStream.current) {
         reader!.cancel()
@@ -1071,30 +1080,39 @@ function App({
                       }))
                     }), // TODO: casing should be automatically handled
                   });
-                  const data = await response.json();
-                  console.log(data)
-                  if (data.modify_files_dict) {
-                    setSuggestedChanges(Object.entries(data.modify_files_dict).map(([filePath, { original_contents, contents }]: any) => ({
-                      filePath,
-                      originalCode: original_contents,
-                      newCode: contents,
-                    })))
-                    save(repoName, messages, snippets, suggestedChanges, pullRequest)
-                    setIsProcessingSuggestedChanges(false);
+                  try {
+                    const data = await response.json();
+                    console.log(data)
+                    if (data.modify_files_dict) {
+                      setSuggestedChanges(Object.entries(data.modify_files_dict).map(([filePath, { original_contents, contents }]: any) => ({
+                        filePath,
+                        originalCode: original_contents,
+                        newCode: contents,
+                      })))
+                      save(repoName, messages, snippets, suggestedChanges, pullRequest)
+                      setIsProcessingSuggestedChanges(false);
 
-                    const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
-                      body: JSON.stringify({
-                        repo_name: repoName,
-                        modify_files_dict: data.modify_files_dict,
-                        messages: messages,
-                      }),
+                      const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
+                        body: JSON.stringify({
+                          repo_name: repoName,
+                          modify_files_dict: data.modify_files_dict,
+                          messages: messages,
+                        }),
+                      })
+                      
+                      const prData = await prMetadata.json()
+                      const { title, description, branch: featureBranch } = prData
+                      setFeatureBranch(featureBranch || "sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
+                      setPullRequestTitle(title || "Sweep Chat Suggested Changes")
+                      setPullRequestBody(description || "Suggested changes by Sweep Chat.")
+                    }
+                  } catch {
+                    toast({
+                      title: "Failed to auto-fix changes!",
+                      description: "This feature is still under development, so it's not completely reliable yet. We'll fix this for you shortly.",
+                      variant: "destructive",
+                      duration: Infinity,
                     })
-                    
-                    const prData = await prMetadata.json()
-                    const { title, description, branch: featureBranch } = prData
-                    setFeatureBranch(featureBranch || "sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
-                    setPullRequestTitle(title || "Sweep Chat Suggested Changes")
-                    setPullRequestBody(description || "Suggested changes by Sweep Chat.")
                   }
                 })();
                 setTimeout(() => {
@@ -1237,6 +1255,9 @@ function App({
                 window.history.pushState({}, '', '/');
                 setSuggestedChanges([])
                 setPullRequest(null)
+                setFeatureBranch(null)
+                setPullRequestTitle(null)
+                setPullRequestBody(null)
               }}
               disabled={isLoading}
             >

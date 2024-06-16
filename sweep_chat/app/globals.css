@@ -79,8 +79,8 @@
     pre {
       padding-top: 0.5rem;
       padding-bottom: 0.5rem;
-      margin-top: 0.5rem;
-      margin-bottom: 0.5rem;
+      /* margin-top: 0.5rem; */
+      /* margin-bottom: 0.5rem; */
       color: salmon;
       > code {
         padding: 1rem
@@ -90,13 +90,13 @@
     h2 {
       font-size: 1.5rem;
       margin-top: 1rem;
-      margin-bottom: 1.5rem;
+      /* margin-bottom: 1.5rem; */
     }
 
     h3 {
       font-size: 1.25rem;
       margin-top: 1rem;
-      margin-bottom: 0.75rem;
+      /* margin-bottom: 0.75rem; */
     }
 
     code {
@@ -116,12 +116,16 @@
 
     ol,ul {
       margin-top: 1rem;
-      margin-bottom: 1rem;
+      /* margin-bottom: 1rem; */
       margin-left: 1.5rem;
 
       ol,ul {
         margin-top: 0.5rem;
-        margin-bottom: 0.5rem;
+        /* margin-bottom: 0.5rem; */
+      }
+      
+      li {
+        margin-top: 0.25rem;
       }
     }
 
@@ -129,14 +133,14 @@
       color: lightblue;
       text-decoration: underline;
     }
-    
+
     p:not(:first-child) {
       margin-top: 0.75rem;
     }
     
-    p:not(:last-child) {
+    /* p:not(:last-child) {
       margin-bottom: 0.75rem;
-    }
+    } */
   }
 
   .hljs-addition {
