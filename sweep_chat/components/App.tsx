@@ -798,10 +798,15 @@ function App({
     var streamedMessages: Message[] = []
     var respondedMessages: Message[] = [...newMessages, { content: "", role: "assistant" } as Message]
     setMessages(respondedMessages);
+    let messageLength = newMessages.length;
     try {
       for await (const patch of streamMessages(reader, isStream)) {
         streamedMessages = jsonpatch.applyPatch(streamedMessages, patch).newDocument
         setMessages([...newMessages, ...streamedMessages])
+        if (streamedMessages.length > messageLength) {
+          save(repoName, newMessages, currentSnippets, suggestedChanges, pullRequest)
+          messageLength = streamedMessages.length;
+        }
       }
       if (!isStream.current) {
         reader!.cancel()
@@ -1099,6 +1104,13 @@ function App({
                     setFeatureBranch(featureBranch || "sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
                     setPullRequestTitle(title || "Sweep Chat Suggested Changes")
                     setPullRequestBody(description || "Suggested changes by Sweep Chat.")
+                  } else {
+                    toast({
+                      title: "Failed to auto-fix changes!",
+                      description: "This feature is still under development, so it's not completely reliable yet. We'll fix this for you shortly.",
+                      variant: "destructive",
+                      duration: Infinity,
+                    })
                   }
                 })();
                 setTimeout(() => {
