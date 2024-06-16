@@ -2,7 +2,7 @@ import { typeNameToColor, codeStyle } from "@/lib/constants";
 import { sliceLines } from "@/lib/str_utils";
 import { Snippet } from "@/lib/types";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
-import SyntaxHighlighter from "react-syntax-highlighter";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { Button } from "../ui/button";
 
 const MutePath = ({ path }: { path: string }) => {
@@ -12,6 +12,10 @@ const MutePath = ({ path }: { path: string }) => {
       <span className="text-white">{path.substring(path.lastIndexOf('/') + 1)}</span>
     </span>
   );
+}
+
+const getLanguage = (filePath: string) => {
+  return filePath.split('.').pop();
 }
 
 const SnippetBadge = ({
@@ -55,7 +59,7 @@ const SnippetBadge = ({
       <HoverCardContent className="w-[800px] mr-2" style={{ opacity: 1 }}>
         <SyntaxHighlighter
           PreTag="div"
-          language="python"
+          language={getLanguage(snippet.file_path)}
           style={codeStyle}
           customStyle={{
             backgroundColor: 'transparent',
