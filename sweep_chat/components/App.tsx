@@ -1072,7 +1072,7 @@ function App({
             }}
             onApplyChanges={(codeSuggestions: CodeSuggestion[]) => {
               setOpenSuggestionDialog(true)
-              if (suggestedChanges.length == 0 || true) {
+              if (suggestedChanges.length == 0) {
                 let currentCodeSuggestions: StatefulCodeSuggestion[] = codeSuggestions.map((suggestion) => ({
                   ...suggestion,
                   state: "pending",
@@ -1102,7 +1102,7 @@ function App({
                         if (index == -1) {
                           continue;
                         }
-                        currentCodeSuggestions[index].state = "done";
+                        currentCodeSuggestions[index].state = original_contents == contents ? "processing" : "done";
                         currentCodeSuggestions[index].originalCode = original_contents;
                         currentCodeSuggestions[index].newCode = contents;
                         changesMade = true;
@@ -1210,7 +1210,6 @@ function App({
                     acc[suggestion.filePath] = suggestion.newCode;
                     return acc;
                   }, {})
-                  console.log(file_changes)
                   try {
                     const response = await authorizedFetch(
                       `/backend/create_pull`,
