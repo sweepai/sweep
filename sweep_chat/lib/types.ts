@@ -53,6 +53,11 @@ interface CodeSuggestion {
   newCode: string;
 }
 
+interface StatefulCodeSuggestion extends CodeSuggestion {
+  state: "pending" | "processing" | "done" | "error";
+  error?: string;
+}
+
 export type {
     Repository,
     Snippet,
@@ -60,4 +65,5 @@ export type {
     PullRequest,
     Message,
     CodeSuggestion,
+    StatefulCodeSuggestion,
 }

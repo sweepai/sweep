@@ -30,7 +30,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Label } from "./ui/label";
 import PulsingLoader from "./shared/PulsingLoader";
 import { codeStyle, DEFAULT_K, modelMap, roleToColor, typeNameToColor } from "@/lib/constants";
-import { Repository, Snippet, FileDiff, PullRequest, Message, CodeSuggestion } from "@/lib/types";
+import { Repository, Snippet, FileDiff, PullRequest, Message, CodeSuggestion, StatefulCodeSuggestion } from "@/lib/types";
 
 import { Octokit } from "octokit";
 import { renderPRDiffs, getJSONPrefix, getFunctionCallHeaderString, getDiff } from "@/lib/str_utils";
@@ -375,14 +375,14 @@ const MessageDisplay = ({
 
 async function* streamMessages(
   reader: ReadableStreamDefaultReader<Uint8Array>,
-  isStream: React.MutableRefObject<boolean>,
+  isStream?: React.MutableRefObject<boolean>,
   timeout: number = 90000
 ): AsyncGenerator<any, void, unknown> {
   let done = false;
   let buffer = "";
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  while (!done && isStream.current) {
+  while (!done && (isStream ? isStream.current : true)) {
     try {
       const { value, done: streamDone } = await Promise.race([
         reader.read(),
@@ -501,7 +501,7 @@ function App({
   const isStream = useRef<boolean>(false)
   const [showSurvey, setShowSurvey] = useState<boolean>(false)
 
-  const [suggestedChanges, setSuggestedChanges] = useState<CodeSuggestion[]>([])
+  const [suggestedChanges, setSuggestedChanges] = useState<StatefulCodeSuggestion[]>([])
   const [openSuggestionDialog, setOpenSuggestionDialog] = useState<boolean>(false)
   const [isProcessingSuggestedChanges, setIsProcessingSuggestedChanges] = useState<boolean>(false)
   const [pullRequestTitle, setPullRequestTitle] = useState<string | null>(null)
@@ -1057,8 +1057,14 @@ function App({
                 { ...message, content, annotations: { pulls } },
               ]
               setMessages(newMessages)
+              setOpenSuggestionDialog(false)
+              setIsCreatingPullRequest(false)
               if (index == 0) {
-                setSnippets([]) 
+                setSnippets([])
+                setSuggestedChanges([])
+                setIsProcessingSuggestedChanges(false)
+                setPullRequestTitle(null)
+                setPullRequestBody(null)
                 startStream(content, newMessages, [], { pulls })
               } else {
                 startStream(content, newMessages, snippets, { pulls })
@@ -1067,10 +1073,14 @@ function App({
             onApplyChanges={(codeSuggestions: CodeSuggestion[]) => {
               setOpenSuggestionDialog(true)
               if (suggestedChanges.length == 0) {
-                setSuggestedChanges(codeSuggestions)
+                let currentCodeSuggestions: StatefulCodeSuggestion[] = codeSuggestions.map((suggestion) => ({
+                  ...suggestion,
+                  state: "pending",
+                }))
+                setSuggestedChanges(currentCodeSuggestions)
                 setIsProcessingSuggestedChanges(true);
                 (async () => {
-                  const response = await authorizedFetch(`/backend/autofix`, {
+                  const streamedResponse = await authorizedFetch(`/backend/autofix`, {
                     body: JSON.stringify({
                       repo_name: repoName,
                       code_suggestions: codeSuggestions.map((suggestion: CodeSuggestion) => ({
@@ -1080,22 +1090,41 @@ function App({
                       }))
                     }), // TODO: casing should be automatically handled
                   });
+
                   try {
-                    const data = await response.json();
-                    console.log(data)
-                    if (data.modify_files_dict) {
-                      setSuggestedChanges(Object.entries(data.modify_files_dict).map(([filePath, { original_contents, contents }]: any) => ({
-                        filePath,
-                        originalCode: original_contents,
-                        newCode: contents,
-                      })))
+                    let changesMade = false;
+                    const reader = streamedResponse.body!.getReader();
+                    for await (const currentState of streamMessages(reader)) {
+                      // currentState is of form file_path -> {original_contents: str, contents: str}
+                      for (const [filePath, fileData] of Object.entries(currentState)) {
+                        const { original_contents, contents } = fileData as { original_contents: string, contents: string };
+                        const index = currentCodeSuggestions.findIndex((suggestion) => suggestion.filePath == filePath)
+                        if (index == -1) {
+                          continue;
+                        }
+                        currentCodeSuggestions[index].state = original_contents == contents ? "processing" : "done";
+                        currentCodeSuggestions[index].originalCode = original_contents;
+                        if (original_contents == contents) {
+                          currentCodeSuggestions[index].newCode = contents;
+                        }
+                        changesMade = true;
+                      }
+                      setSuggestedChanges(currentCodeSuggestions)
+                    }
+                    if (changesMade) {
                       save(repoName, messages, snippets, suggestedChanges, pullRequest)
                       setIsProcessingSuggestedChanges(false);
 
                       const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
                         body: JSON.stringify({
                           repo_name: repoName,
-                          modify_files_dict: data.modify_files_dict,
+                          modify_files_dict: suggestedChanges.reduce((acc: Record<string, { original_contents: string, contents: string }>, suggestion: StatefulCodeSuggestion) => {
+                            acc[suggestion.filePath] = {
+                              original_contents: suggestion.originalCode,
+                              contents: suggestion.newCode,
+                            };
+                            return acc;
+                          }, {}),
                           messages: messages,
                         }),
                       })
@@ -1106,13 +1135,15 @@ function App({
                       setPullRequestTitle(title || "Sweep Chat Suggested Changes")
                       setPullRequestBody(description || "Suggested changes by Sweep Chat.")
                     }
-                  } catch {
+                  } catch (e: any) {
+                    console.error(e)
                     toast({
                       title: "Failed to auto-fix changes!",
                       description: "This feature is still under development, so it's not completely reliable yet. We'll fix this for you shortly.",
                       variant: "destructive",
                       duration: Infinity,
                     })
+                    throw e
                   }
                 })();
                 setTimeout(() => {
@@ -1144,15 +1175,15 @@ function App({
             </div>
             {(isProcessingSuggestedChanges || isCreatingPullRequest) && (
               <div className="flex justify-around w-full py-2 mb-4">
-                <p>{isProcessingSuggestedChanges ? "Validating and auto-fixing suggested changes..." : "Creating pull request..."}</p>
+                <p>{isProcessingSuggestedChanges ? "Performing sanity checks..." : "Creating pull request..."}</p>
               </div>
             )}
-            <div style={{ opacity: (isProcessingSuggestedChanges || isCreatingPullRequest) ? 0.5 : 1, pointerEvents: (isProcessingSuggestedChanges || isCreatingPullRequest) ? 'none' : 'auto' }}>
+            <div style={{ opacity: isCreatingPullRequest ? 0.5 : 1, pointerEvents: isCreatingPullRequest ? 'none' : 'auto' }}>
               {suggestedChanges.map((suggestion, index) => (
                 <div className="fit-content mb-6" key={index}>
-                  <div className="w-full text-sm bg-zinc-800 p-2 rounded-t-md">
+                  <div className={`w-full text-sm p-2 rounded-t-md ${suggestion.state === "done" ? "bg-green-900" : suggestion.state === "pending" ? "bg-zinc-800" : "bg-yellow-800"}`}>
                     <code>
-                      {suggestion.filePath} {isProcessingSuggestedChanges ? "(processing)" : <FaCheck style={{display: "inline", marginTop: -2}}/>}
+                      {suggestion.filePath} {suggestion.state == "pending" ? "(pending)" : suggestion.state == "processing" ? "(processing)" : <FaCheck style={{display: "inline", marginTop: -2}}/>}
                     </code>
                   </div>
                   {reactCodeMirrors[index]}
@@ -1181,7 +1212,6 @@ function App({
                     acc[suggestion.filePath] = suggestion.newCode;
                     return acc;
                   }, {})
-                  console.log(file_changes)
                   try {
                     const response = await authorizedFetch(
                       `/backend/create_pull`,
@@ -1222,6 +1252,7 @@ function App({
                     setOpenSuggestionDialog(false)
                   }
                 }}
+                disabled={isCreatingPullRequest || isProcessingSuggestedChanges}
               >
                 Create Pull Request
               </Button>
