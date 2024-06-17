@@ -395,11 +395,11 @@ def get_error_message_formatted(
             original_code = parsed_fcr["original_code"][0].strip("\n")
             new_code = parsed_fcr["new_code"][0].strip("\n")
             if original_code == new_code:
-                error_messages.append(f"<original_code> and <new_code> are the same. You must provide a different code snippet in <new_code>.")
+                error_messages.append("<original_code> and <new_code> are the same. You must provide a different code snippet in <new_code>.")
                 error_indices.append(i)
                 continue
             if not original_code:
-                error_messages.append(f"The <original_code> can not be empty. If you would like to append code, copy the code you want to append the new code after into the <original_code>, then copy the same code into <new_code>, then finally append the new code after <new_code>.")
+                error_messages.append("The <original_code> can not be empty. If you would like to append code, copy the code you want to append the new code after into the <original_code>, then copy the same code into <new_code>, then finally append the new code after <new_code>.")
                 error_indices.append(i)
             else:
                 # if it's present in a previous fcr's new_code, we're not concerned about it
@@ -468,7 +468,7 @@ def get_error_message_formatted(
                                         error_messages.append(f"You have a mismatch in parentheses in <original_code>. Your <original_code> has {original_code.count(left)} opening and {original_code.count(right)} closing parentheses:\n```\n{original_code}\n```\nYou can correct this by extending the code to the following:\n```\n{best_superspan}\n```")
                                 if not best_superspan:
                                     # use naive error message otherwise
-                                    current_error_message = f"You have a mismatch in parentheses in <original_code> and <new_code>."
+                                    current_error_message = "You have a mismatch in parentheses in <original_code> and <new_code>."
                                     if old_parentheses_diff != 0:
                                         current_error_message += f" Your <original_code> has {original_code.count(left)} opening and {original_code.count(right)} closing parentheses:\n```\n{original_code}\n```\n"
                                     if new_parentheses_diff != 0:

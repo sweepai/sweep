@@ -17,19 +17,18 @@ from sweepai.agents.modify import modify
 
 from sweepai.agents.modify_utils import validate_and_parse_function_call
 from sweepai.agents.search_agent import extract_xml_tag
-from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, anthropic_system_message, function_response, anthropic_format_message, pr_format, relevant_snippets_message_for_pr, openai_format_message, openai_system_message, action_items_prompt, action_items_system_prompt
+from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, anthropic_system_message, function_response, anthropic_format_message, pr_format, relevant_snippets_message_for_pr, openai_format_message, openai_system_message
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import CACHE_DIRECTORY, GITHUB_APP_ID, GITHUB_APP_PEM
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message, Snippet
 from sweepai.core.pull_request_bot import get_pr_summary_for_chat
 from sweepai.core.review_utils import split_diff_into_patches
-from sweepai.core.sweep_bot import get_error_message, get_error_message_formatted
 from sweepai.dataclasses.code_suggestions import CodeSuggestion
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import ClonedRepo, CustomGithub, MockClonedRepo, clean_branch_name, commit_multi_file_changes, create_branch, get_github_client, get_installation_id
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.str_utils import extract_objects_from_string, get_hash
+from sweepai.utils.str_utils import get_hash
 from sweepai.utils.streamable_functions import streamable
 from sweepai.utils.ticket_utils import prep_snippets
 from sweepai.utils.timer import Timer
