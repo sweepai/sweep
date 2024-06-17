@@ -30,7 +30,7 @@ You MUST follow the following XML-based format:
 Use GitHub-styled markdown for your responses, using lists where applicable to improve clarity. You must respond with the following three distinct sections:
 
 # 1. Summary and analysis
-<user_response>
+<analysis>
 ## Summary
 First, list and summarize each NEW file from the codebase provided from the last function output that is relevant to the user's question. You may not need to summarize all provided files.
 
@@ -141,7 +141,7 @@ Then, make each a function call like so:
 
 """ + example_tool_calls
 
-openai_format_message = """You MUST follow the following XML-based format:
+openai_format_message = """You MUST follow the following XML-based format, including opening and closing <user_response> tags:
 
 ### Format
 
@@ -163,7 +163,7 @@ Write a complete helpful response to the user's question in full detail, address
 
 When showing relevant examples of code, only show MINIMAL excerpts of code that address the user's question. Do NOT copy the whole file, but only the lines that are relevant to the user's question.
 
-When suggesting code changes, you add <code_change> blocks inside the <user_response>.
+When suggesting code changes, you add <code_change> blocks inside the <user_response></user_response> tags.
 </user_response>
 
 # 3. Self-Critique
@@ -306,7 +306,7 @@ New code to replace <original_code> with.
 </new_code>
 </code_change>
 
-For example for modifying an existing file, place the name of the existing file path in file_path and copy the original section of code from the file into <original_code>:
+For example:
 
 <code_change>
 <file_path>
@@ -331,6 +331,8 @@ class Rectangle:
         return self.width * self.height
 </new_code>
 </code_change>
+
+Remember to that these <code_change> blocks must be contained within the <user_response></user_response> tags.
 
 In this environment, you have access to a code search tool to assist in fulfilling the user request:
 
