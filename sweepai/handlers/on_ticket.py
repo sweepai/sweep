@@ -264,12 +264,18 @@ def on_ticket(
             def edit_sweep_comment(
                 message: str,
                 index: int,
+                current_index: int,
+                user_token: str,
+                g: Github,
+                repo: Repository,
+                issue_comment: IssueComment,
+                initial_sandbox_response: int,
+                initial_sandbox_response_file: str,
                 pr_message="",
                 done=False,
                 step_complete=True,
                 add_bonus_message=True,
             ):
-                nonlocal current_index, user_token, g, repo, issue_comment, initial_sandbox_response, initial_sandbox_response_file
                 message = sanitize_string_for_github(message)
                 if pr_message:
                     pr_message = sanitize_string_for_github(pr_message)
@@ -391,7 +397,14 @@ def on_ticket(
 
             edit_sweep_comment(
                 "I've just finished validating the issue. I'm now going to start searching for relevant files.",
-                0
+                0,
+                current_index,
+                user_token,
+                g,
+                repo,
+                issue_comment,
+                initial_sandbox_response,
+                initial_sandbox_response_file
             )
 
             prs_extracted = PRReader.extract_prs(repo, summary)
@@ -456,6 +469,13 @@ def on_ticket(
                                 else ""
                             ),
                             1,
+                            current_index,
+                            user_token,
+                            g,
+                            repo,
+                            issue_comment,
+                            initial_sandbox_response,
+                            initial_sandbox_response_file,
                             step_complete=False
                         )
                     else:
@@ -484,6 +504,13 @@ def on_ticket(
                         else ""
                     ),
                     1,
+                    current_index,
+                    user_token,
+                    g,
+                    repo,
+                    issue_comment,
+                    initial_sandbox_response,
+                    initial_sandbox_response_file
                 )
 
                 # # Search agent
@@ -549,6 +576,13 @@ def on_ticket(
                 edit_sweep_comment(
                     "I'm currently validating your changes using parsers and linters to check for mistakes like syntax errors or undefined variables. If I see any of these errors, I will automatically fix them.",
                     3,
+                    current_index,
+                    user_token,
+                    g,
+                    repo,
+                    issue_comment,
+                    initial_sandbox_response,
+                    initial_sandbox_response_file
                 )
                 pull_request: SweepPullRequest = SweepPullRequest(
                     title="Sweep: " + title,
@@ -586,6 +620,13 @@ def on_ticket(
                 edit_sweep_comment(
                     f"Your changes have been successfully made to the branch [`{pull_request.branch_name}`](https://github.com/{repo_full_name}/tree/{pull_request.branch_name}). I have validated these changes using a syntax checker and a linter.",
                     3,
+                    current_index,
+                    user_token,
+                    g,
+                    repo,
+                    issue_comment,
+                    initial_sandbox_response,
+                    initial_sandbox_response_file
                 )
             except Exception as e:
                 logger.exception(e)
