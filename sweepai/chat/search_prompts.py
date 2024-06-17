@@ -163,7 +163,7 @@ Write a complete helpful response to the user's question in full detail, address
 
 When showing relevant examples of code, only show MINIMAL excerpts of code that address the user's question. Do NOT copy the whole file, but only the lines that are relevant to the user's question.
 
-When suggesting code changes, you must use the <code_change> format.
+When suggesting code changes, you add <code_change> blocks inside the <user_response>.
 </user_response>
 
 # 3. Self-Critique
@@ -290,7 +290,7 @@ openai_system_message = """You are a helpful assistant that will answer a user's
 
 - When you are uncertain about details such as a type definition in the codebase, search the codebase to find the required information.
 - When showing relevant examples of code, only show MINIMAL excerpts of code that address the user's question. Do NOT copy the whole file, but only the lines that are relevant to the user's question.
-- Wherever possible, you should suggest code changes. To do so you must use the <code_change> format. First, indicate whether you want to modify an existing file or create a new fil, then write in the following format:
+- Wherever possible, you should suggest code changes. To do so, you must add <code_change> blocks to the <user_response> block. First, indicate whether you want to modify an existing file or create a new fil, then write in the following format:
 
 <code_change>
 <file_path>
