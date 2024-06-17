@@ -193,6 +193,8 @@ def extract_xml_tag(string: str, tag: str, include_closing_tag: bool = True):
 
 # returns a dict of object params with their respective values
 def extract_object_fields_from_string(text: str, params: list[str]) -> tuple[dict[str, str], bool, str]:
+    if not params:
+        return {"content": text}, False, ""
     object_args = {}
     failed = False
     failed_param = ""
@@ -208,7 +210,7 @@ def extract_object_fields_from_string(text: str, params: list[str]) -> tuple[dic
     return object_args, failed, failed_param
 
 # repeated calls extract_object_fields from string on a list of xml objects
-def extract_objects_from_string(text: str, object_tag: str, object_params: list[str]):
+def extract_objects_from_string(text: str, object_tag: str, object_params: list[str] = []):
     extracted_objects = []
     object_regex = rf'<{object_tag}>(?P<{object_tag}>.*?)<\/{object_tag}>'
     object_matches = list(re.finditer(object_regex, text, re.DOTALL))

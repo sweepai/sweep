@@ -11,8 +11,10 @@ from sweepai.utils.code_validators import format_file
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
+from sweepai.utils.streamable_functions import streamable
 
 
+@streamable
 def modify(
     fcrs: list[FileChangeRequest],
     request: str,
@@ -99,13 +101,14 @@ def modify(
     if not previous_modify_files_dict:
         previous_modify_files_dict = {}
     modify_files_dict = copy.deepcopy(previous_modify_files_dict)
-
+    yield modify_files_dict
 
     # this message list is for the chat logger to have a detailed insight into why failures occur
     detailed_chat_logger_messages = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]
     # used to determine if changes were made
     previous_modify_files_dict = copy.deepcopy(modify_files_dict)
     for i in range(len(fcrs) * 15):
+        yield modify_files_dict
         function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
         if function_call:
             num_of_tasks_done = tasks_completed(fcrs)
@@ -269,6 +272,7 @@ def modify(
         ):
             diff_string += f"\nChanges made to {file_name}:\n{diff}"
     logger.info("\n".join(generate_diff(file_data["original_contents"], file_data["contents"]) for file_data in modify_files_dict.values())) # adding this as a useful way to render the diffs
+    yield modify_files_dict
     return modify_files_dict
 
 

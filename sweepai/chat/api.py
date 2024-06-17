@@ -470,10 +470,12 @@ def chat_codebase_stream(
 
     pr_snippets = []
     for message in messages:
+        if message.role == "user":
+            message.content = message.content.strip()
         if message.role == "function":
-            message.role = "assistant"
+            message.role = "user"
         if message.function_call:
-            message.function_call = None
+            message.function_call = None # pass certain validations
         if message.annotations:
             new_pr_snippets, skipped_pr_snippets, pulls_messages = get_pr_snippets(
                 repo_name,
@@ -482,7 +484,7 @@ def chat_codebase_stream(
             )
             pr_snippets.extend(new_pr_snippets)
             if pulls_messages:
-                message.content += "\n\nPull requests:\n" + pulls_messages + "\n\nBe sure to summarize the contents of the pull request during the analysis phase separately from other relevant files."
+                message.content += "\n\nPull requests:\n" + pulls_messages + f"\n\nBe sure to summarize the contents of the pull request during the analysis phase separately from other relevant files.\n\nRemember, the user's request was:\n\n<message>\n{message.content}\n</message>"
     
     if pr_snippets:
         relevant_pr_snippets = []
@@ -516,10 +518,14 @@ def chat_codebase_stream(
 
     chat_gpt.messages = [
         Message(
+            content=chat_gpt.messages[0].content,
+            role="system"
+        ),
+        Message(
             content=snippets_message,
             role="user"
         ),
-        *messages[:-1]
+        *messages
     ]
 
     def stream_state(
@@ -533,6 +539,7 @@ def chat_codebase_stream(
         k: int = DEFAULT_K
     ):
         user_message = initial_user_message
+
         fetched_snippets = snippets
         new_messages = [
             Message(
@@ -678,6 +685,37 @@ def chat_codebase_stream(
                 break
         yield new_messages
 
+        # new_messages.append(
+        #     Message(
+        #         content="",
+        #         role="function",
+        #         function_call={
+        #             "function_name": "subtasks",
+        #             "function_parameters": {
+        #                 "subtasks": []
+        #             },
+        #             "is_complete": False,
+        #         }
+        #     )
+        # )
+
+        # chat_gpt.messages[0].content = action_items_system_prompt
+
+        # streamed_string = ""
+        # for token in chat_gpt.chat_anthropic(
+        #     action_items_prompt,
+        #     model=model,
+        #     use_openai=use_openai,
+        #     stream=True
+        # ):
+        #     streamed_string += token
+        #     action_items = extract_objects_from_string(streamed_string, "subtask")
+        #     new_messages[-1].function_call["function_parameters"]["subtasks"] = action_items
+        #     yield new_messages
+
+        
+        # breakpoint()
+
         # last_assistant_message = [message.content for message in new_messages if message.role == "assistant"][-1]
 
         posthog.capture(metadata["username"], "chat_codebase complete", properties={
@@ -714,7 +752,7 @@ def chat_codebase_stream(
     format_message = anthropic_format_message if not model.startswith("gpt") else openai_format_message
     return StreamingResponse(
         postprocessed_stream(
-            f"Here is the user's message:\n<user_message>\n{messages[-1].content}\n</user_message>\n\n" + format_message,
+            format_message,
             snippets,
             messages,
             access_token,
@@ -750,6 +788,43 @@ def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, s
     else:
         return "ERROR\n\nTool not found.", []
 
+# @app.post("/backend/autofix")
+# async def autofix(
+#     repo_name: str = Body(...),
+#     code_suggestions: list[CodeSuggestion] = Body(...),
+#     access_token: str = Depends(get_token_header)
+# ):
+#     with Timer() as timer:
+#         g = get_authenticated_github_client(repo_name, access_token)
+#     logger.debug(f"Getting authenticated GitHub client took {timer.time_elapsed} seconds")
+#     if not g:
+#         return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
+    
+#     file_change_requests = []
+#     for code_suggestion in code_suggestions:
+#         file_change_requests.append(FileChangeRequest(
+#             filename=code_suggestion.file_path,
+#             instructions=f"<original_code>\n{code_suggestion.original_code}\n</original_code>\n<new_code>\n{code_suggestion.new_code}\n</new_code>",
+#             change_type="modify",
+#         ))
+
+#     org_name, repo_name_ = repo_name.split("/")
+#     cloned_repo = MockClonedRepo(
+#         f"{repo_cache}/{repo_name_}",
+#         repo_name,
+#         token=access_token
+#     )
+
+#     error_messages, error_indices = get_error_message_formatted(
+#         file_change_requests=file_change_requests,
+#         cloned_repo=cloned_repo,
+#     )
+
+#     return {
+#         "success": True,
+#         "error_messages": error_messages
+#     }
+
 @app.post("/backend/autofix")
 async def autofix(
     repo_name: str = Body(...),
@@ -773,22 +848,22 @@ async def autofix(
     file_change_requests = [
         FileChangeRequest(
             filename=code_suggestion.file_path,
-            change_type="modify",
+            change_type="modify" if code_suggestion.original_code else "create",
             instructions=f"<original_code>\n{code_suggestion.original_code}\n</original_code>\n\n<new_code>\n{code_suggestion.new_code}\n</new_code>",
         ) 
         for code_suggestion in code_suggestions
     ]
-    modify_files_dict = modify(
-        fcrs=file_change_requests,
-        request="",
-        cloned_repo=cloned_repo,
-        relevant_filepaths=[code_suggestion.file_path for code_suggestion in code_suggestions],
-    )
 
-    return {
-        "success": True,
-        "modify_files_dict": modify_files_dict
-    }
+    def stream():
+        for modify_files_dict in modify.stream(
+            fcrs=file_change_requests,
+            request="",
+            cloned_repo=cloned_repo,
+            relevant_filepaths=[code_suggestion.file_path for code_suggestion in code_suggestions],
+        ):
+            yield json.dumps(modify_files_dict)
+
+    return StreamingResponse(stream())
 
 @app.post("/backend/create_pull")
 async def create_pull(
@@ -804,7 +879,7 @@ async def create_pull(
     logger.debug(f"Getting authenticated GitHub client took {timer.time_elapsed} seconds")
     if not g:
         return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
-
+    
     org_name, repo_name_ = repo_name.split("/")
     
     _token, g = get_github_client_from_org(org_name) # TODO: handle users as well
@@ -820,7 +895,7 @@ async def create_pull(
         token=access_token,
         repo=repo
     )
-    
+
     commit_multi_file_changes(
         cloned_repo,
         file_changes,
@@ -908,7 +983,7 @@ async def write_message_to_disk(
             "repo_name": repo_name,
             "messages": [message.model_dump() for message in messages],
             "snippets": [snippet.model_dump() for snippet in snippets],
-            "code_suggestions": [code_suggestion.__dict__ for code_suggestion in code_suggestions],
+            "code_suggestions": [code_suggestion.__dict__ if isinstance(code_suggestion, CodeSuggestion) else code_suggestion for code_suggestion in code_suggestions],
             "pull_request": pull_request,
         }
         with open(f"{CACHE_DIRECTORY}/messages/{message_id}.json", "w") as file:
