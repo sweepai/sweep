@@ -30,7 +30,8 @@ interface PullRequest {
   body: string;
   labels: string[];
   status: string;
-  file_diffs: FileDiff[]
+  file_diffs: FileDiff[];
+  branch: string;
 }
 
 interface Message {

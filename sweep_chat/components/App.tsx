@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "../components/ui/input"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { FaCheck, FaCog, FaComments, FaGithub, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes } from "react-icons/fa";
+import { FaArrowLeft, FaCheck, FaCog, FaComments, FaGithub, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -467,7 +467,8 @@ const parsePullRequests = async (repoName: string, message: string, octokit: Oct
         body,
         labels,
         status,
-        file_diffs
+        file_diffs,
+        branch: pr.data.head.ref
       } as PullRequest)
     }
 
@@ -508,6 +509,7 @@ function App({
   const [pullRequestBody, setPullRequestBody] = useState<string | null>(null)
   const [isCreatingPullRequest, setIsCreatingPullRequest] = useState<boolean>(false)
   const [pullRequest, setPullRequest] = useState<PullRequest | null>(null)
+  const [baseBranch, setBaseBranch] = useState<string>(branch)
   const [featureBranch, setFeatureBranch] = useState<string | null>(null)
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -590,9 +592,38 @@ function App({
           setRepos(allRepositories)
           page++;
         } while (response.data.length !== 0 && page < maxPages);
-      })()
+      })();
     }
   }, [session?.user!.accessToken])
+
+  useEffect(() => {
+    if (branch) {
+      setBaseBranch(branch)
+    }
+  }, [branch]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      for (const message of messages) {
+        if (message.annotations?.pulls && message.annotations.pulls.length > 0 && message.annotations.pulls[0].branch) {
+          setBaseBranch(message.annotations.pulls[0].branch)
+        }
+      }
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (repoName && octokit) {
+      (async () => {
+        const repoData = await octokit.rest.repos.get({
+          owner: repoName.split("/")[0],
+          repo: repoName.split("/")[1]
+        })
+        setBranch(repoData.data.default_branch)
+        setBaseBranch(repoData.data.default_branch)
+      })();
+    }
+  }, [repoName])
 
   const reactCodeMirrors = useMemo(() => {
     return suggestedChanges.map((suggestion, index) => (
@@ -609,12 +640,17 @@ function App({
         <Original
           value={suggestion.originalCode}
           extensions={[EditorView.editable.of(false), EditorState.readOnly.of(true), javascript({ jsx: true })]}
+          onChange={debounce((value: string) => {
+            setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, originalCode: value } : suggestion))
+            save(repoName, messages, snippets, suggestedChanges, pullRequest)
+          }, 1000)}
         />
         <Modified
           value={suggestion.newCode}
           extensions={[EditorState.readOnly.of(false), javascript({ jsx: true })]}
           onChange={debounce((value: string) => {
             setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
+            save(repoName, messages, snippets, suggestedChanges, pullRequest)
           }, 1000)}
         />
       </CodeMirrorMerge>
@@ -954,6 +990,7 @@ function App({
                 repo: cleanedRepoName.split("/")[1]
               })
               setBranch(repo.data.default_branch)
+              setBaseBranch(repo.data.default_branch)
             }
           }}
         />
@@ -1110,6 +1147,7 @@ function App({
                         changesMade = true;
                       }
                       setSuggestedChanges(currentCodeSuggestions)
+                      save(repoName, messages, snippets, suggestedChanges, pullRequest)
                     }
                     if (changesMade) {
                       save(repoName, messages, snippets, suggestedChanges, pullRequest)
@@ -1134,6 +1172,8 @@ function App({
                       setFeatureBranch(featureBranch || "sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
                       setPullRequestTitle(title || "Sweep Chat Suggested Changes")
                       setPullRequestBody(description || "Suggested changes by Sweep Chat.")
+
+                      save(repoName, messages, snippets, suggestedChanges, pullRequest)
                     }
                   } catch (e: any) {
                     console.error(e)
@@ -1164,7 +1204,11 @@ function App({
         {openSuggestionDialog && (
           <div className="bg-zinc-900 rounded-xl p-4 mt-8">
             <div className="flex justify-between mb-4">
-              <Input className="flex items-center w-[600px]" value={featureBranch || ""} onChange={(e) => setFeatureBranch(e.target.value)} placeholder="Feature Branch Name" style={{ opacity: isProcessingSuggestedChanges ? 0.5 : 1 }} />
+              <div className="flex grow items-center">
+                <Input className="flex items-center w-[600px]" value={baseBranch || ""} onChange={(e) => setBaseBranch(e.target.value)} placeholder="Base Branch" style={{ opacity: isProcessingSuggestedChanges ? 0.5 : 1 }} />
+                <FaArrowLeft className="mx-4" />
+                <Input className="flex items-center w-[600px]" value={featureBranch || ""} onChange={(e) => setFeatureBranch(e.target.value)} placeholder="Feature Branch" style={{ opacity: isProcessingSuggestedChanges ? 0.5 : 1 }} />
+              </div>
               <Button
                 className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
                 onClick={() => setOpenSuggestionDialog(false)}
@@ -1220,6 +1264,7 @@ function App({
                           repo_name: repoName,
                           file_changes: file_changes,
                           branch: "sweep-chat-patch-" + new Date().toISOString().split("T")[0], // use ai for better branch name, title, and body later
+                          base_branch: baseBranch,
                           title: pullRequestTitle,
                           body: pullRequestBody + `\n\nSuggested changes by Sweep Chat, from ${window.location.origin}/c/${messagesId}`,
                         }),
@@ -1284,6 +1329,7 @@ function App({
                 setSnippets([]);
                 setMessagesId("");
                 window.history.pushState({}, '', '/');
+                setOpenSuggestionDialog(false)
                 setSuggestedChanges([])
                 setPullRequest(null)
                 setFeatureBranch(null)
