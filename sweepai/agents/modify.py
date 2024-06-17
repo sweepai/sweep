@@ -24,6 +24,8 @@ def modify(
     use_openai: bool = False,
     previous_modify_files_dict: dict[str, dict[str, str]] = {},
     renames_dict: dict[str, str] = {},
+    fast: bool = False,
+    raise_on_max_iterations: bool = False,
 ) -> dict[str, dict[str, str]]:
     # join fcr in case of duplicates
     use_openai = True
@@ -62,6 +64,7 @@ def modify(
         "attempt_lazy_change": True, # whether or not we attempt to bypass the llm call and apply old/new code pair directly
         "attempt_count": 0, # how many times we have attempted to apply the old/new code pair
         "visited_set": set(), # keep track of which outputs have been attempted
+        "status_messages": [],
     }
     full_instructions = instructions + modify_tools
     chat_gpt.messages = [Message(role="system", content=full_instructions)]
@@ -120,6 +123,7 @@ def modify(
                 llm_state,
                 chat_logger_messages=detailed_chat_logger_messages,
                 use_openai=use_openai,
+                fast=fast
             )
             print(function_output)
             fcrs = llm_state["fcrs"]
@@ -255,6 +259,8 @@ def modify(
             break
     else:
         logger.error("Max iterations reached")
+        if raise_on_max_iterations:
+            raise Exception("Max iterations reached")
 
     for file_path, file_data in modify_files_dict.items():
         formatted_contents = format_file(

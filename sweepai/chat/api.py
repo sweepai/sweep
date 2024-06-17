@@ -855,13 +855,17 @@ async def autofix(
     ]
 
     def stream():
-        for modify_files_dict in modify.stream(
-            fcrs=file_change_requests,
-            request="",
-            cloned_repo=cloned_repo,
-            relevant_filepaths=[code_suggestion.file_path for code_suggestion in code_suggestions],
-        ):
-            yield json.dumps(modify_files_dict)
+        try:
+            for modify_files_dict in modify.stream(
+                fcrs=file_change_requests,
+                request="",
+                cloned_repo=cloned_repo,
+                relevant_filepaths=[code_suggestion.file_path for code_suggestion in code_suggestions],
+                fast=True,
+            ):
+                yield json.dumps(modify_files_dict)
+        except Exception as e:
+            yield json.dumps({"error": str(e)})
 
     return StreamingResponse(stream())
 
