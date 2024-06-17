@@ -1104,7 +1104,9 @@ function App({
                         }
                         currentCodeSuggestions[index].state = original_contents == contents ? "processing" : "done";
                         currentCodeSuggestions[index].originalCode = original_contents;
-                        currentCodeSuggestions[index].newCode = contents;
+                        if (original_contents == contents) {
+                          currentCodeSuggestions[index].newCode = contents;
+                        }
                         changesMade = true;
                       }
                       setSuggestedChanges(currentCodeSuggestions)
@@ -1179,7 +1181,7 @@ function App({
             <div style={{ opacity: isCreatingPullRequest ? 0.5 : 1, pointerEvents: isCreatingPullRequest ? 'none' : 'auto' }}>
               {suggestedChanges.map((suggestion, index) => (
                 <div className="fit-content mb-6" key={index}>
-                  <div className="w-full text-sm bg-zinc-800 p-2 rounded-t-md">
+                  <div className={`w-full text-sm p-2 rounded-t-md ${suggestion.state === "done" ? "bg-green-900" : suggestion.state === "pending" ? "bg-zinc-800" : "bg-yellow-800"}`}>
                     <code>
                       {suggestion.filePath} {suggestion.state == "pending" ? "(pending)" : suggestion.state == "processing" ? "(processing)" : <FaCheck style={{display: "inline", marginTop: -2}}/>}
                     </code>
