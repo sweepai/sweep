@@ -91,7 +91,7 @@ def handle_file_change_requests(
         if not previous_modify_files_dict:
             previous_modify_files_dict = {}
         if modify_files_dict:
-            for file_name, file_content in modify_files_dict.items():
+            for file_name, file_content in dict(modify_files_dict).items():
                 previous_modify_files_dict[file_name] = copy.deepcopy(file_content)
                 # update status of corresponding fcr to be succeeded
                 for file_change_request in file_change_requests:

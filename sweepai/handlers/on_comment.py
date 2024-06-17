@@ -345,8 +345,8 @@ def on_comment(
                     username,
                     "polluted_commits_error",
                     properties={
-                        "old_keys": ",".join(previous_file_contents_to_commit.keys()),
-                        "new_keys": ",".join(new_file_contents_to_commit.keys()) 
+                        "old_keys": ",".join(previous_file_contents_to_commit),
+                        "new_keys": ",".join(new_file_contents_to_commit)
                     },
                 )
             commit = commit_multi_file_changes(cloned_repo, new_file_contents_to_commit, commit_message, branch_name)

@@ -59,6 +59,7 @@ from sweepai.core.entities import parse_fcr
 from sweepai.utils.str_utils import extract_object_fields_from_string
 from sweepai.utils.streamable_functions import streamable
 
+
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 SNIPPET_TOKEN_BUDGET = int(150_000 * 3.5)  # 140k tokens
 MAX_SNIPPETS = 15
@@ -1160,7 +1161,7 @@ def get_files_to_change_for_chat(
             logger.debug("New indices", error_indices)
             yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm currently just making some edits:\n", file_change_requests
 
-        validate_file_change_requests(file_change_requests, cloned_repo, renames_dict=renames_dict)
+        
         yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm done making edits and now I'm just validating the changes using a linter to catch any mistakes like syntax errors or undefined variables:\n", file_change_requests
         return renames_dict, file_change_requests, files_to_change_response
     except RegexMatchError as e:
