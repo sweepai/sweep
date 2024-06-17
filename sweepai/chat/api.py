@@ -855,13 +855,17 @@ async def autofix(
     ]
 
     def stream():
-        for modify_files_dict in modify.stream(
-            fcrs=file_change_requests,
-            request="",
-            cloned_repo=cloned_repo,
-            relevant_filepaths=[code_suggestion.file_path for code_suggestion in code_suggestions],
-        ):
-            yield json.dumps(modify_files_dict)
+        try:
+            for modify_files_dict in modify.stream(
+                fcrs=file_change_requests,
+                request="",
+                cloned_repo=cloned_repo,
+                relevant_filepaths=[code_suggestion.file_path for code_suggestion in code_suggestions],
+                fast=True,
+            ):
+                yield json.dumps(modify_files_dict)
+        except Exception as e:
+            yield json.dumps({"error": str(e)})
 
     return StreamingResponse(stream())
 
@@ -872,6 +876,7 @@ async def create_pull(
     branch: str = Body(...),
     title: str = Body(...),
     body: str = Body(...),
+    base_branch: str = Body(""),
     access_token: str = Depends(get_token_header)
 ):
     with Timer() as timer:
@@ -885,9 +890,9 @@ async def create_pull(
     _token, g = get_github_client_from_org(org_name) # TODO: handle users as well
     
     repo = g.get_repo(repo_name)
-    default_branch = repo.default_branch
+    base_branch = base_branch or repo.default_branch
     
-    new_branch = create_branch(repo, branch, default_branch)
+    new_branch = create_branch(repo, branch, base_branch)
     
     cloned_repo = MockClonedRepo(
         f"{repo_cache}/{repo_name_}",
@@ -908,7 +913,7 @@ async def create_pull(
         title=title,
         body=body,
         head=new_branch,
-        base=default_branch,
+        base=base_branch,
     )
     file_diffs = pull_request.get_files()
 

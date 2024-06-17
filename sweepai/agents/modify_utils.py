@@ -989,6 +989,7 @@ def handle_function_call(
     llm_state: dict,
     chat_logger_messages: list[dict[str, str]] | None = None,
     use_openai: bool = False,
+    fast: bool = False,
 ):
     llm_response = ""
     tool_name = function_call.function_name
@@ -1152,9 +1153,12 @@ def handle_function_call(
                 # Check if the changes are valid
                 if not error_message:
                     is_last_fcr_for_file = False # TODO: check if this is the last fcr for this file
-                    check_results = get_check_results(file_name, new_file_contents, last_fcr_for_file=is_last_fcr_for_file)
-                    check_results_message = check_results.is_worse_than_message(llm_state['initial_check_results'][file_name])
-                    failing_parse = check_results.parse_error_message if not llm_state['initial_check_results'][file_name].parse_error_message else ""
+                    if fast:
+                        check_results_message = ""
+                    else:
+                        check_results = get_check_results(file_name, new_file_contents, last_fcr_for_file=is_last_fcr_for_file)
+                        check_results_message = check_results.is_worse_than_message(llm_state['initial_check_results'][file_name])
+                        failing_parse = check_results.parse_error_message if not llm_state['initial_check_results'][file_name].parse_error_message else ""
                     current_diff = generate_diff(
                         file_contents, new_file_contents, n=10
                     )
