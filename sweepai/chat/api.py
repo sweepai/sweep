@@ -872,6 +872,7 @@ async def create_pull(
     branch: str = Body(...),
     title: str = Body(...),
     body: str = Body(...),
+    base_branch: str = Body(""),
     access_token: str = Depends(get_token_header)
 ):
     with Timer() as timer:
@@ -885,9 +886,9 @@ async def create_pull(
     _token, g = get_github_client_from_org(org_name) # TODO: handle users as well
     
     repo = g.get_repo(repo_name)
-    default_branch = repo.default_branch
+    base_branch = base_branch or repo.default_branch
     
-    new_branch = create_branch(repo, branch, default_branch)
+    new_branch = create_branch(repo, branch, base_branch)
     
     cloned_repo = MockClonedRepo(
         f"{repo_cache}/{repo_name_}",
@@ -908,7 +909,7 @@ async def create_pull(
         title=title,
         body=body,
         head=new_branch,
-        base=default_branch,
+        base=base_branch,
     )
     file_diffs = pull_request.get_files()
 
