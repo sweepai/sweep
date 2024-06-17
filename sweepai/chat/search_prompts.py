@@ -163,47 +163,7 @@ Write a complete helpful response to the user's question in full detail, address
 
 When showing relevant examples of code, only show MINIMAL excerpts of code that address the user's question. Do NOT copy the whole file, but only the lines that are relevant to the user's question.
 
-When suggesting code changes, you must use the <code_change> format:
-
-<code_change>
-<file_path>
-path/to/file.py
-</file_path>
-<original_code>
-Skip this section if and only if you are creating a new file.
-
-Otherwise, copy the original section of code from path/to/file.py. This is the section of code that you will change. Paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED.
-</original_code>
-<new_code>
-New code to replace <original_code> with.
-</new_code>
-</code_change>
-
-For example for modifying an existing file, place the name of the existing file path in file_path and copy the original section of code from the file into <original_code>:
-
-<code_change>
-<file_path>
-src/utils/rectangle.py
-</file_path>
-<original_code>
-class Rectangle:
-    def __init__(self, width: int, height: int):
-        self.width = width
-        self.height = height
-
-    def area(self):
-        return self.width + self.height
-</original_code>
-<new_code>
-class Rectangle:
-    def __init__(self, width: int, height: int):
-        self.width = width
-        self.height = height
-
-    def area(self):
-        return self.width * self.height
-</new_code>
-</code_change>
+When suggesting code changes, you must use the <code_change> format.
 </user_response>
 
 # 3. Self-Critique
@@ -219,9 +179,7 @@ Otherwise, if the user's question is specific, and asks to implement a feature o
 Then, make each a function call like so:
 <function_call>
 [the function call goes here, using the valid XML format for function calls]
-</function_call>
-
-""" + example_tool_calls
+</function_call>"""
 
 # improve these prompts
 anthropic_system_message = """You are a helpful assistant that will answer a user's questions about a codebase to resolve their issue. You are provided with a list of relevant code snippets from the codebase that you can refer to. You can use this information to help the user solve their issue. You may also make function calls to retrieve additional information from the codebase. 
