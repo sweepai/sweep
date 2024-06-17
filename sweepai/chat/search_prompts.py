@@ -291,6 +291,39 @@ Single, detailed, specific natural language search question to search the codeba
 
 """ + example_tool_calls + "\n\n" + anthropic_format_message
 
+action_items_system_prompt = """You are a tech lead helping to break down a conversation about an issue into subtasks for an intern to solve. Identify every single one of the suggested changes. Be complete. The changes should be atomic.
+
+Guidelines:
+- For well-specified issues, where all required steps are already listed, simply break down the issue.
+- For less well-specified issues, where the user's requests are vague or incomplete, infer the user's intent and break down the issue accordingly. This means you will need to analyze the existing files and list out all the changes that the user is asking for.
+- A task should correspond to a code or test change.
+- A task should not be speculative, such as "catch any other errors", "abide by best practices" or "update any other code". Instead explicitly state the changes you would like to see.
+- Tests and error handling will be run automatically in the CI/CD pipeline, so do not mention them in the tasks.
+- Topologically sort the tasks, such that each sub request only depends on sub requests that come before it. For example, create helper functions before using them."""
+
+action_items_prompt = """\
+Break down the GitHub issue to identify every single one of the user's requests. Be complete. The changes should be atomic.
+
+Guidelines:
+- For well-specified issues, where all required steps are already listed, simply break down the issue.
+- For less well-specified issues, where the user's requests are vague or incomplete, infer the user's intent and break down the issue accordingly.
+- A task should correspond to a code or test change.
+- A task should not be speculative, such as "catch any other errors", "abide by best practices" or "update any other code". Instead explicitly state the changes you would like to see.
+- Tests and error handling will be run automatically in the CI/CD pipeline, so do not mention them in the tasks.
+- Topologically sort the tasks, such that each sub request only depends on sub requests that come before it. For example, create helper functions before using them.
+
+Respond in the following format:
+<subtasks>
+<subtask>
+A relevant, subtask from the user's issue.
+</subtask>
+<justification>
+1. Why this subtask is needed.
+2. A detailed explanation of the subtask, including the specific code entities that need to be changed.
+</justification>
+[additional sub tasks as needed]
+</subtasks>"""
+
 openai_system_message = """You are a helpful assistant that will answer a user's questions about a codebase to resolve their issue. You are provided with a list of relevant code snippets from the codebase that you can refer to. You can use this information to help the user solve their issue. You may also make function calls to retrieve additional information from the codebase. 
 
 # Guidelines
