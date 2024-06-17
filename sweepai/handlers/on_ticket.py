@@ -8,8 +8,9 @@ import os
 import traceback
 from time import time
 
-from github import BadCredentialsException
+from github import BadCredentialsException, Github, IssueComment
 from github.PullRequest import PullRequest as GithubPullRequest
+from github.Repository import Repository
 from loguru import logger
 
 

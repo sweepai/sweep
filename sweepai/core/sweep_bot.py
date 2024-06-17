@@ -58,6 +58,7 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.core.entities import parse_fcr
 from sweepai.utils.str_utils import extract_object_fields_from_string
 from sweepai.utils.streamable_functions import streamable
+from sweepai.core.entities import validate_file_change_requests
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 SNIPPET_TOKEN_BUDGET = int(150_000 * 3.5)  # 140k tokens
