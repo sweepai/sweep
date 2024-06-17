@@ -270,6 +270,7 @@ def modify(
         ):
             diff_string += f"\nChanges made to {file_name}:\n{diff}"
     logger.info("\n".join(generate_diff(file_data["original_contents"], file_data["contents"]) for file_data in modify_files_dict.values())) # adding this as a useful way to render the diffs
+    yield modify_files_dict
     return modify_files_dict
 
 
