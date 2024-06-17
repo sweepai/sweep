@@ -471,10 +471,12 @@ def chat_codebase_stream(
 
     pr_snippets = []
     for message in messages:
+        if message.role == "user":
+            message.content = message.content.strip()
         if message.role == "function":
-            message.role = "assistant"
+            message.role = "user"
         if message.function_call:
-            message.function_call = None
+            message.function_call = None # pass certain validations
         if message.annotations:
             new_pr_snippets, skipped_pr_snippets, pulls_messages = get_pr_snippets(
                 repo_name,
@@ -483,7 +485,7 @@ def chat_codebase_stream(
             )
             pr_snippets.extend(new_pr_snippets)
             if pulls_messages:
-                message.content += "\n\nPull requests:\n" + pulls_messages + "\n\nBe sure to summarize the contents of the pull request during the analysis phase separately from other relevant files."
+                message.content += "\n\nPull requests:\n" + pulls_messages + f"\n\nBe sure to summarize the contents of the pull request during the analysis phase separately from other relevant files.\n\nRemember, the user's request was:\n\n<message>\n{message.content}\n</message>"
     
     if pr_snippets:
         relevant_pr_snippets = []
@@ -524,7 +526,7 @@ def chat_codebase_stream(
             content=snippets_message,
             role="user"
         ),
-        *messages[:-1]
+        *messages
     ]
 
     def stream_state(
@@ -538,6 +540,7 @@ def chat_codebase_stream(
         k: int = DEFAULT_K
     ):
         user_message = initial_user_message
+
         fetched_snippets = snippets
         new_messages = [
             Message(
@@ -750,7 +753,7 @@ def chat_codebase_stream(
     format_message = anthropic_format_message if not model.startswith("gpt") else openai_format_message
     return StreamingResponse(
         postprocessed_stream(
-            f"Here is the user's message:\n<user_message>\n{messages[-1].content}\n</user_message>\n\n" + format_message,
+            format_message,
             snippets,
             messages,
             access_token,
@@ -846,7 +849,7 @@ async def autofix(
     file_change_requests = [
         FileChangeRequest(
             filename=code_suggestion.file_path,
-            change_type="modify",
+            change_type="modify" if code_suggestion.original_code else "create",
             instructions=f"<original_code>\n{code_suggestion.original_code}\n</original_code>\n\n<new_code>\n{code_suggestion.new_code}\n</new_code>",
         ) 
         for code_suggestion in code_suggestions

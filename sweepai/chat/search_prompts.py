@@ -161,6 +161,8 @@ Then, determine if you have sufficient information to answer the user's question
 <user_response>
 Write a complete helpful response to the user's question in full detail, addressing all of the user's requests. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When showing code examples, only show MINIMAL excerpts of code that address the user's question.
 
+When showing relevant examples of code, only show MINIMAL excerpts of code that address the user's question. Do NOT copy the whole file, but only the lines that are relevant to the user's question.
+
 When suggesting code changes, you must use the <code_change> format:
 
 <code_change>
@@ -329,7 +331,7 @@ openai_system_message = """You are a helpful assistant that will answer a user's
 # Guidelines
 
 - When you are uncertain about details such as a type definition in the codebase, search the codebase to find the required information.
-- When showing relevant examples of code, only show MINIMAL excerpts of code that address the user's question.
+- When showing relevant examples of code, only show MINIMAL excerpts of code that address the user's question. Do NOT copy the whole file, but only the lines that are relevant to the user's question.
 - Wherever possible, you should suggest code changes. To do so you must use the <code_change> format. First, indicate whether you want to modify an existing file or create a new fil, then write in the following format:
 
 <code_change>
@@ -442,3 +444,13 @@ Here are other relevant files from the initial search results from the codebase:
 </other_relevant_files>
 
 Be sure to address the files from the pull request and the other relevant files separately in the initial search results."""
+
+pr_user_prompt = """Pull requests:
+
+{pull_requests}
+
+Be sure to summarize the contents of the pull request during the analysis phase separately from other relevant files.
+
+Here's the user's message:
+
+{user_message}"""
