@@ -51,6 +51,7 @@ from sweepai.core.on_comment_prompts import (
     plan_generation_steps_on_comment_prompt
 )
 from sweepai.dataclasses.code_suggestions import CodeSuggestion
+from sweepai.handlers.create_pr import handle_file_change_requests
 from sweepai.utils.chat_logger import ChatLogger
 # from sweepai.utils.previous_diff_utils import get_relevant_commits
 from sweepai.utils.diff import generate_diff
@@ -1160,7 +1161,7 @@ def get_files_to_change_for_chat(
             logger.debug("New indices", error_indices)
             yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm currently just making some edits:\n", file_change_requests
 
-        validate_file_change_requests(file_change_requests, cloned_repo, renames_dict=renames_dict)
+        handle_file_change_requests(file_change_requests, cloned_repo, renames_dict=renames_dict)
         yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm done making edits and now I'm just validating the changes using a linter to catch any mistakes like syntax errors or undefined variables:\n", file_change_requests
         return renames_dict, file_change_requests, files_to_change_response
     except RegexMatchError as e:
