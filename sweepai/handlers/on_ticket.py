@@ -419,6 +419,13 @@ def on_ticket(
                         ),
                     ),
                     1,
+                    current_index,
+                    user_token,
+                    g,
+                    repo,
+                    issue_comment,
+                    initial_sandbox_response,
+                    initial_sandbox_response_file
                 )
 
             try:
@@ -483,6 +490,13 @@ def on_ticket(
                         edit_sweep_comment(
                             message,
                             1,
+                            current_index,
+                            user_token,
+                            g,
+                            repo,
+                            issue_comment,
+                            initial_sandbox_response,
+                            initial_sandbox_response_file,
                             step_complete=False
                         )
 
@@ -614,7 +628,7 @@ def on_ticket(
                         "polluted_commits_error",
                         properties={
                             "old_keys": ",".join(previous_file_contents_to_commit.keys()),
-                            "new_keys": ",".join(new_file_contents_to_commit.keys()) 
+                            "new_keys": ",".join(new_file_contents_to_commit.keys())
                         },
                     )
                 commit = commit_multi_file_changes(cloned_repo, new_file_contents_to_commit, commit_message, pull_request.branch_name, renames_dict=renames_dict)
