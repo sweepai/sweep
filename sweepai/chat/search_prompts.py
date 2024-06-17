@@ -88,6 +88,22 @@ When suggesting code changes, you MUST suggest changes in the following format:
 path/to/file.py
 </file_path>
 <original_code>
+Skip this section if and only if you are creating a new file.
+
+Otherwise, copy the original section of code from path/to/file.py. This is the section of code that you will change. Paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED.
+</original_code>
+<new_code>
+New code to replace <original_code> with.
+</new_code>
+</code_change>
+
+For example for modifying an existing file, place the name of the existing file path in file_path and copy the original section of code from the file into <original_code>:
+
+<code_change>
+<file_path>
+src/utils/rectangle.py
+</file_path>
+<original_code>
 class Rectangle:
     def __init__(self, width: int, height: int):
         self.width = width
@@ -145,11 +161,27 @@ Then, determine if you have sufficient information to answer the user's question
 <user_response>
 Write a complete helpful response to the user's question in full detail, addressing all of the user's requests. Make sure this answer is complete and helpful. Provide code examples, explanations and excerpts wherever possible to provide concrete explanations. When showing code examples, only show MINIMAL excerpts of code that address the user's question.
 
-When suggesting code changes, you MUST suggest changes in the following format:
+When suggesting code changes, you must use the <code_change> format:
 
 <code_change>
 <file_path>
 path/to/file.py
+</file_path>
+<original_code>
+Skip this section if and only if you are creating a new file.
+
+Otherwise, copy the original section of code from path/to/file.py. This is the section of code that you will change. Paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED.
+</original_code>
+<new_code>
+New code to replace <original_code> with.
+</new_code>
+</code_change>
+
+For example for modifying an existing file, place the name of the existing file path in file_path and copy the original section of code from the file into <original_code>:
+
+<code_change>
+<file_path>
+src/utils/rectangle.py
 </file_path>
 <original_code>
 class Rectangle:
@@ -189,14 +221,34 @@ Then, make each a function call like so:
 
 """ + example_tool_calls
 
+# improve these prompts
 anthropic_system_message = """You are a helpful assistant that will answer a user's questions about a codebase to resolve their issue. You are provided with a list of relevant code snippets from the codebase that you can refer to. You can use this information to help the user solve their issue. You may also make function calls to retrieve additional information from the codebase. 
 
-Guidelines:
-- When suggesting code changes, you must use the <code_change> format.
+# Guidelines
+
+- When you are uncertain about details such as a type definition in the codebase, search the codebase to find the required information.
+- When showing relevant examples of code, only show MINIMAL excerpts of code that address the user's question.
+- Wherever possible, you should suggest code changes. To do so you must use the <code_change> format. First, indicate whether you want to modify an existing file or create a new fil, then write in the following format:
 
 <code_change>
 <file_path>
 path/to/file.py
+</file_path>
+<original_code>
+Skip this section if and only if you are creating a new file.
+
+Otherwise, copy the original section of code from path/to/file.py. This is the section of code that you will change. Paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED.
+</original_code>
+<new_code>
+New code to replace <original_code> with.
+</new_code>
+</code_change>
+
+For example for modifying an existing file, place the name of the existing file path in file_path and copy the original section of code from the file into <original_code>:
+
+<code_change>
+<file_path>
+src/utils/rectangle.py
 </file_path>
 <original_code>
 class Rectangle:
@@ -218,8 +270,7 @@ class Rectangle:
 </new_code>
 </code_change>
 
-- When you are uncertain about details such as a type definition in the codebase, search the codebase to find the required information.
-- When showing code examples, only show MINIMAL excerpts of code that address the user's question.
+# Environment
 
 In this environment, you have access to a code search tool to assist in fulfilling the user request:
 
@@ -242,12 +293,31 @@ Single, detailed, specific natural language search question to search the codeba
 
 openai_system_message = """You are a helpful assistant that will answer a user's questions about a codebase to resolve their issue. You are provided with a list of relevant code snippets from the codebase that you can refer to. You can use this information to help the user solve their issue. You may also make function calls to retrieve additional information from the codebase. 
 
-Guidelines:
-- When suggesting code changes, you must use the <code_change> format.
+# Guidelines
+
+- When you are uncertain about details such as a type definition in the codebase, search the codebase to find the required information.
+- When showing relevant examples of code, only show MINIMAL excerpts of code that address the user's question.
+- Wherever possible, you should suggest code changes. To do so you must use the <code_change> format. First, indicate whether you want to modify an existing file or create a new fil, then write in the following format:
 
 <code_change>
 <file_path>
 path/to/file.py
+</file_path>
+<original_code>
+Skip this section if and only if you are creating a new file.
+
+Otherwise, copy the original section of code from path/to/file.py. This is the section of code that you will change. Paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED.
+</original_code>
+<new_code>
+New code to replace <original_code> with.
+</new_code>
+</code_change>
+
+For example for modifying an existing file, place the name of the existing file path in file_path and copy the original section of code from the file into <original_code>:
+
+<code_change>
+<file_path>
+src/utils/rectangle.py
 </file_path>
 <original_code>
 class Rectangle:
@@ -268,9 +338,6 @@ class Rectangle:
         return self.width * self.height
 </new_code>
 </code_change>
-
-- When you are uncertain about details such as a type definition in the codebase, search the codebase to find the required information.
-- When showing code examples, only show MINIMAL excerpts of code that address the user's question.
 
 In this environment, you have access to a code search tool to assist in fulfilling the user request:
 

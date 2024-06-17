@@ -24,6 +24,7 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message, Snippet
 from sweepai.core.pull_request_bot import get_pr_summary_for_chat
 from sweepai.core.review_utils import split_diff_into_patches
+from sweepai.core.sweep_bot import get_error_message, get_error_message_formatted
 from sweepai.dataclasses.code_suggestions import CodeSuggestion
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import ClonedRepo, CustomGithub, MockClonedRepo, clean_branch_name, commit_multi_file_changes, create_branch, get_github_client, get_installation_id
@@ -752,6 +753,43 @@ def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, s
 
 @app.post("/backend/autofix")
 async def autofix(
+    repo_name: str = Body(...),
+    code_suggestions: list[CodeSuggestion] = Body(...),
+    access_token: str = Depends(get_token_header)
+):
+    with Timer() as timer:
+        g = get_authenticated_github_client(repo_name, access_token)
+    logger.debug(f"Getting authenticated GitHub client took {timer.time_elapsed} seconds")
+    if not g:
+        return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
+    
+    file_change_requests = []
+    for code_suggestion in code_suggestions:
+        file_change_requests.append(FileChangeRequest(
+            filename=code_suggestion.file_path,
+            instructions=f"<original_code>\n{code_suggestion.original_code}\n</original_code>\n<new_code>\n{code_suggestion.new_code}\n</new_code>",
+            change_type="modify",
+        ))
+
+    org_name, repo_name_ = repo_name.split("/")
+    cloned_repo = MockClonedRepo(
+        f"{repo_cache}/{repo_name_}",
+        repo_name,
+        token=access_token
+    )
+
+    error_messages, error_indices = get_error_message_formatted(
+        file_change_requests=file_change_requests,
+        cloned_repo=cloned_repo,
+    )
+
+    return {
+        "success": True,
+        "error_messages": error_messages
+    }
+
+@app.post("/backend/modify")
+async def modify(
     repo_name: str = Body(...),
     code_suggestions: list[CodeSuggestion] = Body(...),
     access_token: str = Depends(get_token_header)

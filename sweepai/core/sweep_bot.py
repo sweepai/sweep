@@ -336,7 +336,7 @@ def validate_change(
                             return error_message + "Make sure the number of opening and closing parentheses match in both <original_code> and <new_code>, otherwise the changes will cause a syntax error."
 
 # todo: integrate this into the main function
-def get_error_message(
+def get_error_message_formatted(
     file_change_requests: list[FileChangeRequest],
     cloned_repo: ClonedRepo,
     updated_files: dict[str, dict[str, str]] = {},
@@ -348,8 +348,8 @@ def get_error_message(
         if file_path in updated_files:
             return updated_files[file_path]["contents"]
         return cloned_repo.get_file_contents(file_path)
-    error_message = ""
     error_indices = []
+    error_messages = []
     previous_parsed_fcrs = []
     for i, file_change_request in enumerate(file_change_requests):
         if file_change_request.change_type == "modify":
@@ -365,7 +365,7 @@ def get_error_message(
                     parsed_fcr = parse_fcr(file_change_request)
                     if parsed_fcr["original_code"] and parsed_fcr["original_code"][0].strip():
                         logger.warning(f"Failed to get file contents for {file_change_request.filename} due to {e}")
-                        error_message += f"<error index=\"{len(error_indices)}\">\nThe file `{file_change_request.filename}` does not exist. Double-check your spelling.\n</error>\n\n"
+                        error_messages.append(f"The file `{file_change_request.filename}` does not exist. Double-check your spelling.")
                         error_indices.append(i)
                     else:
                         file_change_request.change_type = "create"
@@ -378,27 +378,28 @@ def get_error_message(
                         current_error_message = validate_file_path(cloned_repo, file_name, file_dir, full_file_dir, full_file_name, i)
 
                         if current_error_message:
-                            error_message += f"<error index=\"{len(error_indices)}\">\n{current_error_message}\n</error>\n\n"
+                            # error_message += f"<error index=\"{len(error_indices)}\">\n{current_error_message}\n</error>\n\n"
+                            error_messages.append(current_error_message)
                             error_indices.append(i)
                     continue
             parsed_fcr = parse_fcr(file_change_request)
             previous_parsed_fcrs.append(parsed_fcr)
             if not parsed_fcr["original_code"]:
-                error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to provide an <original_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task, respond with <drop>{len(error_indices)}</drop>.\n</error>\n\n"
+                error_messages.append(f"You forgot to provide an <original_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task, respond with <drop>{len(error_indices)}</drop>.")
                 error_indices.append(i)
                 continue
             if not parsed_fcr["new_code"]:
-                error_message += f"<error index=\"{len(error_indices)}\">\nYou forgot to a <new_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task, respond with <drop>{len(error_indices)}</drop>.\n</error>\n\n"
+                error_messages.append(f"You forgot to a <new_code> block. Here is what you provided in the instructions:\n```\n{file_change_request.instructions}\n```\nIf you would like to drop this task, respond with <drop>{len(error_indices)}</drop>.")
                 error_indices.append(i)
                 continue
             original_code = parsed_fcr["original_code"][0].strip("\n")
             new_code = parsed_fcr["new_code"][0].strip("\n")
             if original_code == new_code:
-                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> and <new_code> are the same. You must provide a different code snippet in <new_code>.\n</error>\n\n"
+                error_messages.append(f"<original_code> and <new_code> are the same. You must provide a different code snippet in <new_code>.")
                 error_indices.append(i)
                 continue
             if not original_code:
-                error_message += f"<error index=\"{len(error_indices)}\">\nThe <original_code> can not be empty. If you would like to append code, copy the code you want to append the new code after into the <original_code>, then copy the same code into <new_code>, then finally append the new code after <new_code>.\n</error>\n\n"
+                error_messages.append(f"The <original_code> can not be empty. If you would like to append code, copy the code you want to append the new code after into the <original_code>, then copy the same code into <new_code>, then finally append the new code after <new_code>.")
                 error_indices.append(i)
             else:
                 # if it's present in a previous fcr's new_code, we're not concerned about it
@@ -432,7 +433,7 @@ def get_error_message(
                     ellipses_message = "\nYou must copy code out in full and may not use ellipses, abbreviations, or any short-hand notation in your code." if "# ..." in original_code or "// ..." in original_code else ""
 
                     if not best_match.strip():
-                        error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nBut the code is no where to be found in the file. There are also no similar code snippets in this file.{too_long_message}{ellipses_message}\n</error>\n\n"
+                        error_messages.append(f"<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nBut the code is no where to be found in the file. There are also no similar code snippets in this file.{too_long_message}{ellipses_message}")
                         continue
                     if best_score != 100:
                         if not check_valid_parentheses(best_match):
@@ -440,15 +441,15 @@ def get_error_message(
                             if extended_match and extended_match.count("\n") - best_match.count('\n') < 20:
                                 best_match = extended_match
                         if best_score > 80:
-                            error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}\n</error>\n\n"
+                            error_messages.append(f"<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}")
                         else:
                             best_matches = find_best_matches(original_code, file_contents, threshold=threshold, tokenized=True)
                             if len(best_matches) > 1:
                                 best_matches_string = "\n\n".join([f"Code match {i}:\n```\n{match_}\n```" for i, (match_, score) in enumerate(best_matches)])
-                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify one of the following pieces of code instead?\n{best_matches_string}{too_long_message}{ellipses_message}\n</error>\n\n"
+                                error_messages.append(f"<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify one of the following pieces of code instead?\n{best_matches_string}{too_long_message}{ellipses_message}")
                             else:
                                 # Same as case > 80
-                                error_message += f"<error index=\"{len(error_indices)}\">\n<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}\n</error>\n\n"
+                                error_messages.append(f"<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}")
                         error_indices.append(i)
                 else:
                     # Check for parentheses mismatch, helps catch downstream syntax errors
@@ -464,15 +465,16 @@ def get_error_message(
                                 if new_parentheses_diff == 0:
                                     best_superspan = find_smallest_valid_superspan(original_code, file_contents)
                                     if best_superspan:
-                                        error_message += f"<error index=\"{len(error_indices)}\">\nYou have a mismatch in parentheses in <original_code>. Your <original_code> has {original_code.count(left)} opening and {original_code.count(right)} closing parentheses:\n```\n{original_code}\n```\nYou can correct this by extending the code to the following:\n```\n{best_superspan}\n```\n</error>\n\n"
+                                        error_messages.append(f"You have a mismatch in parentheses in <original_code>. Your <original_code> has {original_code.count(left)} opening and {original_code.count(right)} closing parentheses:\n```\n{original_code}\n```\nYou can correct this by extending the code to the following:\n```\n{best_superspan}\n```")
                                 if not best_superspan:
                                     # use naive error message otherwise
-                                    error_message += f"<error index=\"{len(error_indices)}\">\nYou have a mismatch in parentheses in <original_code> and <new_code>."
+                                    current_error_message = f"You have a mismatch in parentheses in <original_code> and <new_code>."
                                     if old_parentheses_diff != 0:
-                                        error_message += f" Your <original_code> has {original_code.count(left)} opening and {original_code.count(right)} closing parentheses:\n```\n{original_code}\n```\n"
+                                        current_error_message += f" Your <original_code> has {original_code.count(left)} opening and {original_code.count(right)} closing parentheses:\n```\n{original_code}\n```\n"
                                     if new_parentheses_diff != 0:
-                                        error_message += f" Your <new_code> has {new_code.count(left)} opening and {new_code.count(right)} closing parentheses:\n```\n{new_code}\n```\n"
-                                    error_message += "Make sure the number of opening and closing parentheses match in both <original_code> and <new_code>, otherwise the changes will cause a syntax error.\n</error>\n\n"
+                                        current_error_message += f" Your <new_code> has {new_code.count(left)} opening and {new_code.count(right)} closing parentheses:\n```\n{new_code}\n```\n"
+                                    current_error_message += "Make sure the number of opening and closing parentheses match in both <original_code> and <new_code>, otherwise the changes will cause a syntax error."
+                                    error_messages.append(current_error_message)
                                 error_indices.append(i)
                                 break
         elif file_change_request.change_type == "create":
@@ -485,11 +487,13 @@ def get_error_message(
             current_error_message = validate_file_path(cloned_repo, file_name, file_dir, full_file_dir, full_file_name, i)
 
             if current_error_message:
-                error_message += f"<error index=\"{len(error_indices)}\">\n{current_error_message}\n</error>\n\n"
+                error_messages.append(current_error_message)
                 error_indices.append(i)
-    # if error_message:
-        # breakpoint()
-    return error_message.strip('\n\n'), error_indices
+    return error_messages, error_indices
+
+def get_error_message(*args, **kwargs):
+    error_messages, error_indices = validate_file_path(*args, **kwargs)
+    return "\n\n".join([f"<error index=\"{i}\">\n{message}\n</error>" for i, message in enumerate(error_messages)]), error_indices
 
 def validate_file_path(cloned_repo: ClonedRepo, file_name: str, file_dir: str, full_file_dir: str, full_file_name: str, i):
     current_error_message = ""
