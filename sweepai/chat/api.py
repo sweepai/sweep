@@ -24,6 +24,7 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message, Snippet
 from sweepai.core.pull_request_bot import get_pr_summary_for_chat
 from sweepai.core.review_utils import split_diff_into_patches
+from sweepai.core.viz_utils import save_messages_for_visualization
 from sweepai.dataclasses.code_suggestions import CodeSuggestion
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import ClonedRepo, CustomGithub, MockClonedRepo, clean_branch_name, commit_multi_file_changes, create_branch, get_github_client, get_installation_id
@@ -612,7 +613,6 @@ def chat_codebase_stream(
                             }
                         )
                     )
-                
                 yield [
                     *new_messages,
                     *current_messages
@@ -717,6 +717,10 @@ def chat_codebase_stream(
         # breakpoint()
 
         # last_assistant_message = [message.content for message in new_messages if message.role == "assistant"][-1]
+        try:
+            save_messages_for_visualization(messages=new_messages, use_openai=use_openai)
+        except Exception as e:
+            logger.exception(f"Failed to save messages for visualization due to {e}")
 
         posthog.capture(metadata["username"], "chat_codebase complete", properties={
             **metadata,
