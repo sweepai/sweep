@@ -585,7 +585,6 @@ function App({
         readOnly={true}
         extensions={[
           EditorView.editable.of(false), 
-          EditorState.readOnly.of(true), 
           languageMapping[suggestion.filePath.split(".")[suggestion.filePath.split(".").length - 1]]
         ]}
       />
@@ -593,7 +592,6 @@ function App({
         value={suggestion.newCode}
         readOnly={suggestion.state != "done"}
         extensions={[
-          EditorState.readOnly.of(false), 
           languageMapping[suggestion.filePath.split(".")[suggestion.filePath.split(".").length - 1]]
         ]}
         onChange={debounce((value: string) => {
