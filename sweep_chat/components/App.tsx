@@ -29,7 +29,7 @@ import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Label } from "./ui/label";
 import PulsingLoader from "./shared/PulsingLoader";
-import { codeStyle, DEFAULT_K, modelMap, roleToColor, typeNameToColor } from "@/lib/constants";
+import { codeStyle, DEFAULT_K, modelMap, roleToColor, typeNameToColor, languageMapping } from "@/lib/constants";
 import { Repository, Snippet, FileDiff, PullRequest, Message, CodeSuggestion, StatefulCodeSuggestion } from "@/lib/types";
 
 import { Octokit } from "octokit";
@@ -639,12 +639,12 @@ function App({
       <Original
         value={suggestion.originalCode}
         readOnly={true}
-        extensions={[EditorView.editable.of(false), EditorState.readOnly.of(true), javascript({ jsx: true })]}
+        extensions={[EditorView.editable.of(false), EditorState.readOnly.of(true), languageMapping[suggestion.filePath.split(".")[suggestion.filePath.split(".").length - 1]]]}
       />
       <Modified
         value={suggestion.newCode}
         readOnly={suggestion.state != "done"}
-        extensions={[EditorState.readOnly.of(false), javascript({ jsx: true })]}
+        extensions={[EditorState.readOnly.of(false), languageMapping[suggestion.filePath.split(".")[suggestion.filePath.split(".").length - 1]]]}
         onChange={debounce((value: string) => {
           setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
           save(repoName, messages, snippets, suggestedChanges, pullRequest)
