@@ -1,8 +1,11 @@
 """
 This module is responsible for handling the check suite event, called from sweepai/api.py
 """
+from contextlib import contextmanager
 import io
+import os
 import re
+import subprocess
 from time import sleep
 import zipfile
 
@@ -12,9 +15,10 @@ import requests
 from github.Repository import Repository
 from github.CommitStatus import CommitStatus
 from sweepai.config.client import get_config_key_value
-from sweepai.config.server import CIRCLE_CI_PAT
+from sweepai.config.server import CIRCLE_CI_PAT, DOCKERFILE_CONFIG_LOCATION
+from sweepai.dataclasses.dockerfile_config import load_dockerfile_config_from_path
 from sweepai.logn.cache import file_cache
-from sweepai.utils.github_utils import get_token
+from sweepai.utils.github_utils import ClonedRepo, get_token
 
 MAX_LINES = 500
 LINES_TO_KEEP = 100
@@ -74,11 +78,88 @@ The below command yielded the following errors:
 <command>
 {command_line}
 </command>
+<errors>
 {error_content}
+</errors>
 Here are the logs:
 <logs>
 {cleaned_logs_str}
 </logs>"""
+
+
+@contextmanager
+def change_dir(destination):
+    prev_dir = os.getcwd()
+    os.chdir(destination)
+    try:
+        yield
+    finally:
+        os.chdir(prev_dir)
+
+def get_failing_docker_logs(cloned_repo: ClonedRepo):
+    """
+    Input: ClonedRepo object
+    Output:
+    - logs, a string containing the logs of the failing docker container
+    - image_name, a string containing the name of the docker image (for later cleanup)
+    """
+    # WARNING: I have not setup docker image removal
+    # image name should be an input arg and cleaned up at the end
+    if not DOCKERFILE_CONFIG_LOCATION:
+        # this method should not be called if the dockerfile config is not present
+        return "", ""
+    dockerfile_config = load_dockerfile_config_from_path(DOCKERFILE_CONFIG_LOCATION)
+    image_name = dockerfile_config.image_name + "-" + str(hash(cloned_repo.repo_dir))[-8:]
+    dockerfile_path = dockerfile_config.dockerfile_path
+    container_name = dockerfile_config.container_name
+    working_dir = os.getcwd()
+    dockerfile_path = os.path.join(working_dir, dockerfile_path)
+    try:
+        with change_dir(cloned_repo.repo_dir):
+            # Build the Docker image
+            build_command = f"docker build -t {image_name} -f {dockerfile_path} --build-arg CODE_PATH=. ."
+            # Disable BuildKit to avoid issues with Dockerfile syntax
+            disable_buildkit_prefix = "DOCKER_BUILDKIT=0"
+            build_command = f"{disable_buildkit_prefix} {build_command}"
+            subprocess.run(build_command, shell=True, check=True)
+            logger.info(f"Built Docker image {image_name}")
+            # Run the Docker container and remove it after it exits
+            run_command = f"docker run --name {container_name} {image_name}"
+            result = subprocess.run(run_command, shell=True, capture_output=True, text=True)
+            # Remove the Docker container
+            remove_command = f"docker rm {container_name}"
+            subprocess.run(remove_command, shell=True, check=True)
+            if result.returncode == 0:
+                logger.info(f"Docker container {container_name} exited successfully")
+                return "", image_name
+            else:
+                logger.error(f"Docker container {container_name} exited with error code {result.returncode}")
+                logs = result.stderr
+            logger.info(f"Removed Docker container {container_name}")
+            gha_formatted_prompt = gha_prompt.format(
+                command_line=dockerfile_config.command,
+                error_content=logs,
+                cleaned_logs_str="",
+            )
+            return gha_formatted_prompt, image_name
+    except subprocess.CalledProcessError as e:
+        logs = e.output
+    gha_formatted_prompt = gha_prompt.format(
+        command_line=dockerfile_config.command,
+        error_content=logs,
+        cleaned_logs_str="",
+    )
+    return gha_formatted_prompt, image_name
+
+def delete_docker_images(docker_image_names: str):
+    for image_name in docker_image_names:
+        delete_command = f"docker rmi {image_name}"
+        try:
+            subprocess.run(delete_command, shell=True, check=True)
+            logger.info(f"Deleted Docker image: {image_name}")
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"Error deleting Docker image: {image_name}")
+            logger.warning(f"Error message: {str(e)}")
 
 
 def clean_gh_logs(logs_str: str):

@@ -7,10 +7,12 @@ import difflib
 import io
 import os
 import re
+import subprocess
 import zipfile
 
 import markdown
 import requests
+from contextlib import contextmanager
 from github import Repository, IncompletableObject
 from github.PullRequest import PullRequest
 from github.Issue import Issue
@@ -24,10 +26,12 @@ from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
     SweepConfig,
 )
+from sweepai.config.server import DOCKERFILE_CONFIG_LOCATION
 from sweepai.core.entities import (
     SandboxResponse,
 )
 from sweepai.dataclasses.codereview import CodeReview, CodeReviewIssue
+from sweepai.dataclasses.dockerfile_config import load_dockerfile_config_from_path
 from sweepai.handlers.create_pr import (
     safe_delete_sweep_branch,
 )
@@ -37,6 +41,7 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.concurrency_utils import fire_and_forget_wrapper
 from sweepai.utils.github_utils import (
     CURRENT_USERNAME,
+    ClonedRepo,
     get_github_client,
     get_token,
 )

@@ -223,3 +223,4 @@ sweepai_messages/**
 sweep_chat/cypress.env.json
 sweep_chat/cypress/screenshots
 sweep_chat/.env
+dockerfiles/
