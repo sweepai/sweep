@@ -1,6 +1,6 @@
 import { codeStyle } from "@/lib/constants";
 import Markdown from "react-markdown";
-import SyntaxHighlighter from "react-syntax-highlighter";
+import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
 import remarkGfm from "remark-gfm";
 // @ts-ignore
 import * as Diff from "diff";
