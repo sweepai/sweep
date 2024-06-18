@@ -178,9 +178,9 @@ def on_failing_github_actions(
         suite_runs = list(repo.get_workflow_runs(branch=pull_request.head.ref, head_sha=pull_request.head.sha))
         if DOCKER_ENABLED:
             branch = pull_request.head.ref
-            failing_logs, docker_image_name = get_failing_docker_logs(cloned_repo=ClonedRepo(repo_full_name, branch=branch, installation_id=installation_id, token=user_token, repo=repo))
-            if docker_image_name:
-                docker_image_names.append(docker_image_name)
+            failing_logs, new_docker_image_names = get_failing_docker_logs(cloned_repo=ClonedRepo(repo_full_name, branch=branch, installation_id=installation_id, token=user_token, repo=repo))
+            if new_docker_image_names:
+                docker_image_names.extend(new_docker_image_names)
         # if all runs have succeeded or have no result, break
         if all([run.conclusion in ["success", "skipped", None] and \
                 run.status not in ["in_progress", "waiting", "pending", "requested", "queued"] for run in runs]) and \

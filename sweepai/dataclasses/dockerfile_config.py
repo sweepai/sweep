@@ -9,6 +9,8 @@ class DockerfileConfig:
     container_name: str
     command: str
 
-def load_dockerfile_config_from_path(location) -> DockerfileConfig:
+def load_dockerfile_configs_from_path(location) -> DockerfileConfig:
     # load an instance of this from a json file
-    return DockerfileConfig(**json.load(open(location, 'r')))
+    with open(location, 'r') as f:
+        data = json.load(f)
+    return [DockerfileConfig(**item) for item in data]
