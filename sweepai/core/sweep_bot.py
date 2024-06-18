@@ -331,7 +331,6 @@ def validate_change(
                                 error_message += f" Your <new_code> has {new_code.count(left)} opening and {new_code.count(right)} closing parentheses:\n```\n{new_code}\n```\n"
                             return error_message + "Make sure the number of opening and closing parentheses match in both <original_code> and <new_code>, otherwise the changes will cause a syntax error."
 
-# todo: integrate this into the main function
 def get_error_message_formatted(
     file_change_requests: list[FileChangeRequest],
     cloned_repo: ClonedRepo,
@@ -489,7 +488,7 @@ def get_error_message_formatted(
     return error_messages, error_indices
 
 def get_error_message(*args, **kwargs):
-    error_messages, error_indices = validate_file_path(*args, **kwargs)
+    error_messages, error_indices = get_error_message_formatted(*args, **kwargs)
     return "\n\n".join([f"<error index=\"{i}\">\n{message}\n</error>" for i, message in enumerate(error_messages)]), error_indices
 
 def validate_file_path(cloned_repo: ClonedRepo, file_name: str, file_dir: str, full_file_dir: str, full_file_name: str, i):
