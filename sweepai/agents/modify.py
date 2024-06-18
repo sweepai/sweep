@@ -3,10 +3,10 @@ import os
 
 
 from loguru import logger
-from sweepai.agents.modify_utils import (NO_TOOL_CALL_PROMPT, SLOW_MODEL, create_user_message, get_error_message_dict, get_error_message_formatted, get_replaces_per_fcr, render_current_task, render_plan, instructions, modify_tools, SUBMIT_TASK_MOCK_FUNCTION_CALL, linter_warning_prompt, compile_fcr, validate_and_parse_function_call, handle_function_call, tasks_completed, changes_made, get_current_task_index, MODEL)
+from sweepai.agents.modify_utils import (NO_TOOL_CALL_PROMPT, SLOW_MODEL, create_user_message, get_error_message_dict, get_replaces_per_fcr, render_current_task, render_plan, instructions, modify_tools, SUBMIT_TASK_MOCK_FUNCTION_CALL, linter_warning_prompt, compile_fcr, validate_and_parse_function_call, handle_function_call, tasks_completed, changes_made, get_current_task_index, MODEL)
 from sweepai.core.chat import ChatGPT, continuous_llm_calls
 from sweepai.core.entities import FileChangeRequest, Message, parse_fcr
-from sweepai.dataclasses.code_suggestions import StatefulCodeSuggestion, StatefulCodeSuggestion
+from sweepai.dataclasses.code_suggestions import StatefulCodeSuggestion
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.code_validators import format_file
 from sweepai.utils.diff import generate_diff
@@ -44,7 +44,7 @@ def generate_code_suggestions(
                     file_path=fcr.filename,
                     original_code=parsed_fcr["original_code"][0] if parsed_fcr["original_code"] else "",
                     new_code=parsed_fcr["new_code"][0] if parsed_fcr["new_code"] else "",
-                    state=("processing" if not i == current_fcr_index else "pending") if not i in error_messages_dict else "error",
+                    state=("processing" if not i == current_fcr_index else "pending") if i not in error_messages_dict else "error",
                     error=error_messages_dict.get(i, None)
                 ))
     return code_suggestions

@@ -56,7 +56,6 @@ from sweepai.utils.chat_logger import ChatLogger
 # from sweepai.utils.previous_diff_utils import get_relevant_commits
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo
-from sweepai.core.entities import parse_fcr
 from sweepai.utils.str_utils import extract_object_fields_from_string
 from sweepai.utils.streamable_functions import streamable
 
