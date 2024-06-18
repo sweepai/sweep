@@ -17,10 +17,10 @@ from sweepai.agents.modify import modify
 
 from sweepai.agents.modify_utils import validate_and_parse_function_call
 from sweepai.agents.search_agent import extract_xml_tag
-from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, anthropic_system_message, function_response, anthropic_format_message, pr_format, relevant_snippets_message_for_pr, openai_format_message, openai_system_message
+from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, anthropic_system_message, function_response, anthropic_format_message, pr_format, relevant_snippets_message_for_pr, openai_format_message, openai_system_message, query_optimizer_system_prompt, query_optimizer_user_prompt
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import CACHE_DIRECTORY, GITHUB_APP_ID, GITHUB_APP_PEM
-from sweepai.core.chat import ChatGPT
+from sweepai.core.chat import ChatGPT, call_llm
 from sweepai.core.entities import FileChangeRequest, Message, Snippet
 from sweepai.core.pull_request_bot import get_pr_summary_for_chat
 from sweepai.core.review_utils import split_diff_into_patches
@@ -371,13 +371,23 @@ def search_codebase(
             print(f"Cloned {repo_name} to {repo_cache}/{repo}")
         cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
         cloned_repo.pull()
+
+        yield "Optimizing query...", []
+
+        query = call_llm(
+            system_prompt=query_optimizer_system_prompt,
+            user_prompt=query_optimizer_user_prompt,
+            params={"query": query},
+            use_openai=True
+        ).strip().removeprefix("Search query:").strip()
+        yield f"Optimized query: {query}", []
         for message, snippets in prep_snippets.stream(
             cloned_repo, query, 
             use_multi_query=False,
             NUM_SNIPPETS_TO_KEEP=0,
             skip_analyze_agent=True
         ):
-            yield message, snippets
+            yield f"{message} (optimized query: {query})", snippets
     logger.debug(f"Preparing snippets took {timer.time_elapsed} seconds")
     return snippets
 

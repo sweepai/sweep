@@ -412,3 +412,18 @@ Be sure to summarize the contents of the pull request during the analysis phase 
 Here's the user's message:
 
 {user_message}"""
+
+query_optimizer_system_prompt = """Generate a search query for a hybrid search database to find relevant files in a codebase. The search query should match a relevant part of the code. Keep all file paths and entities exactly.
+
+Examples:
+Question: How can we optimize the database queries in the user profile page to improve load times? Are there any caching mechanisms we can leverage?
+Search query: user profile page database query
+Question: Are there any accessibility issues with the current form validation error messages in the signup flow? How can we ensure they are screen-reader friendly?
+Search query: signup form validation error message
+Question: What's the best way to implement real-time updates for the chat feature in our mobile app? Should we use WebSockets or long-polling?
+Search query: mobile app chat real-time updates WebSockets long-polling
+
+Just respond with the search query, nothing else."""
+
+query_optimizer_user_prompt = """Question: {query}"""
+
