@@ -395,7 +395,6 @@ def chat_codebase(
 
     g = get_authenticated_github_client(repo_name, access_token)
     assert g
-
     username = Github(access_token).get_user().login
     token = g.token if isinstance(g, CustomGithub) else access_token
 

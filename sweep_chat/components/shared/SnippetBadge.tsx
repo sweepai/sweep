@@ -2,14 +2,50 @@ import { typeNameToColor, codeStyle } from "@/lib/constants";
 import { sliceLines } from "@/lib/str_utils";
 import { Snippet } from "@/lib/types";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
+import { FaTimes } from "react-icons/fa";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { Button } from "../ui/button";
+import { Dispatch, SetStateAction } from "react";
 
-const MutePath = ({ path }: { path: string }) => {
+const snippetIsEqual = ({
+  snippetOne,
+  snippetTwo,
+} : {
+  snippetOne: Snippet;
+  snippetTwo: Snippet;
+}
+) => {
+  return snippetOne.content == snippetTwo.content && snippetOne.file_path == snippetTwo.file_path;
+}
+
+const RenderPath = ({ 
+  snippet,
+  snippets,
+  setSnippets,
+}: { 
+  snippet: Snippet;
+  snippets: Snippet[];
+  setSnippets: Dispatch<SetStateAction<Snippet[]>>;
+}) => {
+  let path = snippet.file_path
+  let truncatedPath = path
+  const maxPathLength = 70
+  if (path.length > maxPathLength) {
+    truncatedPath = "..." + path.slice((maxPathLength - 3) * -1)
+  }
   return (
     <span>
-      <span className="text-gray-400">{path.substring(0, path.lastIndexOf('/') + 1)}</span>
-      <span className="text-white">{path.substring(path.lastIndexOf('/') + 1)}</span>
+      <span className="text-gray-400">{truncatedPath.substring(0, truncatedPath.lastIndexOf('/') + 1)}</span>
+      <span className="text-white">{truncatedPath.substring(truncatedPath.lastIndexOf('/') + 1)}</span>
+      <span><FaTimes onClick={() => {
+        let newSnippets = []
+        for (let curSnippet of snippets) {
+          if (!snippetIsEqual({ snippetOne: snippet, snippetTwo: curSnippet })) {
+            newSnippets.push(curSnippet)
+          }
+        }
+        setSnippets(newSnippets)
+      }}/></span>
     </span>
   );
 }
@@ -24,12 +60,16 @@ const SnippetBadge = ({
   repoName,
   branch,
   button,
+  snippets,
+  setSnippets,
 }: {
   snippet: Snippet;
   className?: string;
   repoName: string;
   branch: string;
   button?: JSX.Element;
+  snippets: Snippet[];
+  setSnippets: Dispatch<SetStateAction<Snippet[]>>;
 }) => {
   return (
     <HoverCard openDelay={300} closeDelay={200}>
@@ -40,9 +80,9 @@ const SnippetBadge = ({
           }}>
             <span>
               {snippet.end > snippet.content.split('\n').length - 3 && snippet.start == 0 ?
-                <MutePath path={snippet.file_path} /> : (
+                <RenderPath snippet={snippet} snippets={snippets} setSnippets={setSnippets}/> : (
                   <>
-                    <MutePath path={snippet.file_path}/>
+                    <RenderPath snippet={snippet} snippets={snippets} setSnippets={setSnippets}/>
                     <span className="text-gray-400">:{snippet.start}-{snippet.end}</span>
                   </>
                 )
@@ -75,4 +115,5 @@ const SnippetBadge = ({
 }
 
 export { SnippetBadge }
+
 

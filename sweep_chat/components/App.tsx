@@ -36,6 +36,7 @@ import { Octokit } from "octokit";
 import { renderPRDiffs, getJSONPrefix, getFunctionCallHeaderString, getDiff } from "@/lib/str_utils";
 import { CODE_CHANGE_PATTERN, MarkdownRenderer } from "./shared/MarkdownRenderer";
 import { SnippetBadge } from "./shared/SnippetBadge";
+import { ContextSideBar } from "./shared/ContextSideBar";
 import { posthog } from "@/lib/posthog";
 
 import CodeMirrorMerge from 'react-codemirror-merge';
@@ -310,18 +311,7 @@ const MessageDisplay = ({
                           {message.content}
                         </span>
                       )}
-                      {message.function_call!.snippets ? (
-                        <div className="pb-0 pt-4">
-                          {message.function_call!.snippets.map((snippet, index) => (
-                            <SnippetBadge
-                              key={index}
-                              snippet={snippet}
-                              repoName={repoName}
-                              branch={branch}
-                            />
-                          ))}
-                        </div>
-                      ) : (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
+                      (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
                         <MarkdownRenderer content={message.content} className="reactMarkdown mt-4 mb-0 py-2" />
                       ) : (
                         <SyntaxHighlighter
@@ -337,7 +327,7 @@ const MessageDisplay = ({
                           {message.content}
                         </SyntaxHighlighter>
                       )
-                      )}
+                      )
                       <FeedbackBlock message={message} index={index} />
                     </AccordionContent>
                   </AccordionItem>
@@ -1069,6 +1059,12 @@ function App({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <ContextSideBar
+        snippets={snippets}
+        setSnippets={setSnippets}
+        repoName={repoName}
+        branch={branch}
+        />
       <div
         ref={messagesContainerRef}
         className="w-full border flex-grow mb-4 p-4 max-h-[90%] overflow-y-auto rounded-xl"
