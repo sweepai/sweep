@@ -20,6 +20,7 @@ def test_e2e_pr_review():
             pr,
             repo,
             installation_id,
+            pr_labelled=True,
         )
     except AssertionError as e:
         for thread in global_threads:

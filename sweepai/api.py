@@ -484,6 +484,7 @@ def handle_event(request_dict, event):
                             pr=pr,
                             repository=repo,
                             installation_id=pr_request.installation.id,
+                            pr_labelled=False,
                         )
                 except Exception as e:
                     logger.exception(f"Failed to review PR: {e}")
@@ -505,6 +506,7 @@ def handle_event(request_dict, event):
                             pr=pr,
                             repository=repo,
                             installation_id=pr_request.installation.id,
+                            pr_labelled=True,
                         )
                     else:
                         logger.info("sweep label not in pull request labels")
