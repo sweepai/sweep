@@ -1144,9 +1144,12 @@ function App({
                     console.error(e)
                     toast({
                       title: "Failed to auto-fix changes!",
-                      description: "This feature is still under development, so it's not completely reliable yet. We'll fix this for you shortly. Here was the error: " + e.message,
+                      description: "The following error occurred while applying these changes:\n\n" + e.message + "\n\nFeel free to shoot us a message if you keep running into this!",
                       variant: "destructive",
                       duration: Infinity,
+                    })
+                    posthog.capture("auto fix error", {
+                      error: e.message,
                     })
                     currentCodeSuggestions = currentCodeSuggestions.map((suggestion) => ({
                       ...suggestion,
