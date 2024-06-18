@@ -868,16 +868,17 @@ async def autofix(
 
     def stream():
         try:
-            for modify_files_dict in modify.stream(
+            for stateful_code_suggestions in modify.stream(
                 fcrs=file_change_requests,
                 request="",
                 cloned_repo=cloned_repo,
                 relevant_filepaths=[code_suggestion.file_path for code_suggestion in code_suggestions],
                 fast=True,
             ):
-                yield json.dumps(modify_files_dict)
+                yield json.dumps([stateful_code_suggestion.__dict__ for stateful_code_suggestion in stateful_code_suggestions])
         except Exception as e:
             yield json.dumps({"error": str(e)})
+            raise e
 
     return StreamingResponse(stream())
 

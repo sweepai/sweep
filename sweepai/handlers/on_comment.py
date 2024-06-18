@@ -19,7 +19,8 @@ from sweepai.config.server import (
 )
 from sweepai.core.entities import MockPR, NoFilesException, Snippet, render_fcrs
 from sweepai.core.pull_request_bot import PRSummaryBot
-from sweepai.core.sweep_bot import get_files_to_change_for_on_comment, set_fcr_change_type
+from sweepai.core.sweep_bot import get_files_to_change_for_on_comment
+from sweepai.agents.modify_utils import set_fcr_change_type
 from sweepai.handlers.create_pr import handle_file_change_requests
 from sweepai.core.review_utils import format_pr_info, get_pr_changes, smart_prune_file_based_on_patches
 from sweepai.utils.chat_logger import ChatLogger

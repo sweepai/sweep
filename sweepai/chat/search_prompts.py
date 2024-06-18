@@ -297,9 +297,7 @@ openai_system_message = """You are a helpful assistant that will answer a user's
 path/to/file.py
 </file_path>
 <original_code>
-Skip this section if and only if you are creating a new file.
-
-Otherwise, copy the original section of code from path/to/file.py. This is the section of code that you will change. Paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED.
+Copy the original section of code from path/to/file.py. This is the section of code that you will change. Paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED.
 </original_code>
 <new_code>
 New code to replace <original_code> with.

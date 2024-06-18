@@ -8,6 +8,7 @@ from github.Repository import Repository
 from github.PullRequest import PullRequest
 from loguru import logger
 
+from sweepai.agents.modify_utils import set_fcr_change_type
 from sweepai.dataclasses.gha_fix import GHAFix
 from sweepai.handlers.on_check_suite import delete_docker_images, get_failing_circleci_logs, get_failing_docker_logs
 from sweepai.utils.str_utils import strip_triple_quotes
@@ -16,7 +17,7 @@ from sweepai.config.server import CIRCLE_CI_PAT, DEPLOYMENT_GHA_ENABLED, DOCKER_
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
 from sweepai.core.pull_request_bot import GHA_SUMMARY_END, GHA_SUMMARY_START, PRSummaryBot
-from sweepai.core.sweep_bot import GHA_PROMPT, GHA_PROMPT_WITH_HISTORY, get_files_to_change_for_gha, set_fcr_change_type
+from sweepai.core.sweep_bot import GHA_PROMPT, GHA_PROMPT_WITH_HISTORY, get_files_to_change_for_gha
 from sweepai.handlers.create_pr import handle_file_change_requests
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, get_github_client, refresh_token, validate_and_sanitize_multi_file_changes
