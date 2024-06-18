@@ -852,6 +852,7 @@ def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, s
 async def autofix(
     repo_name: str = Body(...),
     code_suggestions: list[CodeSuggestion] = Body(...),
+    branch: str = Body(None),
     access_token: str = Depends(get_token_header)
 ):
     with Timer() as timer:
@@ -865,7 +866,8 @@ async def autofix(
     cloned_repo = ClonedRepo(
         repo_name,
         installation_id=installation_id,
-        token=access_token
+        token=access_token,
+        branch=branch
     )
 
     file_change_requests = []
@@ -892,7 +894,6 @@ async def autofix(
                 request="",
                 cloned_repo=cloned_repo,
                 relevant_filepaths=[code_suggestion.file_path for code_suggestion in code_suggestions],
-                fast=True,
             ):
                 yield json.dumps([stateful_code_suggestion.__dict__ for stateful_code_suggestion in stateful_code_suggestions])
         except Exception as e:
