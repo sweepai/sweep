@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "../components/ui/input"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { FaArrowLeft, FaCheck, FaCog, FaComments, FaExclamationTriangle, FaGithub, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes } from "react-icons/fa";
+import { FaArrowLeft, FaCheck, FaCog, FaComments, FaExclamationTriangle, FaGithub, FaPaperPlane, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -985,6 +985,23 @@ function App({
     });
   }
 
+  const sendMessage = async () => {
+    posthog.capture("chat submitted", {
+      repoName,
+      snippets,
+      messages,
+      currentMessage,
+    });
+    let newMessages: Message[] = [...messages, { content: currentMessage, role: "user" }];
+    setMessages(newMessages);
+    setCurrentMessage("");
+    const pulls = await parsePullRequests(repoName, currentMessage, octokit!)
+    newMessages = [...messages, { content: currentMessage, role: "user", annotations: { pulls } }];
+    setMessages(newMessages);
+    setCurrentMessage("");
+    startStream(currentMessage, newMessages, snippets, { pulls })
+  }
+
   return (
     <main className="flex h-screen flex-col items-center justify-between p-12">
       <Toaster />
@@ -1361,39 +1378,11 @@ function App({
               <FaArrowsRotate />&nbsp;&nbsp;Reset
             </Button>
           )}
-          <Input
-            data-ph-capture-attribute-current-message={currentMessage}
-            onKeyUp={async (e) => {
-              if (e.key === "Enter") {
-                posthog.capture("chat submitted", {
-                  repoName,
-                  snippets,
-                  messages,
-                  currentMessage,
-                });
-                let newMessages: Message[] = [...messages, { content: currentMessage, role: "user" }];
-                setMessages(newMessages);
-                setCurrentMessage("");
-                const pulls = await parsePullRequests(repoName, currentMessage, octokit!)
-                newMessages = [...messages, { content: currentMessage, role: "user", annotations: { pulls } }];
-                setMessages(newMessages);
-                setCurrentMessage("");
-                startStream(currentMessage, newMessages, snippets, { pulls })
-              }
-            }}
-            onChange={(e) => setCurrentMessage(e.target.value)}
-            className="p-4"
-            value={currentMessage}
-            placeholder="Type a message..."
-            disabled={isLoading}
-          />
           <Dialog>
             <DialogTrigger asChild>
               <Button
-                className="ml-2"
+                className="mr-2"
                 variant="secondary"
-                onClick={async () => {
-                }}
                 disabled={isLoading}
               >
                 <FaShareAlt />&nbsp;&nbsp;Share
@@ -1428,6 +1417,27 @@ function App({
               </Button>
             </DialogContent>
           </Dialog>
+          <Input
+            data-ph-capture-attribute-current-message={currentMessage}
+            onKeyUp={async (e) => {
+              if (e.key === "Enter") {
+                sendMessage()
+              }
+            }}
+            onChange={(e) => setCurrentMessage(e.target.value)}
+            className="p-4"
+            value={currentMessage}
+            placeholder="Type a message..."
+            disabled={isLoading}
+          />
+          <Button
+            className="ml-2 bg-blue-900 text-white hover:bg-blue-800"
+            variant="secondary"
+            onClick={sendMessage}
+            disabled={isLoading}
+          >
+            <FaPaperPlane />&nbsp;&nbsp;Send
+          </Button>
         </div>
       )}
     </main>
