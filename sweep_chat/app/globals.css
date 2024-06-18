@@ -151,3 +151,10 @@
     color: #ff3333;
   }
 
+.vertical-text {
+  display: inline-block;
+  transform: rotate(90deg);
+  transform-origin: left top 0;
+  white-space: nowrap;
+}
+  
