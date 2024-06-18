@@ -29,7 +29,7 @@ import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Label } from "./ui/label";
 import PulsingLoader from "./shared/PulsingLoader";
-import { codeStyle, DEFAULT_K, modelMap, roleToColor, typeNameToColor } from "@/lib/constants";
+import { codeStyle, DEFAULT_K, modelMap, roleToColor, typeNameToColor, languageMapping } from "@/lib/constants";
 import { Repository, Snippet, FileDiff, PullRequest, Message, CodeSuggestion, StatefulCodeSuggestion } from "@/lib/types";
 
 import { Octokit } from "octokit";
@@ -625,37 +625,33 @@ function App({
     }
   }, [repoName])
 
-  const reactCodeMirrors = useMemo(() => {
-    return suggestedChanges.map((suggestion, index) => (
-      <CodeMirrorMerge
-        theme={dracula}
-        revertControls={"b-to-a"}
-        collapseUnchanged={{
-          margin: 3,
-          minSize: 4,
-        }}
-        autoFocus={false}
-        key={index}
-      >
-        <Original
-          value={suggestion.originalCode}
-          extensions={[EditorView.editable.of(false), EditorState.readOnly.of(true), javascript({ jsx: true })]}
-          onChange={debounce((value: string) => {
-            setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, originalCode: value } : suggestion))
-            save(repoName, messages, snippets, suggestedChanges, pullRequest)
-          }, 1000)}
-        />
-        <Modified
-          value={suggestion.newCode}
-          extensions={[EditorState.readOnly.of(false), javascript({ jsx: true })]}
-          onChange={debounce((value: string) => {
-            setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
-            save(repoName, messages, snippets, suggestedChanges, pullRequest)
-          }, 1000)}
-        />
-      </CodeMirrorMerge>
-    ))
-  }, [suggestedChanges])
+  const reactCodeMirrors = suggestedChanges.map((suggestion, index) => (
+    <CodeMirrorMerge
+      theme={dracula}
+      revertControls={"b-to-a"}
+      collapseUnchanged={{
+        margin: 3,
+        minSize: 4,
+      }}
+      autoFocus={false}
+      key={JSON.stringify(suggestion)}
+    >
+      <Original
+        value={suggestion.originalCode}
+        readOnly={true}
+        extensions={[EditorView.editable.of(false), EditorState.readOnly.of(true), languageMapping[suggestion.filePath.split(".")[suggestion.filePath.split(".").length - 1]]]}
+      />
+      <Modified
+        value={suggestion.newCode}
+        readOnly={suggestion.state != "done"}
+        extensions={[EditorState.readOnly.of(false), languageMapping[suggestion.filePath.split(".")[suggestion.filePath.split(".").length - 1]]]}
+        onChange={debounce((value: string) => {
+          setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
+          save(repoName, messages, snippets, suggestedChanges, pullRequest)
+        }, 1000)}
+      />
+    </CodeMirrorMerge>
+  ));
 
   if (session) {
     posthog.identify(
@@ -1129,7 +1125,6 @@ function App({
                   });
 
                   try {
-                    let changesMade = false;
                     const reader = streamedResponse.body!.getReader();
                     for await (const currentState of streamMessages(reader)) {
                       if (currentState.error) {
@@ -1143,10 +1138,9 @@ function App({
                         }
                         currentCodeSuggestions[index].state = original_contents == contents ? "processing" : "done";
                         currentCodeSuggestions[index].originalCode = original_contents;
-                        if (original_contents == contents) {
+                        if (original_contents != contents) {
                           currentCodeSuggestions[index].newCode = contents;
                         }
-                        changesMade = true;
                       }
                       setSuggestedChanges(currentCodeSuggestions)
                       save(repoName, messages, snippets, suggestedChanges, pullRequest)
@@ -1159,9 +1153,13 @@ function App({
                       variant: "destructive",
                       duration: Infinity,
                     })
+                    currentCodeSuggestions = currentCodeSuggestions.map((suggestion) => ({
+                      ...suggestion,
+                      state: suggestion.state != "done" ? "error" : suggestion.state,
+                    }))
+                    setSuggestedChanges(currentCodeSuggestions)
                   } finally {
                     setIsProcessingSuggestedChanges(false);
-
                     const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
                       body: JSON.stringify({
                         repo_name: repoName,
@@ -1213,16 +1211,16 @@ function App({
               </Button>
             </div>
             {(isProcessingSuggestedChanges || isCreatingPullRequest) && (
-              <div className="flex justify-around w-full py-2 mb-4">
+              <div className="flex justify-around w-full pb-2 mb-4">
                 <p>{isProcessingSuggestedChanges ? "Performing sanity checks..." : "Creating pull request..."}</p>
               </div>
             )}
             <div style={{ opacity: isCreatingPullRequest ? 0.5 : 1, pointerEvents: isCreatingPullRequest ? 'none' : 'auto' }}>
               {suggestedChanges.map((suggestion, index) => (
                 <div className="fit-content mb-6" key={index}>
-                  <div className={`w-full text-sm p-2 rounded-t-md ${suggestion.state === "done" ? "bg-green-900" : suggestion.state === "pending" ? "bg-zinc-800" : "bg-yellow-800"}`}>
+                  <div className={`w-full text-sm p-2 rounded-t-md ${suggestion.state === "done" ? "bg-green-900" : suggestion.state === "error" ? "bg-red-900" : suggestion.state === "pending" ? "bg-zinc-800" : "bg-yellow-800"}`}>
                     <code>
-                      {suggestion.filePath} {suggestion.state == "pending" ? "(pending)" : suggestion.state == "processing" ? "(processing)" : <FaCheck style={{display: "inline", marginTop: -2}}/>}
+                      {suggestion.filePath} {suggestion.state == "pending" ? "(pending)" : suggestion.state == "processing" ? "(processing)" : suggestion.state == "error" ? "(error)" : <FaCheck style={{display: "inline", marginTop: -2}}/>}
                     </code>
                   </div>
                   {reactCodeMirrors[index]}
