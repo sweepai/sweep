@@ -846,6 +846,7 @@ function App({
   }
 
   return (
+    <>
     <main className="flex h-screen flex-col items-center justify-between p-12">
       <Toaster />
       {showSurvey && process.env.NEXT_PUBLIC_SURVEY_ID && (
@@ -1374,6 +1375,7 @@ function App({
         </div>
       )}
     </main>
+    </>
   );
 }
 

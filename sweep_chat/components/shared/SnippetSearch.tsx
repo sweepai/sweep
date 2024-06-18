@@ -42,6 +42,7 @@ const SnippetSearch = ({
   const [newSnippets, setNewSnippets] = useState<Snippet[]>([])
   const [searchQuery, setSearchQuery] = useState<string>("")
   const [searchIsLoading, setSearchIsLoading] = useState<boolean>(false);
+  const [progressMessage, setProgressMessage] = useState<string>("")
   const { data: session } = useSession()
 
   const searchForSnippets = async () => {
@@ -67,7 +68,8 @@ const SnippetSearch = ({
       let currentSnippets: Snippet[] = []
       const reader = snippetsResponse.body?.getReader()!;
       for await (const chunk of streamMessages(reader)) {
-        let _streamedMessage = chunk[0]
+        let streamedMessage = chunk[0]
+        setProgressMessage(streamedMessage)
         currentSnippets = chunk[1]
         currentSnippets = currentSnippets.slice(0, k)
         if (currentSnippets) {
@@ -129,7 +131,7 @@ const SnippetSearch = ({
             />
           </div>
         </div>
-        {searchIsLoading ? <PulsingLoader size={0.5} /> : <></>}
+        {searchIsLoading ? <PulsingLoader size={0.5} message={progressMessage} /> : <></>}
         <ScrollArea className="h-full w-full rounded-md border">
           {newSnippets.map((snippet, index) => (
             <SnippetBadge
