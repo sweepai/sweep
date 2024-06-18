@@ -1443,5 +1443,5 @@ def get_error_message_dict(*args, **kwargs):
     return {i: message for i, message in zip(error_indices, error_messages)}
 
 def get_error_message(*args, **kwargs):
-    error_messages, error_indices = get_error_message_formatted()(*args, **kwargs)
+    error_messages, error_indices = get_error_message_formatted(*args, **kwargs)
     return "\n\n".join([f"<error index=\"{i}\">\n{message}\n</error>" for i, message in enumerate(error_messages)]), error_indices
