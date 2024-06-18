@@ -353,7 +353,8 @@ def wrapped_search_codebase(
     for message, snippets in search_codebase.stream(
         repo_name,
         query,
-        access_token
+        access_token,
+        use_optimized_query=not bool(annotations),
     ):
         yield message, snippets
 
@@ -362,6 +363,7 @@ def search_codebase(
     repo_name: str,
     query: str,
     access_token: str,
+    use_optimized_query: bool = True,
 ):
     with Timer() as timer:
         org_name, repo = repo_name.split("/")
@@ -372,22 +374,26 @@ def search_codebase(
         cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
         cloned_repo.pull()
 
-        yield "Optimizing query...", []
+        if use_optimized_query:
+            yield "Optimizing query...", []
+            query = call_llm(
+                system_prompt=query_optimizer_system_prompt,
+                user_prompt=query_optimizer_user_prompt,
+                params={"query": query},
+                use_openai=True
+            ).strip().removeprefix("Search query:").strip()
+            yield f"Optimized query: {query}", []
 
-        query = call_llm(
-            system_prompt=query_optimizer_system_prompt,
-            user_prompt=query_optimizer_user_prompt,
-            params={"query": query},
-            use_openai=True
-        ).strip().removeprefix("Search query:").strip()
-        yield f"Optimized query: {query}", []
         for message, snippets in prep_snippets.stream(
             cloned_repo, query, 
             use_multi_query=False,
             NUM_SNIPPETS_TO_KEEP=0,
             skip_analyze_agent=True
         ):
-            yield f"{message} (optimized query: {query})", snippets
+            if use_optimized_query:
+                yield f"{message} (optimized query: {query})", snippets
+            else:
+                yield message, snippets
     logger.debug(f"Preparing snippets took {timer.time_elapsed} seconds")
     return snippets
 
