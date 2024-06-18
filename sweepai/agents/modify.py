@@ -3,9 +3,10 @@ import os
 
 
 from loguru import logger
-from sweepai.agents.modify_utils import (NO_TOOL_CALL_PROMPT, SLOW_MODEL, create_user_message, get_replaces_per_fcr, render_current_task, render_plan, instructions, modify_tools, SUBMIT_TASK_MOCK_FUNCTION_CALL, linter_warning_prompt, compile_fcr, validate_and_parse_function_call, handle_function_call, tasks_completed, changes_made, get_current_task_index, MODEL)
+from sweepai.agents.modify_utils import (NO_TOOL_CALL_PROMPT, SLOW_MODEL, create_user_message, get_error_message_dict, get_error_message_formatted, get_replaces_per_fcr, render_current_task, render_plan, instructions, modify_tools, SUBMIT_TASK_MOCK_FUNCTION_CALL, linter_warning_prompt, compile_fcr, validate_and_parse_function_call, handle_function_call, tasks_completed, changes_made, get_current_task_index, MODEL)
 from sweepai.core.chat import ChatGPT, continuous_llm_calls
-from sweepai.core.entities import FileChangeRequest, Message
+from sweepai.core.entities import FileChangeRequest, Message, parse_fcr
+from sweepai.dataclasses.code_suggestions import StatefulCodeSuggestion, StatefulCodeSuggestion
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.code_validators import format_file
 from sweepai.utils.diff import generate_diff
@@ -13,6 +14,40 @@ from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.streamable_functions import streamable
 
+def generate_code_suggestions(
+    modify_files_dict: dict[str, dict[str, str]],
+    fcrs: list[FileChangeRequest],
+    error_messages_dict: dict[int, str],
+) -> list[StatefulCodeSuggestion]:
+    modify_order = [fcr.filename for fcr in fcrs]
+
+    code_suggestions = []
+    for file_path in modify_order:
+        if file_path in modify_files_dict:
+            file_data = modify_files_dict[file_path]
+            if file_data["original_contents"] != file_data["contents"]:
+                code_suggestions.append(StatefulCodeSuggestion(
+                    file_path=file_path,
+                    original_code=file_data["original_contents"],
+                    new_code=file_data["contents"],
+                    state="done"
+                ))
+    
+    current_fcr_index = next((i for i, fcr in enumerate(fcrs) if not fcr.is_completed), -1)
+    if current_fcr_index >= 0:
+        for i, fcr in enumerate(fcrs):
+            if i < current_fcr_index:
+                continue
+            else:
+                parsed_fcr = parse_fcr(fcr)
+                code_suggestions.append(StatefulCodeSuggestion(
+                    file_path=fcr.filename,
+                    original_code=parsed_fcr["original_code"][0] if parsed_fcr["original_code"] else "",
+                    new_code=parsed_fcr["new_code"][0] if parsed_fcr["new_code"] else "",
+                    state=("processing" if not i == current_fcr_index else "pending") if not i in error_messages_dict else "error",
+                    error=error_messages_dict.get(i, None)
+                ))
+    return code_suggestions
 
 @streamable
 def modify(
@@ -104,14 +139,14 @@ def modify(
     if not previous_modify_files_dict:
         previous_modify_files_dict = {}
     modify_files_dict = copy.deepcopy(previous_modify_files_dict)
-    yield modify_files_dict
 
     # this message list is for the chat logger to have a detailed insight into why failures occur
     detailed_chat_logger_messages = [{"role": message.role, "content": message.content} for message in chat_gpt.messages]
     # used to determine if changes were made
+    error_messages_dict = get_error_message_dict(fcrs, cloned_repo, modify_files_dict, renames_dict)
     previous_modify_files_dict = copy.deepcopy(modify_files_dict)
     for i in range(len(fcrs) * 15):
-        yield modify_files_dict
+        yield generate_code_suggestions(modify_files_dict, fcrs, error_messages_dict)
         function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
         if function_call:
             num_of_tasks_done = tasks_completed(fcrs)
@@ -277,7 +312,7 @@ def modify(
         ):
             diff_string += f"\nChanges made to {file_name}:\n{diff}"
     logger.info("\n".join(generate_diff(file_data["original_contents"], file_data["contents"]) for file_data in modify_files_dict.values())) # adding this as a useful way to render the diffs
-    yield modify_files_dict
+    yield generate_code_suggestions(modify_files_dict, fcrs, error_messages_dict)
     return modify_files_dict
 
 
