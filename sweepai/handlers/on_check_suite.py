@@ -114,6 +114,7 @@ def get_failing_docker_logs(cloned_repo: ClonedRepo):
         container_name = dockerfile_config.container_name + "-" + str(hash(cloned_repo.repo_dir))[-8:]
         dockerfile_path = dockerfile_config.dockerfile_path
         dockerfile_path = os.path.join(os.getcwd(), dockerfile_path)
+        logs = ""
         try:
             with Timer():
                 with change_dir(cloned_repo.repo_dir):
