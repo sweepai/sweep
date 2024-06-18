@@ -62,7 +62,6 @@ def modify(
     use_openai: bool = False,
     previous_modify_files_dict: dict[str, dict[str, str]] = {},
     renames_dict: dict[str, str] = {},
-    fast: bool = False,
     raise_on_max_iterations: bool = False,
 ) -> dict[str, dict[str, str]]:
     # join fcr in case of duplicates
@@ -161,7 +160,6 @@ def modify(
                 llm_state,
                 chat_logger_messages=detailed_chat_logger_messages,
                 use_openai=use_openai,
-                fast=fast
             )
             print(function_output)
             fcrs = llm_state["fcrs"]
