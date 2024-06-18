@@ -583,12 +583,19 @@ function App({
       <Original
         value={suggestion.originalCode}
         readOnly={true}
-        extensions={[EditorView.editable.of(false), EditorState.readOnly.of(true), languageMapping[suggestion.filePath.split(".")[suggestion.filePath.split(".").length - 1]]]}
+        extensions={[
+          EditorView.editable.of(false), 
+          EditorState.readOnly.of(true), 
+          languageMapping[suggestion.filePath.split(".")[suggestion.filePath.split(".").length - 1]]
+        ]}
       />
       <Modified
         value={suggestion.newCode}
         readOnly={suggestion.state != "done"}
-        extensions={[EditorState.readOnly.of(false), languageMapping[suggestion.filePath.split(".")[suggestion.filePath.split(".").length - 1]]]}
+        extensions={[
+          EditorState.readOnly.of(false), 
+          languageMapping[suggestion.filePath.split(".")[suggestion.filePath.split(".").length - 1]]
+        ]}
         onChange={debounce((value: string) => {
           setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
           save(repoName, messages, snippets, suggestedChanges, pullRequest)
