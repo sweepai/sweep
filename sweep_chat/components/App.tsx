@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "../components/ui/input"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { FaArrowLeft, FaCheck, FaCog, FaComments, FaGithub, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes } from "react-icons/fa";
+import { FaArrowLeft, FaCheck, FaCog, FaComments, FaExclamationTriangle, FaGithub, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -1130,28 +1130,26 @@ function App({
                       if (currentState.error) {
                         throw new Error(currentState.error)
                       }
-                      for (const [filePath, fileData] of Object.entries(currentState)) {
-                        const { original_contents, contents } = fileData as { original_contents: string, contents: string };
-                        const index = currentCodeSuggestions.findIndex((suggestion) => suggestion.filePath == filePath)
-                        if (index == -1) {
-                          continue;
-                        }
-                        currentCodeSuggestions[index].state = original_contents == contents ? "processing" : "done";
-                        currentCodeSuggestions[index].originalCode = original_contents;
-                        if (original_contents != contents) {
-                          currentCodeSuggestions[index].newCode = contents;
-                        }
-                      }
+                      currentCodeSuggestions = currentState.map((suggestion: any) => ({
+                        filePath: suggestion.file_path,
+                        originalCode: suggestion.original_code,
+                        newCode: suggestion.new_code,
+                        state: suggestion.state,
+                        error: suggestion.error,
+                      }))
                       setSuggestedChanges(currentCodeSuggestions)
-                      save(repoName, messages, snippets, suggestedChanges, pullRequest)
+                      save(repoName, messages, snippets, currentCodeSuggestions, pullRequest)
                     }
                   } catch (e: any) {
                     console.error(e)
                     toast({
                       title: "Failed to auto-fix changes!",
-                      description: "This feature is still under development, so it's not completely reliable yet. We'll fix this for you shortly. Here was the error: " + e.message,
+                      description: "The following error occurred while applying these changes:\n\n" + e.message + "\n\nFeel free to shoot us a message if you keep running into this!",
                       variant: "destructive",
                       duration: Infinity,
+                    })
+                    posthog.capture("auto fix error", {
+                      error: e.message,
                     })
                     currentCodeSuggestions = currentCodeSuggestions.map((suggestion) => ({
                       ...suggestion,
@@ -1212,16 +1210,26 @@ function App({
             </div>
             {(isProcessingSuggestedChanges || isCreatingPullRequest) && (
               <div className="flex justify-around w-full pb-2 mb-4">
-                <p>{isProcessingSuggestedChanges ? "Performing sanity checks..." : "Creating pull request..."}</p>
+                <p>{isProcessingSuggestedChanges ? "I'm currently processing and applying these patches, and fixing any errors along the way. This may take a few minutes." : "Creating pull request..."}</p>
               </div>
             )}
             <div style={{ opacity: isCreatingPullRequest ? 0.5 : 1, pointerEvents: isCreatingPullRequest ? 'none' : 'auto' }}>
               {suggestedChanges.map((suggestion, index) => (
                 <div className="fit-content mb-6" key={index}>
-                  <div className={`w-full text-sm p-2 rounded-t-md ${suggestion.state === "done" ? "bg-green-900" : suggestion.state === "error" ? "bg-red-900" : suggestion.state === "pending" ? "bg-zinc-800" : "bg-yellow-800"}`}>
+                  <div className={`flex w-full text-sm p-2 px-4 rounded-t-md ${suggestion.state === "done" ? "bg-green-900" : suggestion.state === "error" ? "bg-red-900" : suggestion.state === "pending" ? "bg-zinc-800" : "bg-yellow-800"}`}>
                     <code>
                       {suggestion.filePath} {suggestion.state == "pending" ? "(pending)" : suggestion.state == "processing" ? "(processing)" : suggestion.state == "error" ? "(error)" : <FaCheck style={{display: "inline", marginTop: -2}}/>}
                     </code>
+                    {suggestion.error ? (
+                      <HoverCard openDelay={300} closeDelay={200}>
+                        <HoverCardTrigger>
+                          <FaExclamationTriangle className="hover:cursor-pointer ml-2" style={{marginTop: 2}} />
+                        </HoverCardTrigger>
+                        <HoverCardContent className="w-[800px] max-h-[500px] overflow-y-auto">
+                          <MarkdownRenderer content={`**This patch could not be directly applied. We're sending the LLM the following message to resolve the error:**\n\n${suggestion.error}`} />
+                        </HoverCardContent>
+                      </HoverCard>
+                    ): <div></div>}
                   </div>
                   {reactCodeMirrors[index]}
                 </div>
