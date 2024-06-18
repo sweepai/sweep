@@ -19,7 +19,10 @@ def generate_code_suggestions(
     fcrs: list[FileChangeRequest],
     error_messages_dict: dict[int, str],
 ) -> list[StatefulCodeSuggestion]:
-    modify_order = [fcr.filename for fcr in fcrs]
+    modify_order = []
+    for fcr in fcrs:
+        if fcr.filename not in modify_order:
+            modify_order.append(fcr.filename)
 
     code_suggestions = []
     for file_path in modify_order:

@@ -1212,6 +1212,7 @@ def handle_function_call(
                     "contents": file_contents,
                     "original_contents": file_contents,
                 }
+            llm_state["fcrs"][current_fcr_index].is_completed = True
             if warning_message:
                 original_code_indents = len(original_code) - len(original_code.lstrip())
                 new_code_indents = len(new_code) - len(new_code.lstrip())
