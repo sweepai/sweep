@@ -536,7 +536,7 @@ def chat_codebase_stream(
             content=snippets_message,
             role="user"
         ),
-        *messages
+        *messages[:-1]
     ]
 
     def stream_state(
@@ -584,49 +584,63 @@ def chat_codebase_stream(
                 if not token:
                     continue
                 result_string += token
+                if len(result_string) < 30:
+                    continue
                 current_string, *_ = result_string.split("<function_call>")
-                analysis = extract_xml_tag(current_string, "analysis", include_closing_tag=False) or ""
-                user_response = extract_xml_tag(current_string, "user_response", include_closing_tag=False) or ""
-                self_critique = extract_xml_tag(current_string, "self_critique", include_closing_tag=False)
+                if "<analysis>" in current_string:
+                    analysis = extract_xml_tag(current_string, "analysis", include_closing_tag=False) or ""
+                    user_response = extract_xml_tag(current_string, "user_response", include_closing_tag=False) or ""
+                    self_critique = extract_xml_tag(current_string, "self_critique", include_closing_tag=False)
 
-                current_messages = []
-                
-                if analysis:
-                    current_messages.append(
-                        Message(
-                            content=analysis,
-                            role="function",
-                            function_call={
-                                "function_name": "analysis",
-                                "function_parameters": {},
-                                "is_complete": bool(user_response),
-                            }
+                    current_messages = []
+                    
+                    if analysis:
+                        current_messages.append(
+                            Message(
+                                content=analysis,
+                                role="function",
+                                function_call={
+                                    "function_name": "analysis",
+                                    "function_parameters": {},
+                                    "is_complete": bool(user_response),
+                                }
+                            )
                         )
-                    )
-                
-                if user_response:
-                    current_messages.append(
+                    
+                    if user_response:
+                        current_messages.append(
+                            Message(
+                                content=user_response,
+                                role="assistant",
+                            )
+                        )
+                    
+                    if self_critique:
+                        current_messages.append(
+                            Message(
+                                content=self_critique,
+                                role="function",
+                                function_call={
+                                    "function_name": "self_critique",
+                                    "function_parameters": {},
+                                }
+                            )
+                        )
+                    yield [
+                        *new_messages,
+                        *current_messages
+                    ]
+                else:
+                    current_messages = [
                         Message(
-                            content=user_response,
+                            content=result_string,
                             role="assistant",
                         )
-                    )
-                
-                if self_critique:
-                    current_messages.append(
-                        Message(
-                            content=self_critique,
-                            role="function",
-                            function_call={
-                                "function_name": "self_critique",
-                                "function_parameters": {},
-                            }
-                        )
-                    )
-                yield [
-                    *new_messages,
-                    *current_messages
-                ]
+                    ]
+                    yield [
+                        *new_messages,
+                        *current_messages
+                    ]
             
             if current_messages[-1].role == "function":
                 current_messages[-1].function_call["is_complete"] = True
@@ -727,10 +741,6 @@ def chat_codebase_stream(
         # breakpoint()
 
         # last_assistant_message = [message.content for message in new_messages if message.role == "assistant"][-1]
-        try:
-            save_messages_for_visualization(messages=new_messages, use_openai=use_openai)
-        except Exception as e:
-            logger.exception(f"Failed to save messages for visualization due to {e}")
 
         posthog.capture(metadata["username"], "chat_codebase complete", properties={
             **metadata,
@@ -763,10 +773,9 @@ def chat_codebase_stream(
                 }
             ])
 
-    format_message = anthropic_format_message if not model.startswith("gpt") else openai_format_message
     return StreamingResponse(
         postprocessed_stream(
-            format_message,
+            messages[-1].content,
             snippets,
             messages,
             access_token,

@@ -395,6 +395,7 @@ class ChatGPT(MessageList):
         if stream:
             def llm_stream():
                 model = self.model
+                streamed_text = ""
                 if use_openai:
                     client = OpenAI()
                     response = client.chat.completions.create(
@@ -415,7 +416,15 @@ class ChatGPT(MessageList):
                             break
                         for stop_sequence in stop_sequences:
                             if stop_sequence in streamed_text:
-                                return truncate_text_based_on_stop_sequence(streamed_text, stop_sequences)
+                                response = truncate_text_based_on_stop_sequence(streamed_text, stop_sequences)
+                                try:
+                                    save_messages_for_visualization(
+                                        self.messages + [Message(role="assistant", content=response)],
+                                        use_openai=use_openai
+                                    )
+                                except Exception as e:
+                                    logger.warning(f"Error saving messages for visualization: {e}")
+                                return
                 else:
                     if ANTHROPIC_AVAILABLE and use_aws:
                         if "anthropic" not in model:
@@ -464,9 +473,15 @@ class ChatGPT(MessageList):
                             case _:
                                 print(event)
                     print(f"Streamed {len(streamed_text)} characters in {time.time() - start_time:.2f}s")
-                    response = streamed_text
-                    return response
-                return
+                response = streamed_text
+                try:
+                    save_messages_for_visualization(
+                        self.messages + [Message(role="assistant", content=response)],
+                        use_openai=use_openai
+                    )
+                except Exception as e:
+                    logger.warning(f"Error saving messages for visualization: {e}")
+                return response
             return llm_stream()
         for i in range(NUM_ANTHROPIC_RETRIES):
             try:
