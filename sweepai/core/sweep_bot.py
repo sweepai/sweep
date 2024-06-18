@@ -9,7 +9,7 @@ from networkx import Graph
 from tqdm import tqdm
 from rapidfuzz import fuzz
 
-from sweepai.agents.modify_utils import check_valid_parentheses, contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, find_smallest_valid_superspan, get_error_message, indent
+from sweepai.agents.modify_utils import check_valid_parentheses, contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, find_smallest_valid_superspan, get_error_message, indent, set_fcr_change_type
 from sweepai.core.annotate_code_openai import get_annotated_source_code
 from sweepai.core.chat import ChatGPT, continuous_llm_calls
 from sweepai.core.entities import (
