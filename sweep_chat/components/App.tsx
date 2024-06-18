@@ -22,7 +22,6 @@ import { Session } from "next-auth";
 import { PostHogProvider, usePostHog } from "posthog-js/react";
 import Survey from "./Survey";
 import * as jsonpatch from 'fast-json-patch';
-import { ReadableStreamDefaultReadResult } from "stream/web";
 import { Textarea } from "./ui/textarea";
 import { Slider } from "./ui/slider";
 import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
@@ -45,6 +44,7 @@ import { dracula } from '@uiw/codemirror-theme-dracula';
 import { EditorView } from 'codemirror';
 import { EditorState } from '@codemirror/state';
 import { debounce } from "lodash"
+import { streamMessages } from "@/lib/streamingUtils";
 
 const Original = CodeMirrorMerge.Original
 const Modified = CodeMirrorMerge.Modified
@@ -280,68 +280,70 @@ const MessageDisplay = ({
   return (
     <>
       <div className={`flex justify-start`}>
-          {(!message.annotations?.pulls || message.annotations!.pulls?.length == 0) && (
-            <div
-              className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] text-left w-[80%]
-                ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
-            >
-              {message.role === "function" ? (
-                <Accordion 
-                  type="single" 
-                  collapsible className="w-full" 
-                  defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}
-                >
-                  <AccordionItem value="function" className="border-none">
-                    <AccordionTrigger className="border-none py-0 text-left">
-                      <div className="text-xs text-gray-400 flex align-center">
-                        {!message.function_call!.is_complete ? (
-                          <PulsingLoader size={0.5} />
-                        ) : (
-                          <FaCheck
-                            className="inline-block mr-2"
-                            style={{ marginTop: 2 }}
-                          />
-                        )}
-                        <span>{getFunctionCallHeaderString(message.function_call)}</span>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className={`pb-0 ${message.content && message.function_call?.function_name === "search_codebase" && !message.function_call?.is_complete ? "pt-6" : "pt-0"}`}>
-                      {message.function_call?.function_name === "search_codebase" && message.content && !message.function_call.is_complete && (
-                        <span className="p-4 pl-2">
-                          {message.content}
-                        </span>
-                      )}
-                      (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
-                        <MarkdownRenderer content={message.content} className="reactMarkdown mt-4 mb-0 py-2" />
+        {(!message.annotations?.pulls || message.annotations!.pulls?.length == 0) && (
+          <div
+            className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] text-left w-[80%]
+              ${message.role === "assistant" ? "py-1" : ""} ${className || roleToColor[message.role]}`}
+          >
+            {message.role === "function" ? (
+              <Accordion 
+                type="single" 
+                collapsible 
+                className="w-full" 
+                // include defaultValue if there we want a message to be default open
+                // defaultValue={((message.content && message.function_call?.function_name === "search_codebase") || (message.function_call?.snippets?.length !== undefined && message.function_call?.snippets?.length > 0)) ? "function" : undefined}
+              >
+                <AccordionItem value="function" className="border-none">
+                  <AccordionTrigger className="border-none py-0 text-left">
+                    <div className="text-xs text-gray-400 flex align-center">
+                      {!message.function_call!.is_complete ? (
+                        <PulsingLoader size={0.5} />
                       ) : (
-                        <SyntaxHighlighter
-                          language="xml"
-                          style={codeStyle}
-                          customStyle={{
-                            backgroundColor: 'transparent',
-                            whiteSpace: 'pre-wrap',
-                            maxHeight: '300px',
-                          }}
-                          className="rounded-xl p-4"
-                        >
-                          {message.content}
-                        </SyntaxHighlighter>
-                      )
-                      )
-                      <FeedbackBlock message={message} index={index} />
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              ) : message.role === "assistant" ? (
-                <>
-                  <MarkdownRenderer content={message.content} className="reactMarkdown mb-0 py-2" />
-                  <FeedbackBlock message={message} index={index} />
-                </>
-              ) : (
-                <UserMessageDisplay message={message} onEdit={onEdit} />
-              )}
-            </div>
-          )}
+                        <FaCheck
+                          className="inline-block mr-2"
+                          style={{ marginTop: 2 }}
+                        />
+                      )}
+                      <span>{getFunctionCallHeaderString(message.function_call)}</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className={`pb-0 ${message.content && message.function_call?.function_name === "search_codebase" && !message.function_call?.is_complete ? "pt-6" : "pt-0"}`}>
+                    {message.function_call?.function_name === "search_codebase" && message.content && !message.function_call.is_complete && (
+                      <span className="p-4 pl-2">
+                        {message.content}
+                      </span>
+                    )}
+                    {message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
+                      <MarkdownRenderer content={message.content} className="reactMarkdown mt-4 mb-0 py-2" />
+                    ) : (
+                      <SyntaxHighlighter
+                        language="xml"
+                        style={codeStyle}
+                        customStyle={{
+                          backgroundColor: 'transparent',
+                          whiteSpace: 'pre-wrap',
+                          maxHeight: '300px',
+                        }}
+                        className="rounded-xl p-4"
+                      >
+                        {message.content}
+                      </SyntaxHighlighter>
+                    )
+                    }
+                    <FeedbackBlock message={message} index={index} />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            ) : message.role === "assistant" ? (
+              <>
+                <MarkdownRenderer content={message.content} className="reactMarkdown mb-0 py-2" />
+                <FeedbackBlock message={message} index={index} />
+              </>
+            ) : (
+              <UserMessageDisplay message={message} onEdit={onEdit} />
+            )}
+          </div>
+        )}
       </div>
       {showApplySuggestedChangeButton && matches.length > 0 && (
         <div className="flex justify-start w-[80%]">
@@ -363,55 +365,6 @@ const MessageDisplay = ({
   );
 };
 
-async function* streamMessages(
-  reader: ReadableStreamDefaultReader<Uint8Array>,
-  isStream?: React.MutableRefObject<boolean>,
-  timeout: number = 90000
-): AsyncGenerator<any, void, unknown> {
-  let done = false;
-  let buffer = "";
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-  while (!done && (isStream ? isStream.current : true)) {
-    try {
-      const { value, done: streamDone } = await Promise.race([
-        reader.read(),
-        new Promise<ReadableStreamDefaultReadResult<Uint8Array>>((_, reject) => {
-          if (timeoutId) {
-            clearTimeout(timeoutId)
-          }
-          timeoutId = setTimeout(() => reject(new Error("Stream timeout after " + timeout / 1000 + " seconds, this is likely caused by the LLM freezing. You can try again by editing your last message. Further, decreasing the number of snippets to retrieve in the settings will help mitigate this issue.")), timeout)
-        })
-      ]);
-
-      if (streamDone) {
-        done = true;
-        continue;
-      }
-      
-      if (value) {
-        const decodedValue = new TextDecoder().decode(value);
-        buffer += decodedValue;
-
-        const [parsedObjects, currentIndex] = getJSONPrefix(buffer)
-        for (let parsedObject of parsedObjects) {
-          yield parsedObject
-        }
-        buffer = buffer.slice(currentIndex)
-      }
-    } catch (error) {
-      console.error("Error during streaming:", error);
-      throw error;
-    } finally {
-      if (timeoutId) {
-        clearTimeout(timeoutId)
-      }
-    }
-  }
-  if (buffer) {
-    console.warn("Buffer:", buffer)
-  }
-}
 
 const parsePullRequests = async (repoName: string, message: string, octokit: Octokit): Promise<PullRequest[]> => {
   const [orgName, repo] = repoName.split("/")
@@ -499,6 +452,7 @@ function App({
   const [pullRequestBody, setPullRequestBody] = useState<string | null>(null)
   const [isCreatingPullRequest, setIsCreatingPullRequest] = useState<boolean>(false)
   const [pullRequest, setPullRequest] = useState<PullRequest | null>(null)
+  const [pullRequests, setPullRequests] = useState<PullRequest[]>([])
   const [baseBranch, setBaseBranch] = useState<string>(branch)
   const [featureBranch, setFeatureBranch] = useState<string | null>(null)
 
@@ -715,7 +669,6 @@ function App({
   ) => {
     setIsLoading(true);
     isStream.current = true;
-
     var currentSnippets = snippets;
     if (currentSnippets.length == 0) {
       try {
@@ -1055,12 +1008,15 @@ function App({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <ContextSideBar
-        snippets={snippets}
-        setSnippets={setSnippets}
-        repoName={repoName}
-        branch={branch}
-        />
+      {snippets.length && repoName ? 
+        <ContextSideBar
+          snippets={snippets}
+          setSnippets={setSnippets}
+          repoName={repoName}
+          branch={branch}
+          pulls={pullRequests}
+          k={k}
+        /> : <></>}
       <div
         ref={messagesContainerRef}
         className="w-full border flex-grow mb-4 p-4 max-h-[90%] overflow-y-auto rounded-xl"
@@ -1080,6 +1036,7 @@ function App({
               setOpenSuggestionDialog(false);
 
               const pulls = await parsePullRequests(repoName, content, octokit!)
+              setPullRequests(pulls)
 
               const newMessages: Message[] = [
                 ...messages.slice(0, index),
