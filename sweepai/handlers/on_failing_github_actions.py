@@ -9,7 +9,7 @@ from github.PullRequest import PullRequest
 from loguru import logger
 
 from sweepai.dataclasses.gha_fix import GHAFix
-from sweepai.handlers.on_check_suite import get_failing_circleci_logs
+from sweepai.handlers.on_check_suite import delete_docker_images, get_failing_circleci_logs, get_failing_docker_logs
 from sweepai.utils.str_utils import strip_triple_quotes
 from sweepai.config.client import get_gha_enabled
 from sweepai.config.server import CIRCLE_CI_PAT, DEPLOYMENT_GHA_ENABLED, DOCKER_ENABLED
@@ -21,7 +21,7 @@ from sweepai.handlers.create_pr import handle_file_change_requests
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, get_github_client, refresh_token, validate_and_sanitize_multi_file_changes
 from sweepai.utils.prompt_constructor import get_issue_request
-from sweepai.utils.ticket_rendering_utils import get_branch_diff_text, get_failing_docker_logs, get_failing_gha_logs
+from sweepai.utils.ticket_rendering_utils import get_branch_diff_text, get_failing_gha_logs
 from sweepai.utils.ticket_utils import prep_snippets
 from sweepai.utils.event_logger import posthog
 
@@ -156,8 +156,11 @@ def on_failing_github_actions(
         _, after_gha_summary = after_gha_summary.split(GHA_SUMMARY_END)
         new_gha_summary = GHA_SUMMARY_START + "\n".join([fix.to_markdown() for fix in gha_fixes]) + GHA_SUMMARY_END
         pull_request.edit(body=before_gha_summary + new_gha_summary + after_gha_summary)
+    
+    docker_image_names = []
 
     # TODO: let's abstract out the polling logic for github actions because it's messy - have a function that polls inside the call
+    # do not add return statements here because we delete the docker images at the end
     while GITHUB_ACTIONS_ENABLED and main_passing:
         if time() - gha_start_time > 59 * 60:
             user_token, g, repo = refresh_token(repo_full_name, installation_id)
@@ -174,7 +177,9 @@ def on_failing_github_actions(
         suite_runs = list(repo.get_workflow_runs(branch=pull_request.head.ref, head_sha=pull_request.head.sha))
         if DOCKER_ENABLED:
             branch = pull_request.head.ref
-            failing_logs = get_failing_docker_logs(cloned_repo=ClonedRepo(repo_full_name, branch=branch, installation_id=installation_id, token=user_token, repo=repo))
+            failing_logs, docker_image_name = get_failing_docker_logs(cloned_repo=ClonedRepo(repo_full_name, branch=branch, installation_id=installation_id, token=user_token, repo=repo))
+            if docker_image_name:
+                docker_image_names.append(docker_image_name)
         # if all runs have succeeded or have no result, break
         if all([run.conclusion in ["success", "skipped", None] and \
                 run.status not in ["in_progress", "waiting", "pending", "requested", "queued"] for run in runs]) and \
@@ -306,6 +311,8 @@ def on_failing_github_actions(
             if total_edit_attempts >= GHA_MAX_EDIT_ATTEMPTS:
                 logger.info(f"Tried to edit PR {GHA_MAX_EDIT_ATTEMPTS} times, giving up.")
                 break
+    if docker_image_names:
+        delete_docker_images(docker_image_names=docker_image_names)
 
 def poll_for_gha(total_poll_attempts) -> tuple[bool, int]:
     logger.info(
