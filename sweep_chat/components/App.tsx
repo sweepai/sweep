@@ -1207,7 +1207,7 @@ function App({
             </div>
             {(isProcessingSuggestedChanges || isCreatingPullRequest) && (
               <div className="flex justify-around w-full pb-2 mb-4">
-                <p>{isProcessingSuggestedChanges ? "Processing and applying patch..." : "Creating pull request..."}</p>
+                <p>{isProcessingSuggestedChanges ? "I'm currently processing and applying these patches, and fixing any errors along the way. This may take a few minutes." : "Creating pull request..."}</p>
               </div>
             )}
             <div style={{ opacity: isCreatingPullRequest ? 0.5 : 1, pointerEvents: isCreatingPullRequest ? 'none' : 'auto' }}>
