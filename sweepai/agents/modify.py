@@ -44,7 +44,7 @@ def generate_code_suggestions(
                     file_path=fcr.filename,
                     original_code=parsed_fcr["original_code"][0] if parsed_fcr["original_code"] else "",
                     new_code=parsed_fcr["new_code"][0] if parsed_fcr["new_code"] else "",
-                    state=("processing" if not i == current_fcr_index else "pending") if i not in error_messages_dict else "error",
+                    state=("processing" if i == current_fcr_index else "pending") if i not in error_messages_dict else "error",
                     error=error_messages_dict.get(i, None)
                 ))
     return code_suggestions
