@@ -875,7 +875,7 @@ def check_make_change_tool_call(tool_call, error_message):
             if key in ["new_code", "original_code"]:
                 error_message += "\n\nIt is likely the reason why you have missed these keys is because the original_code block you provided is WAY TOO LARGE and as such you have missed the closing xml tags. REDUCE the original_code block to be under 10 lines of code!"
     if not tool_call.get("original_code", "").strip():
-        error_message = EMPTY_ORIGINAL_CODE_PROMPT
+        error_message = EMPTY_ORIGINAL_CODE_PROMPT # TODO: write a custom prompt for this
     return error_message
 
 def validate_indents(original_code, new_code, file_contents, correct_indent, rstrip_original_code):
@@ -1155,6 +1155,7 @@ def handle_function_call(
                     is_last_fcr_for_file = False # TODO: check if this is the last fcr for this file
                     if fast:
                         check_results_message = ""
+                        failing_parse = ""
                     else:
                         check_results = get_check_results(file_name, new_file_contents, last_fcr_for_file=is_last_fcr_for_file)
                         check_results_message = check_results.is_worse_than_message(llm_state['initial_check_results'][file_name])

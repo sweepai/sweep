@@ -845,14 +845,22 @@ async def autofix(
         token=access_token
     )
 
-    file_change_requests = [
-        FileChangeRequest(
-            filename=code_suggestion.file_path,
-            change_type="modify" if code_suggestion.original_code else "create",
-            instructions=f"<original_code>\n{code_suggestion.original_code}\n</original_code>\n\n<new_code>\n{code_suggestion.new_code}\n</new_code>",
-        ) 
-        for code_suggestion in code_suggestions
-    ]
+    file_change_requests = []
+
+    for code_suggestion in code_suggestions:
+        change_type = "modify"
+        if not code_suggestion.original_code:
+            try:
+                cloned_repo.get_file_contents(code_suggestion.file_path)
+            except FileNotFoundError:
+                change_type = "create"
+        file_change_requests.append(
+            FileChangeRequest(
+                filename=code_suggestion.file_path,
+                change_type=change_type,
+                instructions=f"<original_code>\n{code_suggestion.original_code}\n</original_code>\n\n<new_code>\n{code_suggestion.new_code}\n</new_code>",
+            ) 
+        )
 
     def stream():
         try:
