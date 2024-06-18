@@ -26,10 +26,12 @@ def test_issue_url(
     pr = repo.get_pull(int(pr_number))
 
     body = pr.body
-    issue_number = body.lower().split("fixes #")[1].split(".")[0]
-
-    issue = repo.get_issue(int(issue_number))
-    problem_statement = issue.title + "\n" + issue.body
+    if "fixes #" in body.lower():
+        issue_number = body.lower().split("fixes #")[1].split(".")[0]
+        issue = repo.get_issue(int(issue_number))
+        problem_statement = issue.title + "\n" + issue.body
+    else:
+        problem_statement = pr.title + "\n" + pr.body
 
     on_failing_github_actions(
         problem_statement=problem_statement,

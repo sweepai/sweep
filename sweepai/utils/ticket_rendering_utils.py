@@ -7,6 +7,7 @@ import difflib
 import io
 import os
 import re
+import subprocess
 import zipfile
 
 import markdown
@@ -24,10 +25,12 @@ from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
     SweepConfig,
 )
+from sweepai.config.server import DOCKERFILE_CONFIG_LOCATION
 from sweepai.core.entities import (
     SandboxResponse,
 )
 from sweepai.dataclasses.codereview import CodeReview, CodeReviewIssue
+from sweepai.dataclasses.dockerfile_config import load_dockerfile_config_from_path
 from sweepai.handlers.create_pr import (
     safe_delete_sweep_branch,
 )
@@ -37,6 +40,7 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.concurrency_utils import fire_and_forget_wrapper
 from sweepai.utils.github_utils import (
     CURRENT_USERNAME,
+    ClonedRepo,
     get_github_client,
     get_token,
 )
@@ -158,6 +162,47 @@ def create_error_logs(
         if sandbox_response
         else ""
     )
+
+def get_failing_docker_logs(cloned_repo: ClonedRepo):
+    # WARNING: I have not setup docker image removal
+    # image name should be an input arg and cleaned up at the end
+    if not DOCKERFILE_CONFIG_LOCATION:
+        # this method should not be called if the dockerfile config is not present
+        return ""
+    dockerfile_config = load_dockerfile_config_from_path(DOCKERFILE_CONFIG_LOCATION)
+    image_name = dockerfile_config.image_name
+    dockerfile_path = dockerfile_config.dockerfile_path
+    container_name = dockerfile_config.container_name
+    working_dir = os.getcwd()
+    dockerfile_path = os.path.join(working_dir, dockerfile_path)
+    try:
+        # Build the Docker image
+        os.chdir(cloned_repo.repo_dir)
+        build_command = f"docker build -t {image_name} -f {dockerfile_path} --build-arg CODE_PATH=. ."
+        # Disable BuildKit to avoid issues with Dockerfile syntax
+        disable_buildkit_prefix = "DOCKER_BUILDKIT=0"
+        build_command = f"{disable_buildkit_prefix} {build_command}"
+        subprocess.run(build_command, shell=True, check=True)
+        logger.info(f"Built Docker image {image_name}")
+        # Run the Docker container and remove it after it exits
+        run_command = f"docker run --name {container_name} {image_name}"
+        result = subprocess.run(run_command, shell=True, capture_output=True, text=True)
+        # Check the return code of the docker run command
+        if result.returncode == 0:
+            logger.info(f"Docker container {container_name} exited successfully")
+            logs = ""
+        else:
+            logger.error(f"Docker container {container_name} exited with error code {result.returncode}")
+            logs = result.stderr
+        # Remove the Docker container
+        remove_command = f"docker rm {container_name}"
+        subprocess.run(remove_command, shell=True, check=True)
+        logger.info(f"Removed Docker container {container_name}")
+        return logs
+    except subprocess.CalledProcessError as e:
+        logs = e.output
+    os.chdir(working_dir)
+    return logs
 
 # takes in a list of workflow runs and returns a list of messages containing the logs of the failing runs
 def get_failing_gha_logs(runs, installation_id) -> str:

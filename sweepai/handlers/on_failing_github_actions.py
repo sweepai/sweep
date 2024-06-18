@@ -12,7 +12,7 @@ from sweepai.dataclasses.gha_fix import GHAFix
 from sweepai.handlers.on_check_suite import get_failing_circleci_logs
 from sweepai.utils.str_utils import strip_triple_quotes
 from sweepai.config.client import get_gha_enabled
-from sweepai.config.server import CIRCLE_CI_PAT, DEPLOYMENT_GHA_ENABLED
+from sweepai.config.server import CIRCLE_CI_PAT, DEPLOYMENT_GHA_ENABLED, DOCKER_ENABLED
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, Snippet
 from sweepai.core.pull_request_bot import GHA_SUMMARY_END, GHA_SUMMARY_START, PRSummaryBot
@@ -21,7 +21,7 @@ from sweepai.handlers.create_pr import handle_file_change_requests
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.github_utils import ClonedRepo, commit_multi_file_changes, get_github_client, refresh_token, validate_and_sanitize_multi_file_changes
 from sweepai.utils.prompt_constructor import get_issue_request
-from sweepai.utils.ticket_rendering_utils import get_branch_diff_text, get_failing_gha_logs
+from sweepai.utils.ticket_rendering_utils import get_branch_diff_text, get_failing_docker_logs, get_failing_gha_logs
 from sweepai.utils.ticket_utils import prep_snippets
 from sweepai.utils.event_logger import posthog
 
@@ -54,6 +54,8 @@ Return your query below in the following xml tags:
 {{generated query goes here. Remember that it will be used in a vector search so tailor your query with that in mind. There will not be multiple searches, this one search needs to get all the revelant code snippets for all issues}}
 </query>
 """
+
+SLEEP_DURATION_SECONDS = 5
 
 def get_error_locations_from_error_logs(error_logs: str, cloned_repo: ClonedRepo):
     pattern = re.compile(r"^(?P<file_path>.*?)[^a-zA-Z\d]+(?P<line_num>\d+)[^a-zA-Z\d]+(?P<col_num>\d+)[^a-zA-Z\d]+(?P<error_message>.*?)$", re.MULTILINE)
@@ -130,7 +132,6 @@ def on_failing_github_actions(
     repo_full_name = repo.full_name
     total_poll_attempts = 0
     total_edit_attempts = 0
-    SLEEP_DURATION_SECONDS = 5
     GITHUB_ACTIONS_ENABLED = get_gha_enabled(repo=repo) and DEPLOYMENT_GHA_ENABLED
     GHA_MAX_EDIT_ATTEMPTS = 10 # max number of times to edit PR
     current_commit = pull_request.head.sha
@@ -158,44 +159,26 @@ def on_failing_github_actions(
 
     # TODO: let's abstract out the polling logic for github actions because it's messy - have a function that polls inside the call
     while GITHUB_ACTIONS_ENABLED and main_passing:
-        if time() - gha_start_time > 60 * 59:
+        if time() - gha_start_time > 59 * 60:
             user_token, g, repo = refresh_token(repo_full_name, installation_id)
             repo = g.get_repo(repo_full_name)
-        logger.info(
-            f"Polling to see if Github Actions have finished... {total_poll_attempts}"
-        )
-        # we wait at most 120 minutes
-        if total_poll_attempts * SLEEP_DURATION_SECONDS // 60 >= 120:
-            logger.debug("Polling for Github Actions has taken too long, giving up.")
+        should_exit, total_poll_attempts = poll_for_gha(total_poll_attempts)
+        if should_exit:
             break
-        else:
-            # wait one minute between check attempts
-            total_poll_attempts += 1
-
-            if total_poll_attempts > 1:
-                sleep(SLEEP_DURATION_SECONDS)
         # refresh the pr
         pull_request = repo.get_pull(pull_request.number)
         current_commit = repo.get_pull(pull_request.number).head.sha # IMPORTANT: resync PR otherwise you'll fetch old GHA runs
         # conditionally check CircleCI before you early exit
-        failed_circleci_logs = ""
-        if CIRCLE_CI_PAT:
-            try:
-                # you need to poll here for CircleCI otherwise we'll see 0 GitHub Actions and incorrectly exit
-                # this function polls internally
-                failed_circleci_logs = get_failing_circleci_logs(
-                    repo=repo,
-                    current_commit=current_commit
-                )
-            except Exception as e:
-                logger.error(f"Error in getting failing CircleCI logs: {e}")
-                failed_circleci_logs = ""
+        failing_logs = get_circle_ci_logs(repo, current_commit)
         runs = list(repo.get_commit(current_commit).get_check_runs())
         suite_runs = list(repo.get_workflow_runs(branch=pull_request.head.ref, head_sha=pull_request.head.sha))
+        if DOCKER_ENABLED:
+            branch = pull_request.head.ref
+            failing_logs = get_failing_docker_logs(cloned_repo=ClonedRepo(repo_full_name, branch=branch, installation_id=installation_id, token=user_token, repo=repo))
         # if all runs have succeeded or have no result, break
         if all([run.conclusion in ["success", "skipped", None] and \
                 run.status not in ["in_progress", "waiting", "pending", "requested", "queued"] for run in runs]) and \
-                not failed_circleci_logs: # don't break if CircleCI had failures
+                not failing_logs: # don't break if CircleCI or custom Dockerfile had failures
             logger.info("All Github Actions have succeeded or have no result.")
             break
         logger.debug(f"Run statuses: {[run.conclusion for run in runs]}")
@@ -203,17 +186,16 @@ def on_failing_github_actions(
         # if no runs have failed, continue polling
         # if circleci has failed, don't poll and instead fix circleci
         if not any([run.conclusion == "failure" for run in runs]) and \
-            not failed_circleci_logs:
+            not failing_logs:
             continue
         failed_runs = [run for run in suite_runs if run.conclusion == "failure"]
-
         failed_gha_logs = get_failing_gha_logs(
             failed_runs,
             installation_id,
         )
-        if failed_circleci_logs:
+        if failing_logs:
             # if circleci failed and is enabled, it has priority
-            failed_gha_logs = failed_circleci_logs + "\n" + failed_gha_logs
+            failed_gha_logs = failing_logs + "\n" + failed_gha_logs
         if failed_gha_logs:
             # cleanup the gha logs
             chat_gpt = ChatGPT()
@@ -324,3 +306,32 @@ def on_failing_github_actions(
             if total_edit_attempts >= GHA_MAX_EDIT_ATTEMPTS:
                 logger.info(f"Tried to edit PR {GHA_MAX_EDIT_ATTEMPTS} times, giving up.")
                 break
+
+def poll_for_gha(total_poll_attempts) -> tuple[bool, int]:
+    logger.info(
+            f"Polling to see if Github Actions have finished... {total_poll_attempts}"
+        )
+    if total_poll_attempts * SLEEP_DURATION_SECONDS // 60 >= 120:
+        logger.debug("Polling for Github Actions has taken too long, giving up.")
+        return True, total_poll_attempts
+    else:
+        # wait one minute between check attempts
+        total_poll_attempts += 1
+        if total_poll_attempts > 1:
+            sleep(SLEEP_DURATION_SECONDS)
+    return False, total_poll_attempts
+
+def get_circle_ci_logs(repo, current_commit):
+    failed_circleci_logs = ""
+    if CIRCLE_CI_PAT:
+        try:
+                # you need to poll here for CircleCI otherwise we'll see 0 GitHub Actions and incorrectly exit
+                # this function polls internally
+            failed_circleci_logs = get_failing_circleci_logs(
+                    repo=repo,
+                    current_commit=current_commit
+                )
+        except Exception as e:
+            logger.error(f"Error in getting failing CircleCI logs: {e}")
+            failed_circleci_logs = ""
+    return failed_circleci_logs

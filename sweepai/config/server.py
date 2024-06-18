@@ -212,4 +212,5 @@ assert COHERE_API_KEY, "COHERE_API_KEY is required."
 
 CIRCLE_CI_PAT = os.environ.get("CIRCLE_CI_PAT", None) # if this is present, we will poll from and get logs from circleci
 
+DOCKER_ENABLED = os.environ.get("DOCKER_ENABLED", "false").lower() == "true"
 DOCKERFILE_CONFIG_LOCATION = os.environ.get("DOCKERFILE_CONFIG_LOCATION", None) # location of the 
