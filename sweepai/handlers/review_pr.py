@@ -38,6 +38,7 @@ def review_pr(
     pr: PullRequest,
     repository: Repository,
     installation_id: int,
+    pr_labelled: bool, # if the PR was labelled let's review it no matter what
     tracking_id: str | None = None,
     metadata: dict = {},
 ):
@@ -64,7 +65,7 @@ def review_pr(
 
         try:
             # check if the pr has been merged or not
-            if pr.state == "closed":
+            if pr.state == "closed" and not pr_labelled:
                 fire_and_forget_wrapper(posthog.capture)(
                     username,
                     "pr_review pr_closed",
