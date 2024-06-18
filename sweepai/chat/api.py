@@ -24,6 +24,7 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message, Snippet
 from sweepai.core.pull_request_bot import get_pr_summary_for_chat
 from sweepai.core.review_utils import split_diff_into_patches
+from sweepai.core.viz_utils import save_messages_for_visualization
 from sweepai.dataclasses.code_suggestions import CodeSuggestion
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import ClonedRepo, CustomGithub, MockClonedRepo, clean_branch_name, commit_multi_file_changes, create_branch, get_github_client, get_installation_id
@@ -611,7 +612,6 @@ def chat_codebase_stream(
                             }
                         )
                     )
-                
                 yield [
                     *new_messages,
                     *current_messages
@@ -716,6 +716,10 @@ def chat_codebase_stream(
         # breakpoint()
 
         # last_assistant_message = [message.content for message in new_messages if message.role == "assistant"][-1]
+        try:
+            save_messages_for_visualization(messages=new_messages, use_openai=use_openai)
+        except Exception as e:
+            logger.exception(f"Failed to save messages for visualization due to {e}")
 
         posthog.capture(metadata["username"], "chat_codebase complete", properties={
             **metadata,
@@ -844,23 +848,36 @@ async def autofix(
         token=access_token
     )
 
-    file_change_requests = [
-        FileChangeRequest(
-            filename=code_suggestion.file_path,
-            change_type="modify" if code_suggestion.original_code else "create",
-            instructions=f"<original_code>\n{code_suggestion.original_code}\n</original_code>\n\n<new_code>\n{code_suggestion.new_code}\n</new_code>",
-        ) 
-        for code_suggestion in code_suggestions
-    ]
+    file_change_requests = []
+
+    for code_suggestion in code_suggestions:
+        change_type = "modify"
+        if not code_suggestion.original_code:
+            try:
+                cloned_repo.get_file_contents(code_suggestion.file_path)
+            except FileNotFoundError:
+                change_type = "create"
+        file_change_requests.append(
+            FileChangeRequest(
+                filename=code_suggestion.file_path,
+                change_type=change_type,
+                instructions=f"<original_code>\n{code_suggestion.original_code}\n</original_code>\n\n<new_code>\n{code_suggestion.new_code}\n</new_code>",
+            ) 
+        )
 
     def stream():
-        for modify_files_dict in modify.stream(
-            fcrs=file_change_requests,
-            request="",
-            cloned_repo=cloned_repo,
-            relevant_filepaths=[code_suggestion.file_path for code_suggestion in code_suggestions],
-        ):
-            yield json.dumps(modify_files_dict)
+        try:
+            for stateful_code_suggestions in modify.stream(
+                fcrs=file_change_requests,
+                request="",
+                cloned_repo=cloned_repo,
+                relevant_filepaths=[code_suggestion.file_path for code_suggestion in code_suggestions],
+                fast=True,
+            ):
+                yield json.dumps([stateful_code_suggestion.__dict__ for stateful_code_suggestion in stateful_code_suggestions])
+        except Exception as e:
+            yield json.dumps({"error": str(e)})
+            raise e
 
     return StreamingResponse(stream())
 
@@ -871,6 +888,7 @@ async def create_pull(
     branch: str = Body(...),
     title: str = Body(...),
     body: str = Body(...),
+    base_branch: str = Body(""),
     access_token: str = Depends(get_token_header)
 ):
     with Timer() as timer:
@@ -884,9 +902,9 @@ async def create_pull(
     _token, g = get_github_client_from_org(org_name) # TODO: handle users as well
     
     repo = g.get_repo(repo_name)
-    default_branch = repo.default_branch
+    base_branch = base_branch or repo.default_branch
     
-    new_branch = create_branch(repo, branch, default_branch)
+    new_branch = create_branch(repo, branch, base_branch)
     
     cloned_repo = MockClonedRepo(
         f"{repo_cache}/{repo_name_}",
@@ -907,7 +925,7 @@ async def create_pull(
         title=title,
         body=body,
         head=new_branch,
-        base=default_branch,
+        base=base_branch,
     )
     file_diffs = pull_request.get_files()
 

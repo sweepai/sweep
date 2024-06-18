@@ -13,7 +13,9 @@
     "e2e:ci": "start-server-and-test start 3000 e2e:run"
   },
   "dependencies": {
+    "@codemirror/lang-go": "^6.0.1",
     "@codemirror/lang-javascript": "^6.2.2",
+    "@codemirror/lang-python": "^6.1.6",
     "@radix-ui/react-accordion": "^1.1.2",
     "@radix-ui/react-dialog": "^1.0.5",
     "@radix-ui/react-dropdown-menu": "^2.0.6",

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "../components/ui/input"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { FaArrowLeft, FaCheck, FaCog, FaComments, FaGithub, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes } from "react-icons/fa";
+import { FaArrowLeft, FaCheck, FaCog, FaComments, FaExclamationTriangle, FaGithub, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -29,7 +29,7 @@ import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Label } from "./ui/label";
 import PulsingLoader from "./shared/PulsingLoader";
-import { codeStyle, DEFAULT_K, modelMap, roleToColor, typeNameToColor } from "@/lib/constants";
+import { codeStyle, DEFAULT_K, modelMap, roleToColor, typeNameToColor, languageMapping } from "@/lib/constants";
 import { Repository, Snippet, FileDiff, PullRequest, Message, CodeSuggestion, StatefulCodeSuggestion } from "@/lib/types";
 
 import { Octokit } from "octokit";
@@ -615,37 +615,33 @@ function App({
     }
   }, [repoName])
 
-  const reactCodeMirrors = useMemo(() => {
-    return suggestedChanges.map((suggestion, index) => (
-      <CodeMirrorMerge
-        theme={dracula}
-        revertControls={"b-to-a"}
-        collapseUnchanged={{
-          margin: 3,
-          minSize: 4,
-        }}
-        autoFocus={false}
-        key={index}
-      >
-        <Original
-          value={suggestion.originalCode}
-          extensions={[EditorView.editable.of(false), EditorState.readOnly.of(true), javascript({ jsx: true })]}
-          onChange={debounce((value: string) => {
-            setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, originalCode: value } : suggestion))
-            save(repoName, messages, snippets, suggestedChanges, pullRequest)
-          }, 1000)}
-        />
-        <Modified
-          value={suggestion.newCode}
-          extensions={[EditorState.readOnly.of(false), javascript({ jsx: true })]}
-          onChange={debounce((value: string) => {
-            setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
-            save(repoName, messages, snippets, suggestedChanges, pullRequest)
-          }, 1000)}
-        />
-      </CodeMirrorMerge>
-    ))
-  }, [suggestedChanges])
+  const reactCodeMirrors = suggestedChanges.map((suggestion, index) => (
+    <CodeMirrorMerge
+      theme={dracula}
+      revertControls={"b-to-a"}
+      collapseUnchanged={{
+        margin: 3,
+        minSize: 4,
+      }}
+      autoFocus={false}
+      key={JSON.stringify(suggestion)}
+    >
+      <Original
+        value={suggestion.originalCode}
+        readOnly={true}
+        extensions={[EditorView.editable.of(false), EditorState.readOnly.of(true), languageMapping[suggestion.filePath.split(".")[suggestion.filePath.split(".").length - 1]]]}
+      />
+      <Modified
+        value={suggestion.newCode}
+        readOnly={suggestion.state != "done"}
+        extensions={[EditorState.readOnly.of(false), languageMapping[suggestion.filePath.split(".")[suggestion.filePath.split(".").length - 1]]]}
+        onChange={debounce((value: string) => {
+          setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
+          save(repoName, messages, snippets, suggestedChanges, pullRequest)
+        }, 1000)}
+      />
+    </CodeMirrorMerge>
+  ));
 
   if (session) {
     posthog.identify(
@@ -1105,7 +1101,7 @@ function App({
             }}
             onApplyChanges={(codeSuggestions: CodeSuggestion[]) => {
               setOpenSuggestionDialog(true)
-              if (suggestedChanges.length == 0) {
+              if (suggestedChanges.length == 0 || true) {
                 let currentCodeSuggestions: StatefulCodeSuggestion[] = codeSuggestions.map((suggestion) => ({
                   ...suggestion,
                   state: "pending",
@@ -1125,61 +1121,60 @@ function App({
                   });
 
                   try {
-                    let changesMade = false;
                     const reader = streamedResponse.body!.getReader();
                     for await (const currentState of streamMessages(reader)) {
-                      // currentState is of form file_path -> {original_contents: str, contents: str}
-                      for (const [filePath, fileData] of Object.entries(currentState)) {
-                        const { original_contents, contents } = fileData as { original_contents: string, contents: string };
-                        const index = currentCodeSuggestions.findIndex((suggestion) => suggestion.filePath == filePath)
-                        if (index == -1) {
-                          continue;
-                        }
-                        currentCodeSuggestions[index].state = original_contents == contents ? "processing" : "done";
-                        currentCodeSuggestions[index].originalCode = original_contents;
-                        if (original_contents == contents) {
-                          currentCodeSuggestions[index].newCode = contents;
-                        }
-                        changesMade = true;
+                      if (currentState.error) {
+                        throw new Error(currentState.error)
                       }
+                      currentCodeSuggestions = currentState.map((suggestion: any) => ({
+                        filePath: suggestion.file_path,
+                        originalCode: suggestion.original_code,
+                        newCode: suggestion.new_code,
+                        state: suggestion.state,
+                        error: suggestion.error,
+                      }))
                       setSuggestedChanges(currentCodeSuggestions)
-                      save(repoName, messages, snippets, suggestedChanges, pullRequest)
-                    }
-                    if (changesMade) {
-                      save(repoName, messages, snippets, suggestedChanges, pullRequest)
-                      setIsProcessingSuggestedChanges(false);
-
-                      const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
-                        body: JSON.stringify({
-                          repo_name: repoName,
-                          modify_files_dict: suggestedChanges.reduce((acc: Record<string, { original_contents: string, contents: string }>, suggestion: StatefulCodeSuggestion) => {
-                            acc[suggestion.filePath] = {
-                              original_contents: suggestion.originalCode,
-                              contents: suggestion.newCode,
-                            };
-                            return acc;
-                          }, {}),
-                          messages: messages,
-                        }),
-                      })
-                      
-                      const prData = await prMetadata.json()
-                      const { title, description, branch: featureBranch } = prData
-                      setFeatureBranch(featureBranch || "sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
-                      setPullRequestTitle(title || "Sweep Chat Suggested Changes")
-                      setPullRequestBody(description || "Suggested changes by Sweep Chat.")
-
-                      save(repoName, messages, snippets, suggestedChanges, pullRequest)
+                      save(repoName, messages, snippets, currentCodeSuggestions, pullRequest)
                     }
                   } catch (e: any) {
                     console.error(e)
                     toast({
                       title: "Failed to auto-fix changes!",
-                      description: "This feature is still under development, so it's not completely reliable yet. We'll fix this for you shortly.",
+                      description: "The following error occurred while applying these changes:\n\n" + e.message + "\n\nFeel free to shoot us a message if you keep running into this!",
                       variant: "destructive",
                       duration: Infinity,
                     })
-                    throw e
+                    posthog.capture("auto fix error", {
+                      error: e.message,
+                    })
+                    currentCodeSuggestions = currentCodeSuggestions.map((suggestion) => ({
+                      ...suggestion,
+                      state: suggestion.state != "done" ? "error" : suggestion.state,
+                    }))
+                    setSuggestedChanges(currentCodeSuggestions)
+                  } finally {
+                    setIsProcessingSuggestedChanges(false);
+                    const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
+                      body: JSON.stringify({
+                        repo_name: repoName,
+                        modify_files_dict: suggestedChanges.reduce((acc: Record<string, { original_contents: string, contents: string }>, suggestion: StatefulCodeSuggestion) => {
+                          acc[suggestion.filePath] = {
+                            original_contents: suggestion.originalCode,
+                            contents: suggestion.newCode,
+                          };
+                          return acc;
+                        }, {}),
+                        messages: messages,
+                      }),
+                    })
+                    
+                    const prData = await prMetadata.json()
+                    const { title, description, branch: featureBranch } = prData
+                    setFeatureBranch(featureBranch || "sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
+                    setPullRequestTitle(title || "Sweep Chat Suggested Changes")
+                    setPullRequestBody(description || "Suggested changes by Sweep Chat.")
+
+                    save(repoName, messages, snippets, suggestedChanges, pullRequest)
                   }
                 })();
                 setTimeout(() => {
@@ -1200,11 +1195,7 @@ function App({
         {openSuggestionDialog && (
           <div className="bg-zinc-900 rounded-xl p-4 mt-8">
             <div className="flex justify-between mb-4">
-              <div className="flex grow items-center">
-                <Input className="flex items-center w-[600px]" value={baseBranch || ""} onChange={(e) => setBaseBranch(e.target.value)} placeholder="Base Branch" style={{ opacity: isProcessingSuggestedChanges ? 0.5 : 1 }} />
-                <FaArrowLeft className="mx-4" />
-                <Input className="flex items-center w-[600px]" value={featureBranch || ""} onChange={(e) => setFeatureBranch(e.target.value)} placeholder="Feature Branch" style={{ opacity: isProcessingSuggestedChanges ? 0.5 : 1 }} />
-              </div>
+              <div></div>
               <Button
                 className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
                 onClick={() => setOpenSuggestionDialog(false)}
@@ -1214,89 +1205,108 @@ function App({
               </Button>
             </div>
             {(isProcessingSuggestedChanges || isCreatingPullRequest) && (
-              <div className="flex justify-around w-full py-2 mb-4">
-                <p>{isProcessingSuggestedChanges ? "Performing sanity checks..." : "Creating pull request..."}</p>
+              <div className="flex justify-around w-full pb-2 mb-4">
+                <p>{isProcessingSuggestedChanges ? "I'm currently processing and applying these patches, and fixing any errors along the way. This may take a few minutes." : "Creating pull request..."}</p>
               </div>
             )}
             <div style={{ opacity: isCreatingPullRequest ? 0.5 : 1, pointerEvents: isCreatingPullRequest ? 'none' : 'auto' }}>
               {suggestedChanges.map((suggestion, index) => (
                 <div className="fit-content mb-6" key={index}>
-                  <div className={`w-full text-sm p-2 rounded-t-md ${suggestion.state === "done" ? "bg-green-900" : suggestion.state === "pending" ? "bg-zinc-800" : "bg-yellow-800"}`}>
+                  <div className={`flex w-full text-sm p-2 px-4 rounded-t-md ${suggestion.state === "done" ? "bg-green-900" : suggestion.state === "error" ? "bg-red-900" : suggestion.state === "pending" ? "bg-zinc-800" : "bg-yellow-800"}`}>
                     <code>
-                      {suggestion.filePath} {suggestion.state == "pending" ? "(pending)" : suggestion.state == "processing" ? "(processing)" : <FaCheck style={{display: "inline", marginTop: -2}}/>}
+                      {suggestion.filePath} {suggestion.state == "pending" ? "(pending)" : suggestion.state == "processing" ? "(processing)" : suggestion.state == "error" ? "(error)" : <FaCheck style={{display: "inline", marginTop: -2}}/>}
                     </code>
+                    {suggestion.error ? (
+                      <HoverCard openDelay={300} closeDelay={200}>
+                        <HoverCardTrigger>
+                          <FaExclamationTriangle className="hover:cursor-pointer ml-2" style={{marginTop: 2}} />
+                        </HoverCardTrigger>
+                        <HoverCardContent className="w-[800px] max-h-[500px] overflow-y-auto">
+                          <MarkdownRenderer content={`**This patch could not be directly applied. We're sending the LLM the following message to resolve the error:**\n\n${suggestion.error}`} />
+                        </HoverCardContent>
+                      </HoverCard>
+                    ): <div></div>}
                   </div>
                   {reactCodeMirrors[index]}
                 </div>
               ))}
-              <Input
-                value={pullRequestTitle || ""}
-                onChange={(e) => setPullRequestTitle(e.target.value)}
-                placeholder="Pull Request Title"
-                className="w-full mb-4 text-zinc-300"
-                disabled={pullRequestTitle == null}
-              />
-              <Textarea
-                value={pullRequestBody || ""}
-                onChange={(e) => setPullRequestBody(e.target.value)}
-                placeholder="Pull Request Body"
-                className="w-full mb-4 text-zinc-300"
-                disabled={pullRequestBody == null}
-                rows={8}
-              />
-              <Button 
-                className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
-                onClick={async () => {
-                  setIsCreatingPullRequest(true)
-                  const file_changes = suggestedChanges.reduce((acc: Record<string, string>, suggestion: CodeSuggestion) => {
-                    acc[suggestion.filePath] = suggestion.newCode;
-                    return acc;
-                  }, {})
-                  try {
-                    const response = await authorizedFetch(
-                      `/backend/create_pull`,
-                      {
-                        body: JSON.stringify({
-                          repo_name: repoName,
-                          file_changes: file_changes,
-                          branch: "sweep-chat-patch-" + new Date().toISOString().split("T")[0], // use ai for better branch name, title, and body later
-                          base_branch: baseBranch,
-                          title: pullRequestTitle,
-                          body: pullRequestBody + `\n\nSuggested changes by Sweep Chat, from ${window.location.origin}/c/${messagesId}`,
-                        }),
+              {!isProcessingSuggestedChanges && (
+                <>
+                  <Input
+                    value={pullRequestTitle || ""}
+                    onChange={(e) => setPullRequestTitle(e.target.value)}
+                    placeholder="Pull Request Title"
+                    className="w-full mb-4 text-zinc-300"
+                    disabled={pullRequestTitle == null}
+                  />
+                  <Textarea
+                    value={pullRequestBody || ""}
+                    onChange={(e) => setPullRequestBody(e.target.value)}
+                    placeholder="Pull Request Body"
+                    className="w-full mb-4 text-zinc-300"
+                    disabled={pullRequestBody == null}
+                    rows={8}
+                  />
+                  <div className="flex grow items-center mb-4">
+                    <Input className="flex items-center w-[600px]" value={baseBranch || ""} onChange={(e) => setBaseBranch(e.target.value)} placeholder="Base Branch" style={{ opacity: isProcessingSuggestedChanges ? 0.5 : 1 }} />
+                    <FaArrowLeft className="mx-4" />
+                    <Input className="flex items-center w-[600px]" value={featureBranch || ""} onChange={(e) => setFeatureBranch(e.target.value)} placeholder="Feature Branch" style={{ opacity: isProcessingSuggestedChanges ? 0.5 : 1 }} />
+                  </div>
+                  <Button 
+                    className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
+                    onClick={async () => {
+                      setIsCreatingPullRequest(true)
+                      const file_changes = suggestedChanges.reduce((acc: Record<string, string>, suggestion: CodeSuggestion) => {
+                        acc[suggestion.filePath] = suggestion.newCode;
+                        return acc;
+                      }, {})
+                      try {
+                        const response = await authorizedFetch(
+                          `/backend/create_pull`,
+                          {
+                            body: JSON.stringify({
+                              repo_name: repoName,
+                              file_changes: file_changes,
+                              branch: "sweep-chat-patch-" + new Date().toISOString().split("T")[0], // use ai for better branch name, title, and body later
+                              base_branch: baseBranch,
+                              title: pullRequestTitle,
+                              body: pullRequestBody + `\n\nSuggested changes by Sweep Chat, from ${window.location.origin}/c/${messagesId}`,
+                            }),
+                          }
+                        )
+                        const data = await response.json()
+                        const {pull_request: pullRequest} = data
+                        console.log(pullRequest)
+                        setPullRequest(pullRequest)
+                        setMessages([
+                          ...messages,
+                          {
+                            content: `Pull request created: [https://github.com/${repoName}/pull/${pullRequest.number}](https://github.com/${repoName}/pull/${pullRequest.number})`,
+                            role: "assistant",
+                            annotations: {
+                              pulls: [pullRequest]
+                            }
+                          }
+                        ])
+                        save(repoName, messages, snippets, suggestedChanges, pullRequest)
+                      } catch (e) {
+                        toast({
+                          title: "Error",
+                          description: `An error occurred while creating the pull request: ${e}`,
+                          variant: "destructive",
+                          duration: Infinity,
+                        })
+                      } finally {
+                        setIsCreatingPullRequest(false)
+                        setOpenSuggestionDialog(false)
                       }
-                    )
-                    const data = await response.json()
-                    const {pull_request: pullRequest} = data
-                    console.log(pullRequest)
-                    setPullRequest(pullRequest)
-                    setMessages([
-                      ...messages,
-                      {
-                        content: `Pull request created: [https://github.com/${repoName}/pull/${pullRequest.number}](https://github.com/${repoName}/pull/${pullRequest.number})`,
-                        role: "assistant",
-                        annotations: {
-                          pulls: [pullRequest]
-                        }
-                      }
-                    ])
-                    save(repoName, messages, snippets, suggestedChanges, pullRequest)
-                  } catch (e) {
-                    toast({
-                      title: "Error",
-                      description: `An error occurred while creating the pull request: ${e}`,
-                      variant: "destructive",
-                      duration: Infinity,
-                    })
-                  } finally {
-                    setIsCreatingPullRequest(false)
-                    setOpenSuggestionDialog(false)
-                  }
-                }}
-                disabled={isCreatingPullRequest || isProcessingSuggestedChanges}
-              >
-                Create Pull Request
-              </Button>
+                    }}
+                    disabled={isCreatingPullRequest || isProcessingSuggestedChanges}
+                  >
+                    Create Pull Request
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         )}

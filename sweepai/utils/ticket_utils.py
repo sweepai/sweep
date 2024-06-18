@@ -402,6 +402,7 @@ def multi_prep_snippets(
                 max_results = type_to_result_count[type_name]
                 all_snippets.extend(snippets_subset[:max_results])
 
+        all_snippets.sort(key=lambda snippet: snippet.score, reverse=True)
         ranked_snippets = all_snippets[:k]
         yield "Finished reranking, here are the relevant final search results:\n", ranked_snippets
     else:
@@ -568,21 +569,24 @@ SLOW_MODE = True
 
 
 if __name__ == "__main__":
+    import os
+
+    from sweepai.config.server import CACHE_DIRECTORY
     from sweepai.utils.github_utils import MockClonedRepo
     from sweepai.utils.timer import Timer
+    repo_full_name = os.environ.get("REPO_NAME")
+    QUERY = os.environ.get("QUERY")
+    org_name, repo_name = repo_full_name.split("/")
     cloned_repo = MockClonedRepo(
-        _repo_dir="/mnt/langchain",
-        repo_full_name="langchain-ai/langchain",
+        _repo_dir=f"{CACHE_DIRECTORY}/repos/{repo_name}",
+        repo_full_name=repo_full_name,
     )
 
     with Timer() as timer:
-        ranked_snippets, snippets, content_to_lexical_score = get_top_k_snippets(
+        multi_prep_snippets(
             cloned_repo,
-            "How does caching work in this repo?",
-            None,
-            15,
-            False,
-            False
+            [QUERY],
+            k=15,
         )
     print("Time taken:", timer.time_elapsed)
     breakpoint()
