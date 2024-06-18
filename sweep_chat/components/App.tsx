@@ -600,9 +600,6 @@ function App({
     if (branch) {
       setBaseBranch(branch)
     }
-  }, [branch]);
-
-  useEffect(() => {
     if (messages.length > 0) {
       for (const message of messages) {
         if (message.annotations?.pulls && message.annotations.pulls.length > 0 && message.annotations.pulls[0].branch) {
@@ -610,7 +607,7 @@ function App({
         }
       }
     }
-  }, [messages]);
+  }, [branch, messages]);
 
   useEffect(() => {
     if (repoName && octokit) {
@@ -715,6 +712,92 @@ function App({
     } else {
       console.warn("Failed to save message", saveData)
     }
+  }
+
+  const applySuggestions = async (codeSuggestions: CodeSuggestion[]) => {
+    let currentCodeSuggestions: StatefulCodeSuggestion[] = codeSuggestions.map((suggestion) => ({
+      ...suggestion,
+      state: "pending",
+    }))
+    setSuggestedChanges(currentCodeSuggestions)
+    setIsProcessingSuggestedChanges(true);
+    (async () => {
+      const streamedResponse = await authorizedFetch(`/backend/autofix`, {
+        body: JSON.stringify({
+          repo_name: repoName,
+          code_suggestions: codeSuggestions.map((suggestion: CodeSuggestion) => ({
+            file_path: suggestion.filePath,
+            original_code: suggestion.originalCode,
+            new_code: suggestion.newCode,
+          })),
+          branch: baseBranch
+        }), // TODO: casing should be automatically handled
+      });
+
+      try {
+        const reader = streamedResponse.body!.getReader();
+        for await (const currentState of streamMessages(reader, undefined, 5 * 60 * 1000)) {
+          console.log(currentState)
+          if (currentState.error) {
+            throw new Error(currentState.error)
+          }
+          currentCodeSuggestions = currentState.map((suggestion: any) => ({
+            filePath: suggestion.file_path,
+            originalCode: suggestion.original_code,
+            newCode: suggestion.new_code,
+            state: suggestion.state,
+            error: suggestion.error,
+          }))
+          setSuggestedChanges(currentCodeSuggestions)
+          save(repoName, messages, snippets, currentCodeSuggestions, pullRequest)
+        }
+        console.log("here")
+      } catch (e: any) {
+        console.error(e)
+        toast({
+          title: "Failed to auto-fix changes!",
+          description: "The following error occurred while applying these changes:\n\n" + e.message + "\n\nFeel free to shoot us a message if you keep running into this!",
+          variant: "destructive",
+          duration: Infinity,
+        })
+        posthog.capture("auto fix error", {
+          error: e.message,
+        })
+        currentCodeSuggestions = currentCodeSuggestions.map((suggestion) => ({
+          ...suggestion,
+          state: suggestion.state != "done" ? "error" : suggestion.state,
+        }))
+        setSuggestedChanges(currentCodeSuggestions)
+      } finally {
+        setIsProcessingSuggestedChanges(false);
+        const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
+          body: JSON.stringify({
+            repo_name: repoName,
+            modify_files_dict: suggestedChanges.reduce((acc: Record<string, { original_contents: string, contents: string }>, suggestion: StatefulCodeSuggestion) => {
+              acc[suggestion.filePath] = {
+                original_contents: suggestion.originalCode,
+                contents: suggestion.newCode,
+              };
+              return acc;
+            }, {}),
+            messages: messages,
+          }),
+        })
+        
+        const prData = await prMetadata.json()
+        const { title, description, branch: featureBranch } = prData
+        setFeatureBranch(featureBranch || "sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
+        setPullRequestTitle(title || "Sweep Chat Suggested Changes")
+        setPullRequestBody(description || "Suggested changes by Sweep Chat.")
+
+        save(repoName, messages, snippets, suggestedChanges, pullRequest)
+      }
+    })();
+    setTimeout(() => {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }
+    }, 400);
   }
 
   const startStream = async (
@@ -1105,87 +1188,8 @@ function App({
             }}
             onApplyChanges={(codeSuggestions: CodeSuggestion[]) => {
               setOpenSuggestionDialog(true)
-              if (suggestedChanges.length == 0 || true) {
-                let currentCodeSuggestions: StatefulCodeSuggestion[] = codeSuggestions.map((suggestion) => ({
-                  ...suggestion,
-                  state: "pending",
-                }))
-                setSuggestedChanges(currentCodeSuggestions)
-                setIsProcessingSuggestedChanges(true);
-                (async () => {
-                  const streamedResponse = await authorizedFetch(`/backend/autofix`, {
-                    body: JSON.stringify({
-                      repo_name: repoName,
-                      code_suggestions: codeSuggestions.map((suggestion: CodeSuggestion) => ({
-                        file_path: suggestion.filePath,
-                        original_code: suggestion.originalCode,
-                        new_code: suggestion.newCode,
-                      }))
-                    }), // TODO: casing should be automatically handled
-                  });
-
-                  try {
-                    const reader = streamedResponse.body!.getReader();
-                    for await (const currentState of streamMessages(reader)) {
-                      if (currentState.error) {
-                        throw new Error(currentState.error)
-                      }
-                      currentCodeSuggestions = currentState.map((suggestion: any) => ({
-                        filePath: suggestion.file_path,
-                        originalCode: suggestion.original_code,
-                        newCode: suggestion.new_code,
-                        state: suggestion.state,
-                        error: suggestion.error,
-                      }))
-                      setSuggestedChanges(currentCodeSuggestions)
-                      save(repoName, messages, snippets, currentCodeSuggestions, pullRequest)
-                    }
-                  } catch (e: any) {
-                    console.error(e)
-                    toast({
-                      title: "Failed to auto-fix changes!",
-                      description: "The following error occurred while applying these changes:\n\n" + e.message + "\n\nFeel free to shoot us a message if you keep running into this!",
-                      variant: "destructive",
-                      duration: Infinity,
-                    })
-                    posthog.capture("auto fix error", {
-                      error: e.message,
-                    })
-                    currentCodeSuggestions = currentCodeSuggestions.map((suggestion) => ({
-                      ...suggestion,
-                      state: suggestion.state != "done" ? "error" : suggestion.state,
-                    }))
-                    setSuggestedChanges(currentCodeSuggestions)
-                  } finally {
-                    setIsProcessingSuggestedChanges(false);
-                    const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
-                      body: JSON.stringify({
-                        repo_name: repoName,
-                        modify_files_dict: suggestedChanges.reduce((acc: Record<string, { original_contents: string, contents: string }>, suggestion: StatefulCodeSuggestion) => {
-                          acc[suggestion.filePath] = {
-                            original_contents: suggestion.originalCode,
-                            contents: suggestion.newCode,
-                          };
-                          return acc;
-                        }, {}),
-                        messages: messages,
-                      }),
-                    })
-                    
-                    const prData = await prMetadata.json()
-                    const { title, description, branch: featureBranch } = prData
-                    setFeatureBranch(featureBranch || "sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
-                    setPullRequestTitle(title || "Sweep Chat Suggested Changes")
-                    setPullRequestBody(description || "Suggested changes by Sweep Chat.")
-
-                    save(repoName, messages, snippets, suggestedChanges, pullRequest)
-                  }
-                })();
-                setTimeout(() => {
-                  if (messagesContainerRef.current) {
-                    messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-                  }
-                }, 400);
+              if (suggestedChanges.length == 0) {
+                applySuggestions(codeSuggestions)
               }
             }}
             showApplySuggestedChangeButton={!openSuggestionDialog}
@@ -1199,13 +1203,19 @@ function App({
         {openSuggestionDialog && (
           <div className="bg-zinc-900 rounded-xl p-4 mt-8">
             <div className="flex justify-between mb-4">
-              <div></div>
+              <Button
+                className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
+                onClick={() => applySuggestions(suggestedChanges)}
+                aria-label="Retry"
+              >
+                <FaArrowsRotate />&nbsp;&nbsp;Retry
+              </Button>
               <Button
                 className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
                 onClick={() => setOpenSuggestionDialog(false)}
                 aria-label="Close"
               >
-                <FaTimes />
+                <FaTimes />&nbsp;&nbsp;Close
               </Button>
             </div>
             {(isProcessingSuggestedChanges || isCreatingPullRequest) && (
