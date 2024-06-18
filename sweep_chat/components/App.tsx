@@ -156,7 +156,7 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
       <div className="flex justify-end">
         {!isEditing && <FaPencilAlt className="inline-block text-zinc-400 mr-2 mt-3 hover:cursor-pointer hover:text-zinc-200 hover:drop-shadow-md" onClick={handleClick} />}
         &nbsp;
-        <div className="bg-zinc-800 transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] hover:bg-zinc-700 hover:cursor-pointer text-right" onClick={handleClick}>
+        <div className="bg-zinc-800 transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] hover:bg-zinc-700 hover:cursor-pointer text-left" onClick={handleClick}>
           <div className={`text-sm text-white`}>
             {isEditing ? (
               <Textarea
