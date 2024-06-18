@@ -51,7 +51,6 @@ from sweepai.core.on_comment_prompts import (
     plan_generation_steps_on_comment_prompt
 )
 from sweepai.dataclasses.code_suggestions import CodeSuggestion
-from sweepai.handlers.create_pr import handle_file_change_requests
 from sweepai.utils.chat_logger import ChatLogger
 # from sweepai.utils.previous_diff_utils import get_relevant_commits
 from sweepai.utils.diff import generate_diff
