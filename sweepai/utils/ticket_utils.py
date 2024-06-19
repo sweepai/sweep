@@ -8,7 +8,6 @@ import concurrent.futures
 from loguru import logger
 from tqdm import tqdm
 import networkx as nx
-from sweepai.core.chat import call_llm
 from sweepai.utils.streamable_functions import streamable
 
 from sweepai.utils.timer import Timer
