@@ -349,7 +349,7 @@ def wrapped_search_codebase(
         repo_name,
         query,
         access_token,
-        use_optimized_query=not bool(annotations),
+        use_optimized_query=not bool(annotations["pulls"]),
     ):
         yield message, snippets
 
