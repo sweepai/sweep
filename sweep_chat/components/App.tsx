@@ -1342,7 +1342,7 @@ function App({
                               branch: "sweep-chat-patch-" + new Date().toISOString().split("T")[0], // use ai for better branch name, title, and body later
                               base_branch: baseBranch,
                               title: pullRequestTitle,
-                              body: pullRequestBody + `\n\nSuggested changes by Sweep Chat, from ${window.location.origin}/c/${messagesId}`,
+                              body: pullRequestBody + `\n\nSuggested changes from Sweep Chat by @${session?.user?.username}. Continue chatting at ${window.location.origin}/c/${messagesId}.`,
                             }),
                           }
                         )
