@@ -1225,12 +1225,14 @@ function App({
             showApplySuggestedChangeButton={!openSuggestionDialog}
           />
         )): (
-          <div className="space-y-4">
-            <Skeleton className="h-12 ml-32 rounded-md" />
-            <Skeleton className="h-12 mr-32 rounded-md" />
-            <Skeleton className="h-12 ml-64 rounded-md" />
-            <Skeleton className="h-12 mr-64 rounded-md" />
-          </div>
+          defaultMessageId.length > 0 && (
+            <div className="space-y-4">
+              <Skeleton className="h-12 ml-32 rounded-md" />
+              <Skeleton className="h-12 mr-32 rounded-md" />
+              <Skeleton className="h-12 ml-64 rounded-md" />
+              <Skeleton className="h-12 mr-64 rounded-md" />
+            </div>
+          )
         )}
         {isLoading && (
           <div className="flex justify-around w-full py-2">
