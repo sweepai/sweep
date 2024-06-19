@@ -1377,6 +1377,7 @@ def get_error_message_formatted(
 
                     if not best_match.strip():
                         error_messages.append(f"<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nBut the code is no where to be found in the file. There are also no similar code snippets in this file.{too_long_message}{ellipses_message}")
+                        error_indices.append(i)
                         continue
                     if best_score != 100:
                         if not check_valid_parentheses(best_match):
