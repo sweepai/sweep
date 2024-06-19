@@ -66,7 +66,6 @@ def modify(
 ) -> dict[str, dict[str, str]]:
     # join fcr in case of duplicates
     use_openai = True
-
     # handles renames in cloned_repo
     # TODO: handle deletions here - it can cause crashes
     for file_path, new_file_path in renames_dict.items():
