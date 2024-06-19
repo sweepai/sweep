@@ -38,7 +38,7 @@ const ContextSideBar = ({
     <div className="grid grid-cols-4 gap-2">
       <Sheet key={side}>
         <SheetTrigger asChild>
-          <Button variant="outline" className="fixed left-10 top-1/2 px-6 text-white vertical-text text-lg bg-blue-900 hover:bg-blue-800">Context</Button>
+          <Button variant="outline" className="fixed left-10 top-1/2 px-6 text-white vertical-text text-lg bg-blue-900 hover:bg-blue-800">Manage Context</Button>
         </SheetTrigger>
         <SheetContent side={side} className="w-full flex flex-col">
           <SheetHeader>
