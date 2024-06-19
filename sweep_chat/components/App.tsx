@@ -1383,102 +1383,104 @@ function App({
           </div>
         )}
       </div>
-      <div className={`flex w-full`}>
-        {isStream.current ? (
-          <Button
-            className="mr-2"
-            variant="destructive"
-            onClick={async () => {
-              setIsLoading(false);
-              isStream.current = false;
-            }}
-          >
-            <FaStop />&nbsp;&nbsp;Stop
-          </Button>
-        ) : (
-          <Button
-            className="mr-2"
-            variant="secondary"
-            onClick={async () => {
-              setMessages([]);
-              setCurrentMessage("");
-              setIsLoading(false);
-              setSnippets([]);
-              setMessagesId("");
-              window.history.pushState({}, '', '/');
-              setOpenSuggestionDialog(false)
-              setSuggestedChanges([])
-              setPullRequest(null)
-              setFeatureBranch(null)
-              setPullRequestTitle(null)
-              setPullRequestBody(null)
-            }}
-            disabled={isLoading}
-          >
-            <FaArrowsRotate />&nbsp;&nbsp;Reset
-          </Button>
-        )}
-        <Dialog>
-          <DialogTrigger asChild>
+      {(repoNameValid || defaultMessageId) && (
+        <div className={`flex w-full`}>
+          {isStream.current ? (
+            <Button
+              className="mr-2"
+              variant="destructive"
+              onClick={async () => {
+                setIsLoading(false);
+                isStream.current = false;
+              }}
+            >
+              <FaStop />&nbsp;&nbsp;Stop
+            </Button>
+          ) : (
             <Button
               className="mr-2"
               variant="secondary"
+              onClick={async () => {
+                setMessages([]);
+                setCurrentMessage("");
+                setIsLoading(false);
+                setSnippets([]);
+                setMessagesId("");
+                window.history.pushState({}, '', '/');
+                setOpenSuggestionDialog(false)
+                setSuggestedChanges([])
+                setPullRequest(null)
+                setFeatureBranch(null)
+                setPullRequestTitle(null)
+                setPullRequestBody(null)
+              }}
               disabled={isLoading}
             >
-              <FaShareAlt />&nbsp;&nbsp;Share
+              <FaArrowsRotate />&nbsp;&nbsp;Reset
             </Button>
-          </DialogTrigger>
-          <DialogContent className="w-[800px] p-16">
-            <h2 className="text-2xl font-bold mb-4 text-center">
-              Share the Conversation
-            </h2>
-            <p className="text-center">
-              Share your chat session with a team member.
-            </p>
-            <Input
-              value={`${window.location.origin}/c/${messagesId}`}
-              onClick={() => {
+          )}
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button
+                className="mr-2"
+                variant="secondary"
+                disabled={isLoading}
+              >
+                <FaShareAlt />&nbsp;&nbsp;Share
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="w-[800px] p-16">
+              <h2 className="text-2xl font-bold mb-4 text-center">
+                Share the Conversation
+              </h2>
+              <p className="text-center">
+                Share your chat session with a team member.
+              </p>
+              <Input
+                value={`${window.location.origin}/c/${messagesId}`}
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/c/${messagesId}`)
+                  toast({
+                    title: "Link copied",
+                    description: "The link to your current session has been copied to your clipboard.",
+                  })
+                }}
+                disabled
+              />
+              <Button className="mt-2" variant="secondary" onClick={() => {
                 navigator.clipboard.writeText(`${window.location.origin}/c/${messagesId}`)
                 toast({
                   title: "Link copied",
                   description: "The link to your current session has been copied to your clipboard.",
                 })
-              }}
-              disabled
-            />
-            <Button className="mt-2" variant="secondary" onClick={() => {
-              navigator.clipboard.writeText(`${window.location.origin}/c/${messagesId}`)
-              toast({
-                title: "Link copied",
-                description: "The link to your current session has been copied to your clipboard.",
-              })
-            }}>
-              Copy
-            </Button>
-          </DialogContent>
-        </Dialog>
-        <Input
-          data-ph-capture-attribute-current-message={currentMessage}
-          onKeyUp={async (e) => {
-            if (e.key === "Enter") {
-              sendMessage()
-            }
-          }}
-          onChange={(e) => setCurrentMessage(e.target.value)}
-          className="p-4"
-          value={currentMessage}
-          placeholder="Type a message..."
-          disabled={isLoading || !repoNameValid}
-        />
-        <Button
-          className="ml-2 bg-blue-900 text-white hover:bg-blue-800"
-          variant="secondary"
-          onClick={sendMessage}
-          disabled={isLoading}
-        >
-          <FaPaperPlane />&nbsp;&nbsp;Send
-        </Button>
-      </div>
+              }}>
+                Copy
+              </Button>
+            </DialogContent>
+          </Dialog>
+          <Input
+            data-ph-capture-attribute-current-message={currentMessage}
+            onKeyUp={async (e) => {
+              if (e.key === "Enter") {
+                sendMessage()
+              }
+            }}
+            onChange={(e) => setCurrentMessage(e.target.value)}
+            className="p-4"
+            value={currentMessage}
+            placeholder="Type a message..."
+            disabled={isLoading || !repoNameValid}
+          />
+          <Button
+            className="ml-2 bg-blue-900 text-white hover:bg-blue-800"
+            variant="secondary"
+            onClick={sendMessage}
+            disabled={isLoading}
+          >
+            <FaPaperPlane />&nbsp;&nbsp;Send
+          </Button>
+        </div>
+      )}
     </main>
     </>
   );
