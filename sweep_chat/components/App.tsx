@@ -788,7 +788,8 @@ function App({
           body: JSON.stringify({
             repo_name: repoName,
             query: message,
-            annotations: annotations
+            annotations: annotations,
+            branch: baseBranch
           })
         });
 
@@ -869,8 +870,8 @@ function App({
         messages: newMessages,
         snippets: currentSnippets,
         model: model,
-        use_patch: true,
-        k: k
+        branch: baseBranch,
+        k: k,
       })
     });
 
@@ -1057,6 +1058,12 @@ function App({
             }
           }}
         />
+        <Input
+          placeholder="Branch"
+          className="w-[600px] ml-4"
+          value={baseBranch}
+          onChange={(e) => setBaseBranch(e.target.value)}
+        />
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="outline" className="ml-4">
@@ -1170,7 +1177,6 @@ function App({
               setOpenSuggestionDialog(false)
               setIsCreatingPullRequest(false)
               if (index == 0) {
-                setSnippets([])
                 setSuggestedChanges([])
                 setIsProcessingSuggestedChanges(false)
                 setPullRequestTitle(null)
