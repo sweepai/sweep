@@ -39,7 +39,7 @@ const RenderPath = ({
 }) => {
   let path = snippet.file_path
   let truncatedPath = path
-  const maxPathLength = 60
+  const maxPathLength = 100
   if (path.length > maxPathLength) {
     truncatedPath = "..." + path.slice((maxPathLength - 3) * -1)
   }
@@ -66,39 +66,43 @@ const RenderPath = ({
         )
       }
       <span className="inline-block align-middle">
-        {options.includes("remove") ? <FaTrash 
-          className="ml-3"
-          onClick={() => {
-          let newSnippets = []
-          for (let curSnippet of snippets) {
-            if (!snippetIsEqual({ snippetOne: snippet, snippetTwo: curSnippet })) {
-              newSnippets.push(curSnippet)
-            }
-          }
-          setSnippets(newSnippets)
-          }}
-        /> : <></>}
-        {options.includes("add") ? <FaPlus 
-          className="ml-3"
-          onClick={() => {
-            let tempSnippets = [...snippets]
-            // if we are adding a snippet that means the score should be 1
-            snippet.score = 1
-            tempSnippets.push(snippet)
-            setSnippets(tempSnippets)
-            // remove the snippets from newSnippets
-            if (setNewSnippets && newSnippets) {
-              let tempNewSnippets = []
-              for (let curSnippet of newSnippets) {
-                if (!snippetIsEqual({ snippetOne: snippet, snippetTwo: curSnippet })) {
-                  tempNewSnippets.push(curSnippet)
-                }
+        {options.includes("remove") ? (
+          <FaTrash 
+            className="ml-3 hover:drop-shadow-md hover:text-gray-300"
+            onClick={() => {
+            let newSnippets = []
+            for (let curSnippet of snippets) {
+              if (!snippetIsEqual({ snippetOne: snippet, snippetTwo: curSnippet })) {
+                newSnippets.push(curSnippet)
               }
-              setNewSnippets(tempNewSnippets)
+            }
+            setSnippets(newSnippets)
+            }}
+          />
+        ) : <></>}
+        {options.includes("add") ? (
+          <FaPlus 
+            className="ml-3 hover:drop-shadow-md hover:text-gray-300"
+            onClick={() => {
+              let tempSnippets = [...snippets]
+              // if we are adding a snippet that means the score should be 1
+              snippet.score = 1
+              tempSnippets.push(snippet)
+              setSnippets(tempSnippets)
+              // remove the snippets from newSnippets
+              if (setNewSnippets && newSnippets) {
+                let tempNewSnippets = []
+                for (let curSnippet of newSnippets) {
+                  if (!snippetIsEqual({ snippetOne: snippet, snippetTwo: curSnippet })) {
+                    tempNewSnippets.push(curSnippet)
+                  }
+                }
+                setNewSnippets(tempNewSnippets)
+              }
             }
           }
-        }
-        /> : <></>}
+          />
+        ) : <></>}
       </span>
     </span>
   );

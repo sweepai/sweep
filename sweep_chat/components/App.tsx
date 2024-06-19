@@ -313,7 +313,25 @@ const MessageDisplay = ({
                         {message.content}
                       </span>
                     )}
-                    {message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
+                    {message.function_call!.snippets ? (
+                      <div className="pb-0 pt-4">
+                        {message.function_call!.snippets.map((snippet, index) => (
+                          <SnippetBadge
+                            key={index}
+                            snippet={snippet}
+                            className=""
+                            repoName={repoName}
+                            branch={branch}
+                            button={<></>}
+                            snippets={[]}
+                            setSnippets={() => {}}
+                            newSnippets={[]}
+                            setNewSnippets={() => {}}
+                            options={[]}
+                          />
+                        ))}
+                      </div>
+                    ) : (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
                       <MarkdownRenderer content={message.content} className="reactMarkdown mt-4 mb-0 py-2" />
                     ) : (
                       <SyntaxHighlighter
@@ -329,7 +347,7 @@ const MessageDisplay = ({
                         {message.content}
                       </SyntaxHighlighter>
                     )
-                    }
+                    )}
                     <FeedbackBlock message={message} index={index} />
                   </AccordionContent>
                 </AccordionItem>
@@ -448,6 +466,7 @@ function App({
   const [suggestedChanges, setSuggestedChanges] = useState<StatefulCodeSuggestion[]>([])
   const [openSuggestionDialog, setOpenSuggestionDialog] = useState<boolean>(false)
   const [isProcessingSuggestedChanges, setIsProcessingSuggestedChanges] = useState<boolean>(false)
+  const [patchesValidated, setPatchesValidated] = useState<boolean>(false)
   const [pullRequestTitle, setPullRequestTitle] = useState<string | null>(null)
   const [pullRequestBody, setPullRequestBody] = useState<string | null>(null)
   const [isCreatingPullRequest, setIsCreatingPullRequest] = useState<boolean>(false)
@@ -566,38 +585,47 @@ function App({
     }
   }, [repoName])
 
-  const reactCodeMirrors = suggestedChanges.map((suggestion, index) => (
-    <CodeMirrorMerge
-      theme={dracula}
-      revertControls={"b-to-a"}
-      collapseUnchanged={{
-        margin: 3,
-        minSize: 4,
-      }}
-      autoFocus={false}
-      key={JSON.stringify(suggestion)}
-    >
-      <Original
-        value={suggestion.originalCode}
-        readOnly={true}
-        extensions={[
-          EditorView.editable.of(false), 
-          languageMapping[suggestion.filePath.split(".")[suggestion.filePath.split(".").length - 1]]
-        ]}
-      />
-      <Modified
-        value={suggestion.newCode}
-        readOnly={suggestion.state != "done"}
-        extensions={[
-          languageMapping[suggestion.filePath.split(".")[suggestion.filePath.split(".").length - 1]]
-        ]}
-        onChange={debounce((value: string) => {
-          setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
-          save(repoName, messages, snippets, suggestedChanges, pullRequest)
-        }, 1000)}
-      />
-    </CodeMirrorMerge>
-  ));
+  const reactCodeMirrors = suggestedChanges.map((suggestion, index) => {
+    const fileExtension = suggestion.filePath.split(".").pop();
+    // default to javascript
+    let languageExtension = languageMapping["js"];
+    if (fileExtension) {
+      languageExtension = languageMapping[fileExtension]
+    }
+
+    return (
+      <CodeMirrorMerge
+        theme={dracula}
+        revertControls={"b-to-a"}
+        collapseUnchanged={{
+          margin: 3,
+          minSize: 4,
+        }}
+        autoFocus={false}
+        key={JSON.stringify(suggestion)}
+      >
+        <Original
+          value={suggestion.originalCode}
+          readOnly={true}
+          extensions={[
+            EditorView.editable.of(false), 
+            ...(languageExtension ? [languageExtension] : [])
+          ]}
+        />
+        <Modified
+          value={suggestion.newCode}
+          readOnly={suggestion.state != "done"}
+          extensions={[
+            ...(languageExtension ? [languageExtension] : [])
+          ]}
+          onChange={debounce((value: string) => {
+            setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
+            save(repoName, messages, snippets, suggestedChanges, pullRequest)
+          }, 1000)}
+        />
+      </CodeMirrorMerge>
+    )
+  });
 
   if (session) {
     posthog.identify(
@@ -701,24 +729,14 @@ function App({
           save(repoName, messages, snippets, currentCodeSuggestions, pullRequest)
         }
         console.log("here")
-      } catch (e: any) {
-        console.error(e)
-        toast({
-          title: "Failed to auto-fix changes!",
-          description: "The following error occurred while applying these changes:\n\n" + e.message + "\n\nFeel free to shoot us a message if you keep running into this!",
-          variant: "destructive",
-          duration: Infinity,
-        })
-        posthog.capture("auto fix error", {
-          error: e.message,
-        })
-        currentCodeSuggestions = currentCodeSuggestions.map((suggestion) => ({
-          ...suggestion,
-          state: suggestion.state != "done" ? "error" : suggestion.state,
-        }))
-        setSuggestedChanges(currentCodeSuggestions)
-      } finally {
-        setIsProcessingSuggestedChanges(false);
+
+        // check all have state=done
+        if (!currentCodeSuggestions.every((suggestion) => suggestion.state == "done")) {
+          throw new Error("Some changes failed to apply")
+        }
+
+        setPatchesValidated(true)
+
         const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
           body: JSON.stringify({
             repo_name: repoName,
@@ -740,6 +758,25 @@ function App({
         setPullRequestBody(description || "Suggested changes by Sweep Chat.")
 
         save(repoName, messages, snippets, suggestedChanges, pullRequest)
+      } catch (e: any) {
+        console.error(e)
+        toast({
+          title: "Failed to auto-fix changes!",
+          description: "The following error occurred while applying these changes:\n\n" + e.message + "\n\nFeel free to shoot us a message if you keep running into this!",
+          variant: "destructive",
+          duration: Infinity,
+        })
+        setSuggestedChanges(currentCodeSuggestions)
+        setPatchesValidated(false)
+        currentCodeSuggestions = currentCodeSuggestions.map((suggestion) => ({
+          ...suggestion,
+          state: suggestion.state != "done" ? "error" : suggestion.state,
+        }))
+        posthog.capture("auto fix error", {
+          error: e.message,
+        })
+      } finally {
+          setIsProcessingSuggestedChanges(false);
       }
     })();
     setTimeout(() => {
@@ -770,7 +807,8 @@ function App({
           body: JSON.stringify({
             repo_name: repoName,
             query: message,
-            annotations: annotations
+            annotations: annotations,
+            branch: baseBranch
           })
         });
 
@@ -851,8 +889,8 @@ function App({
         messages: newMessages,
         snippets: currentSnippets,
         model: model,
-        use_patch: true,
-        k: k
+        branch: baseBranch,
+        k: k,
       })
     });
 
@@ -1039,6 +1077,12 @@ function App({
             }
           }}
         />
+        <Input
+          placeholder="Branch"
+          className="w-[600px] ml-4"
+          value={baseBranch}
+          onChange={(e) => setBaseBranch(e.target.value)}
+        />
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="outline" className="ml-4">
@@ -1152,12 +1196,11 @@ function App({
               setOpenSuggestionDialog(false)
               setIsCreatingPullRequest(false)
               if (index == 0) {
-                setSnippets([])
                 setSuggestedChanges([])
                 setIsProcessingSuggestedChanges(false)
                 setPullRequestTitle(null)
                 setPullRequestBody(null)
-                startStream(content, newMessages, [], { pulls })
+                startStream(content, newMessages, snippets, { pulls })
               } else {
                 startStream(content, newMessages, snippets, { pulls })
               }
@@ -1194,9 +1237,9 @@ function App({
                 <FaTimes />&nbsp;&nbsp;Close
               </Button>
             </div>
-            {(isProcessingSuggestedChanges || isCreatingPullRequest) && (
+            {(isProcessingSuggestedChanges || isCreatingPullRequest || !patchesValidated) && (
               <div className="flex justify-around w-full pb-2 mb-4">
-                <p>{isProcessingSuggestedChanges ? "I'm currently processing and applying these patches, and fixing any errors along the way. This may take a few minutes." : "Creating pull request..."}</p>
+                <p>{isProcessingSuggestedChanges ? "I'm currently processing and applying these patches, and fixing any errors along the way. This may take a few minutes." : (isCreatingPullRequest ? "Creating pull request..." : "Some patches failed to validate, so you may get some unexpected changes. You can try to manually create a PR with the proposed changes. If you think this is an error, feel free to report this to us.")}</p>
               </div>
             )}
             <div style={{ opacity: isCreatingPullRequest ? 0.5 : 1, pointerEvents: isCreatingPullRequest ? 'none' : 'auto' }}>

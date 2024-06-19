@@ -33,19 +33,18 @@ const ContextSideBar = ({
   k: number;
 }) => {
   const side = "left"
-  const [isOpen, setIsOpen] = useState<boolean>(false)
   return (
     <>
     <div className="grid grid-cols-4 gap-2">
       <Sheet key={side}>
         <SheetTrigger asChild>
-          <Button variant="outline" className="fixed left-10 top-1/2 bg-gray-800 text-white vertical-text">Context</Button>
+          <Button variant="outline" className="fixed left-10 top-1/2 px-6 text-white vertical-text text-lg bg-blue-900 hover:bg-blue-800">Manage Context</Button>
         </SheetTrigger>
-        <SheetContent side={side}>
-          <SheetHeader className="mb-2">
+        <SheetContent side={side} className="w-full flex flex-col">
+          <SheetHeader>
             <SheetTitle>Current Context</SheetTitle>
-            <span>
-              <SheetDescription className="w-3/4 inline-block align-middle">
+            <div className="flex justify-between align-middle">
+              <SheetDescription className="w-3/4 inline-block align-middle my-auto">
                 List of current snippets in context. Run a custom search query to find new snippets.
               </SheetDescription>
               <SnippetSearch  
@@ -56,19 +55,22 @@ const ContextSideBar = ({
                 pulls={pulls}    
                 k={k}        
               />
-            </span>
+            </div>
           </SheetHeader>
-          <ScrollArea className="h-3/4 w-full rounded-md border">
+          <ScrollArea className="h-3/4 w-full rounded-md border p-4 grow">
             {snippets.map((snippet, index) => (
-              <SnippetBadge
-                key={index}
-                snippet={snippet}
-                repoName={repoName}
-                branch={branch}
-                snippets={snippets}
-                setSnippets={setSnippets}
-                options={["remove"]}
-              />
+              <>
+                <SnippetBadge
+                  key={index}
+                  snippet={snippet}
+                  repoName={repoName}
+                  branch={branch}
+                  snippets={snippets}
+                  setSnippets={setSnippets}
+                  options={["remove"]}
+                />
+                <br/>
+              </>
             ))}
           </ScrollArea>
         </SheetContent>
