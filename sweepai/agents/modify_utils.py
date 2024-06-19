@@ -989,7 +989,6 @@ def handle_function_call(
     llm_state: dict,
     chat_logger_messages: list[dict[str, str]] | None = None,
     use_openai: bool = False,
-    fast: bool = False,
 ):
     llm_response = ""
     tool_name = function_call.function_name
@@ -1153,13 +1152,9 @@ def handle_function_call(
                 # Check if the changes are valid
                 if not error_message:
                     is_last_fcr_for_file = False # TODO: check if this is the last fcr for this file
-                    if fast:
-                        check_results_message = ""
-                        failing_parse = ""
-                    else:
-                        check_results = get_check_results(file_name, new_file_contents, last_fcr_for_file=is_last_fcr_for_file)
-                        check_results_message = check_results.is_worse_than_message(llm_state['initial_check_results'][file_name])
-                        failing_parse = check_results.parse_error_message if not llm_state['initial_check_results'][file_name].parse_error_message else ""
+                    check_results = get_check_results(file_name, new_file_contents, last_fcr_for_file=is_last_fcr_for_file)
+                    check_results_message = check_results.is_worse_than_message(llm_state['initial_check_results'][file_name])
+                    failing_parse = check_results.parse_error_message if not llm_state['initial_check_results'][file_name].parse_error_message else ""
                     current_diff = generate_diff(
                         file_contents, new_file_contents, n=10
                     )
@@ -1212,6 +1207,7 @@ def handle_function_call(
                     "contents": file_contents,
                     "original_contents": file_contents,
                 }
+            llm_state["fcrs"][current_fcr_index].is_completed = True
             if warning_message:
                 original_code_indents = len(original_code) - len(original_code.lstrip())
                 new_code_indents = len(new_code) - len(new_code.lstrip())

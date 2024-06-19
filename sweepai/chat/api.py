@@ -17,10 +17,10 @@ from sweepai.agents.modify import modify
 
 from sweepai.agents.modify_utils import validate_and_parse_function_call
 from sweepai.agents.search_agent import extract_xml_tag
-from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, anthropic_system_message, function_response, anthropic_format_message, pr_format, relevant_snippets_message_for_pr, openai_format_message, openai_system_message
+from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, anthropic_system_message, function_response, anthropic_format_message, pr_format, relevant_snippets_message_for_pr, openai_format_message, openai_system_message, query_optimizer_system_prompt, query_optimizer_user_prompt
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import CACHE_DIRECTORY, GITHUB_APP_ID, GITHUB_APP_PEM
-from sweepai.core.chat import ChatGPT
+from sweepai.core.chat import ChatGPT, call_llm
 from sweepai.core.entities import FileChangeRequest, Message, Snippet
 from sweepai.core.pull_request_bot import get_pr_summary_for_chat
 from sweepai.core.review_utils import split_diff_into_patches
@@ -353,7 +353,8 @@ def wrapped_search_codebase(
     for message, snippets in search_codebase.stream(
         repo_name,
         query,
-        access_token
+        access_token,
+        use_optimized_query=not bool(annotations),
     ):
         yield message, snippets
 
@@ -362,6 +363,7 @@ def search_codebase(
     repo_name: str,
     query: str,
     access_token: str,
+    use_optimized_query: bool = True,
 ):
     with Timer() as timer:
         org_name, repo = repo_name.split("/")
@@ -371,13 +373,27 @@ def search_codebase(
             print(f"Cloned {repo_name} to {repo_cache}/{repo}")
         cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
         cloned_repo.pull()
+
+        if use_optimized_query:
+            yield "Optimizing query...", []
+            query = call_llm(
+                system_prompt=query_optimizer_system_prompt,
+                user_prompt=query_optimizer_user_prompt,
+                params={"query": query},
+                use_openai=True
+            ).strip().removeprefix("Search query:").strip()
+            yield f"Optimized query: {query}", []
+
         for message, snippets in prep_snippets.stream(
             cloned_repo, query, 
             use_multi_query=False,
             NUM_SNIPPETS_TO_KEEP=0,
             skip_analyze_agent=True
         ):
-            yield message, snippets
+            if use_optimized_query:
+                yield f"{message} (optimized query: {query})", snippets
+            else:
+                yield message, snippets
     logger.debug(f"Preparing snippets took {timer.time_elapsed} seconds")
     return snippets
 
@@ -525,7 +541,7 @@ def chat_codebase_stream(
             content=snippets_message,
             role="user"
         ),
-        *messages
+        *messages[:-1]
     ]
 
     def stream_state(
@@ -573,49 +589,63 @@ def chat_codebase_stream(
                 if not token:
                     continue
                 result_string += token
+                if len(result_string) < 30:
+                    continue
                 current_string, *_ = result_string.split("<function_call>")
-                analysis = extract_xml_tag(current_string, "analysis", include_closing_tag=False) or ""
-                user_response = extract_xml_tag(current_string, "user_response", include_closing_tag=False) or ""
-                self_critique = extract_xml_tag(current_string, "self_critique", include_closing_tag=False)
+                if "<analysis>" in current_string:
+                    analysis = extract_xml_tag(current_string, "analysis", include_closing_tag=False) or ""
+                    user_response = extract_xml_tag(current_string, "user_response", include_closing_tag=False) or ""
+                    self_critique = extract_xml_tag(current_string, "self_critique", include_closing_tag=False)
 
-                current_messages = []
-                
-                if analysis:
-                    current_messages.append(
-                        Message(
-                            content=analysis,
-                            role="function",
-                            function_call={
-                                "function_name": "analysis",
-                                "function_parameters": {},
-                                "is_complete": bool(user_response),
-                            }
+                    current_messages = []
+                    
+                    if analysis:
+                        current_messages.append(
+                            Message(
+                                content=analysis,
+                                role="function",
+                                function_call={
+                                    "function_name": "analysis",
+                                    "function_parameters": {},
+                                    "is_complete": bool(user_response),
+                                }
+                            )
                         )
-                    )
-                
-                if user_response:
-                    current_messages.append(
+                    
+                    if user_response:
+                        current_messages.append(
+                            Message(
+                                content=user_response,
+                                role="assistant",
+                            )
+                        )
+                    
+                    if self_critique:
+                        current_messages.append(
+                            Message(
+                                content=self_critique,
+                                role="function",
+                                function_call={
+                                    "function_name": "self_critique",
+                                    "function_parameters": {},
+                                }
+                            )
+                        )
+                    yield [
+                        *new_messages,
+                        *current_messages
+                    ]
+                else:
+                    current_messages = [
                         Message(
-                            content=user_response,
+                            content=result_string,
                             role="assistant",
                         )
-                    )
-                
-                if self_critique:
-                    current_messages.append(
-                        Message(
-                            content=self_critique,
-                            role="function",
-                            function_call={
-                                "function_name": "self_critique",
-                                "function_parameters": {},
-                            }
-                        )
-                    )
-                yield [
-                    *new_messages,
-                    *current_messages
-                ]
+                    ]
+                    yield [
+                        *new_messages,
+                        *current_messages
+                    ]
             
             if current_messages[-1].role == "function":
                 current_messages[-1].function_call["is_complete"] = True
@@ -716,10 +746,6 @@ def chat_codebase_stream(
         # breakpoint()
 
         # last_assistant_message = [message.content for message in new_messages if message.role == "assistant"][-1]
-        try:
-            save_messages_for_visualization(messages=new_messages, use_openai=use_openai)
-        except Exception as e:
-            logger.exception(f"Failed to save messages for visualization due to {e}")
 
         posthog.capture(metadata["username"], "chat_codebase complete", properties={
             **metadata,
@@ -752,10 +778,9 @@ def chat_codebase_stream(
                 }
             ])
 
-    format_message = anthropic_format_message if not model.startswith("gpt") else openai_format_message
     return StreamingResponse(
         postprocessed_stream(
-            format_message,
+            messages[-1].content,
             snippets,
             messages,
             access_token,
@@ -832,6 +857,7 @@ def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, s
 async def autofix(
     repo_name: str = Body(...),
     code_suggestions: list[CodeSuggestion] = Body(...),
+    branch: str = Body(None),
     access_token: str = Depends(get_token_header)
 ):
     with Timer() as timer:
@@ -845,7 +871,8 @@ async def autofix(
     cloned_repo = ClonedRepo(
         repo_name,
         installation_id=installation_id,
-        token=access_token
+        token=access_token,
+        branch=branch
     )
 
     file_change_requests = []
@@ -872,7 +899,6 @@ async def autofix(
                 request="",
                 cloned_repo=cloned_repo,
                 relevant_filepaths=[code_suggestion.file_path for code_suggestion in code_suggestions],
-                fast=True,
             ):
                 yield json.dumps([stateful_code_suggestion.__dict__ for stateful_code_suggestion in stateful_code_suggestions])
         except Exception as e:

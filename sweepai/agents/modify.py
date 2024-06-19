@@ -19,7 +19,10 @@ def generate_code_suggestions(
     fcrs: list[FileChangeRequest],
     error_messages_dict: dict[int, str],
 ) -> list[StatefulCodeSuggestion]:
-    modify_order = [fcr.filename for fcr in fcrs]
+    modify_order = []
+    for fcr in fcrs:
+        if fcr.filename not in modify_order:
+            modify_order.append(fcr.filename)
 
     code_suggestions = []
     for file_path in modify_order:
@@ -59,7 +62,6 @@ def modify(
     use_openai: bool = False,
     previous_modify_files_dict: dict[str, dict[str, str]] = {},
     renames_dict: dict[str, str] = {},
-    fast: bool = False,
     raise_on_max_iterations: bool = False,
 ) -> dict[str, dict[str, str]]:
     # join fcr in case of duplicates
@@ -158,7 +160,6 @@ def modify(
                 llm_state,
                 chat_logger_messages=detailed_chat_logger_messages,
                 use_openai=use_openai,
-                fast=fast
             )
             print(function_output)
             fcrs = llm_state["fcrs"]
