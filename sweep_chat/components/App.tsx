@@ -704,7 +704,8 @@ function App({
 
       try {
         const reader = streamedResponse.body!.getReader();
-        for await (const currentState of streamMessages(reader, undefined, 5 * 60 * 1000)) {
+        isStream.current = true
+        for await (const currentState of streamMessages(reader, isStream, 5 * 60 * 1000)) {
           console.log(currentState)
           if (currentState.error) {
             throw new Error(currentState.error)
@@ -719,14 +720,7 @@ function App({
           setSuggestedChanges(currentCodeSuggestions)
           save(repoName, messages, snippets, currentCodeSuggestions, pullRequest)
         }
-        console.log("here")
-
-        // check all have state=done
-        if (!currentCodeSuggestions.every((suggestion) => suggestion.state == "done")) {
-          throw new Error("Some changes failed to apply")
-        }
-
-        setPatchesValidated(true)
+        isStream.current = false
 
         const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
           body: JSON.stringify({
@@ -758,7 +752,6 @@ function App({
           duration: Infinity,
         })
         setSuggestedChanges(currentCodeSuggestions)
-        setPatchesValidated(false)
         currentCodeSuggestions = currentCodeSuggestions.map((suggestion) => ({
           ...suggestion,
           state: suggestion.state != "done" ? "error" : suggestion.state,
@@ -1213,13 +1206,23 @@ function App({
         {openSuggestionDialog && (
           <div className="bg-zinc-900 rounded-xl p-4 mt-8">
             <div className="flex justify-between mb-4">
-              <Button
-                className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
-                onClick={() => applySuggestions(suggestedChanges)}
-                aria-label="Retry"
-              >
-                <FaArrowsRotate />&nbsp;&nbsp;Retry
-              </Button>
+              <div>
+                <Button
+                  className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
+                  onClick={() => applySuggestions(suggestedChanges)}
+                  aria-label="Retry"
+                >
+                  <FaArrowsRotate />&nbsp;&nbsp;Retry
+                </Button>
+                <Button
+                  className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
+                  onClick={() => applySuggestions(suggestedChanges)}
+                  aria-label="Retry"
+                  disabled={!isStream.current}
+                >
+                  <FaStop />&nbsp;&nbsp;Stop
+                </Button>
+              </div>
               <Button
                 className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
                 onClick={() => setOpenSuggestionDialog(false)}
@@ -1228,7 +1231,7 @@ function App({
                 <FaTimes />&nbsp;&nbsp;Close
               </Button>
             </div>
-            {(isProcessingSuggestedChanges || isCreatingPullRequest || !patchesValidated) && (
+            {(isProcessingSuggestedChanges || isCreatingPullRequest || !suggestedChanges.every((suggestion) => suggestion.state == "done")) && (
               <div className="flex justify-around w-full pb-2 mb-4">
                 <p>{isProcessingSuggestedChanges ? "I'm currently processing and applying these patches, and fixing any errors along the way. This may take a few minutes." : (isCreatingPullRequest ? "Creating pull request..." : "Some patches failed to validate, so you may get some unexpected changes. You can try to manually create a PR with the proposed changes. If you think this is an error, feel free to report this to us.")}</p>
               </div>
