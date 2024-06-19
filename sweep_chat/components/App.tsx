@@ -46,6 +46,7 @@ import { EditorState } from '@codemirror/state';
 import { debounce } from "lodash"
 import { streamMessages } from "@/lib/streamingUtils";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Skeleton } from "./ui/skeleton";
 
 const Original = CodeMirrorMerge.Original
 const Modified = CodeMirrorMerge.Modified
@@ -509,14 +510,17 @@ function App({
         })
         const data = await response.json()
         if (data.status == "success") {
-          const { repo_name, messages, snippets, code_suggestions, pull_request } = data.data
+          const { repo_name, messages, snippets, original_code_suggestions, code_suggestions, pull_request, pull_request_title, pull_request_body } = data.data
           console.log(repo_name, messages, snippets)
           setRepoName(repo_name)
           setRepoNameValid(true)
           setMessages(messages)
           setSnippets(snippets)
+          setOriginalSuggestedChanges(original_code_suggestions)
           setSuggestedChanges(code_suggestions)
           setPullRequest(pull_request)
+          setPullRequestTitle(pull_request_title)
+          setPullRequestBody(pull_request_body)
         } else {
           toast({
             title: "Failed to load message",
@@ -591,8 +595,11 @@ function App({
     currentRepoName: string,
     currentMessages: Message[],
     currentSnippets: Snippet[],
-    currentSuggestedChanges: CodeSuggestion[] = [],
-    currentPullRequest: PullRequest | null = null
+    currentOriginalCodeSuggestions: StatefulCodeSuggestion[],
+    currentSuggestedChanges: StatefulCodeSuggestion[],
+    currentPullRequest: PullRequest | null = null,
+    currentPullRequestTitle: string | null = null,
+    currentPullRequestBody: string | null = null,
   ) => {
     const saveResponse = await fetch("/backend/messages/save", {
       method: "POST",
@@ -607,9 +614,11 @@ function App({
           messages: currentMessages || messages, 
           snippets: currentSnippets || snippets, 
           message_id: messagesId || "",
-          // code_suggestions: currentSuggestedChanges || suggestedChanges,
+          original_code_suggestions: currentOriginalCodeSuggestions || originalSuggestedChanges,
           code_suggestions: currentSuggestedChanges || originalSuggestedChanges,
-          pull_request: currentPullRequest || pullRequest
+          pull_request: currentPullRequest || pullRequest,
+          pull_request_title: currentPullRequestTitle || pullRequestTitle,
+          pull_request_body: currentPullRequestBody || pullRequestBody,
         }
       )
     })
@@ -632,7 +641,9 @@ function App({
   }, 2000, { leading: true, maxWait: 5000 }), []); // can tune these timeouts
 
   useEffect(() => {
-    debouncedSave(repoName, messages, snippets, suggestedChanges, pullRequest);
+    if (messages.length > 0 && snippets.length > 0) {
+      debouncedSave(repoName, messages, snippets, suggestedChanges, pullRequest);
+    }
   }, [repoName, messages, snippets, suggestedChanges, pullRequest]);
 
   const reactCodeMirrors = suggestedChanges.map((suggestion, index) => {
@@ -799,11 +810,6 @@ function App({
         }
       }
     })();
-    setTimeout(() => {
-      if (messagesContainerRef.current) {
-        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-      }
-    }, 400);
   }
 
   const startStream = async (
@@ -1173,9 +1179,9 @@ function App({
       <div
         ref={messagesContainerRef}
         className="w-full border flex-grow mb-4 p-4 max-h-[90%] overflow-y-auto rounded-xl"
-        hidden={!repoNameValid}
+        hidden={!repoNameValid && !defaultMessageId}
       >
-        {messages.map((message, index) => (
+        {messages.length > 0 ? messages.map((message, index) => (
           <MessageDisplay
             key={index}
             index={index}
@@ -1217,7 +1223,14 @@ function App({
             }}
             showApplySuggestedChangeButton={!openSuggestionDialog}
           />
-        ))}
+        )): (
+          <div className="space-y-4">
+            <Skeleton className="h-12 ml-32 rounded-md" />
+            <Skeleton className="h-12 mr-32 rounded-md" />
+            <Skeleton className="h-12 ml-64 rounded-md" />
+            <Skeleton className="h-12 mr-64 rounded-md" />
+          </div>
+        )}
         {isLoading && (
           <div className="flex justify-around w-full py-2">
             <PulsingLoader size={1.5} />
@@ -1369,104 +1382,102 @@ function App({
           </div>
         )}
       </div>
-      {repoNameValid && (
-        <div className={`flex w-full`}>
-          {isStream.current ? (
-            <Button
-              className="mr-2"
-              variant="destructive"
-              onClick={async () => {
-                setIsLoading(false);
-                isStream.current = false;
-              }}
-            >
-              <FaStop />&nbsp;&nbsp;Stop
-            </Button>
-          ) : (
+      <div className={`flex w-full`}>
+        {isStream.current ? (
+          <Button
+            className="mr-2"
+            variant="destructive"
+            onClick={async () => {
+              setIsLoading(false);
+              isStream.current = false;
+            }}
+          >
+            <FaStop />&nbsp;&nbsp;Stop
+          </Button>
+        ) : (
+          <Button
+            className="mr-2"
+            variant="secondary"
+            onClick={async () => {
+              setMessages([]);
+              setCurrentMessage("");
+              setIsLoading(false);
+              setSnippets([]);
+              setMessagesId("");
+              window.history.pushState({}, '', '/');
+              setOpenSuggestionDialog(false)
+              setSuggestedChanges([])
+              setPullRequest(null)
+              setFeatureBranch(null)
+              setPullRequestTitle(null)
+              setPullRequestBody(null)
+            }}
+            disabled={isLoading}
+          >
+            <FaArrowsRotate />&nbsp;&nbsp;Reset
+          </Button>
+        )}
+        <Dialog>
+          <DialogTrigger asChild>
             <Button
               className="mr-2"
               variant="secondary"
-              onClick={async () => {
-                setMessages([]);
-                setCurrentMessage("");
-                setIsLoading(false);
-                setSnippets([]);
-                setMessagesId("");
-                window.history.pushState({}, '', '/');
-                setOpenSuggestionDialog(false)
-                setSuggestedChanges([])
-                setPullRequest(null)
-                setFeatureBranch(null)
-                setPullRequestTitle(null)
-                setPullRequestBody(null)
-              }}
               disabled={isLoading}
             >
-              <FaArrowsRotate />&nbsp;&nbsp;Reset
+              <FaShareAlt />&nbsp;&nbsp;Share
             </Button>
-          )}
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button
-                className="mr-2"
-                variant="secondary"
-                disabled={isLoading}
-              >
-                <FaShareAlt />&nbsp;&nbsp;Share
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="w-[800px] p-16">
-              <h2 className="text-2xl font-bold mb-4 text-center">
-                Share the Conversation
-              </h2>
-              <p className="text-center">
-                Share your chat session with a team member.
-              </p>
-              <Input
-                value={`${window.location.origin}/c/${messagesId}`}
-                onClick={() => {
-                  navigator.clipboard.writeText(`${window.location.origin}/c/${messagesId}`)
-                  toast({
-                    title: "Link copied",
-                    description: "The link to your current session has been copied to your clipboard.",
-                  })
-                }}
-                disabled
-              />
-              <Button className="mt-2" variant="secondary" onClick={() => {
+          </DialogTrigger>
+          <DialogContent className="w-[800px] p-16">
+            <h2 className="text-2xl font-bold mb-4 text-center">
+              Share the Conversation
+            </h2>
+            <p className="text-center">
+              Share your chat session with a team member.
+            </p>
+            <Input
+              value={`${window.location.origin}/c/${messagesId}`}
+              onClick={() => {
                 navigator.clipboard.writeText(`${window.location.origin}/c/${messagesId}`)
                 toast({
                   title: "Link copied",
                   description: "The link to your current session has been copied to your clipboard.",
                 })
-              }}>
-                Copy
-              </Button>
-            </DialogContent>
-          </Dialog>
-          <Input
-            data-ph-capture-attribute-current-message={currentMessage}
-            onKeyUp={async (e) => {
-              if (e.key === "Enter") {
-                sendMessage()
-              }
-            }}
-            onChange={(e) => setCurrentMessage(e.target.value)}
-            className="p-4"
-            value={currentMessage}
-            placeholder="Type a message..."
-            disabled={isLoading}
-          />
-          <Button
-            className="ml-2 bg-blue-900 text-white hover:bg-blue-800"
-            variant="secondary"
-            onClick={sendMessage}
-            disabled={isLoading}
-          >
-            <FaPaperPlane />&nbsp;&nbsp;Send
-          </Button>
-        </div>
-      )}
+              }}
+              disabled
+            />
+            <Button className="mt-2" variant="secondary" onClick={() => {
+              navigator.clipboard.writeText(`${window.location.origin}/c/${messagesId}`)
+              toast({
+                title: "Link copied",
+                description: "The link to your current session has been copied to your clipboard.",
+              })
+            }}>
+              Copy
+            </Button>
+          </DialogContent>
+        </Dialog>
+        <Input
+          data-ph-capture-attribute-current-message={currentMessage}
+          onKeyUp={async (e) => {
+            if (e.key === "Enter") {
+              sendMessage()
+            }
+          }}
+          onChange={(e) => setCurrentMessage(e.target.value)}
+          className="p-4"
+          value={currentMessage}
+          placeholder="Type a message..."
+          disabled={isLoading || !repoNameValid}
+        />
+        <Button
+          className="ml-2 bg-blue-900 text-white hover:bg-blue-800"
+          variant="secondary"
+          onClick={sendMessage}
+          disabled={isLoading}
+        >
+          <FaPaperPlane />&nbsp;&nbsp;Send
+        </Button>
+      </div>
     </main>
     </>
   );
