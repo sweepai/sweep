@@ -17,6 +17,7 @@ from sweepai.core.review_annotations import get_diff_annotations
 from sweepai.core.vector_db import cosine_similarity, embed_text_array
 from sweepai.core.review_prompts import (
     system_prompt,
+    system_prompt_edge_cases,
     system_prompt_pr_summary,
     system_prompt_review,
     system_prompt_special_rules,
@@ -41,6 +42,7 @@ from sweepai.core.review_prompts import (
     user_prompt_sort_issues,
     comment_thread_format,
     comment_format,
+    user_prompt_edge_cases_format
 )
 from sweepai.dataclasses.codereview import CodeReview, CodeReviewByGroup, CodeReviewIssue, FunctionDef, GroupedFilesForReview, PRChange, PRReviewComment, PRReviewCommentThread, Patch
 from sweepai.logn.cache import file_cache
@@ -533,6 +535,27 @@ class PRReviewBot(ChatGPT):
                             seed=seed,
                         )
                         code_review_response += special_rules_response
+            # add a final check for edge cases
+            self.messages = [
+                Message(
+                    role="system",
+                    content=system_prompt_edge_cases,
+                )
+            ]
+
+            formatted_user_prompt_edge_cases = user_prompt_edge_cases_format.format(diff=rendered_changes)
+            formatted_user_prompt_edge_cases += user_prompt_issue_output_format
+
+            edge_cases_response = self.chat_anthropic(
+                content=formatted_user_prompt_edge_cases,
+                temperature=0,
+                model=CLAUDE_MODEL,
+                use_openai=True,
+                seed=seed
+            )
+
+            code_review_response += edge_cases_response
+
             diff_summary = ""
             diff_summary_pattern = r"<diff_summary>(.*?)</diff_summary>"
             diff_summary_matches = re.findall(diff_summary_pattern, code_review_response, re.DOTALL)

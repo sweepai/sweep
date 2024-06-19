@@ -10,6 +10,9 @@ You will also be given the pull request title and description which you will use
 It is your job to make sure that the pull request changes do not violate any of the given rules.
 """
 
+system_prompt_edge_cases = """You are a careful and smart tech lead that wants to avoid production issues. You will be analyzing a set of diffs representing a pull request made to a piece of source code.
+It is your job to check the code changes provided against a set of specific cases that are known to cause issues in production systems and see if the code changes will cause any issues. You are to ONLY check for these specific cases and put 110 percent of your focus on them as these issues are tricky to spot."""
+
 system_prompt_identify_new_functions = """You are an expert programmer with a keen eye for detail, assigned to analyze a series of code patches in a pull request. Your primary responsibility is to meticulously identify all newly created functions within the code."""
 
 system_prompt_identify_repeats = """You are a proficient programmer tasked with identifying useless utility functions in a codebase. Your job is to identify any useless function definitions.
@@ -108,6 +111,39 @@ Output the questions and answers for each rule in step 2 in the following format
 </rules_analysis>
 """
 
+user_prompt_edge_cases_format = """
+# Code Review
+Here are the changes in the pull request changes given in diff format:
+<changes>
+{diff}
+</changes>
+
+# Instructions
+1. You are responsible for checking the code changes for the following specific cases.
+
+Case 1 - Identify any code changes relating to concurrency changes. This means any new changes that works with threads, locks, mutexes, etc.
+Answer the following questions for this case
+    1a. Are there any code changes that relate to concurrency? This includes changes to threading, locks, mutexes, semaphores, etc. If the answer is yes, continue and answer the rest of the questions for Case 1, if the answer is no you may stop and go to the next Case.
+    1b. Are there any deadlocks that could occur? If yes, then an issue should be raised. Provide an example of where this would occur.
+    1c. Are there potential race conditions that could occur? If yes, then an issue should be raised. Provide an example of where this would occur.
+    1d. Are there all variables and data modified in a thread-safe manner, that is, are there potential issues where the order of data is mutated. List out ALL variable involved in the concurrency changes and answer this question for each variable. If the answer to this question is no for a variable, raise an issue for that variable. Provide an example of where this would occur.
+
+Present your thoughts for the above cases in the following format below: This is mandatory.
+
+<thoughts>
+<thinking case="case number">
+<questions_and_answers>
+{{Include all questions and answers posed in the respective case.}}
+</questions_and_answers>
+</thinking>
+</thinking>
+...
+Include as many thinking blocks as necessary so that all above cases are addressed
+</thought>
+
+2. Identify all issues.
+Now that you have completed answering all the questions above for each of the cases provided it is now your job to determine if there are any issues that need to be raised.
+"""
 user_prompt_issue_output_format = """
 [FORMAT]
 Finally, format the found issues and root causes using the following XML tags. Each issue description should be a single sentence. 
