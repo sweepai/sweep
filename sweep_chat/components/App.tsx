@@ -465,7 +465,7 @@ function App({
   const isStream = useRef<boolean>(false)
   const [showSurvey, setShowSurvey] = useState<boolean>(false)
 
-  const [originalSuggestedChanges, setOriginalSuggestedChanges] = useState<StatefulCodeSuggestion[]>([])
+  const [originalSuggestedChanges, setOriginalSuggestedChanges] = useState<CodeSuggestion[]>([])
   const [suggestedChanges, setSuggestedChanges] = useState<StatefulCodeSuggestion[]>([])
   const [openSuggestionDialog, setOpenSuggestionDialog] = useState<boolean>(false)
   const [isProcessingSuggestedChanges, setIsProcessingSuggestedChanges] = useState<boolean>(false)
@@ -1014,7 +1014,7 @@ function App({
           }}
         />
       )}
-      <div className={`mb-4 w-full flex items-center ${repoNameValid ? "" : "grow"}`}>
+      <div className={`mb-4 w-full flex items-center ${repoNameValid || defaultMessageId ? "" : "grow"}`}>
         {/* <img src="https://avatars.githubusercontent.com/u/170980334?v=4" className="w-12 h-12 rounded-full" /> */}
         <AutoComplete
           options={repos.map((repo) => ({label: repo.full_name, value: repo.full_name}))}
@@ -1238,17 +1238,17 @@ function App({
         )}
         {openSuggestionDialog && (
           <div className="bg-zinc-900 rounded-xl p-4 mt-8">
-            <div className="flex justify-between mb-4">
+            <div className="flex justify-between mb-4 align-start">
               <div>
                 <Button
-                  className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
+                  className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0 pt-0"
                   onClick={() => applySuggestions(originalSuggestedChanges)}
                   aria-label="Retry"
                 >
                   <FaArrowsRotate />&nbsp;&nbsp;Retry
                 </Button>
                 <Button
-                  className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
+                  className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0 pt-0"
                   onClick={() => {
                     isStream.current = false
                   }}
@@ -1259,7 +1259,7 @@ function App({
                 </Button>
               </div>
               <Button
-                className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
+                className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0 pt-0"
                 onClick={() => setOpenSuggestionDialog(false)}
                 aria-label="Close"
               >
