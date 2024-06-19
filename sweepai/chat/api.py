@@ -44,6 +44,39 @@ os.makedirs(message_cache, exist_ok=True)
 
 DEFAULT_K = 8
 
+def get_cloned_repo(
+    repo_name: str,
+    access_token: str,
+    branch: str = None,
+    messages: list[Message] = [],
+):
+    org_name, repo = repo_name.split("/")
+    if branch:
+        cloned_repo = ClonedRepo(
+            repo_name,
+            token=access_token,
+            installation_id=get_cached_installation_id(org_name)
+        )
+        cloned_repo.branch = branch
+        try:
+            cloned_repo.git_repo.git.checkout(branch)
+        except Exception as e:
+            logger.warning(f"Error checking out branch {branch}: {e}. Trying to checkout PRs.")
+            for message in messages:
+                for pull in message.annotations["pulls"]:
+                    if pull["branch"] == branch:
+                        pr = cloned_repo.repo.get_pull(pull["number"])
+                        sha = pr.head.sha
+                        cloned_repo.git_repo.git.fetch("origin", sha)
+                        cloned_repo.git_repo.git.checkout(sha)
+                        logger.info(f"Checked out PR {pull['number']} with SHA {sha}")
+                        return cloned_repo
+            raise Exception(f"Branch {branch} not found")
+    else:
+        cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
+        cloned_repo.git_repo.git.pull()
+    return cloned_repo
+
 def get_pr_snippets(
     repo_name: str,
     annotations: dict,
@@ -241,57 +274,14 @@ def check_repo_exists(
         return {"success": True}
     except Exception as e:
         return {"success": False, "error": str(e)}
-
-@app.get("/backend/search")
-def search_codebase_endpoint_get(
-    repo_name: str,
-    query: str,
-    stream: bool = False,
-    access_token: str = Depends(get_token_header)
-):
-    """
-    DEPRECATED, use POST instead.
-    """
-    with Timer() as timer:
-        g = get_authenticated_github_client(repo_name, access_token)
-    logger.debug(f"Getting authenticated GitHub client took {timer.time_elapsed} seconds")
-    if not g:
-        return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
-    username = Github(access_token).get_user().login
-    token = g.token if isinstance(g, CustomGithub) else access_token
-    if stream:
-        def stream_response():
-            yield json.dumps(["Building lexical index...", []])
-            for message, snippets in wrapped_search_codebase.stream(
-                username,
-                repo_name,
-                query,
-                access_token=token,
-                metadata={
-                    "repo_name": repo_name,
-                    "query": query,
-                }
-            ):
-                yield json.dumps((message, [snippet.model_dump() for snippet in snippets]))
-        return StreamingResponse(stream_response())
-    else:
-        return [snippet.model_dump() for snippet in wrapped_search_codebase(
-            username,
-            repo_name,
-            query,
-            access_token=token,
-            metadata={
-                "repo_name": repo_name,
-                "query": query,
-            }
-        )]
     
 @app.post("/backend/search")
-def search_codebase_endpoint_post(
+def search_codebase_endpoint(
     repo_name: str = Body(...),
     query: str = Body(...),
     annotations: dict = Body({}),
-    access_token: str = Depends(get_token_header)
+    access_token: str = Depends(get_token_header),
+    branch: str = Body(None),
 ):
     with Timer() as timer:
         g = get_authenticated_github_client(repo_name, access_token)
@@ -308,6 +298,7 @@ def search_codebase_endpoint_post(
             query,
             token,
             annotations=annotations,
+            branch=branch,
             metadata={
                 "repo_name": repo_name,
                 "query": query,
@@ -324,10 +315,11 @@ def wrapped_search_codebase(
     query: str,
     access_token: str,
     annotations: dict = {},
+    branch: str = None,
     metadata: dict = {},
 ):
     org_name, repo = repo_name.split("/")
-    if not os.path.exists(f"{repo_cache}/{repo}"):
+    if not os.path.exists(f"{repo_cache}/{repo}") and not branch:
         yield "Cloning repository...", []
         print(f"Cloning {repo_name} to {repo_cache}/{repo}")
         git.Repo.clone_from(f"https://x-access-token:{access_token}@github.com/{repo_name}", f"{repo_cache}/{repo}")
@@ -335,8 +327,12 @@ def wrapped_search_codebase(
         yield "Repository cloned.", []
         cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
     else:
-        cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
-        cloned_repo.pull()
+        yield f"Cloning into {repo_name}:{branch}...", []
+        cloned_repo = get_cloned_repo(repo_name, access_token, branch, [Message(
+            content=query,
+            role="user",
+            annotations=annotations,
+        )])
         yield "Repository pulled.", []
     if annotations:
         yield "Getting pull request snippets...", []
@@ -403,7 +399,7 @@ def chat_codebase(
     messages: list[Message] = Body(...),
     snippets: list[Snippet] = Body(...),
     model: str = Body(...),
-    use_patch: bool = Body(True),
+    branch: str = Body(None),
     k: int = Body(DEFAULT_K),
     access_token: str = Depends(get_token_header)
 ):
@@ -428,7 +424,7 @@ def chat_codebase(
             "snippets": [snippet.model_dump() for snippet in snippets],
         },
         model=model,
-        use_patch=use_patch,
+        branch=branch,
         k=k
     )
 
@@ -457,14 +453,13 @@ def chat_codebase_stream(
     metadata: dict = {},
     k: int = DEFAULT_K,
     model: str = "claude-3-opus-20240229",
-    use_patch: bool = False,
+    branch: str = None,
 ):
     EXPAND_SIZE = 100
     if not snippets:
         raise ValueError("No snippets were sent.")
     org_name, repo = repo_name.split("/")
-    cloned_repo = MockClonedRepo(f"{repo_cache}/{repo}", repo_name, token=access_token)
-    cloned_repo.git_repo.git.pull()
+    cloned_repo = get_cloned_repo(repo_name, access_token, branch, messages)
     repo_specific_description = get_repo_specific_description(cloned_repo=cloned_repo)
     use_openai = model.startswith("gpt")
     snippets_message = relevant_snippets_message.format(
@@ -752,24 +747,18 @@ def chat_codebase_stream(
             "messages": [message.model_dump() for message in messages],
         })
     
-    def postprocessed_stream(*args, use_patch=False, **kwargs):
+    def postprocessed_stream(*args, **kwargs):
         previous_state = []
         try:
             for messages in stream_state(*args, **kwargs):
-                if not use_patch:
-                    yield json.dumps([
-                        message.model_dump()
-                        for message in messages
-                    ])
-                else:
-                    current_state = [
-                        message.model_dump()
-                        for message in messages
-                    ]
-                    patch = jsonpatch.JsonPatch.from_diff(previous_state, current_state)
-                    if patch:
-                        yield patch.to_string()
-                    previous_state = current_state
+                current_state = [
+                    message.model_dump()
+                    for message in messages
+                ]
+                patch = jsonpatch.JsonPatch.from_diff(previous_state, current_state)
+                if patch:
+                    yield patch.to_string()
+                previous_state = current_state
         except Exception as e:
             yield json.dumps([
                 {
@@ -787,7 +776,6 @@ def chat_codebase_stream(
             metadata,
             model,
             use_openai=use_openai,
-            use_patch=use_patch,
             k=k
         )
     )
