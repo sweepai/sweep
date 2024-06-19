@@ -466,6 +466,7 @@ function App({
   const [suggestedChanges, setSuggestedChanges] = useState<StatefulCodeSuggestion[]>([])
   const [openSuggestionDialog, setOpenSuggestionDialog] = useState<boolean>(false)
   const [isProcessingSuggestedChanges, setIsProcessingSuggestedChanges] = useState<boolean>(false)
+  const [patchesValidated, setPatchesValidated] = useState<boolean>(false)
   const [pullRequestTitle, setPullRequestTitle] = useState<string | null>(null)
   const [pullRequestBody, setPullRequestBody] = useState<string | null>(null)
   const [isCreatingPullRequest, setIsCreatingPullRequest] = useState<boolean>(false)
@@ -719,24 +720,14 @@ function App({
           save(repoName, messages, snippets, currentCodeSuggestions, pullRequest)
         }
         console.log("here")
-      } catch (e: any) {
-        console.error(e)
-        toast({
-          title: "Failed to auto-fix changes!",
-          description: "The following error occurred while applying these changes:\n\n" + e.message + "\n\nFeel free to shoot us a message if you keep running into this!",
-          variant: "destructive",
-          duration: Infinity,
-        })
-        posthog.capture("auto fix error", {
-          error: e.message,
-        })
-        currentCodeSuggestions = currentCodeSuggestions.map((suggestion) => ({
-          ...suggestion,
-          state: suggestion.state != "done" ? "error" : suggestion.state,
-        }))
-        setSuggestedChanges(currentCodeSuggestions)
-      } finally {
-        setIsProcessingSuggestedChanges(false);
+
+        // check all have state=done
+        if (!currentCodeSuggestions.every((suggestion) => suggestion.state == "done")) {
+          throw new Error("Some changes failed to apply")
+        }
+
+        setPatchesValidated(true)
+
         const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
           body: JSON.stringify({
             repo_name: repoName,
@@ -758,6 +749,25 @@ function App({
         setPullRequestBody(description || "Suggested changes by Sweep Chat.")
 
         save(repoName, messages, snippets, suggestedChanges, pullRequest)
+      } catch (e: any) {
+        console.error(e)
+        toast({
+          title: "Failed to auto-fix changes!",
+          description: "The following error occurred while applying these changes:\n\n" + e.message + "\n\nFeel free to shoot us a message if you keep running into this!",
+          variant: "destructive",
+          duration: Infinity,
+        })
+        setSuggestedChanges(currentCodeSuggestions)
+        setPatchesValidated(false)
+        currentCodeSuggestions = currentCodeSuggestions.map((suggestion) => ({
+          ...suggestion,
+          state: suggestion.state != "done" ? "error" : suggestion.state,
+        }))
+        posthog.capture("auto fix error", {
+          error: e.message,
+        })
+      } finally {
+          setIsProcessingSuggestedChanges(false);
       }
     })();
     setTimeout(() => {
@@ -1181,7 +1191,7 @@ function App({
                 setIsProcessingSuggestedChanges(false)
                 setPullRequestTitle(null)
                 setPullRequestBody(null)
-                startStream(content, newMessages, [], { pulls })
+                startStream(content, newMessages, snippets, { pulls })
               } else {
                 startStream(content, newMessages, snippets, { pulls })
               }
@@ -1218,9 +1228,9 @@ function App({
                 <FaTimes />&nbsp;&nbsp;Close
               </Button>
             </div>
-            {(isProcessingSuggestedChanges || isCreatingPullRequest) && (
+            {(isProcessingSuggestedChanges || isCreatingPullRequest || !patchesValidated) && (
               <div className="flex justify-around w-full pb-2 mb-4">
-                <p>{isProcessingSuggestedChanges ? "I'm currently processing and applying these patches, and fixing any errors along the way. This may take a few minutes." : "Creating pull request..."}</p>
+                <p>{isProcessingSuggestedChanges ? "I'm currently processing and applying these patches, and fixing any errors along the way. This may take a few minutes." : (isCreatingPullRequest ? "Creating pull request..." : "Some patches failed to validate, so you may get some unexpected changes. You can try to manually create a PR with the proposed changes. If you think this is an error, feel free to report this to us.")}</p>
               </div>
             )}
             <div style={{ opacity: isCreatingPullRequest ? 0.5 : 1, pointerEvents: isCreatingPullRequest ? 'none' : 'auto' }}>
