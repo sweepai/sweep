@@ -1002,8 +1002,11 @@ async def write_message_to_disk(
     repo_name: str = Body(...),
     messages: list[Message] = Body(...),
     snippets: list[Snippet] = Body(...),
+    original_code_suggestions: list[CodeSuggestion] = Body([]),
     code_suggestions: list = Body([]),
     pull_request: dict | None = Body(None),
+    pull_request_title: str = Body(""),
+    pull_request_description: str = Body(""),
     message_id: str = Body(""),
 ):
     if not message_id:
@@ -1013,8 +1016,11 @@ async def write_message_to_disk(
             "repo_name": repo_name,
             "messages": [message.model_dump() for message in messages],
             "snippets": [snippet.model_dump() for snippet in snippets],
+            "original_code_suggestions": [code_suggestion.__dict__ if isinstance(code_suggestion, CodeSuggestion) else code_suggestion for code_suggestion in original_code_suggestions],
             "code_suggestions": [code_suggestion.__dict__ if isinstance(code_suggestion, CodeSuggestion) else code_suggestion for code_suggestion in code_suggestions],
             "pull_request": pull_request,
+            "pull_request_title": pull_request_title,
+            "pull_request_description": pull_request_description,
         }
         with open(f"{CACHE_DIRECTORY}/messages/{message_id}.json", "w") as file:
             json.dump(data, file)
