@@ -1181,7 +1181,7 @@ function App({
                 setIsProcessingSuggestedChanges(false)
                 setPullRequestTitle(null)
                 setPullRequestBody(null)
-                startStream(content, newMessages, [], { pulls })
+                startStream(content, newMessages, snippets, { pulls })
               } else {
                 startStream(content, newMessages, snippets, { pulls })
               }
