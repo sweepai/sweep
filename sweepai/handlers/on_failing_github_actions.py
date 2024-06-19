@@ -196,29 +196,27 @@ def on_failing_github_actions(
                 not failing_logs:
                 continue
             failed_runs = [run for run in suite_runs if run.conclusion == "failure"]
-            failed_gha_logs = get_failing_gha_logs(
-                failed_runs,
-                installation_id,
-            )
+            if not failing_logs:
+                failing_logs = get_failing_gha_logs(
+                    failed_runs,
+                    installation_id,
+                )
             if failing_logs:
-                # if circleci failed and is enabled, it has priority
-                failed_gha_logs = failing_logs + "\n" + failed_gha_logs
-            if failed_gha_logs:
                 # cleanup the gha logs
                 chat_gpt = ChatGPT()
                 chat_gpt.messages = [
                     Message(role="system", content=gha_context_cleanup_system_prompt)
                 ]
                 formatted_gha_context_prompt = gha_context_cleanup_user_prompt.format(
-                    github_actions_logs=failed_gha_logs
+                    github_actions_logs=failing_logs
                 )
                 # we can also gate github actions fixes here
-                failed_gha_logs = chat_gpt.chat_anthropic(
+                failing_logs = chat_gpt.chat_anthropic(
                     content=formatted_gha_context_prompt,
                     temperature=0.2,
                     use_openai=True,
                 )
-                failed_gha_logs = strip_triple_quotes(failed_gha_logs)
+                failing_logs = strip_triple_quotes(failing_logs)
                 # make edits to the PR
                 # TODO: look into rollbacks so we don't continue adding onto errors
                 cloned_repo = ClonedRepo( # reinitialize cloned_repo to avoid conflicts
@@ -228,19 +226,19 @@ def on_failing_github_actions(
                     repo=repo,
                     branch=pull_request.head.ref,
                 )
-                failed_gha_logs, _ = get_error_locations_from_error_logs(failed_gha_logs, cloned_repo=cloned_repo)
+                failing_logs, _ = get_error_locations_from_error_logs(failing_logs, cloned_repo=cloned_repo)
                 diffs = get_branch_diff_text(repo=repo, branch=pull_request.head.ref, base_branch=pull_request.base.ref)
                 # problem_statement = f"{title}\n{internal_message_summary}\n{replies_text}"
                 all_information_prompt = GHA_PROMPT.format(
                     problem_statement=problem_statement,
-                    github_actions_logs=failed_gha_logs,
+                    github_actions_logs=failing_logs,
                     changes_made=diffs,
                 )
                 if gha_history:
                     previous_gha_logs = gha_history[-1]
                     all_information_prompt = GHA_PROMPT_WITH_HISTORY.format(
                         problem_statement=problem_statement,
-                        current_github_actions_logs=failed_gha_logs,
+                        current_github_actions_logs=failing_logs,
                         changes_made=diffs,
                         previous_github_actions_logs=previous_gha_logs,
                     )
@@ -309,7 +307,7 @@ def on_failing_github_actions(
                     logger.info(f"Error in updating file{e}")
                     raise e
                 total_edit_attempts += 1
-                gha_history.append(failed_gha_logs)
+                gha_history.append(failing_logs)
                 if total_edit_attempts >= GHA_MAX_EDIT_ATTEMPTS:
                     logger.info(f"Tried to edit PR {GHA_MAX_EDIT_ATTEMPTS} times, giving up.")
                     break
