@@ -940,6 +940,8 @@ async def create_pull(
         head=new_branch,
         base=base_branch,
     )
+    g = get_authenticated_github_client(repo_name, access_token)
+    pull_request.add_to_assignees(g.get_user().login)
     file_diffs = pull_request.get_files()
 
     return {
