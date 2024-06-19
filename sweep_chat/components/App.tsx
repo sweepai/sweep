@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "../components/ui/input"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { FaArrowLeft, FaCheck, FaCog, FaComments, FaExclamationTriangle, FaGithub, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes } from "react-icons/fa";
+import { FaArrowLeft, FaCheck, FaCog, FaComments, FaExclamationTriangle, FaGithub, FaPaperPlane, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -157,7 +157,7 @@ const UserMessageDisplay = ({ message, onEdit }: { message: Message, onEdit: (co
       <div className="flex justify-end">
         {!isEditing && <FaPencilAlt className="inline-block text-zinc-400 mr-2 mt-3 hover:cursor-pointer hover:text-zinc-200 hover:drop-shadow-md" onClick={handleClick} />}
         &nbsp;
-        <div className="bg-zinc-800 transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] hover:bg-zinc-700 hover:cursor-pointer text-right" onClick={handleClick}>
+        <div className="bg-zinc-800 transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] hover:bg-zinc-700 hover:cursor-pointer text-left" onClick={handleClick}>
           <div className={`text-sm text-white`}>
             {isEditing ? (
               <Textarea
@@ -510,7 +510,7 @@ function App({
   useEffect(() => {
     if (messagesContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-      if (scrollHeight - scrollTop - clientHeight < 50) {
+      if (scrollHeight - scrollTop - clientHeight < 80) {
         messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
       }
     }
@@ -544,9 +544,6 @@ function App({
     if (branch) {
       setBaseBranch(branch)
     }
-  }, [branch]);
-
-  useEffect(() => {
     if (messages.length > 0) {
       for (const message of messages) {
         if (message.annotations?.pulls && message.annotations.pulls.length > 0 && message.annotations.pulls[0].branch) {
@@ -554,7 +551,7 @@ function App({
         }
       }
     }
-  }, [messages]);
+  }, [branch, messages]);
 
   useEffect(() => {
     if (repoName && octokit) {
@@ -664,6 +661,92 @@ function App({
     } else {
       console.warn("Failed to save message", saveData)
     }
+  }
+
+  const applySuggestions = async (codeSuggestions: CodeSuggestion[]) => {
+    let currentCodeSuggestions: StatefulCodeSuggestion[] = codeSuggestions.map((suggestion) => ({
+      ...suggestion,
+      state: "pending",
+    }))
+    setSuggestedChanges(currentCodeSuggestions)
+    setIsProcessingSuggestedChanges(true);
+    (async () => {
+      const streamedResponse = await authorizedFetch(`/backend/autofix`, {
+        body: JSON.stringify({
+          repo_name: repoName,
+          code_suggestions: codeSuggestions.map((suggestion: CodeSuggestion) => ({
+            file_path: suggestion.filePath,
+            original_code: suggestion.originalCode,
+            new_code: suggestion.newCode,
+          })),
+          branch: baseBranch
+        }), // TODO: casing should be automatically handled
+      });
+
+      try {
+        const reader = streamedResponse.body!.getReader();
+        for await (const currentState of streamMessages(reader, undefined, 5 * 60 * 1000)) {
+          console.log(currentState)
+          if (currentState.error) {
+            throw new Error(currentState.error)
+          }
+          currentCodeSuggestions = currentState.map((suggestion: any) => ({
+            filePath: suggestion.file_path,
+            originalCode: suggestion.original_code,
+            newCode: suggestion.new_code,
+            state: suggestion.state,
+            error: suggestion.error,
+          }))
+          setSuggestedChanges(currentCodeSuggestions)
+          save(repoName, messages, snippets, currentCodeSuggestions, pullRequest)
+        }
+        console.log("here")
+      } catch (e: any) {
+        console.error(e)
+        toast({
+          title: "Failed to auto-fix changes!",
+          description: "The following error occurred while applying these changes:\n\n" + e.message + "\n\nFeel free to shoot us a message if you keep running into this!",
+          variant: "destructive",
+          duration: Infinity,
+        })
+        posthog.capture("auto fix error", {
+          error: e.message,
+        })
+        currentCodeSuggestions = currentCodeSuggestions.map((suggestion) => ({
+          ...suggestion,
+          state: suggestion.state != "done" ? "error" : suggestion.state,
+        }))
+        setSuggestedChanges(currentCodeSuggestions)
+      } finally {
+        setIsProcessingSuggestedChanges(false);
+        const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
+          body: JSON.stringify({
+            repo_name: repoName,
+            modify_files_dict: suggestedChanges.reduce((acc: Record<string, { original_contents: string, contents: string }>, suggestion: StatefulCodeSuggestion) => {
+              acc[suggestion.filePath] = {
+                original_contents: suggestion.originalCode,
+                contents: suggestion.newCode,
+              };
+              return acc;
+            }, {}),
+            messages: messages,
+          }),
+        })
+        
+        const prData = await prMetadata.json()
+        const { title, description, branch: featureBranch } = prData
+        setFeatureBranch(featureBranch || "sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
+        setPullRequestTitle(title || "Sweep Chat Suggested Changes")
+        setPullRequestBody(description || "Suggested changes by Sweep Chat.")
+
+        save(repoName, messages, snippets, suggestedChanges, pullRequest)
+      }
+    })();
+    setTimeout(() => {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }
+    }, 400);
   }
 
   const startStream = async (
@@ -848,6 +931,23 @@ function App({
       newMessages,
       message,
     });
+  }
+
+  const sendMessage = async () => {
+    posthog.capture("chat submitted", {
+      repoName,
+      snippets,
+      messages,
+      currentMessage,
+    });
+    let newMessages: Message[] = [...messages, { content: currentMessage, role: "user" }];
+    setMessages(newMessages);
+    setCurrentMessage("");
+    const pulls = await parsePullRequests(repoName, currentMessage, octokit!)
+    newMessages = [...messages, { content: currentMessage, role: "user", annotations: { pulls } }];
+    setMessages(newMessages);
+    setCurrentMessage("");
+    startStream(currentMessage, newMessages, snippets, { pulls })
   }
 
   return (
@@ -1064,87 +1164,8 @@ function App({
             }}
             onApplyChanges={(codeSuggestions: CodeSuggestion[]) => {
               setOpenSuggestionDialog(true)
-              if (suggestedChanges.length == 0 || true) {
-                let currentCodeSuggestions: StatefulCodeSuggestion[] = codeSuggestions.map((suggestion) => ({
-                  ...suggestion,
-                  state: "pending",
-                }))
-                setSuggestedChanges(currentCodeSuggestions)
-                setIsProcessingSuggestedChanges(true);
-                (async () => {
-                  const streamedResponse = await authorizedFetch(`/backend/autofix`, {
-                    body: JSON.stringify({
-                      repo_name: repoName,
-                      code_suggestions: codeSuggestions.map((suggestion: CodeSuggestion) => ({
-                        file_path: suggestion.filePath,
-                        original_code: suggestion.originalCode,
-                        new_code: suggestion.newCode,
-                      }))
-                    }), // TODO: casing should be automatically handled
-                  });
-
-                  try {
-                    const reader = streamedResponse.body!.getReader();
-                    for await (const currentState of streamMessages(reader)) {
-                      if (currentState.error) {
-                        throw new Error(currentState.error)
-                      }
-                      currentCodeSuggestions = currentState.map((suggestion: any) => ({
-                        filePath: suggestion.file_path,
-                        originalCode: suggestion.original_code,
-                        newCode: suggestion.new_code,
-                        state: suggestion.state,
-                        error: suggestion.error,
-                      }))
-                      setSuggestedChanges(currentCodeSuggestions)
-                      save(repoName, messages, snippets, currentCodeSuggestions, pullRequest)
-                    }
-                  } catch (e: any) {
-                    console.error(e)
-                    toast({
-                      title: "Failed to auto-fix changes!",
-                      description: "The following error occurred while applying these changes:\n\n" + e.message + "\n\nFeel free to shoot us a message if you keep running into this!",
-                      variant: "destructive",
-                      duration: Infinity,
-                    })
-                    posthog.capture("auto fix error", {
-                      error: e.message,
-                    })
-                    currentCodeSuggestions = currentCodeSuggestions.map((suggestion) => ({
-                      ...suggestion,
-                      state: suggestion.state != "done" ? "error" : suggestion.state,
-                    }))
-                    setSuggestedChanges(currentCodeSuggestions)
-                  } finally {
-                    setIsProcessingSuggestedChanges(false);
-                    const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
-                      body: JSON.stringify({
-                        repo_name: repoName,
-                        modify_files_dict: suggestedChanges.reduce((acc: Record<string, { original_contents: string, contents: string }>, suggestion: StatefulCodeSuggestion) => {
-                          acc[suggestion.filePath] = {
-                            original_contents: suggestion.originalCode,
-                            contents: suggestion.newCode,
-                          };
-                          return acc;
-                        }, {}),
-                        messages: messages,
-                      }),
-                    })
-                    
-                    const prData = await prMetadata.json()
-                    const { title, description, branch: featureBranch } = prData
-                    setFeatureBranch(featureBranch || "sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
-                    setPullRequestTitle(title || "Sweep Chat Suggested Changes")
-                    setPullRequestBody(description || "Suggested changes by Sweep Chat.")
-
-                    save(repoName, messages, snippets, suggestedChanges, pullRequest)
-                  }
-                })();
-                setTimeout(() => {
-                  if (messagesContainerRef.current) {
-                    messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-                  }
-                }, 400);
+              if (suggestedChanges.length == 0) {
+                applySuggestions(codeSuggestions)
               }
             }}
             showApplySuggestedChangeButton={!openSuggestionDialog}
@@ -1158,13 +1179,19 @@ function App({
         {openSuggestionDialog && (
           <div className="bg-zinc-900 rounded-xl p-4 mt-8">
             <div className="flex justify-between mb-4">
-              <div></div>
+              <Button
+                className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
+                onClick={() => applySuggestions(suggestedChanges)}
+                aria-label="Retry"
+              >
+                <FaArrowsRotate />&nbsp;&nbsp;Retry
+              </Button>
               <Button
                 className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
                 onClick={() => setOpenSuggestionDialog(false)}
                 aria-label="Close"
               >
-                <FaTimes />
+                <FaTimes />&nbsp;&nbsp;Close
               </Button>
             </div>
             {(isProcessingSuggestedChanges || isCreatingPullRequest) && (
@@ -1310,39 +1337,11 @@ function App({
               <FaArrowsRotate />&nbsp;&nbsp;Reset
             </Button>
           )}
-          <Input
-            data-ph-capture-attribute-current-message={currentMessage}
-            onKeyUp={async (e) => {
-              if (e.key === "Enter") {
-                posthog.capture("chat submitted", {
-                  repoName,
-                  snippets,
-                  messages,
-                  currentMessage,
-                });
-                let newMessages: Message[] = [...messages, { content: currentMessage, role: "user" }];
-                setMessages(newMessages);
-                setCurrentMessage("");
-                const pulls = await parsePullRequests(repoName, currentMessage, octokit!)
-                newMessages = [...messages, { content: currentMessage, role: "user", annotations: { pulls } }];
-                setMessages(newMessages);
-                setCurrentMessage("");
-                startStream(currentMessage, newMessages, snippets, { pulls })
-              }
-            }}
-            onChange={(e) => setCurrentMessage(e.target.value)}
-            className="p-4"
-            value={currentMessage}
-            placeholder="Type a message..."
-            disabled={isLoading}
-          />
           <Dialog>
             <DialogTrigger asChild>
               <Button
-                className="ml-2"
+                className="mr-2"
                 variant="secondary"
-                onClick={async () => {
-                }}
                 disabled={isLoading}
               >
                 <FaShareAlt />&nbsp;&nbsp;Share
@@ -1377,6 +1376,27 @@ function App({
               </Button>
             </DialogContent>
           </Dialog>
+          <Input
+            data-ph-capture-attribute-current-message={currentMessage}
+            onKeyUp={async (e) => {
+              if (e.key === "Enter") {
+                sendMessage()
+              }
+            }}
+            onChange={(e) => setCurrentMessage(e.target.value)}
+            className="p-4"
+            value={currentMessage}
+            placeholder="Type a message..."
+            disabled={isLoading}
+          />
+          <Button
+            className="ml-2 bg-blue-900 text-white hover:bg-blue-800"
+            variant="secondary"
+            onClick={sendMessage}
+            disabled={isLoading}
+          >
+            <FaPaperPlane />&nbsp;&nbsp;Send
+          </Button>
         </div>
       )}
     </main>
