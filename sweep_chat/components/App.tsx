@@ -313,7 +313,25 @@ const MessageDisplay = ({
                         {message.content}
                       </span>
                     )}
-                    {message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
+                    {message.function_call!.snippets ? (
+                      <div className="pb-0 pt-4">
+                        {message.function_call!.snippets.map((snippet, index) => (
+                          <SnippetBadge
+                            key={index}
+                            snippet={snippet}
+                            className=""
+                            repoName={repoName}
+                            branch={branch}
+                            button={<></>}
+                            snippets={[]}
+                            setSnippets={() => {}}
+                            newSnippets={[]}
+                            setNewSnippets={() => {}}
+                            options={[]}
+                          />
+                        ))}
+                      </div>
+                    ) : (message.function_call!.function_name === "self_critique" || message.function_call!.function_name === "analysis" ? (
                       <MarkdownRenderer content={message.content} className="reactMarkdown mt-4 mb-0 py-2" />
                     ) : (
                       <SyntaxHighlighter
@@ -329,7 +347,7 @@ const MessageDisplay = ({
                         {message.content}
                       </SyntaxHighlighter>
                     )
-                    }
+                    )}
                     <FeedbackBlock message={message} index={index} />
                   </AccordionContent>
                 </AccordionItem>

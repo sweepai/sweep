@@ -39,7 +39,7 @@ const RenderPath = ({
 }) => {
   let path = snippet.file_path
   let truncatedPath = path
-  const maxPathLength = 60
+  const maxPathLength = 100
   if (path.length > maxPathLength) {
     truncatedPath = "..." + path.slice((maxPathLength - 3) * -1)
   }
