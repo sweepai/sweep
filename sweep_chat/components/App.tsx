@@ -45,6 +45,7 @@ import { EditorView } from 'codemirror';
 import { EditorState } from '@codemirror/state';
 import { debounce } from "lodash"
 import { streamMessages } from "@/lib/streamingUtils";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 const Original = CodeMirrorMerge.Original
 const Modified = CodeMirrorMerge.Modified
@@ -463,6 +464,7 @@ function App({
   const isStream = useRef<boolean>(false)
   const [showSurvey, setShowSurvey] = useState<boolean>(false)
 
+  const [originalSuggestedChanges, setOriginalSuggestedChanges] = useState<StatefulCodeSuggestion[]>([])
   const [suggestedChanges, setSuggestedChanges] = useState<StatefulCodeSuggestion[]>([])
   const [openSuggestionDialog, setOpenSuggestionDialog] = useState<boolean>(false)
   const [isProcessingSuggestedChanges, setIsProcessingSuggestedChanges] = useState<boolean>(false)
@@ -585,6 +587,54 @@ function App({
     }
   }, [repoName])
 
+  const save = async (
+    currentRepoName: string,
+    currentMessages: Message[],
+    currentSnippets: Snippet[],
+    currentSuggestedChanges: CodeSuggestion[] = [],
+    currentPullRequest: PullRequest | null = null
+  ) => {
+    const saveResponse = await fetch("/backend/messages/save", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        // @ts-ignore
+        "Authorization": `Bearer ${session?.user.accessToken}`
+      },
+      body: JSON.stringify(
+        {
+          repo_name: currentRepoName || repoName, 
+          messages: currentMessages || messages, 
+          snippets: currentSnippets || snippets, 
+          message_id: messagesId || "",
+          // code_suggestions: currentSuggestedChanges || suggestedChanges,
+          code_suggestions: currentSuggestedChanges || originalSuggestedChanges,
+          pull_request: currentPullRequest || pullRequest
+        }
+      )
+    })
+    const saveData = await saveResponse.json()
+    if (saveData.status == "success") {
+      const { message_id } = saveData
+      if (!messagesId && message_id) {
+        setMessagesId(message_id)
+        const updatedUrl = `/c/${message_id}`;
+        window.history.pushState({}, '', updatedUrl);
+      }
+    } else {
+      console.warn("Failed to save message", saveData)
+    }
+  }
+
+  const debouncedSave = useCallback(debounce((repoName, messages, snippets, suggestedChanges, pullRequest) => {
+    console.log("saving...")
+    save(repoName, messages, snippets, suggestedChanges, pullRequest);
+  }, 2000, { leading: true, maxWait: 5000 }), []); // can tune these timeouts
+
+  useEffect(() => {
+    debouncedSave(repoName, messages, snippets, suggestedChanges, pullRequest);
+  }, [repoName, messages, snippets, suggestedChanges, pullRequest]);
+
   const reactCodeMirrors = suggestedChanges.map((suggestion, index) => {
     const fileExtension = suggestion.filePath.split(".").pop();
     // default to javascript
@@ -596,7 +646,7 @@ function App({
     return (
       <CodeMirrorMerge
         theme={dracula}
-        revertControls={"b-to-a"}
+        revertControls={"a-to-b"}
         collapseUnchanged={{
           margin: 3,
           minSize: 4,
@@ -614,13 +664,12 @@ function App({
         />
         <Modified
           value={suggestion.newCode}
-          readOnly={suggestion.state != "done"}
+          readOnly={suggestion.state != "done" && suggestion.state != "error"}
           extensions={[
             ...(languageExtension ? [languageExtension] : [])
           ]}
           onChange={debounce((value: string) => {
             setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
-            save(repoName, messages, snippets, suggestedChanges, pullRequest)
           }, 1000)}
         />
       </CodeMirrorMerge>
@@ -653,45 +702,8 @@ function App({
 
   const lastAssistantMessageIndex = messages.findLastIndex((message) => message.role === "assistant" && !message.annotations?.pulls && message.content.trim().length > 0)
 
-  const save = async (
-    currentRepoName: string,
-    currentMessages: Message[],
-    currentSnippets: Snippet[],
-    currentSuggestedChanges: CodeSuggestion[] = [],
-    currentPullRequest: PullRequest | null = null
-  ) => {
-    const saveResponse = await fetch("/backend/messages/save", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        // @ts-ignore
-        "Authorization": `Bearer ${session?.user.accessToken}`
-      },
-      body: JSON.stringify(
-        {
-          repo_name: currentRepoName || repoName, 
-          messages: currentMessages || messages, 
-          snippets: currentSnippets || snippets, 
-          message_id: messagesId || "",
-          code_suggestions: currentSuggestedChanges || suggestedChanges,
-          pull_request: currentPullRequest || pullRequest
-        }
-      )
-    })
-    const saveData = await saveResponse.json()
-    if (saveData.status == "success") {
-      const { message_id } = saveData
-      if (!messagesId && message_id) {
-        setMessagesId(message_id)
-        const updatedUrl = `/c/${message_id}`;
-        window.history.pushState({}, '', updatedUrl);
-      }
-    } else {
-      console.warn("Failed to save message", saveData)
-    }
-  }
-
   const applySuggestions = async (codeSuggestions: CodeSuggestion[]) => {
+    isStream.current = true
     let currentCodeSuggestions: StatefulCodeSuggestion[] = codeSuggestions.map((suggestion) => ({
       ...suggestion,
       state: "pending",
@@ -713,9 +725,8 @@ function App({
 
       try {
         const reader = streamedResponse.body!.getReader();
-        isStream.current = true
         for await (const currentState of streamMessages(reader, isStream, 5 * 60 * 1000)) {
-          console.log(currentState)
+          // console.log(currentState)
           if (currentState.error) {
             throw new Error(currentState.error)
           }
@@ -723,35 +734,24 @@ function App({
             filePath: suggestion.file_path,
             originalCode: suggestion.original_code,
             newCode: suggestion.new_code,
+            fileContents: suggestion.file_contents,
             state: suggestion.state,
             error: suggestion.error,
           }))
           setSuggestedChanges(currentCodeSuggestions)
-          save(repoName, messages, snippets, currentCodeSuggestions, pullRequest)
         }
-        isStream.current = false
-
-        const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
-          body: JSON.stringify({
-            repo_name: repoName,
-            modify_files_dict: suggestedChanges.reduce((acc: Record<string, { original_contents: string, contents: string }>, suggestion: StatefulCodeSuggestion) => {
-              acc[suggestion.filePath] = {
-                original_contents: suggestion.originalCode,
-                contents: suggestion.newCode,
-              };
-              return acc;
-            }, {}),
-            messages: messages,
-          }),
-        })
-        
-        const prData = await prMetadata.json()
-        const { title, description, branch: featureBranch } = prData
-        setFeatureBranch(featureBranch || "sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
-        setPullRequestTitle(title || "Sweep Chat Suggested Changes")
-        setPullRequestBody(description || "Suggested changes by Sweep Chat.")
-
-        save(repoName, messages, snippets, suggestedChanges, pullRequest)
+        console.log(isStream.current)
+        if (!isStream.current) {
+          currentCodeSuggestions = currentCodeSuggestions.map((suggestion) => (
+            suggestion.state == "done" ? suggestion : {
+              ...suggestion,
+              originalCode: suggestion.fileContents || suggestion.originalCode,
+              state: "error",
+            }
+          ))
+          console.log(currentCodeSuggestions)
+          setSuggestedChanges(currentCodeSuggestions)
+        }
       } catch (e: any) {
         console.error(e)
         toast({
@@ -760,16 +760,43 @@ function App({
           variant: "destructive",
           duration: Infinity,
         })
+        currentCodeSuggestions = currentCodeSuggestions.map((suggestion) => (
+          suggestion.state == "done" ? suggestion : {
+            ...suggestion,
+            originalCode: suggestion.fileContents || suggestion.originalCode,
+            state: "error",
+          }
+        ))
+        console.log(currentCodeSuggestions)
         setSuggestedChanges(currentCodeSuggestions)
-        currentCodeSuggestions = currentCodeSuggestions.map((suggestion) => ({
-          ...suggestion,
-          state: suggestion.state != "done" ? "error" : suggestion.state,
-        }))
         posthog.capture("auto fix error", {
           error: e.message,
         })
       } finally {
-          setIsProcessingSuggestedChanges(false);
+        isStream.current = false
+        setIsProcessingSuggestedChanges(false);
+
+        if (!featureBranch || !pullRequestTitle || !pullRequestBody) {
+          const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
+            body: JSON.stringify({
+              repo_name: repoName,
+              modify_files_dict: suggestedChanges.reduce((acc: Record<string, { original_contents: string, contents: string }>, suggestion: StatefulCodeSuggestion) => {
+                acc[suggestion.filePath] = {
+                  original_contents: suggestion.originalCode,
+                  contents: suggestion.newCode,
+                };
+              return acc;
+              }, {}),
+              messages: messages,
+            }),
+          })
+          
+          const prData = await prMetadata.json()
+          const { title, description, branch: featureBranch } = prData
+          setFeatureBranch(featureBranch || "sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
+          setPullRequestTitle(title || "Sweep Chat Suggested Changes")
+          setPullRequestBody(description || "Suggested changes by Sweep Chat.")
+        }
       }
     })();
     setTimeout(() => {
@@ -864,12 +891,6 @@ function App({
       }
     }
 
-    save(
-      repoName,
-      newMessages,
-      currentSnippets
-    );
-
     const chatResponse = await fetch("/backend/chat", {
       method: "POST",
       headers: {
@@ -898,7 +919,6 @@ function App({
         streamedMessages = jsonpatch.applyPatch(streamedMessages, patch).newDocument
         setMessages([...newMessages, ...streamedMessages])
         if (streamedMessages.length > messageLength) {
-          save(repoName, newMessages, currentSnippets, suggestedChanges, pullRequest)
           messageLength = streamedMessages.length;
         }
       }
@@ -940,16 +960,6 @@ function App({
         lastMessage
       ])
     }
-
-    save(
-      repoName,
-      [
-        ...newMessages,
-        ...streamedMessages.slice(0, streamedMessages.length - 1),
-        lastMessage
-      ],
-      currentSnippets
-    );
 
     const surveyID = process.env.NEXT_PUBLIC_SURVEY_ID
     if (surveyID && !localStorage.getItem(`hasInteractedWithSurvey_${surveyID}`)) {
@@ -1201,6 +1211,7 @@ function App({
             onApplyChanges={(codeSuggestions: CodeSuggestion[]) => {
               setOpenSuggestionDialog(true)
               if (suggestedChanges.length == 0) {
+                setOriginalSuggestedChanges(codeSuggestions)
                 applySuggestions(codeSuggestions)
               }
             }}
@@ -1218,15 +1229,17 @@ function App({
               <div>
                 <Button
                   className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
-                  onClick={() => applySuggestions(suggestedChanges)}
+                  onClick={() => applySuggestions(originalSuggestedChanges)}
                   aria-label="Retry"
                 >
                   <FaArrowsRotate />&nbsp;&nbsp;Retry
                 </Button>
                 <Button
                   className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
-                  onClick={() => applySuggestions(suggestedChanges)}
-                  aria-label="Retry"
+                  onClick={() => {
+                    isStream.current = false
+                  }}
+                  aria-label="Stop"
                   disabled={!isStream.current}
                 >
                   <FaStop />&nbsp;&nbsp;Stop
@@ -1288,6 +1301,15 @@ function App({
                     <FaArrowLeft className="mx-4" />
                     <Input className="flex items-center w-[600px]" value={featureBranch || ""} onChange={(e) => setFeatureBranch(e.target.value)} placeholder="Feature Branch" style={{ opacity: isProcessingSuggestedChanges ? 0.5 : 1 }} />
                   </div>
+                  {!suggestedChanges.every((suggestion) => suggestion.state == "done") && (
+                    <Alert className="mb-4 bg-yellow-900">
+                      <FaExclamationTriangle className="h-4 w-4" />
+                      <AlertTitle>Warning</AlertTitle>
+                      <AlertDescription>
+                        Some patches failed to validate, so you may get some unexpected changes. You can try to manually create a PR with the proposed changes. If you think this is an error, please to report this to us.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   <Button 
                     className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
                     onClick={async () => {
@@ -1324,7 +1346,7 @@ function App({
                             }
                           }
                         ])
-                        save(repoName, messages, snippets, suggestedChanges, pullRequest)
+                        // save(repoName, messages, snippets, suggestedChanges, pullRequest)
                       } catch (e) {
                         toast({
                           title: "Error",
