@@ -585,38 +585,47 @@ function App({
     }
   }, [repoName])
 
-  const reactCodeMirrors = suggestedChanges.map((suggestion, index) => (
-    <CodeMirrorMerge
-      theme={dracula}
-      revertControls={"b-to-a"}
-      collapseUnchanged={{
-        margin: 3,
-        minSize: 4,
-      }}
-      autoFocus={false}
-      key={JSON.stringify(suggestion)}
-    >
-      <Original
-        value={suggestion.originalCode}
-        readOnly={true}
-        extensions={[
-          EditorView.editable.of(false), 
-          languageMapping[suggestion.filePath.split(".")[suggestion.filePath.split(".").length - 1]]
-        ]}
-      />
-      <Modified
-        value={suggestion.newCode}
-        readOnly={suggestion.state != "done"}
-        extensions={[
-          languageMapping[suggestion.filePath.split(".")[suggestion.filePath.split(".").length - 1]]
-        ]}
-        onChange={debounce((value: string) => {
-          setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
-          save(repoName, messages, snippets, suggestedChanges, pullRequest)
-        }, 1000)}
-      />
-    </CodeMirrorMerge>
-  ));
+  const reactCodeMirrors = suggestedChanges.map((suggestion, index) => {
+    const fileExtension = suggestion.filePath.split(".").pop();
+    // default to javascript
+    let languageExtension = languageMapping["js"];
+    if (fileExtension) {
+      languageExtension = languageMapping[fileExtension]
+    }
+
+    return (
+      <CodeMirrorMerge
+        theme={dracula}
+        revertControls={"b-to-a"}
+        collapseUnchanged={{
+          margin: 3,
+          minSize: 4,
+        }}
+        autoFocus={false}
+        key={JSON.stringify(suggestion)}
+      >
+        <Original
+          value={suggestion.originalCode}
+          readOnly={true}
+          extensions={[
+            EditorView.editable.of(false), 
+            ...(languageExtension ? [languageExtension] : [])
+          ]}
+        />
+        <Modified
+          value={suggestion.newCode}
+          readOnly={suggestion.state != "done"}
+          extensions={[
+            ...(languageExtension ? [languageExtension] : [])
+          ]}
+          onChange={debounce((value: string) => {
+            setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
+            save(repoName, messages, snippets, suggestedChanges, pullRequest)
+          }, 1000)}
+        />
+      </CodeMirrorMerge>
+    )
+  });
 
   if (session) {
     posthog.identify(
