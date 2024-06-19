@@ -10,8 +10,13 @@ You will also be given the pull request title and description which you will use
 It is your job to make sure that the pull request changes do not violate any of the given rules.
 """
 
-system_prompt_edge_cases = """You are a careful and smart tech lead that wants to avoid production issues. You will be analyzing a set of diffs representing a pull request made to a piece of source code.
-It is your job to check the code changes provided against a set of specific cases that are known to cause issues in production systems and see if the code changes will cause any issues. You are to ONLY check for these specific cases and put 110 percent of your focus on them as these issues are tricky to spot."""
+system_prompt_edge_case_question_creation = """You are a careful and smart tech lead that wants to avoid production issues. You will be analyzing a set of diffs representing a pull request made to a piece of source code.
+It is your job to ask a series of detailed and exhaustive set of questions which will then be passed on to the original engineer. The point of this is to make sure that after all the questions have been answered, it will be clear whether or not there are any production issues with the pull request. You are to tailor the questions you create to the code changes provided.
+"""
+
+system_prompt_edge_case_answer = """You are a careful and smart tech lead that wants to avoid production issues. You will be analyzing a set of diffs representing a pull request made to a piece of source code.
+It is your job to answer a series of questions presented to you by a previous engineer. The questions are meant to help identify any potential production issues with the pull request. You are to answer these questions and using those answers determine if there are any production issues with the pull request.
+"""
 
 system_prompt_identify_new_functions = """You are an expert programmer with a keen eye for detail, assigned to analyze a series of code patches in a pull request. Your primary responsibility is to meticulously identify all newly created functions within the code."""
 
@@ -111,7 +116,7 @@ Output the questions and answers for each rule in step 2 in the following format
 </rules_analysis>
 """
 
-user_prompt_edge_cases_format = """
+user_prompt_edge_case_question_creation_format = """
 # Code Review
 Here are the changes in the pull request changes given in diff format:
 <changes>
@@ -119,31 +124,76 @@ Here are the changes in the pull request changes given in diff format:
 </changes>
 
 # Instructions
-1. You are responsible for checking the code changes for the following specific cases.
+1. Summarize the code changes
+Review each change individually, examining the code changes line-by-line. Then review all the changes at once in order to get an idea of how each individual change combines together and what the overall effect of the pull request is.
 
-Case 1 - Identify any code changes relating to concurrency changes. This means any new changes that works with threads, locks, mutexes, etc.
-Answer the following questions for this case
-    1a. Are there any code changes that relate to concurrency? This includes changes to threading, locks, mutexes, semaphores, etc. If the answer is yes, continue and answer the rest of the questions for Case 1, if the answer is no you may stop and go to the next Case.
-    1b. Are there any deadlocks that could occur? If yes, then an issue should be raised. Provide an example of where this would occur.
-    1c. Are there potential race conditions that could occur? If yes, then an issue should be raised. Provide an example of where this would occur.
-    1d. Are there all variables and data modified in a thread-safe manner, that is, are there potential issues where the order of data is mutated. List out ALL variable involved in the concurrency changes and answer this question for each variable. If the answer to this question is no for a variable, raise an issue for that variable. Provide an example of where this would occur.
-
-Present your thoughts for the above cases in the following format below: This is mandatory.
-
+Respond in the format below, this is mandatory:
 <thoughts>
-<thinking case="case number">
-<questions_and_answers>
-{{Include all questions and answers posed in the respective case.}}
-</questions_and_answers>
-</thinking>
-</thinking>
-...
-Include as many thinking blocks as necessary so that all above cases are addressed
-</thought>
+{{Provide your thoughts on the code changes above, providing a summary and how each change ties together with the other changes.}}
+</thoughts>
 
-2. Identify all issues.
-Now that you have completed answering all the questions above for each of the cases provided it is now your job to determine if there are any issues that need to be raised.
+2. Create the questions
+You will be given following Cases in which you much generate a series of questions. For each case you will be given guidelines on how to create these questions most effectively. You are to tailor the questions you create to the code changes provided. Make sure to explicitly reference variable names and entities related to the questions and even line numbers if necessary. You MUST create the questions in a way such that an affirmative answer "yes" means that there is an issue with the pull request. That means you should phrase you questions in a way such that they are asking if this issue exists or not. ALWAYS begin the question by asking "Yes or No?"
+<cases>
+<case_1>
+Case 1 - Create questions related to concurrency changes. If there are changes related to concurrency in the pull request you are to generate questions related to concurrency changes.  If not, you may skip this part and go to the next Case. The questions you generate should be an exhaustive list of questions meant to help identify issues with the code changes.
+<guidelines_for_case_1>
+1. Ask questions about whether or not the code changes introduce race conditions.
+2. Ask questions about whether or not the variables are modified in a thread safe manner.
+3. Create questions asking if the variables are mutated unintentionally in any way.
+4. If there are variables such as arrays where the order of the internals matter, ask questions about whether or not the order of these variables are mutated.
+5. Be strict with how you ask your questions. Do not use words like "potentially" or "possibly". If you are asking if an issue exists, ask in a direct manner. Example: Instead of asking "Is there any chance that there is a deadlock" instead ask "Is there a deadlock".
+6. Phrase the questions to make sure that if the answer is "Yes" then that means there is an issue with the pull request. Basically you are asking if an issue exists or not.
+</guidelines_for_case_1>
+</case_1>
+</cases>
+
+Respond with ALL your created questions for every case in the following format below, this is mandatory:
+<created_questions>
+1. Yes or No? Question 1 goes here...
+2. Yes or No? Question 2 goes here...
+...
+n. Yes or No? Question n goes here...
+</created_questions>
 """
+
+user_prompt_edge_case_question_answer_format = """
+# Code Review
+Here are the changes in the pull request changes given in diff format:
+<changes>
+{diff}
+</changes>
+
+# Questions to Answer
+<questions_to_answer>
+{questions}
+</questions_to_answer>
+
+# Instructions
+1. Summarize the code changes
+Review each change individually, examining the code changes line-by-line. Then review all the changes at once in order to get an idea of how each individual change combines together and what the overall effect of the pull request is.
+
+Respond in the format below, this is mandatory:
+<thoughts>
+{{Provide your thoughts on the code changes above, providing a summary and how each change ties together with the other changes.}}
+</thoughts>
+
+2. Answer the # Questions to Answer
+Now you must answer each question, justifying each answer as you go and giving an example from the code changes to support your answer.
+First repeat the question verbatim then answer the question in the following format below, this is mandatory:
+<questions_and_answers>
+1. Question 1 repeated verbatim. Answer: Question 1 answer goes here...
+2. Question 2 repeated verbatim. Answer: Question 2 answer goes here...
+...
+n. Question n repeated verbatim. Answer: Question n answer goes here...
+</questions_and_answers>
+
+3. Identify Issues
+Based on your answers to the questions above you are now to identify any potential issues that the code changes may introduce. 
+Read through each question and answer pair and determine if an issue needs to be raised. 
+If there was not enough information to answer a question IT IS NOT AN ISSUE! DO NOT INCLUDE IT AS AN ISSUE AND MOVE ON TO THE NEXT QUESTION. 
+"""
+
 user_prompt_issue_output_format = """
 [FORMAT]
 Finally, format the found issues and root causes using the following XML tags. Each issue description should be a single sentence. 
@@ -205,15 +255,18 @@ The issues that have already been identified should not be raised again.
 {comment_threads}
 
 # Instructions
-1. Analyze each identified potential issue for the file(s) {file_names}
-    1a. Review each identified issue individually, formulate 3-5 questions to answer in order to determine the severity of the issue.
-    1b. Answer the questions formulated in step 1a. In order to accomplish this examine the referenced lines of code in the provided code files above.
-    1c. Answer the following questions in addition to the ones you generated in steps 1a. Is this reported issue accurate (double check that the previous reviewer was not mistaken, YOU MUST include the corresponding patch for proof)? If the answer to this question is no, then the issue is not severe. 
-    1d. Determine whether or not this issue is severe enough to prevent the pull request from being merged or not. For example, any potential logical error is considered severe.
-    1e. Take note of some common issues: Accidently removing or commenting out lines of code that has functional utility. In this case double check if this change was intentional or accidental.
+1. Analyze each identified potential issue for the file(s) backend/src/queues/queues.go
+Review each identified issue individually, formulate 3 questions to answer in order to determine the severity of the issue.
+    1a. First formulated question and answer. In order to accomplish this examine the referenced lines of code in the provided code files above.
+    1b. Second formulated question and answer. In order to accomplish this examine the referenced lines of code in the provided code files above.
+    1c. Third formulated question and answer. In order to accomplish this examine the referenced lines of code in the provided code files above.
+    1d. Is this reported issue accurate (double check that the previous reviewer was not mistaken, YOU MUST include the corresponding patch for proof). If the answer to this question is no, then the issue is not severe. 
+    1e. Is there accidentally removed or commented out lines of code that has functional utility. In this case double check if this change was intentional or accidental.
     1f. Take into account the intentions of the pull request when identifying issues. Are the code changes in line with the intentions of the pull request? If the answer is yes then this is not an issue.
-    1g. Is this issue related to potential secuirty vulnerabilities? If yes, then this issue is NOT severe and should not be included.
-    1h. Finally was this issue already raised in a comment thread? If yes, then this issue has already been identified and you should not raise it again. You must also provide proof by referencing the exact comment where this issue was raised.
+    1g. Is this issue related to potential security vulnerabilities? If yes, then this issue is NOT severe and should not be included.
+    1h. Is this issue related to system configurations/resources such as amount of memory needed or system configurations? Does the issue make mention anything along the lines of resource exhaustion? If the answer is yes then this issue is NOT severe and should not be included.
+    1i. Finally was this issue already raised in a comment thread? If yes, then this issue has already been identified and you should not raise it again. You must also provide proof by referencing the exact comment where this issue was raised.
+    1j. Is this issue severe enough based on the questions and answers above to prevent the pull request from being merged? Any issue that will cause production to crash or introduce a logical error is considered severe.
 """
 user_prompt_review_special_rules = """
 In addition to all the above questions you must answer in step 1, the following rules also apply to this file as defined by the user themselves:
@@ -236,7 +289,7 @@ Answer in this format:
 1a. Answer for question 1a...
 1b. ...
 ...
-1g. Answer for question 1g...}}
+1j. Answer for question 1j...}}
 </thinking>
 ...
 </thoughts>"""
