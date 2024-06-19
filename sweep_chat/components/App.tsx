@@ -371,6 +371,7 @@ const MessageDisplay = ({
             filePath: match.groups?.filePath || "",
             originalCode: match.groups?.originalCode || "",
             newCode: match.groups?.newCode || "",
+            fileContents: ""
           })))}>
             Apply Suggested Changes
           </Button>
