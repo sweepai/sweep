@@ -68,6 +68,12 @@ interface Message {
   }
 }
 
+interface ChatSummary {
+  messagesId: string
+  createdAt: string
+  initialMessage: string
+}
+
 export type {
   Repository,
   Snippet,
@@ -76,4 +82,5 @@ export type {
   Message,
   CodeSuggestion,
   StatefulCodeSuggestion,
+  ChatSummary
 }
