@@ -92,6 +92,7 @@ import {
   Message,
   CodeSuggestion,
   StatefulCodeSuggestion,
+  ChatSummary,
 } from '@/lib/types'
 
 import { Octokit } from 'octokit'
@@ -113,6 +114,7 @@ import CodeMirrorMerge from 'react-codemirror-merge'
 import { dracula } from '@uiw/codemirror-theme-dracula'
 import { EditorView } from 'codemirror'
 import { debounce } from 'lodash'
+import { formatDistanceToNow } from 'date-fns';
 import { streamMessages } from '@/lib/streamingUtils'
 import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 import { Skeleton } from './ui/skeleton'
@@ -774,6 +776,11 @@ const parsePullRequests = async (
           pull_number: parseInt(prNumber!),
         })
       ).data.sort((a, b) => {
+        const aIsMarkdown = a.filename.endsWith('.md') || a.filename.endsWith('.rst')
+        const bIsMarkdown = b.filename.endsWith('.md') || b.filename.endsWith('.rst')
+        if (aIsMarkdown !== bIsMarkdown) {
+          return aIsMarkdown ? 1 : -1;
+        }
         const statusOrder: Record<string, number> = {
           renamed: 0,
           copied: 1,
@@ -864,6 +871,10 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   const [repos, setRepos] = useState<Repository[]>([])
 
   const [messagesId, setMessagesId] = useState<string>(defaultMessageId)
+  const [previousChats, setPreviousChats] = useLocalStorage<ChatSummary[]>(
+    'previousChats',
+    []
+  )
 
   const authorizedFetch = useCallback(
     (url: string, options: RequestInit = {}) => {
@@ -879,6 +890,16 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     },
     [session?.user.accessToken]
   )
+
+  useEffect(() => {
+    if (messagesId && !previousChats.some((chat) => chat.messagesId === messagesId) && messages.length > 0) {
+      setPreviousChats([...previousChats, {
+        messagesId: messagesId,
+        createdAt: new Date().toISOString(),
+        initialMessage: messages[0].content
+      }])
+    }
+  }, [messagesId, messages.length])
 
   useEffect(() => {
     console.log(defaultMessageId)
@@ -1566,7 +1587,151 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
 
   return (
     <>
-      <main className="flex h-screen flex-col items-center justify-between p-12">
+      <main className="flex h-screen flex-col items-center justify-between p-12 pt-20">
+        <NavigationMenu className="fixed top-0 left-0 w-[100vw]">
+          <div className="flex items-center justify-between w-[100vw] p-4 px-4 mb-2 align-center">
+            <img
+              src="/banner.png"
+              className="h-10 rounded-lg hover:cursor-pointer box-shadow-md"
+              onClick={() => {
+                window.location.href = '/'
+              }}
+            />
+
+            <DropdownMenu>
+              <DropdownMenuTrigger className="outline-none">
+                <p className="text-sm font-bold flex items-center">
+                  Previous Chats <FaChevronDown className="ml-2" />
+                </p>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="mt-2">
+                {previousChats.length > 0 ? previousChats.map((chat) => (
+                  <DropdownMenuItem
+                    key={chat.messagesId}
+                    className="hover:cursor-pointer"
+                    onClick={() => {
+                      setMessagesId(chat.messagesId)
+                      window.location.href = `/c/${chat.messagesId}`
+                    }}
+                    disabled={chat.messagesId === messagesId}
+                  >
+                    <b>{truncate(chat.initialMessage, 80)}</b>&nbsp;created {formatDistanceToNow(new Date(chat.createdAt), { addSuffix: true })}
+                  </DropdownMenuItem>
+                )) : (
+                    <DropdownMenuItem>No history</DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+              {/* Warning: these message IDs are stored in local storage.
+                If you want to delete them, you will need to clear your browser cache. */}
+            </DropdownMenu>
+
+            <NavigationMenuList className='w-full flex justify-between'>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="ml-4">
+                    <FaCog className="mr-2" />
+                    Settings
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="w-120 p-16">
+                  <h2 className="text-2xl font-bold mb-4 text-center">Settings</h2>
+                  <Label>Model</Label>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="text-left">
+                        {modelMap[model]}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56">
+                      <DropdownMenuLabel>Anthropic</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuRadioGroup
+                        value={model}
+                        onValueChange={(value) =>
+                          setModel(value as keyof typeof modelMap)
+                        }
+                      >
+                        {Object.keys(modelMap).map((model) =>
+                          model.includes('claude') ? (
+                            <DropdownMenuRadioItem value={model} key={model}>
+                              {modelMap[model]}
+                            </DropdownMenuRadioItem>
+                          ) : null
+                        )}
+                      </DropdownMenuRadioGroup>
+                      <DropdownMenuLabel>OpenAI</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuRadioGroup
+                        value={model}
+                        onValueChange={(value) =>
+                          setModel(value as keyof typeof modelMap)
+                        }
+                      >
+                        {Object.keys(modelMap).map((model) =>
+                          model.includes('gpt') ? (
+                            <DropdownMenuRadioItem value={model} key={model}>
+                              {modelMap[model]}
+                            </DropdownMenuRadioItem>
+                          ) : null
+                        )}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Label className="mt-4">Number of snippets</Label>
+                  <div className="flex items-center">
+                    <span className="mr-4 whitespace-nowrap">{k}</span>
+                    <Slider
+                      defaultValue={[DEFAULT_K]}
+                      max={20}
+                      min={1}
+                      step={1}
+                      onValueChange={(value) => setK(value[0])}
+                      value={[k]}
+                      className="w-[300px] my-0 py-0"
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger className="outline-none">
+                  <div className="flex items-center w-12 h-12 ml-2">
+                    <img
+                      className="rounded-full w-10 h-10 m-0"
+                      src={session!.user!.image || ''}
+                      alt={session!.user!.name || ''}
+                    />
+                  </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>
+                    <p className="text-md font-bold">
+                      {session!.user!.username! || session!.user!.name}
+                    </p>
+                  </DropdownMenuLabel>
+                  {session?.user?.email && (
+                    <DropdownMenuItem>{session.user.email}</DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => setShowSurvey((prev) => !prev)}
+                  >
+                    <FaComments className="mr-2" />
+                    Feedback
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => signOut()}
+                  >
+                    <FaSignOutAlt className="mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </NavigationMenuList>
+          </div>
+        </NavigationMenu>
         <Toaster />
         {showSurvey && process.env.NEXT_PUBLIC_SURVEY_ID && (
           <Survey
@@ -1586,7 +1751,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
             repoNameValid || defaultMessageId ? '' : 'grow'
           }`}
         >
-          {/* <img src="https://avatars.githubusercontent.com/u/170980334?v=4" className="w-12 h-12 rounded-full" /> */}
           <AutoComplete
             options={repos.map((repo) => ({
               label: repo.full_name,
@@ -1742,108 +1906,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           ) : (
             <></>
           )}
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="ml-4">
-                <FaCog className="mr-2" />
-                Settings
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="w-120 p-16">
-              <h2 className="text-2xl font-bold mb-4 text-center">Settings</h2>
-              <Label>Model</Label>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="text-left">
-                    {modelMap[model]}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56">
-                  <DropdownMenuLabel>Anthropic</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuRadioGroup
-                    value={model}
-                    onValueChange={(value) =>
-                      setModel(value as keyof typeof modelMap)
-                    }
-                  >
-                    {Object.keys(modelMap).map((model) =>
-                      model.includes('claude') ? (
-                        <DropdownMenuRadioItem value={model} key={model}>
-                          {modelMap[model]}
-                        </DropdownMenuRadioItem>
-                      ) : null
-                    )}
-                  </DropdownMenuRadioGroup>
-                  <DropdownMenuLabel>OpenAI</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuRadioGroup
-                    value={model}
-                    onValueChange={(value) =>
-                      setModel(value as keyof typeof modelMap)
-                    }
-                  >
-                    {Object.keys(modelMap).map((model) =>
-                      model.includes('gpt') ? (
-                        <DropdownMenuRadioItem value={model} key={model}>
-                          {modelMap[model]}
-                        </DropdownMenuRadioItem>
-                      ) : null
-                    )}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Label className="mt-4">Number of snippets</Label>
-              <div className="flex items-center">
-                <span className="mr-4 whitespace-nowrap">{k}</span>
-                <Slider
-                  defaultValue={[DEFAULT_K]}
-                  max={20}
-                  min={1}
-                  step={1}
-                  onValueChange={(value) => setK(value[0])}
-                  value={[k]}
-                  className="w-[300px] my-0 py-0"
-                />
-              </div>
-            </DialogContent>
-          </Dialog>
-          <DropdownMenu>
-            <DropdownMenuTrigger className="outline-none">
-              <div className="flex items-center w-12 h-12 ml-2">
-                <img
-                  className="rounded-full w-12 h-12 m-0"
-                  src={session!.user!.image || ''}
-                  alt={session!.user!.name || ''}
-                />
-              </div>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>
-                <p className="text-md font-bold">
-                  {session!.user!.username! || session!.user!.name}
-                </p>
-              </DropdownMenuLabel>
-              {session?.user?.email && (
-                <DropdownMenuItem>{session.user.email}</DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={() => setShowSurvey((prev) => !prev)}
-              >
-                <FaComments className="mr-2" />
-                Feedback
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={() => signOut()}
-              >
-                <FaSignOutAlt className="mr-2" />
-                Sign Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
         {snippets.length && repoName ? (
           <ContextSideBar
@@ -1925,7 +1987,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                   }}
                 />
               ))
-            : defaultMessageId.length > 0 && (
+            : messagesId.length > 0 && (
                 <div className="space-y-4">
                   <Skeleton className="h-12 ml-32 rounded-md" />
                   <Skeleton className="h-12 mr-32 rounded-md" />
