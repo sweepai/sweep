@@ -58,6 +58,7 @@ OpenAIModel = (
 AnthropicModel = (
     Literal["claude-3-haiku-20240307"]
     | Literal["claude-3-sonnet-20240229"]
+    | Literal["claude-3-5-sonnet-20240620"]
     | Literal["claude-3-opus-20240229"]
 )
 
@@ -77,6 +78,7 @@ model_to_max_tokens = {
     "anthropic.claude-3-sonnet-20240229-v1:0": 200000,
     "claude-3-opus-20240229": 200000,
     "claude-3-sonnet-20240229": 200000,
+    "claude-3-5-sonnet-20240620": 200000,
     "claude-3-haiku-20240307": 200000,
     "gpt-3.5-turbo-16k-0613": 16000,
 }
