@@ -9,7 +9,6 @@ import numpy as np
 import openai
 import requests
 from loguru import logger
-from redis import Redis
 from scipy.spatial.distance import cdist
 
 from tqdm import tqdm
@@ -19,7 +18,7 @@ from botocore.exceptions import ClientError
 from voyageai import error as voyageai_error
 
 from sweepai.utils.timer import Timer
-from sweepai.config.server import BATCH_SIZE, CACHE_DIRECTORY, REDIS_URL, VOYAGE_API_AWS_ENDPOINT_NAME, VOYAGE_API_KEY, VOYAGE_API_USE_AWS
+from sweepai.config.server import BATCH_SIZE, CACHE_DIRECTORY, VOYAGE_API_AWS_ENDPOINT_NAME, VOYAGE_API_KEY, VOYAGE_API_USE_AWS
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.openai_proxy import get_embeddings_client
 from sweepai.utils.tiktoken_utils import Tiktoken
@@ -28,7 +27,6 @@ from sweepai.utils.tiktoken_utils import Tiktoken
 # CACHE_VERSION = "v2.0.04" + "-voyage" if VOYAGE_API_KEY else ""
 suffix = "-voyage-aws" if VOYAGE_API_USE_AWS else "-voyage" if VOYAGE_API_KEY else ""
 CACHE_VERSION = "v2.1.1" + suffix 
-redis_client: Redis = Redis.from_url(REDIS_URL)  # TODO: add lazy loading
 tiktoken_client = Tiktoken()
 vector_cache = Cache(f'{CACHE_DIRECTORY}/vector_cache') # we instantiate a singleton, diskcache will handle concurrency
 
@@ -202,8 +200,6 @@ def openai_call_embedding(batch: list[str], input_type: str="document"):
     max_tries=5,
 )
 def openai_with_expo_backoff(batch: tuple[str]):
-    if not redis_client:
-        return openai_call_embedding(batch)
     # check cache first
     embeddings: list[np.ndarray | None] = [None] * len(batch)
     cache_keys = [hash_sha256(text) + CACHE_VERSION for text in batch]
