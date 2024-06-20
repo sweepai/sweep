@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "../components/ui/input"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { FaArrowLeft, FaCheck, FaCog, FaComments, FaExclamationTriangle, FaGithub, FaPaperPlane, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes } from "react-icons/fa";
+import { FaArrowLeft, FaCheck, FaCog, FaComments, FaExclamationTriangle, FaGithub, FaPaperPlane, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes, FaCodeBranch } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -14,6 +14,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+import { CaretSortIcon } from "@radix-ui/react-icons"
 import { AutoComplete } from "@/components/ui/autocomplete";
 import { Toaster } from "@/components/ui/toaster";
 import { toast } from "@/components/ui/use-toast";
@@ -45,6 +51,8 @@ import { EditorView } from 'codemirror';
 import { EditorState } from '@codemirror/state';
 import { debounce } from "lodash"
 import { streamMessages } from "@/lib/streamingUtils";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Skeleton } from "./ui/skeleton";
 
 const Original = CodeMirrorMerge.Original
 const Modified = CodeMirrorMerge.Modified
@@ -259,16 +267,18 @@ const MessageDisplay = ({
   branch,
   onApplyChanges,
   showApplySuggestedChangeButton,
-  index
+  index,
+  commitToPR
 }: {
   message: Message,
   className?: string,
   onEdit: (content: string) => void,
   repoName: string,
   branch: string,
-  onApplyChanges: (codeSuggestions: CodeSuggestion[]) => void,
+  onApplyChanges: (codeSuggestions: CodeSuggestion[], commitToPR: boolean) => void,
   showApplySuggestedChangeButton: boolean,
-  index: number
+  index: number,
+  commitToPR: boolean
 }) => {
   if (message.role === "user") {
     return <UserMessageDisplay message={message} onEdit={onEdit} />
@@ -365,11 +375,16 @@ const MessageDisplay = ({
       </div>
       {showApplySuggestedChangeButton && matches.length > 0 && (
         <div className="flex justify-start w-[80%]">
-          <Button className="mb-4 bg-blue-900 hover:bg-blue-800 text-zinc-200" onClick={() => onApplyChanges(matches.map((match) => ({
-            filePath: match.groups?.filePath || "",
-            originalCode: match.groups?.originalCode || "",
-            newCode: match.groups?.newCode || "",
-          })))}>
+          <Button className="mb-4 bg-blue-900 hover:bg-blue-800 text-zinc-200" 
+            onClick={() => {
+              const suggestions = matches.map((match) => ({
+                filePath: match.groups?.filePath || "",
+                originalCode: match.groups?.originalCode || "",
+                newCode: match.groups?.newCode || "",
+                fileContents: ""
+              }));
+              onApplyChanges(suggestions, commitToPR);
+            }}>
             Apply Suggested Changes
           </Button>
         </div>
@@ -463,6 +478,7 @@ function App({
   const isStream = useRef<boolean>(false)
   const [showSurvey, setShowSurvey] = useState<boolean>(false)
 
+  const [originalSuggestedChanges, setOriginalSuggestedChanges] = useState<CodeSuggestion[]>([])
   const [suggestedChanges, setSuggestedChanges] = useState<StatefulCodeSuggestion[]>([])
   const [openSuggestionDialog, setOpenSuggestionDialog] = useState<boolean>(false)
   const [isProcessingSuggestedChanges, setIsProcessingSuggestedChanges] = useState<boolean>(false)
@@ -470,11 +486,13 @@ function App({
   const [pullRequestTitle, setPullRequestTitle] = useState<string | null>(null)
   const [pullRequestBody, setPullRequestBody] = useState<string | null>(null)
   const [isCreatingPullRequest, setIsCreatingPullRequest] = useState<boolean>(false)
+  const [userMentionedPullRequest, setUserMentionedPullRequest] = useState<PullRequest | null>(null)
+  const [userMentionedPullRequests, setUserMentionedPullRequests] = useState<PullRequest[] | null>(null)
   const [pullRequest, setPullRequest] = useState<PullRequest | null>(null)
-  const [pullRequests, setPullRequests] = useState<PullRequest[]>([])
   const [baseBranch, setBaseBranch] = useState<string>(branch)
   const [featureBranch, setFeatureBranch] = useState<string | null>(null)
-
+  const [commitToPR, setCommitToPR] = useState<boolean>(false) // controls whether or not we commit to the userMetionedPullRequest or create a new pr
+  const [commitToPRIsOpen, setCommitToPRIsOpen] = useState<boolean>(false)
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const { data: session } = useSession()
@@ -507,14 +525,18 @@ function App({
         })
         const data = await response.json()
         if (data.status == "success") {
-          const { repo_name, messages, snippets, code_suggestions, pull_request } = data.data
+          const { repo_name, messages, snippets, original_code_suggestions, code_suggestions, pull_request, pull_request_title, pull_request_body, user_mentioned_pull_request } = data.data
           console.log(repo_name, messages, snippets)
           setRepoName(repo_name)
           setRepoNameValid(true)
           setMessages(messages)
           setSnippets(snippets)
+          setOriginalSuggestedChanges(original_code_suggestions)
           setSuggestedChanges(code_suggestions)
           setPullRequest(pull_request)
+          setPullRequestTitle(pull_request_title)
+          setPullRequestBody(pull_request_body)
+          setUserMentionedPullRequest(user_mentioned_pull_request)
         } else {
           toast({
             title: "Failed to load message",
@@ -585,6 +607,63 @@ function App({
     }
   }, [repoName])
 
+  const save = async (
+    currentRepoName: string,
+    currentMessages: Message[],
+    currentSnippets: Snippet[],
+    currentOriginalCodeSuggestions: StatefulCodeSuggestion[],
+    currentSuggestedChanges: StatefulCodeSuggestion[],
+    currentPullRequest: PullRequest | null = null,
+    currentPullRequestTitle: string | null = null,
+    currentPullRequestBody: string | null = null,
+    currentUserMentionedPullRequest: PullRequest | null = null,
+  ) => {
+    const saveResponse = await fetch("/backend/messages/save", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        // @ts-ignore
+        "Authorization": `Bearer ${session?.user.accessToken}`
+      },
+      body: JSON.stringify(
+        {
+          repo_name: currentRepoName || repoName, 
+          messages: currentMessages || messages, 
+          snippets: currentSnippets || snippets, 
+          message_id: messagesId || "",
+          original_code_suggestions: currentOriginalCodeSuggestions || originalSuggestedChanges,
+          code_suggestions: currentSuggestedChanges || originalSuggestedChanges,
+          pull_request: currentPullRequest || pullRequest,
+          pull_request_title: currentPullRequestTitle || pullRequestTitle,
+          pull_request_body: currentPullRequestBody || pullRequestBody,
+          user_mentioned_pull_request: currentUserMentionedPullRequest || userMentionedPullRequest
+        }
+      )
+    })
+    const saveData = await saveResponse.json()
+    if (saveData.status == "success") {
+      const { message_id } = saveData
+      if (!messagesId && message_id) {
+        setMessagesId(message_id)
+        const updatedUrl = `/c/${message_id}`;
+        window.history.pushState({}, '', updatedUrl);
+      }
+    } else {
+      console.warn("Failed to save message", saveData)
+    }
+  }
+
+  const debouncedSave = useCallback(debounce((repoName, messages, snippets, suggestedChanges, pullRequest) => {
+    console.log("saving...")
+    save(repoName, messages, snippets, suggestedChanges, pullRequest);
+  }, 2000, { leading: true, maxWait: 5000 }), []); // can tune these timeouts
+
+  useEffect(() => {
+    if (messages.length > 0 && snippets.length > 0) {
+      debouncedSave(repoName, messages, snippets, suggestedChanges, pullRequest);
+    }
+  }, [repoName, messages, snippets, suggestedChanges, pullRequest]);
+
   const reactCodeMirrors = suggestedChanges.map((suggestion, index) => {
     const fileExtension = suggestion.filePath.split(".").pop();
     // default to javascript
@@ -596,7 +675,7 @@ function App({
     return (
       <CodeMirrorMerge
         theme={dracula}
-        revertControls={"b-to-a"}
+        revertControls={"a-to-b"}
         collapseUnchanged={{
           margin: 3,
           minSize: 4,
@@ -614,13 +693,12 @@ function App({
         />
         <Modified
           value={suggestion.newCode}
-          readOnly={suggestion.state != "done"}
+          readOnly={suggestion.state != "done" && suggestion.state != "error"}
           extensions={[
             ...(languageExtension ? [languageExtension] : [])
           ]}
           onChange={debounce((value: string) => {
             setSuggestedChanges((suggestedChanges) => suggestedChanges.map((suggestion, i) => i == index ? { ...suggestion, newCode: value } : suggestion))
-            save(repoName, messages, snippets, suggestedChanges, pullRequest)
           }, 1000)}
         />
       </CodeMirrorMerge>
@@ -653,45 +731,11 @@ function App({
 
   const lastAssistantMessageIndex = messages.findLastIndex((message) => message.role === "assistant" && !message.annotations?.pulls && message.content.trim().length > 0)
 
-  const save = async (
-    currentRepoName: string,
-    currentMessages: Message[],
-    currentSnippets: Snippet[],
-    currentSuggestedChanges: CodeSuggestion[] = [],
-    currentPullRequest: PullRequest | null = null
+  const applySuggestions = async (
+    codeSuggestions: CodeSuggestion[],
+    commitToPR: boolean,
   ) => {
-    const saveResponse = await fetch("/backend/messages/save", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        // @ts-ignore
-        "Authorization": `Bearer ${session?.user.accessToken}`
-      },
-      body: JSON.stringify(
-        {
-          repo_name: currentRepoName || repoName, 
-          messages: currentMessages || messages, 
-          snippets: currentSnippets || snippets, 
-          message_id: messagesId || "",
-          code_suggestions: currentSuggestedChanges || suggestedChanges,
-          pull_request: currentPullRequest || pullRequest
-        }
-      )
-    })
-    const saveData = await saveResponse.json()
-    if (saveData.status == "success") {
-      const { message_id } = saveData
-      if (!messagesId && message_id) {
-        setMessagesId(message_id)
-        const updatedUrl = `/c/${message_id}`;
-        window.history.pushState({}, '', updatedUrl);
-      }
-    } else {
-      console.warn("Failed to save message", saveData)
-    }
-  }
-
-  const applySuggestions = async (codeSuggestions: CodeSuggestion[]) => {
+    isStream.current = true
     let currentCodeSuggestions: StatefulCodeSuggestion[] = codeSuggestions.map((suggestion) => ({
       ...suggestion,
       state: "pending",
@@ -713,8 +757,8 @@ function App({
 
       try {
         const reader = streamedResponse.body!.getReader();
-        for await (const currentState of streamMessages(reader, undefined, 5 * 60 * 1000)) {
-          console.log(currentState)
+        for await (const currentState of streamMessages(reader, isStream, 5 * 60 * 1000)) {
+          // console.log(currentState)
           if (currentState.error) {
             throw new Error(currentState.error)
           }
@@ -722,42 +766,24 @@ function App({
             filePath: suggestion.file_path,
             originalCode: suggestion.original_code,
             newCode: suggestion.new_code,
+            fileContents: suggestion.file_contents,
             state: suggestion.state,
             error: suggestion.error,
           }))
           setSuggestedChanges(currentCodeSuggestions)
-          save(repoName, messages, snippets, currentCodeSuggestions, pullRequest)
         }
-        console.log("here")
-
-        // check all have state=done
-        if (!currentCodeSuggestions.every((suggestion) => suggestion.state == "done")) {
-          throw new Error("Some changes failed to apply")
+        console.log(isStream.current)
+        if (!isStream.current) {
+          currentCodeSuggestions = currentCodeSuggestions.map((suggestion) => (
+            suggestion.state == "done" ? suggestion : {
+              ...suggestion,
+              originalCode: suggestion.fileContents || suggestion.originalCode,
+              state: "error",
+            }
+          ))
+          console.log(currentCodeSuggestions)
+          setSuggestedChanges(currentCodeSuggestions)
         }
-
-        setPatchesValidated(true)
-
-        const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
-          body: JSON.stringify({
-            repo_name: repoName,
-            modify_files_dict: suggestedChanges.reduce((acc: Record<string, { original_contents: string, contents: string }>, suggestion: StatefulCodeSuggestion) => {
-              acc[suggestion.filePath] = {
-                original_contents: suggestion.originalCode,
-                contents: suggestion.newCode,
-              };
-              return acc;
-            }, {}),
-            messages: messages,
-          }),
-        })
-        
-        const prData = await prMetadata.json()
-        const { title, description, branch: featureBranch } = prData
-        setFeatureBranch(featureBranch || "sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
-        setPullRequestTitle(title || "Sweep Chat Suggested Changes")
-        setPullRequestBody(description || "Suggested changes by Sweep Chat.")
-
-        save(repoName, messages, snippets, suggestedChanges, pullRequest)
       } catch (e: any) {
         console.error(e)
         toast({
@@ -766,24 +792,45 @@ function App({
           variant: "destructive",
           duration: Infinity,
         })
+        currentCodeSuggestions = currentCodeSuggestions.map((suggestion) => (
+          suggestion.state == "done" ? suggestion : {
+            ...suggestion,
+            originalCode: suggestion.fileContents || suggestion.originalCode,
+            state: "error",
+          }
+        ))
+        console.log(currentCodeSuggestions)
         setSuggestedChanges(currentCodeSuggestions)
-        setPatchesValidated(false)
-        currentCodeSuggestions = currentCodeSuggestions.map((suggestion) => ({
-          ...suggestion,
-          state: suggestion.state != "done" ? "error" : suggestion.state,
-        }))
         posthog.capture("auto fix error", {
           error: e.message,
         })
       } finally {
-          setIsProcessingSuggestedChanges(false);
+        isStream.current = false
+        setIsProcessingSuggestedChanges(false);
+
+        if (!featureBranch || !pullRequestTitle || !pullRequestBody) {
+          const prMetadata = await authorizedFetch("/backend/create_pull_metadata", {
+            body: JSON.stringify({
+              repo_name: repoName,
+              modify_files_dict: suggestedChanges.reduce((acc: Record<string, { original_contents: string, contents: string }>, suggestion: StatefulCodeSuggestion) => {
+                acc[suggestion.filePath] = {
+                  original_contents: suggestion.originalCode,
+                  contents: suggestion.newCode,
+                };
+              return acc;
+              }, {}),
+              messages: messages,
+            }),
+          })
+          
+          const prData = await prMetadata.json()
+          const { title, description, branch: featureBranch } = prData
+          setFeatureBranch(featureBranch || "sweep-chat-suggested-changes-" + new Date().toISOString().slice(0, 19).replace('T', '_').replace(':', '_'))
+          setPullRequestTitle(title || "Sweep Chat Suggested Changes")
+          setPullRequestBody(description || "Suggested changes by Sweep Chat.")
+        }
       }
     })();
-    setTimeout(() => {
-      if (messagesContainerRef.current) {
-        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-      }
-    }, 400);
   }
 
   const startStream = async (
@@ -871,12 +918,6 @@ function App({
       }
     }
 
-    save(
-      repoName,
-      newMessages,
-      currentSnippets
-    );
-
     const chatResponse = await fetch("/backend/chat", {
       method: "POST",
       headers: {
@@ -905,7 +946,6 @@ function App({
         streamedMessages = jsonpatch.applyPatch(streamedMessages, patch).newDocument
         setMessages([...newMessages, ...streamedMessages])
         if (streamedMessages.length > messageLength) {
-          save(repoName, newMessages, currentSnippets, suggestedChanges, pullRequest)
           messageLength = streamedMessages.length;
         }
       }
@@ -948,16 +988,6 @@ function App({
       ])
     }
 
-    save(
-      repoName,
-      [
-        ...newMessages,
-        ...streamedMessages.slice(0, streamedMessages.length - 1),
-        lastMessage
-      ],
-      currentSnippets
-    );
-
     const surveyID = process.env.NEXT_PUBLIC_SURVEY_ID
     if (surveyID && !localStorage.getItem(`hasInteractedWithSurvey_${surveyID}`)) {
       setShowSurvey(true);
@@ -982,6 +1012,11 @@ function App({
     setMessages(newMessages);
     setCurrentMessage("");
     const pulls = await parsePullRequests(repoName, currentMessage, octokit!)
+    if (pulls.length) {
+      setUserMentionedPullRequest(pulls[pulls.length - 1])
+      setCommitToPR(true)
+    }
+    setUserMentionedPullRequests(pulls)
     newMessages = [...messages, { content: currentMessage, role: "user", annotations: { pulls } }];
     setMessages(newMessages);
     setCurrentMessage("");
@@ -1005,7 +1040,7 @@ function App({
           }}
         />
       )}
-      <div className={`mb-4 w-full flex items-center ${repoNameValid ? "" : "grow"}`}>
+      <div className={`mb-4 w-full flex items-center ${repoNameValid || defaultMessageId ? "" : "grow"}`}>
         {/* <img src="https://avatars.githubusercontent.com/u/170980334?v=4" className="w-12 h-12 rounded-full" /> */}
         <AutoComplete
           options={repos.map((repo) => ({label: repo.full_name, value: repo.full_name}))}
@@ -1164,15 +1199,14 @@ function App({
           setSnippets={setSnippets}
           repoName={repoName}
           branch={branch}
-          pulls={pullRequests}
           k={k}
         /> : <></>}
       <div
         ref={messagesContainerRef}
         className="w-full border flex-grow mb-4 p-4 max-h-[90%] overflow-y-auto rounded-xl"
-        hidden={!repoNameValid}
+        hidden={!repoNameValid && !defaultMessageId}
       >
-        {messages.map((message, index) => (
+        {messages.length > 0 ? messages.map((message, index) => (
           <MessageDisplay
             key={index}
             index={index}
@@ -1186,7 +1220,11 @@ function App({
               setOpenSuggestionDialog(false);
 
               const pulls = await parsePullRequests(repoName, content, octokit!)
-              setPullRequests(pulls)
+              if (pulls.length) {
+                setUserMentionedPullRequest(pulls[pulls.length - 1])
+                setCommitToPR(true)
+              }
+              setUserMentionedPullRequests(pulls)
 
               const newMessages: Message[] = [
                 ...messages.slice(0, index),
@@ -1208,12 +1246,23 @@ function App({
             onApplyChanges={(codeSuggestions: CodeSuggestion[]) => {
               setOpenSuggestionDialog(true)
               if (suggestedChanges.length == 0) {
-                applySuggestions(codeSuggestions)
+                setOriginalSuggestedChanges(codeSuggestions)
+                applySuggestions(codeSuggestions, commitToPR)
               }
             }}
             showApplySuggestedChangeButton={!openSuggestionDialog}
+            commitToPR={commitToPR}
           />
-        ))}
+        )): (
+          defaultMessageId.length > 0 && (
+            <div className="space-y-4">
+              <Skeleton className="h-12 ml-32 rounded-md" />
+              <Skeleton className="h-12 mr-32 rounded-md" />
+              <Skeleton className="h-12 ml-64 rounded-md" />
+              <Skeleton className="h-12 mr-64 rounded-md" />
+            </div>
+          )
+        )}
         {isLoading && (
           <div className="flex justify-around w-full py-2">
             <PulsingLoader size={1.5} />
@@ -1221,23 +1270,35 @@ function App({
         )}
         {openSuggestionDialog && (
           <div className="bg-zinc-900 rounded-xl p-4 mt-8">
-            <div className="flex justify-between mb-4">
+            <div className="flex justify-between mb-4 align-start">
+              <div>
+                <Button
+                  className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0 pt-0"
+                  onClick={() => applySuggestions(originalSuggestedChanges, commitToPR)}
+                  aria-label="Retry"
+                >
+                  <FaArrowsRotate />&nbsp;&nbsp;Retry
+                </Button>
+                <Button
+                  className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0 pt-0"
+                  onClick={() => {
+                    isStream.current = false
+                  }}
+                  aria-label="Stop"
+                  disabled={!isStream.current}
+                >
+                  <FaStop />&nbsp;&nbsp;Stop
+                </Button>
+              </div>
               <Button
-                className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
-                onClick={() => applySuggestions(suggestedChanges)}
-                aria-label="Retry"
-              >
-                <FaArrowsRotate />&nbsp;&nbsp;Retry
-              </Button>
-              <Button
-                className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0"
+                className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0 pt-0"
                 onClick={() => setOpenSuggestionDialog(false)}
                 aria-label="Close"
               >
                 <FaTimes />&nbsp;&nbsp;Close
               </Button>
             </div>
-            {(isProcessingSuggestedChanges || isCreatingPullRequest || !patchesValidated) && (
+            {(isProcessingSuggestedChanges || isCreatingPullRequest || !suggestedChanges.every((suggestion) => suggestion.state == "done")) && (
               <div className="flex justify-around w-full pb-2 mb-4">
                 <p>{isProcessingSuggestedChanges ? "I'm currently processing and applying these patches, and fixing any errors along the way. This may take a few minutes." : (isCreatingPullRequest ? "Creating pull request..." : "Some patches failed to validate, so you may get some unexpected changes. You can try to manually create a PR with the proposed changes. If you think this is an error, feel free to report this to us.")}</p>
               </div>
@@ -1265,26 +1326,40 @@ function App({
               ))}
               {!isProcessingSuggestedChanges && (
                 <>
-                  <Input
-                    value={pullRequestTitle || ""}
-                    onChange={(e) => setPullRequestTitle(e.target.value)}
-                    placeholder="Pull Request Title"
-                    className="w-full mb-4 text-zinc-300"
-                    disabled={pullRequestTitle == null}
-                  />
-                  <Textarea
-                    value={pullRequestBody || ""}
-                    onChange={(e) => setPullRequestBody(e.target.value)}
-                    placeholder="Pull Request Body"
-                    className="w-full mb-4 text-zinc-300"
-                    disabled={pullRequestBody == null}
-                    rows={8}
-                  />
+                  { commitToPR && userMentionedPullRequest ?
+                    <></>
+                    :
+                    <><Input
+                      value={pullRequestTitle || ""}
+                      onChange={(e) => setPullRequestTitle(e.target.value)}
+                      placeholder="Pull Request Title"
+                      className="w-full mb-4 text-zinc-300"
+                      disabled={pullRequestTitle == null}
+                    />
+                    <Textarea
+                      value={pullRequestBody || ""}
+                      onChange={(e) => setPullRequestBody(e.target.value)}
+                      placeholder="Pull Request Body"
+                      className="w-full mb-4 text-zinc-300"
+                      disabled={pullRequestBody == null}
+                      rows={8}
+                    /></>
+                  }
+                  
                   <div className="flex grow items-center mb-4">
                     <Input className="flex items-center w-[600px]" value={baseBranch || ""} onChange={(e) => setBaseBranch(e.target.value)} placeholder="Base Branch" style={{ opacity: isProcessingSuggestedChanges ? 0.5 : 1 }} />
                     <FaArrowLeft className="mx-4" />
                     <Input className="flex items-center w-[600px]" value={featureBranch || ""} onChange={(e) => setFeatureBranch(e.target.value)} placeholder="Feature Branch" style={{ opacity: isProcessingSuggestedChanges ? 0.5 : 1 }} />
                   </div>
+                  {!suggestedChanges.every((suggestion) => suggestion.state == "done") && (
+                    <Alert className="mb-4 bg-yellow-900">
+                      <FaExclamationTriangle className="h-4 w-4" />
+                      <AlertTitle>Warning</AlertTitle>
+                      <AlertDescription>
+                        Some patches failed to validate, so you may get some unexpected changes. You can try to manually create a PR with the proposed changes. If you think this is an error, please to report this to us.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   <Button 
                     className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
                     onClick={async () => {
@@ -1294,19 +1369,36 @@ function App({
                         return acc;
                       }, {})
                       try {
-                        const response = await authorizedFetch(
-                          `/backend/create_pull`,
-                          {
-                            body: JSON.stringify({
-                              repo_name: repoName,
-                              file_changes: file_changes,
-                              branch: "sweep-chat-patch-" + new Date().toISOString().split("T")[0], // use ai for better branch name, title, and body later
-                              base_branch: baseBranch,
-                              title: pullRequestTitle,
-                              body: pullRequestBody + `\n\nSuggested changes by Sweep Chat, from ${window.location.origin}/c/${messagesId}`,
-                            }),
-                          }
-                        )
+                        let response: Response | undefined = undefined
+                        console.log("commit topr", commitToPR)
+                        if (commitToPR && userMentionedPullRequest) {
+                          response = await authorizedFetch(
+                            `/backend/commit_to_pull`,
+                            {
+                              body: JSON.stringify({
+                                repo_name: repoName,
+                                file_changes: file_changes,
+                                pr_number: String(userMentionedPullRequest?.number),
+                                base_branch: baseBranch,
+                              }),
+                            }
+                          )
+                        } else {
+                          response = await authorizedFetch(
+                            `/backend/create_pull`,
+                            {
+                              body: JSON.stringify({
+                                repo_name: repoName,
+                                file_changes: file_changes,
+                                branch: "sweep-chat-patch-" + new Date().toISOString().split("T")[0], // use ai for better branch name, title, and body later
+                                base_branch: baseBranch,
+                                title: pullRequestTitle,
+                                body: pullRequestBody + `\n\nSuggested changes from Sweep Chat by @${session?.user?.username}. Continue chatting at ${window.location.origin}/c/${messagesId}.`,
+                              }),
+                            }
+                          )
+                        }
+                        
                         const data = await response.json()
                         const {pull_request: pullRequest} = data
                         console.log(pullRequest)
@@ -1321,7 +1413,7 @@ function App({
                             }
                           }
                         ])
-                        save(repoName, messages, snippets, suggestedChanges, pullRequest)
+                        // save(repoName, messages, snippets, suggestedChanges, pullRequest)
                       } catch (e) {
                         toast({
                           title: "Error",
@@ -1336,7 +1428,9 @@ function App({
                     }}
                     disabled={isCreatingPullRequest || isProcessingSuggestedChanges}
                   >
-                    Create Pull Request
+                    { commitToPR && userMentionedPullRequest ? 
+                      `Commit to Pull Request ${userMentionedPullRequest?.number}` : "Create Pull Request"
+                    }
                   </Button>
                 </>
               )}
@@ -1344,7 +1438,7 @@ function App({
           </div>
         )}
       </div>
-      {repoNameValid && (
+      {(repoNameValid || defaultMessageId) && (
         <div className={`flex w-full`}>
           {isStream.current ? (
             <Button
@@ -1374,6 +1468,10 @@ function App({
                 setFeatureBranch(null)
                 setPullRequestTitle(null)
                 setPullRequestBody(null)
+                setUserMentionedPullRequest(null)
+                setUserMentionedPullRequests(null)
+                setCommitToPR(false)
+                setCommitToPRIsOpen(false)
               }}
               disabled={isLoading}
             >
@@ -1419,6 +1517,68 @@ function App({
               </Button>
             </DialogContent>
           </Dialog>
+          <Collapsible
+            open={commitToPRIsOpen}
+            onOpenChange={setCommitToPRIsOpen}
+            className="w-[350px] space-y-2"
+          >
+            <div className="flex items-center justify-between space-x-4 px-4">
+              <CollapsibleTrigger asChild>
+                { userMentionedPullRequest && commitToPR ? 
+                  <Button
+                    className="mr-2"
+                    variant="secondary"
+                    disabled={isLoading}
+                  >
+                    <FaCodeBranch />&nbsp;&nbsp;Will commit to {userMentionedPullRequest.number}
+                  </Button>
+                  :
+                  <Button
+                    className="mr-2"
+                    variant="secondary"
+                    disabled={isLoading}
+                  >
+                    <FaCodeBranch />&nbsp;&nbsp;Will create new PR
+                  </Button>
+                } 
+              </CollapsibleTrigger>
+            </div>
+            <CollapsibleContent className="space-y-2">
+              { commitToPR ? 
+              <Button 
+                className="mr-2"
+                variant="secondary"
+                disabled={isLoading}
+                onClick={() => {
+                  setCommitToPR(false)
+                  setCommitToPRIsOpen(false)
+                }}>
+                Will create new PR
+              </Button>
+              : <></>}
+              {// loop through all pull requests
+                userMentionedPullRequests?.map((pr) => {
+                  // dont show current selected pr, unless we are creating a pr rn
+                  if (pr.number !== userMentionedPullRequest?.number || !commitToPR) {
+                    return (
+                      <Button
+                        className="mr-2"
+                        variant="secondary"
+                        disabled={isLoading}
+                        onClick={() => {
+                          setCommitToPR(true)
+                          setUserMentionedPullRequest(pr)
+                          setCommitToPRIsOpen(false)
+                        }}
+                      >
+                        <FaCodeBranch />&nbsp;&nbsp;Will commit to {pr.number}
+                      </Button>
+                    )
+                  }
+                })
+              }
+            </CollapsibleContent>
+          </Collapsible>
           <Input
             data-ph-capture-attribute-current-message={currentMessage}
             onKeyUp={async (e) => {
@@ -1430,7 +1590,7 @@ function App({
             className="p-4"
             value={currentMessage}
             placeholder="Type a message..."
-            disabled={isLoading}
+            disabled={isLoading || !repoNameValid}
           />
           <Button
             className="ml-2 bg-blue-900 text-white hover:bg-blue-800"

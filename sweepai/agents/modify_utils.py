@@ -361,7 +361,7 @@ ORIGINAL_CODE_NOT_FOUND_PROMPT = """The original_code provided does not appear t
 {original_code}
 ```
 
-Let's fix this error by responding in the following format:
+Let's fix this error by responding in the following format. Fill everything in square brackets with the actual contents.
 
 # Thinking
 <thinking>
@@ -370,17 +370,12 @@ Let's fix this error by responding in the following format:
     [additional functions]
 Based on these options, deterimine the most similar function header to the original_code you provided.
 
-2. Copy the most similar section of code from the ACTUAL contents of {file_path}. Follow this format:
+2. Now, copy JUST THE FIRST OR LAST TEN LINES of the ACTUAL contents of {file_path} to the previous <original_code>. This will go into the <original_code> parameter of the new function call. Follow this format:
 ```
-ACTUAL contents of {file_path} that are most similar to original_code
-```
-
-3. Copy the most similar section of the ACTUAL contents of {file_path} to the previous <original_code>. This will go into the <original_code> parameter of the new function call. Follow this format:
-```
-The most similar section of the ACTUAL contents of {file_path}
+[JUST FIRST OR LAST TEN LINES of the ACTUAL contents of {file_path}]
 ```
 
-4. Write the updated code, applying the changes from your previously provided <new_code> section into the new <original_code> parameter. This will go into the new <new_code> parameter.
+3. Write the updated code, applying the changes from your previously provided <new_code> section into the new <original_code> parameter. This will go into the new <new_code> parameter.
 </thinking>
 
 # Function call
@@ -839,9 +834,9 @@ def create_tool_call_response(tool_name: str, tool_call_response_contents: str) 
 def get_latest_contents(file_name: str, cloned_repo: ClonedRepo, modify_files_dict: dict) -> str:
     if file_name in modify_files_dict and "contents" in modify_files_dict[file_name]:
         return modify_files_dict[file_name]["contents"]
-    elif file_name in cloned_repo.get_file_list():
+    try:
         return cloned_repo.get_file_contents(file_name)
-    else:
+    except FileNotFoundError:
         return ""
     
 def get_surrounding_lines(file_contents: str, best_match: str) -> tuple[str, str]:
@@ -1207,7 +1202,6 @@ def handle_function_call(
                     "contents": file_contents,
                     "original_contents": file_contents,
                 }
-            llm_state["fcrs"][current_fcr_index].is_completed = True
             if warning_message:
                 original_code_indents = len(original_code) - len(original_code.lstrip())
                 new_code_indents = len(new_code) - len(new_code.lstrip())
@@ -1222,15 +1216,11 @@ def handle_function_call(
                 # Incomplete changes, should use a different prompt realistically
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
                 modify_files_dict[file_name]['contents'] = new_file_contents
-                llm_state["attempt_lazy_change"] = True
+                llm_state["attempt_lazy_change"] = False
 
                 llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
-            elif diff_string.count("\n+") + diff_string.count("\n-") > 20:
-                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
-                modify_files_dict[file_name]['contents'] = new_file_contents
-                llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
             else:
-                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
+                # automatically continue case
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_response, llm_state = finish_applying_changes(modify_files_dict, llm_state, current_fcr_index)
     elif tool_name == "create_file":
@@ -1377,6 +1367,7 @@ def get_error_message_formatted(
 
                     if not best_match.strip():
                         error_messages.append(f"<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nBut the code is no where to be found in the file. There are also no similar code snippets in this file.{too_long_message}{ellipses_message}")
+                        error_indices.append(i)
                         continue
                     if best_score != 100:
                         if not check_valid_parentheses(best_match):

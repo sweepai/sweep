@@ -47,9 +47,9 @@ async function* streamMessages(
       }
     }
   }
-  if (buffer) {
-    console.warn("Buffer:", buffer)
-  }
+  // if (buffer) {
+  //   console.warn("Buffer:", buffer)
+  // }
 }
 
 export { streamMessages }

@@ -52,6 +52,7 @@ interface CodeSuggestion {
   filePath: string;
   originalCode: string;
   newCode: string;
+  fileContents: string;
 }
 
 interface StatefulCodeSuggestion extends CodeSuggestion {
