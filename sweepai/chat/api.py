@@ -920,7 +920,6 @@ async def create_pull(
     base_branch: str = Body(""),
     access_token: str = Depends(get_token_header)
 ):
-    breakpoint()
     with Timer() as timer:
         g = get_authenticated_github_client(repo_name, access_token)
     logger.debug(f"Getting authenticated GitHub client took {timer.time_elapsed} seconds")

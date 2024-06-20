@@ -516,7 +516,7 @@ if __name__ == "__main__":
     except Exception as e:
         import sys
         info = sys.exc_info()
-        import pdb
+        import pdb # noqa
         # pylint: disable=no-member
         pdb.post_mortem(info[2])
         raise e

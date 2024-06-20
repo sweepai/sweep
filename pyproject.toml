@@ -99,4 +99,4 @@ disable=[
 ]
 
 [tool.ruff]
-select = ["T201"]
+select = ["T100"]
