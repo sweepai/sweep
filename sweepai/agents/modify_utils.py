@@ -1194,7 +1194,7 @@ def handle_function_call(
                     llm_response = "DONE"
                 llm_state["attempt_lazy_change"] = True # successful application with no warning message means we can attempt lazy change again
         if not error_message:
-            diff_string = generate_diff(file_contents, new_file_contents)
+            _diff_string = generate_diff(file_contents, new_file_contents)
             current_fcr_index = get_current_task_index(llm_state["fcrs"])
             # set contents
             if file_name not in modify_files_dict:

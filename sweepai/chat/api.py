@@ -733,7 +733,7 @@ def chat_codebase_stream(
             try:
                 cloned_repo.get_contents(code_suggestion["file_path"])
                 change_type = "modify"
-            except Exception as e:
+            except Exception as _e:
                 change_type = "create"
             file_change_requests.append(
                 FileChangeRequest(
