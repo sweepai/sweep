@@ -2,7 +2,7 @@
   "name": "sweep_chat",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
+  "type": "commonjs",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -10,7 +10,8 @@
     "lint": "next lint",
     "e2e:run": "cypress run",
     "e2e:open": "cypress open --e2e -b electron -d",
-    "e2e:ci": "start-server-and-test start 3000 e2e:run"
+    "e2e:ci": "start-server-and-test start 3000 e2e:run",
+    "format": "prettier --write --ignore-unknown \"**/*.{js,jsx,ts,tsx}\""
   },
   "dependencies": {
     "@codemirror/lang-go": "^6.0.1",
@@ -75,8 +76,22 @@
     "eslint": "^8",
     "eslint-config-next": "14.2.3",
     "postcss": "^8",
+    "prettier": "3.3.2",
     "start-server-and-test": "^2.0.3",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
+  },
+  "prettier": {
+    "semi": false,
+    "singleQuote": true,
+    "tabWidth": 2,
+    "trailingComma": "es5",
+    "parser": "typescript",
+    "overrides": [{
+      "files": "*.css",
+      "options": {
+        "parser": "css"
+      }
+    }]
   }
 }

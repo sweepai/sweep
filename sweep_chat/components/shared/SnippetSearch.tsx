@@ -1,6 +1,6 @@
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 import {
   Dialog,
@@ -10,19 +10,18 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from '@/components/ui/dialog'
 
-import { SnippetBadge } from "../shared/SnippetBadge";
-import { Message, PullRequest, Snippet } from "@/lib/types";
-import { Dispatch, SetStateAction, useState } from "react";
-import { ScrollArea } from "../ui/scroll-area";
-import { toast } from "../ui/use-toast";
-import { posthog } from "@/lib/posthog";
-import { streamMessages } from "@/lib/streamingUtils";
-import { useSession } from "next-auth/react";
-import { Session } from "next-auth";
-import PulsingLoader from "./PulsingLoader";
-
+import { SnippetBadge } from '../shared/SnippetBadge'
+import { Message, PullRequest, Snippet } from '@/lib/types'
+import { Dispatch, SetStateAction, useState } from 'react'
+import { ScrollArea } from '../ui/scroll-area'
+import { toast } from '../ui/use-toast'
+import { posthog } from '@/lib/posthog'
+import { streamMessages } from '@/lib/streamingUtils'
+import { useSession } from 'next-auth/react'
+import { Session } from 'next-auth'
+import PulsingLoader from './PulsingLoader'
 
 const SnippetSearch = ({
   snippets,
@@ -31,20 +30,20 @@ const SnippetSearch = ({
   branch,
   k,
 }: {
-  snippets: Snippet[];
-  setSnippets: Dispatch<SetStateAction<Snippet[]>>;
-  repoName: string;
-  branch: string;
-  k: number;
+  snippets: Snippet[]
+  setSnippets: Dispatch<SetStateAction<Snippet[]>>
+  repoName: string
+  branch: string
+  k: number
 }) => {
   const [newSnippets, setNewSnippets] = useState<Snippet[]>([])
-  const [searchQuery, setSearchQuery] = useState<string>("")
-  const [searchIsLoading, setSearchIsLoading] = useState<boolean>(false);
-  const [progressMessage, setProgressMessage] = useState<string>("")
+  const [searchQuery, setSearchQuery] = useState<string>('')
+  const [searchIsLoading, setSearchIsLoading] = useState<boolean>(false)
+  const [progressMessage, setProgressMessage] = useState<string>('')
   const { data: session } = useSession()
 
   const searchForSnippets = async () => {
-    setSearchIsLoading(true);
+    setSearchIsLoading(true)
     setNewSnippets([])
     // We purposefully do not include any pull information as this tends to bias the search
     // Subject to change
@@ -54,18 +53,18 @@ const SnippetSearch = ({
       const snippetsResponse = await fetch(`/backend/search`, {
         method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           // @ts-ignore
-          "Authorization": `Bearer ${session?.user.accessToken}`
+          Authorization: `Bearer ${session?.user.accessToken}`,
         },
         body: JSON.stringify({
           repo_name: repoName,
           query: searchQuery,
-          annotations: annotations
-        })
-      });
+          annotations: annotations,
+        }),
+      })
       let currentSnippets: Snippet[] = []
-      const reader = snippetsResponse.body?.getReader()!;
+      const reader = snippetsResponse.body?.getReader()!
       for await (const chunk of streamMessages(reader)) {
         let streamedMessage = chunk[0]
         setProgressMessage(streamedMessage)
@@ -76,33 +75,33 @@ const SnippetSearch = ({
         }
       }
       if (!currentSnippets.length) {
-        throw new Error("No snippets found")
+        throw new Error('No snippets found')
       }
-      setSearchIsLoading(false);
+      setSearchIsLoading(false)
     } catch (e: any) {
       console.log(e)
       toast({
-        title: "Failed to search codebase",
+        title: 'Failed to search codebase',
         description: `The following error has occurred: ${e.message}. Sometimes, logging out and logging back in can resolve this issue.`,
-        variant: "destructive",
-        duration: Infinity
-      });
-      posthog.capture("SnippetSearch errored", {
+        variant: 'destructive',
+        duration: Infinity,
+      })
+      posthog.capture('SnippetSearch errored', {
         repoName,
         newSnippets,
-        error: e.message
-      });
-      setSearchIsLoading(true);
-      throw e;
+        error: e.message,
+      })
+      setSearchIsLoading(true)
+      throw e
     }
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
       // Call searchForSnippets when Enter key is pressed
-      searchForSnippets();
+      searchForSnippets()
     }
-  };
+  }
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -112,7 +111,8 @@ const SnippetSearch = ({
         <DialogHeader>
           <DialogTitle>Search Repo</DialogTitle>
           <DialogDescription>
-            Make a custom search to fetch relevant snippets that you can choose to add to the context
+            Make a custom search to fetch relevant snippets that you can choose
+            to add to the context
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -120,9 +120,10 @@ const SnippetSearch = ({
             <Label htmlFor="username" className="text-right">
               Search Query
             </Label>
-            <Input 
-              id="username" 
-              placeholder="Custom Search Query" className="col-span-3" 
+            <Input
+              id="username"
+              placeholder="Custom Search Query"
+              className="col-span-3"
               onInput={(event: React.ChangeEvent<HTMLInputElement>) => {
                 setSearchQuery(event.target.value)
               }}
@@ -152,18 +153,18 @@ const SnippetSearch = ({
                 setSnippets={setSnippets}
                 setNewSnippets={setNewSnippets}
                 newSnippets={newSnippets}
-                options={["add"]}
+                options={['add']}
               />
             ))}
           </ScrollArea>
         )}
         <DialogFooter>
-          <Button 
+          <Button
             className="text-white bg-blue-900 hover:bg-blue-800"
             disabled={searchQuery.length == 0 || searchIsLoading}
             onClick={searchForSnippets}
-            >
-            {searchIsLoading ? "Searching..." : "Search"}
+          >
+            {searchIsLoading ? 'Searching...' : 'Search'}
           </Button>
         </DialogFooter>
       </DialogContent>
