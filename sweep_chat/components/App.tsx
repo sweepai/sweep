@@ -1384,7 +1384,7 @@ function App({
             )}
             {isProcessingSuggestedChanges && (
               <div className="flex justify-around w-full pb-2 mb-4">
-                <p>I'm currently processing and applying these patches, and fixing any errors along the way. This may take a few minutes.</p>
+                <p>I&apos;m currently processing and applying these patches, and fixing any errors along the way. This may take a few minutes.</p>
               </div>
             )}
             {isCreatingPullRequest && (
