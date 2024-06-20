@@ -17,7 +17,7 @@ from sweepai.agents.modify import modify
 
 from sweepai.agents.modify_utils import get_error_message_dict, validate_and_parse_function_call
 from sweepai.agents.search_agent import extract_xml_tag
-from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, anthropic_system_message, function_response, pr_format, relevant_snippets_message_for_pr, openai_system_message, query_optimizer_system_prompt, query_optimizer_user_prompt, anthropic_format_message
+from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, anthropic_system_message, function_response, pr_format, relevant_snippets_message_for_pr, openai_system_message, query_optimizer_system_prompt, query_optimizer_user_prompt, openai_format_message, anthropic_format_message
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import CACHE_DIRECTORY, GITHUB_APP_ID, GITHUB_APP_PEM
 from sweepai.core.chat import ChatGPT, call_llm
@@ -536,12 +536,16 @@ def chat_codebase_stream(
             role="user"
         ),
         *messages[:-1],
-        Message(
-            content=anthropic_format_message,
-            role="user",
-        )
     ]
 
+    if len(messages) <= 2:
+        chat_gpt.messages.append(
+            Message(
+                content=openai_format_message if use_openai else anthropic_format_message,
+                role="user",
+            )
+        )
+    
     def stream_state(
         initial_user_message: str,
         snippets: list[Snippet],
