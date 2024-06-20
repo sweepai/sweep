@@ -270,7 +270,7 @@ const UserMessageDisplay = ({
       textareaRef.current.style.height = 'auto'
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
     }
-  }, [editedContent])
+  }, [editedContent, textareaRef])
 
   return (
     <>
@@ -289,10 +289,15 @@ const UserMessageDisplay = ({
           <div className={`text-sm text-white`}>
             {isEditing ? (
               <Textarea
-                className="w-full mb-4 bg-transparent text-white max-w-[500px] w-[500px] hover:bg-initial"
+                className="w-full mb-4 bg-transparent text-white max-w-[800px] w-[800px] hover:bg-initial"
                 ref={textareaRef}
                 value={editedContent}
-                onChange={(e) => setEditedContent(e.target.value)}
+                onChange={(e) => {
+                  setEditedContent(e.target.value)
+                  e.target.style.height = 'auto';
+                  e.target.style.height = `${e.target.scrollHeight}px`;
+                }}
+                style={{ height: (editedContent.split('\n').length + 1) * 16 }}
                 autoFocus
               />
             ) : (
@@ -1588,6 +1593,8 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
             <Image
               src="/banner.png"
               alt="Sweep Chat"
+              width={100}
+              height={100}
               className="h-10 rounded-lg hover:cursor-pointer box-shadow-md"
               onClick={() => {
                 window.location.href = '/'
