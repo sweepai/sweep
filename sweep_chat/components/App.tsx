@@ -18,8 +18,17 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { CaretSortIcon } from "@radix-ui/react-icons"
+} from "@/components/ui/collapsible";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuIndicator,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  NavigationMenuViewport,
+} from "@/components/ui/navigation-menu"
 import { AutoComplete } from "@/components/ui/autocomplete";
 import { Toaster } from "@/components/ui/toaster";
 import { toast } from "@/components/ui/use-toast";
@@ -1187,6 +1196,66 @@ function App({
           value={baseBranch}
           onChange={(e) => setBaseBranch(e.target.value)}
         />
+        <NavigationMenu>
+          <NavigationMenuList>
+            <NavigationMenuItem>
+              <NavigationMenuTrigger className="bg-secondary hover:bg-secondary">
+                { userMentionedPullRequest && commitToPR ? 
+                  <Button
+                    className="w-full"
+                    variant="secondary"
+                    disabled={isLoading}
+                  >
+                    <FaCodeBranch />&nbsp;&nbsp;Will commit to {userMentionedPullRequest.number}
+                  </Button>
+                  :
+                  <Button
+                    className="w-full"
+                    variant="secondary"
+                    disabled={isLoading || !userMentionedPullRequest}
+                  >
+                    <FaCodeBranch />&nbsp;&nbsp;Will create new PR
+                  </Button>
+                } 
+                </NavigationMenuTrigger>
+              <NavigationMenuContent>
+              { commitToPR ? 
+                <Button 
+                  className="w-full"
+                  variant="secondary"
+                  disabled={isLoading}
+                  onClick={() => {
+                    setCommitToPR(false)
+                    setCommitToPRIsOpen(false)
+                  }}>
+                  Will create new PR
+                </Button>
+                : <></>}
+                {// loop through all pull requests
+                  userMentionedPullRequests?.map((pr) => {
+                    // dont show current selected pr, unless we are creating a pr rn
+                    if (pr.number !== userMentionedPullRequest?.number || !commitToPR) {
+                      return (
+                        <Button
+                          className="w-full"
+                          variant="secondary"
+                          disabled={isLoading}
+                          onClick={() => {
+                            setCommitToPR(true)
+                            setUserMentionedPullRequest(pr)
+                            setCommitToPRIsOpen(false)
+                          }}
+                        >
+                          <FaCodeBranch />&nbsp;&nbsp;Will commit to {pr.number}
+                        </Button>
+                      )
+                    }
+                  })
+                }
+              </NavigationMenuContent>
+            </NavigationMenuItem>
+          </NavigationMenuList>
+        </NavigationMenu>
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="outline" className="ml-4">
@@ -1616,78 +1685,6 @@ function App({
               </Button>
             </DialogContent>
           </Dialog>
-          <Collapsible
-            open={commitToPRIsOpen}
-            onOpenChange={setCommitToPRIsOpen}
-            className="w-[350px] space-y-2"
-          >
-            <div className="flex items-center justify-between space-x-4 px-4">
-              <CollapsibleTrigger asChild>
-                { userMentionedPullRequest && commitToPR ? 
-                  <Button
-                    className="mr-2"
-                    variant="secondary"
-                    disabled={isLoading}
-                    onClick={() => {
-                      console.log("commit to pr", commitToPR)
-                      console.log("user selected pr", userMentionedPullRequest)
-                      console.log("user selected prs", userMentionedPullRequests)
-                    }}
-                  >
-                    <FaCodeBranch />&nbsp;&nbsp;Will commit to {userMentionedPullRequest.number}
-                  </Button>
-                  :
-                  <Button
-                    className="mr-2"
-                    variant="secondary"
-                    disabled={isLoading || !userMentionedPullRequest}
-                    onClick={() => {
-                      console.log("commit to pr", commitToPR)
-                      console.log("user selected pr", userMentionedPullRequest)
-                      console.log("user selected prs", userMentionedPullRequests)
-                    }}
-                  >
-                    <FaCodeBranch />&nbsp;&nbsp;Will create new PR
-                  </Button>
-                } 
-              </CollapsibleTrigger>
-            </div>
-            <CollapsibleContent className="space-y-2">
-              { commitToPR ? 
-              <Button 
-                className="mr-2"
-                variant="secondary"
-                disabled={isLoading}
-                onClick={() => {
-                  setCommitToPR(false)
-                  setCommitToPRIsOpen(false)
-                }}>
-                Will create new PR
-              </Button>
-              : <></>}
-              {// loop through all pull requests
-                userMentionedPullRequests?.map((pr) => {
-                  // dont show current selected pr, unless we are creating a pr rn
-                  if (pr.number !== userMentionedPullRequest?.number || !commitToPR) {
-                    return (
-                      <Button
-                        className="mr-2"
-                        variant="secondary"
-                        disabled={isLoading}
-                        onClick={() => {
-                          setCommitToPR(true)
-                          setUserMentionedPullRequest(pr)
-                          setCommitToPRIsOpen(false)
-                        }}
-                      >
-                        <FaCodeBranch />&nbsp;&nbsp;Will commit to {pr.number}
-                      </Button>
-                    )
-                  }
-                })
-              }
-            </CollapsibleContent>
-          </Collapsible>
           <Input
             data-ph-capture-attribute-current-message={currentMessage}
             onKeyUp={async (e) => {
