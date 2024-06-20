@@ -570,7 +570,7 @@ def on_ticket(
                 pull_request_bot = PRSummaryBot()
                 commit_message = pull_request_bot.get_commit_message(modify_files_dict, renames_dict=renames_dict, chat_logger=chat_logger)[:50]
                 modify_files_dict_history.append(copy.deepcopy(modify_files_dict))
-                new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
+                new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()} # pylint: disable=E1101
                 previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
                 new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, file_change_requests)
                 if files_removed and username:
@@ -619,7 +619,7 @@ def on_ticket(
 
             # append all files that have been changed
             if modify_files_dict:
-                for file_name, _ in modify_files_dict.items():
+                for file_name, _ in modify_files_dict.items(): # pylint: disable=E1101
                     changed_files.append(file_name)
 
             # Refresh token
