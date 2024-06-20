@@ -2,24 +2,28 @@ import json
 import os
 
 from sweepai.agents.modify import modify
-from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM
 from sweepai.core.entities import FileChangeRequest
 from sweepai.dataclasses.code_suggestions import CodeSuggestion
-from sweepai.utils.github_utils import ClonedRepo, get_github_client, get_installation_id
+from sweepai.utils.github_utils import MockClonedRepo
 
 
-repo_name = os.environ["REPO_FULL_NAME"]
+repo_full_name = os.environ["REPO_FULL_NAME"]
 branch = os.environ["BRANCH"]
 code_suggestions_path = os.environ["CODE_SUGGESTIONS_PATH"]
+REPO_DIR = os.environ["REPO_DIR"]
 
-org_name, repo = repo_name.split("/")
-installation_id = get_installation_id(org_name, GITHUB_APP_PEM, GITHUB_APP_ID)
-user_token, g = get_github_client(installation_id=installation_id)
-cloned_repo = ClonedRepo(
-    repo_name,
-    installation_id=installation_id,
-    token=user_token,
-    branch=branch
+# org_name, repo = repo_full_name.split("/")
+# installation_id = get_installation_id(org_name, GITHUB_APP_PEM, GITHUB_APP_ID)
+# user_token, g = get_github_client(installation_id=installation_id)
+# cloned_repo = ClonedRepo(
+#     repo_full_name,
+#     installation_id=installation_id,
+#     token=user_token,
+#     branch=branch
+# )
+cloned_repo = MockClonedRepo(
+    _repo_dir=REPO_DIR,
+    repo_full_name=repo_full_name,
 )
 
 file_change_requests = []
@@ -44,7 +48,6 @@ for code_suggestion in code_suggestions:
     )
 
 try:
-    breakpoint()
     for stateful_code_suggestions in modify.stream(
         fcrs=file_change_requests,
         request="",
@@ -54,4 +57,3 @@ try:
         pass
 except Exception as e:
     raise e
-
