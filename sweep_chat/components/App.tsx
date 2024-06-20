@@ -801,7 +801,7 @@ const parsePullRequests = async (
     }
 
     return pulls
-  } catch (e) {
+  } catch (e: any) {
     toast({
       title: 'Failed to retrieve pull request',
       description: `The following error has occurred: ${e.message}. Sometimes, logging out and logging back in can resolve this issue.`,
