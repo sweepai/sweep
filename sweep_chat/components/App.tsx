@@ -39,10 +39,8 @@ import { ContextSideBar } from "./shared/ContextSideBar";
 import { posthog } from "@/lib/posthog";
 
 import CodeMirrorMerge from 'react-codemirror-merge';
-import { javascript } from '@codemirror/lang-javascript';
 import { dracula } from '@uiw/codemirror-theme-dracula';
 import { EditorView } from 'codemirror';
-import { EditorState } from '@codemirror/state';
 import { debounce } from "lodash"
 import { streamMessages } from "@/lib/streamingUtils";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
@@ -286,6 +284,7 @@ const MessageDisplay = ({
   if (matches.some((match) => !match.groups?.closingTag)) {
     matches = []
   }
+  console.log(message)
   return (
     <>
       <div className={`flex justify-start`}>
@@ -379,10 +378,10 @@ const MessageDisplay = ({
       ))}
       {message.annotations?.codeSuggestions && message.annotations?.codeSuggestions.length > 0 && (
         <div className="text-sm max-w-[80%] p-4 rounded bg-zinc-700 space-y-4 mb-4">
-          <Button className="bg-green-800 hover:bg-green-700 text-white" size="sm" onClick={() => setSuggestedChanges((suggestedChanges: StatefulCodeSuggestion[]) => [...suggestedChanges, ...(message.annotations?.codeSuggestions!).map(makeCodeSuggestionStateful)])}>
+          <Button className="bg-green-800 hover:bg-green-700 text-white" size="sm" onClick={() => setSuggestedChanges((suggestedChanges: StatefulCodeSuggestion[]) => [...suggestedChanges, ...message.annotations?.codeSuggestions!])}>
             <FaPlus/>&nbsp;Stage All Changes
           </Button>
-          {message.annotations?.codeSuggestions?.map((suggestion: CodeSuggestion, index: number) => {
+          {message.annotations?.codeSuggestions?.map((suggestion: StatefulCodeSuggestion, index: number) => {
             const fileExtension = suggestion.filePath.split(".").pop()
             let languageExtension = languageMapping["js"];
             if (fileExtension) {
@@ -392,9 +391,30 @@ const MessageDisplay = ({
               <div className="flex flex-col border border-zinc-800" key={index}>
                 <div className="flex justify-between items-center bg-zinc-800 rounded-t-md p-2">
                   <code className="text-zinc-200">{suggestion.filePath}</code>
-                  <Button className="bg-green-800 hover:bg-green-700 text-white" size="sm" onClick={() => setSuggestedChanges((suggestedChanges: StatefulCodeSuggestion[]) => [...suggestedChanges, makeCodeSuggestionStateful(suggestion)])}>
-                    <FaPlus/>&nbsp;Stage Change
-                  </Button>
+                  <div className="flex items-center">
+                    {suggestion.error ? (
+                      <HoverCard openDelay={300} closeDelay={200}>
+                        <HoverCardTrigger>
+                          <FaExclamationTriangle className="hover:cursor-pointer mr-2 text-red-500" style={{marginTop: 2}} />
+                        </HoverCardTrigger>
+                        <HoverCardContent className="w-[800px] max-h-[500px] overflow-y-auto">
+                          <MarkdownRenderer content={`**This patch could not be directly applied. We're sending the LLM the following message to resolve the error:**\n\n${suggestion.error}`} />
+                        </HoverCardContent>
+                      </HoverCard>
+                    ) : (
+                      <HoverCard openDelay={300} closeDelay={200}>
+                        <HoverCardTrigger>
+                          <FaCheck className="text-green-500 mr-4" />
+                        </HoverCardTrigger>
+                        <HoverCardContent className="w-[800px] max-h-[500px] overflow-y-auto">
+                          <p>No errors found. This patch can be applied directly into the codebase.</p>
+                        </HoverCardContent>
+                      </HoverCard>
+                    )}
+                    <Button className="bg-green-800 hover:bg-green-700 text-white" size="sm" onClick={() => setSuggestedChanges((suggestedChanges: StatefulCodeSuggestion[]) => [...suggestedChanges, suggestion])}>
+                      <FaPlus/>&nbsp;Stage Change
+                    </Button>
+                  </div>
                 </div>
                 <CodeMirrorMerge
                   className="w-full"

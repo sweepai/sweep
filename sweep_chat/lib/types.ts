@@ -57,7 +57,7 @@ interface Message {
   }; // This is the function input
   annotations?: {
     pulls?: PullRequest[]
-    codeSuggestions?: CodeSuggestion[];
+    codeSuggestions?: StatefulCodeSuggestion[];
   }
 }
 
