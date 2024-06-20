@@ -1268,7 +1268,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           console.log(currentCodeSuggestions)
           setSuggestedChanges(currentCodeSuggestions)
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error(e)
         toast({
           title: 'Failed to auto-fix changes!',
