@@ -183,6 +183,6 @@ if __name__ == "__main__":
     installation_id = get_installation_id(org_name)
     image_urls = get_image_urls_from_issue(issue_number, repo_full_name, installation_id)
     image_contents = get_image_contents_from_urls(image_urls)
-    breakpoint()
+    breakpoint() # noqa
 
 

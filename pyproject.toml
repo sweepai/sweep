@@ -97,3 +97,6 @@ string-normalization = false
 disable=[
   'no-name-in-module'
 ]
+
+[tool.ruff]
+select = ["T100"]
