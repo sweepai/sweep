@@ -92,8 +92,9 @@ def review_pr(
                         installation_id=installation_id,
                         token=user_token,
                         repo=repository,
-                        branch=pr.head.ref,
                     )
+                    cloned_repo.git_repo.git.fetch("origin", pr.head.sha)
+                    cloned_repo.git_repo.git.checkout(pr.head.sha)
                 except GitCommandError as e:
                     raise e
                 except Exception:
