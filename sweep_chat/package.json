@@ -10,7 +10,8 @@
     "lint": "next lint",
     "e2e:run": "cypress run",
     "e2e:open": "cypress open --e2e -b electron -d",
-    "e2e:ci": "start-server-and-test start 3000 e2e:run"
+    "e2e:ci": "start-server-and-test start 3000 e2e:run",
+    "format": "prettier --write --ignore-unknown \"**/*.{js,jsx,ts,tsx}\""
   },
   "dependencies": {
     "@codemirror/lang-go": "^6.0.1",
@@ -85,6 +86,12 @@
     "singleQuote": true,
     "tabWidth": 2,
     "trailingComma": "es5",
-    "parser": "typescript"
+    "parser": "typescript",
+    "overrides": [{
+      "files": "*.css",
+      "options": {
+        "parser": "css"
+      }
+    }]
   }
 }

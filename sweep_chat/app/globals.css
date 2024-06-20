@@ -103,7 +103,7 @@
     color: #50fa7b;
     font-weight: bold;
     font-size: 1em;
-    font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
+    font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
   }
 
   ol {
