@@ -980,6 +980,7 @@ async def commit_to_pull(
     file_changes: dict[str, str] = Body(...),
     pr_number: str = Body(...),
     base_branch: str = Body(""),
+    commit_message: str = Body(""),
     access_token: str = Depends(get_token_header)
 ):
     with Timer() as timer:
@@ -1002,11 +1003,11 @@ async def commit_to_pull(
         token=access_token,
         repo=repo
     )
-
+    commit_message = commit_message or f"Updated {len(file_changes)} files"
     commit_multi_file_changes(
         cloned_repo,
         file_changes,
-        commit_message=f"Updated {len(file_changes)} files",
+        commit_message=commit_message,
         branch=pr.head.ref,
     )
     
@@ -1073,13 +1074,15 @@ async def write_message_to_disk(
     repo_name: str = Body(...),
     messages: list[Message] = Body(...),
     snippets: list[Snippet] = Body(...),
-    original_code_suggestions: list[CodeSuggestion] = Body([]),
+    original_code_suggestions: list = Body([]),
     code_suggestions: list = Body([]),
     pull_request: dict | None = Body(None),
     pull_request_title: str = Body(""),
     pull_request_description: str = Body(""),
     message_id: str = Body(""),
     user_mentioned_pull_request: dict | None = Body(None),
+    user_mentioned_pull_requests: list[dict] | None = Body(None),
+    commit_to_pr: str= Body("false"),
 ):
     if not message_id:
         message_id = str(uuid.uuid4())
@@ -1092,8 +1095,10 @@ async def write_message_to_disk(
             "code_suggestions": [code_suggestion.__dict__ if isinstance(code_suggestion, CodeSuggestion) else code_suggestion for code_suggestion in code_suggestions],
             "pull_request": pull_request,
             "user_mentioned_pull_request": user_mentioned_pull_request,
+            "user_mentioned_pull_requests": user_mentioned_pull_requests,
             "pull_request_title": pull_request_title,
             "pull_request_description": pull_request_description,
+            "commit_to_pr": commit_to_pr,
         }
         with open(f"{CACHE_DIRECTORY}/messages/{message_id}.json", "w") as file:
             json.dump(data, file)
