@@ -422,7 +422,8 @@ class ChatGPT(MessageList):
                                 try:
                                     save_messages_for_visualization(
                                         self.messages + [Message(role="assistant", content=response)],
-                                        use_openai=use_openai
+                                        use_openai=use_openai,
+                                        model_name=model
                                     )
                                 except Exception as e:
                                     logger.warning(f"Error saving messages for visualization: {e}")
@@ -479,7 +480,8 @@ class ChatGPT(MessageList):
                 try:
                     save_messages_for_visualization(
                         self.messages + [Message(role="assistant", content=response)],
-                        use_openai=use_openai
+                        use_openai=use_openai,
+                        model_name=model
                     )
                 except Exception as e:
                     logger.warning(f"Error saving messages for visualization: {e}")
@@ -621,7 +623,7 @@ class ChatGPT(MessageList):
         if verbose:
             logger.debug(f'{"Openai" if use_openai else "Anthropic"} response: {self.messages[-1].content}')
         try:
-            save_messages_for_visualization(messages=self.messages, use_openai=use_openai)
+            save_messages_for_visualization(messages=self.messages, use_openai=use_openai, model_name=model)
         except Exception as e:
             logger.exception(f"Failed to save messages for visualization due to {e}")
         self.prev_message_states.append(self.messages)
