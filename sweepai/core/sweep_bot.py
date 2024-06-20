@@ -1822,6 +1822,6 @@ def get_files_to_change_for_gha(
 
     return [], ""
 
-if __name__ == "__main__":
-    print("test")
-    print("test2")
+# if __name__ == "__main__":
+#     print("test")
+#     print("test2")
