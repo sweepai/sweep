@@ -1436,6 +1436,7 @@ function App({
       >
         {messages.length > 0 ? messages.map((message, index) => (
           <MessageDisplay
+            key={index}
             index={index}
             message={message}
             repoName={repoName}
