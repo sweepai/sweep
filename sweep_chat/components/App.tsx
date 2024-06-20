@@ -39,19 +39,11 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion'
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
-import {
   NavigationMenu,
   NavigationMenuContent,
-  NavigationMenuIndicator,
   NavigationMenuItem,
-  NavigationMenuLink,
   NavigationMenuList,
   NavigationMenuTrigger,
-  NavigationMenuViewport,
 } from '@/components/ui/navigation-menu'
 import { AutoComplete } from '@/components/ui/autocomplete'
 import { Toaster } from '@/components/ui/toaster'
@@ -475,7 +467,7 @@ const MessageDisplay = ({
         )
       }) || []
     )
-  }, [message.annotations?.codeSuggestions])
+  }, [message.annotations?.codeSuggestions, collapsedArray])
   if (message.role === 'user') {
     return <UserMessageDisplay message={message} onEdit={onEdit} />
   }
@@ -731,7 +723,7 @@ const MessageDisplay = ({
                         </Button>
                       </div>
                     </div>
-                    {codeMirrors[index]}
+                    {!collapsedArray[index] && codeMirrors[index]}
                   </div>
                 )
               }
@@ -2111,21 +2103,22 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                           />
                         )}
                       </code>
-                      {suggestion.error ? (
-                        <HoverCard openDelay={300} closeDelay={200}>
-                          <HoverCardTrigger>
-                            <FaExclamationTriangle
-                              className="hover:cursor-pointer ml-2"
-                              style={{ marginTop: 2 }}
-                            />
-                          </HoverCardTrigger>
-                          <HoverCardContent className="w-[800px] max-h-[500px] overflow-y-auto">
-                            <MarkdownRenderer
-                              content={`**This patch could not be directly applied. We're sending the LLM the following message to resolve the error:**\n\n${suggestion.error}`}
-                            />
-                          </HoverCardContent>
-                        </HoverCard>
-                      ) : (
+                      <div className="flex justify-end items-center">
+                        {suggestion.error && (
+                          <HoverCard openDelay={300} closeDelay={200}>
+                            <HoverCardTrigger>
+                              <FaExclamationTriangle
+                                className="hover:cursor-pointer mr-4"
+                                style={{ marginTop: 2 }}
+                              />
+                            </HoverCardTrigger>
+                            <HoverCardContent className="w-[800px] max-h-[500px] overflow-y-auto">
+                              <MarkdownRenderer
+                                content={`**This patch could not be directly applied. We're sending the LLM the following message to resolve the error:**\n\n${suggestion.error}`}
+                              />
+                            </HoverCardContent>
+                          </HoverCard>
+                        )}
                         <Button
                           className="bg-red-800 hover:bg-red-700 text-white"
                           size="sm"
@@ -2139,7 +2132,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                           <FaTrash />
                           &nbsp;Remove
                         </Button>
-                      )}
+                      </div>
                     </div>
                     {reactCodeMirrors[index]}
                   </div>
