@@ -604,7 +604,7 @@ const MessageDisplay = ({
               size="sm"
               onClick={() => {
                 setCollapsedArray(
-                  message.annotations?.codeSuggestions!.map(() => true)
+                  message.annotations?.codeSuggestions!.map(() => true) || []
                 )
                 setSuggestedChanges(
                   (suggestedChanges: StatefulCodeSuggestion[]) => [
