@@ -322,7 +322,7 @@ const UserMessageDisplay = ({
                 variant="default"
                 className="ml-2 bg-slate-600 text-white hover:bg-slate-700"
               >
-                Generate
+                Send
               </Button>
             </>
           )}
@@ -2419,15 +2419,24 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                 </Button>
               </DialogContent>
             </Dialog>
-            <Input
+            <Textarea
               data-ph-capture-attribute-current-message={currentMessage}
-              onKeyUp={async (e) => {
-                if (e.key === 'Enter') {
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.shiftKey) {
+                  e.currentTarget.style.height = `${e.currentTarget.scrollHeight / 2}px`;
+                }
+                if (e.key === 'Enter' && !e.shiftKey && currentMessage.trim().length > 0) {
                   sendMessage()
+                  e.target.style!.height = 'auto';
+                  e.target.style!.height = `42px`;
                 }
               }}
-              onChange={(e) => setCurrentMessage(e.target.value)}
-              className="p-4"
+              onChange={(e) => {
+                setCurrentMessage(e.target.value);
+                e.target.style.height = `${e.target.scrollHeight}px`;
+              }}
+              className="p-2 overflow-y-hidden"
+              style={{ minHeight: 24, height: 42 }}
               value={currentMessage}
               placeholder="Type a message..."
               disabled={isLoading || !repoNameValid || isStream.current}
