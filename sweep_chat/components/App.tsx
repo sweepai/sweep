@@ -1319,7 +1319,7 @@ function App({
                 </Button>
                 : <></>}
                 {// loop through all pull requests
-                  userMentionedPullRequests?.map((pr) => {
+                  userMentionedPullRequests?.map((pr, index) => {
                     // dont show current selected pr, unless we are creating a pr rn
                     if (pr.number !== userMentionedPullRequest?.number || !commitToPR) {
                       return (
@@ -1332,6 +1332,7 @@ function App({
                             setUserMentionedPullRequest(pr)
                             setCommitToPRIsOpen(false)
                           }}
+                          key={index}
                         >
                           <FaCodeBranch />&nbsp;&nbsp;Will commit to {pr.number}
                         </Button>
