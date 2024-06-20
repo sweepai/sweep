@@ -34,20 +34,6 @@ interface PullRequest {
   branch: string;
 }
 
-interface Message {
-  content: string; // This is the message content or function output
-  role: "user" | "assistant" | "function";
-  function_call?: {
-    function_name: string;
-    function_parameters: Record<string, any>;
-    is_complete: boolean;
-    snippets?: Snippet[];
-  }; // This is the function input
-  annotations?: {
-    pulls?: PullRequest[]
-  }
-}
-
 interface CodeSuggestion {
   filePath: string;
   originalCode: string;
@@ -59,6 +45,22 @@ interface StatefulCodeSuggestion extends CodeSuggestion {
   state: "pending" | "processing" | "done" | "error";
   error?: string;
 }
+
+interface Message {
+  content: string; // This is the message content or function output
+  role: "user" | "assistant" | "function";
+  function_call?: {
+    function_name: string;
+    function_parameters: Record<string, any>;
+    is_complete: boolean;
+    snippets?: Snippet[];
+  }; // This is the function input
+  annotations?: {
+    pulls?: PullRequest[]
+    codeSuggestions?: CodeSuggestion[];
+  }
+}
+
 
 export type {
     Repository,

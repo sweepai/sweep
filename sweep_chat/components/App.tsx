@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "../components/ui/input"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { FaArrowLeft, FaCheck, FaCog, FaComments, FaExclamationTriangle, FaGithub, FaPaperPlane, FaPencilAlt, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes } from "react-icons/fa";
+import { FaArrowLeft, FaCheck, FaCog, FaComments, FaExclamationTriangle, FaGithub, FaPaperPlane, FaPencilAlt, FaPlus, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes, FaTrash } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -50,6 +50,13 @@ import { Skeleton } from "./ui/skeleton";
 
 const Original = CodeMirrorMerge.Original
 const Modified = CodeMirrorMerge.Modified
+
+const makeCodeSuggestionStateful = (suggestion: CodeSuggestion): StatefulCodeSuggestion => {
+  return {
+    ...suggestion,
+    state: "pending"
+  }
+}
 
 const sum = (arr: number[]) => arr.reduce((acc, cur) => acc + cur, 0)
 
@@ -260,7 +267,7 @@ const MessageDisplay = ({
   repoName,
   branch,
   onApplyChanges,
-  showApplySuggestedChangeButton,
+  setSuggestedChanges,
   index
 }: {
   message: Message,
@@ -269,7 +276,7 @@ const MessageDisplay = ({
   repoName: string,
   branch: string,
   onApplyChanges: (codeSuggestions: CodeSuggestion[]) => void,
-  showApplySuggestedChangeButton: boolean,
+  setSuggestedChanges: React.Dispatch<React.SetStateAction<StatefulCodeSuggestion[]>>,
   index: number
 }) => {
   if (message.role === "user") {
@@ -365,23 +372,62 @@ const MessageDisplay = ({
           </div>
         )}
       </div>
-      {showApplySuggestedChangeButton && matches.length > 0 && (
-        <div className="flex justify-start w-[80%]">
-          <Button className="mb-4 bg-blue-900 hover:bg-blue-800 text-zinc-200" onClick={() => onApplyChanges(matches.map((match) => ({
-            filePath: match.groups?.filePath || "",
-            originalCode: match.groups?.originalCode || "",
-            newCode: match.groups?.newCode || "",
-            fileContents: ""
-          })))}>
-            Apply Suggested Changes
-          </Button>
-        </div>
-      )}
       {message.annotations?.pulls?.map((pr) => (
         <div className="flex justify-start text-sm" key={pr.number}>
           <PullRequestDisplay pr={pr} />
         </div>
       ))}
+      {message.annotations?.codeSuggestions && message.annotations?.codeSuggestions.length > 0 && (
+        <div className="text-sm max-w-[80%] p-4 rounded bg-zinc-700 space-y-4 mb-4">
+          <Button className="bg-green-800 hover:bg-green-700 text-white" size="sm" onClick={() => setSuggestedChanges((suggestedChanges: StatefulCodeSuggestion[]) => [...suggestedChanges, ...(message.annotations?.codeSuggestions!).map(makeCodeSuggestionStateful)])}>
+            <FaPlus/>&nbsp;Stage All Changes
+          </Button>
+          {message.annotations?.codeSuggestions?.map((suggestion: CodeSuggestion, index: number) => {
+            const fileExtension = suggestion.filePath.split(".").pop()
+            let languageExtension = languageMapping["js"];
+            if (fileExtension) {
+              languageExtension = languageMapping[fileExtension]
+            }
+            return (
+              <div className="flex flex-col border border-zinc-800" key={index}>
+                <div className="flex justify-between items-center bg-zinc-800 rounded-t-md p-2">
+                  <code className="text-zinc-200">{suggestion.filePath}</code>
+                  <Button className="bg-green-800 hover:bg-green-700 text-white" size="sm" onClick={() => setSuggestedChanges((suggestedChanges: StatefulCodeSuggestion[]) => [...suggestedChanges, makeCodeSuggestionStateful(suggestion)])}>
+                    <FaPlus/>&nbsp;Stage Change
+                  </Button>
+                </div>
+                <CodeMirrorMerge
+                  className="w-full"
+                  theme={dracula}
+                  collapseUnchanged={{
+                    margin: 3,
+                    minSize: 4,
+                  }}
+                  autoFocus={false}
+                  key={JSON.stringify(suggestion)}
+                >
+                  <Original
+                    value={suggestion.originalCode}
+                    readOnly={true}
+                    extensions={[
+                      EditorView.editable.of(false),
+                      ...(languageExtension ? [languageExtension] : [])
+                    ]}
+                  />
+                  <Modified
+                    value={suggestion.newCode}
+                    readOnly={true}
+                    extensions={[
+                      EditorView.editable.of(false),
+                      ...(languageExtension ? [languageExtension] : [])
+                    ]}
+                  />
+                </CodeMirrorMerge>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </>
   );
 };
@@ -466,11 +512,10 @@ function App({
   const isStream = useRef<boolean>(false)
   const [showSurvey, setShowSurvey] = useState<boolean>(false)
 
-  const [originalSuggestedChanges, setOriginalSuggestedChanges] = useState<CodeSuggestion[]>([])
+  const [originalSuggestedChanges, setOriginalSuggestedChanges] = useState<StatefulCodeSuggestion[]>([])
   const [suggestedChanges, setSuggestedChanges] = useState<StatefulCodeSuggestion[]>([])
-  const [openSuggestionDialog, setOpenSuggestionDialog] = useState<boolean>(false)
+  const [codeSuggestionsState, setCodeSuggestionsState] = useState<"staging" | "validating" | "creating" | "done">("staging")
   const [isProcessingSuggestedChanges, setIsProcessingSuggestedChanges] = useState<boolean>(false)
-  const [patchesValidated, setPatchesValidated] = useState<boolean>(false)
   const [pullRequestTitle, setPullRequestTitle] = useState<string | null>(null)
   const [pullRequestBody, setPullRequestBody] = useState<string | null>(null)
   const [isCreatingPullRequest, setIsCreatingPullRequest] = useState<boolean>(false)
@@ -591,6 +636,12 @@ function App({
       })();
     }
   }, [repoName])
+
+  useEffect(() => {
+    if (suggestedChanges.length == 0) {
+      setCodeSuggestionsState("staging")
+    }
+  }, [suggestedChanges])
 
   const save = async (
     currentRepoName: string,
@@ -1193,7 +1244,6 @@ function App({
             onEdit={async (content) => {
               isStream.current = false;
               setIsLoading(false);
-              setOpenSuggestionDialog(false);
 
               const pulls = await parsePullRequests(repoName, content, octokit!)
               setPullRequests(pulls)
@@ -1203,9 +1253,9 @@ function App({
                 { ...message, content, annotations: { pulls } },
               ]
               setMessages(newMessages)
-              setOpenSuggestionDialog(false)
               setIsCreatingPullRequest(false)
               if (index == 0) {
+                setOriginalSuggestedChanges([])
                 setSuggestedChanges([])
                 setIsProcessingSuggestedChanges(false)
                 setPullRequestTitle(null)
@@ -1216,13 +1266,15 @@ function App({
               }
             }}
             onApplyChanges={(codeSuggestions: CodeSuggestion[]) => {
-              setOpenSuggestionDialog(true)
               if (suggestedChanges.length == 0) {
                 setOriginalSuggestedChanges(codeSuggestions)
                 applySuggestions(codeSuggestions)
               }
             }}
-            showApplySuggestedChangeButton={!openSuggestionDialog}
+            setSuggestedChanges={(suggestedChanges) => {
+              setOriginalSuggestedChanges(suggestedChanges)
+              setSuggestedChanges(suggestedChanges)
+            }}
           />
         )): (
           defaultMessageId.length > 0 && (
@@ -1239,16 +1291,17 @@ function App({
             <PulsingLoader size={1.5} />
           </div>
         )}
-        {openSuggestionDialog && (
+        {(suggestedChanges.length > 0) && (
           <div className="bg-zinc-900 rounded-xl p-4 mt-8">
             <div className="flex justify-between mb-4 align-start">
               <div>
                 <Button
                   className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0 pt-0"
                   onClick={() => applySuggestions(originalSuggestedChanges)}
-                  aria-label="Retry"
+                  aria-label="Retry applying changes"
+                  disabled={isStream.current}
                 >
-                  <FaArrowsRotate />&nbsp;&nbsp;Retry
+                  <FaArrowsRotate />&nbsp;&nbsp;Reapply changes
                 </Button>
                 <Button
                   className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0 pt-0"
@@ -1262,22 +1315,40 @@ function App({
                 </Button>
               </div>
               <Button
-                className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0 pt-0"
-                onClick={() => setOpenSuggestionDialog(false)}
-                aria-label="Close"
+                className="text-red-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-red-500 rounded-full p-2 mt-0 pt-0"
+                onClick={() => {
+                  setSuggestedChanges([])
+                  setOriginalSuggestedChanges([])
+                }}
+                aria-label="Unstage Changes"
               >
-                <FaTimes />&nbsp;&nbsp;Close
+                <FaTimes />&nbsp;&nbsp;Unstage Changes
               </Button>
             </div>
-            {(isProcessingSuggestedChanges || isCreatingPullRequest || !suggestedChanges.every((suggestion) => suggestion.state == "done")) && (
+            {codeSuggestionsState == "staging" && (
               <div className="flex justify-around w-full pb-2 mb-4">
-                <p>{isProcessingSuggestedChanges ? "I'm currently processing and applying these patches, and fixing any errors along the way. This may take a few minutes." : (isCreatingPullRequest ? "Creating pull request..." : "Some patches failed to validate, so you may get some unexpected changes. You can try to manually create a PR with the proposed changes. If you think this is an error, feel free to report this to us.")}</p>
+                <p>Staged Changes</p>
+              </div>
+            )}
+            {!suggestedChanges.every((suggestion) => suggestion.state == "done") && codeSuggestionsState == "validating" && !isProcessingSuggestedChanges && (
+              <div className="flex justify-around w-full pb-2 mb-4">
+                Some patches failed to validate, so you may get some unexpected changes. You can try to manually create a PR with the proposed changes. If you think this is an error, feel free to report this to us.
+              </div>
+            )}
+            {isProcessingSuggestedChanges && (
+              <div className="flex justify-around w-full pb-2 mb-4">
+                <p>I'm currently processing and applying these patches, and fixing any errors along the way. This may take a few minutes.</p>
+              </div>
+            )}
+            {isCreatingPullRequest && (
+              <div className="flex justify-around w-full pb-2 mb-4">
+                <p>Creating pull request...</p>
               </div>
             )}
             <div style={{ opacity: isCreatingPullRequest ? 0.5 : 1, pointerEvents: isCreatingPullRequest ? 'none' : 'auto' }}>
               {suggestedChanges.map((suggestion, index) => (
                 <div className="fit-content mb-6" key={index}>
-                  <div className={`flex w-full text-sm p-2 px-4 rounded-t-md ${suggestion.state === "done" ? "bg-green-900" : suggestion.state === "error" ? "bg-red-900" : suggestion.state === "pending" ? "bg-zinc-800" : "bg-yellow-800"}`}>
+                  <div className={`flex justify-between items-center w-full text-sm p-2 px-4 rounded-t-md ${suggestion.state === "done" ? "bg-green-900" : suggestion.state === "error" ? "bg-red-900" : suggestion.state === "pending" ? "bg-zinc-800" : "bg-yellow-800"}`}>
                     <code>
                       {suggestion.filePath} {suggestion.state == "pending" ? "(pending)" : suggestion.state == "processing" ? "(processing)" : suggestion.state == "error" ? "(error)" : <FaCheck style={{display: "inline", marginTop: -2}}/>}
                     </code>
@@ -1290,12 +1361,24 @@ function App({
                           <MarkdownRenderer content={`**This patch could not be directly applied. We're sending the LLM the following message to resolve the error:**\n\n${suggestion.error}`} />
                         </HoverCardContent>
                       </HoverCard>
-                    ): <div></div>}
+                    ): (
+                      <Button className="bg-red-800 hover:bg-red-700 text-white" size="sm" onClick={() => setSuggestedChanges((suggestedChanges: StatefulCodeSuggestion[]) => suggestedChanges.filter((s) => s !== suggestion))}>
+                        <FaTrash />&nbsp;Remove
+                      </Button>
+                    )}
                   </div>
                   {reactCodeMirrors[index]}
                 </div>
               ))}
-              {!isProcessingSuggestedChanges && (
+              {codeSuggestionsState == "staging" && (
+                <Button className="mt-0 bg-blue-900 text-white hover:bg-blue-800" onClick={() => {
+                  setCodeSuggestionsState("validating")
+                  applySuggestions(suggestedChanges)
+                }}>
+                  <FaCheck />&nbsp;&nbsp;Apply Changes
+                </Button>
+              )}
+              {(codeSuggestionsState == "validating" || codeSuggestionsState == "creating") && (
                 <>
                   <Input
                     value={pullRequestTitle || ""}
@@ -1330,6 +1413,7 @@ function App({
                     className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
                     onClick={async () => {
                       setIsCreatingPullRequest(true)
+                      setCodeSuggestionsState("creating")
                       const file_changes = suggestedChanges.reduce((acc: Record<string, string>, suggestion: CodeSuggestion) => {
                         acc[suggestion.filePath] = suggestion.newCode;
                         return acc;
@@ -1373,6 +1457,8 @@ function App({
                       } finally {
                         setIsCreatingPullRequest(false)
                         setOpenSuggestionDialog(false)
+                        setOriginalSuggestedChanges([])
+                        setSuggestedChanges([])
                       }
                     }}
                     disabled={isCreatingPullRequest || isProcessingSuggestedChanges}
@@ -1409,7 +1495,6 @@ function App({
                 setSnippets([]);
                 setMessagesId("");
                 window.history.pushState({}, '', '/');
-                setOpenSuggestionDialog(false)
                 setSuggestedChanges([])
                 setPullRequest(null)
                 setFeatureBranch(null)
@@ -1426,7 +1511,6 @@ function App({
               <Button
                 className="mr-2"
                 variant="secondary"
-                disabled={isLoading}
               >
                 <FaShareAlt />&nbsp;&nbsp;Share
               </Button>
@@ -1439,7 +1523,7 @@ function App({
                 Share your chat session with a team member.
               </p>
               <Input
-                value={`${window.location.origin}/c/${messagesId}`}
+                value={`${typeof window !== 'undefined' ? window.location.origin : ''}/c/${messagesId}`}
                 onClick={() => {
                   navigator.clipboard.writeText(`${window.location.origin}/c/${messagesId}`)
                   toast({
@@ -1471,7 +1555,7 @@ function App({
             className="p-4"
             value={currentMessage}
             placeholder="Type a message..."
-            disabled={isLoading || !repoNameValid}
+            disabled={isLoading || !repoNameValid || isStream.current}
           />
           <Button
             className="ml-2 bg-blue-900 text-white hover:bg-blue-800"
