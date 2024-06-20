@@ -23,8 +23,9 @@ from github.Auth import Token
 
 # get default_base_url from github
 from github.Requester import Requester
+from github.Repository import Repository
 from github.GithubException import BadCredentialsException, UnknownObjectException
-from github import PullRequest, Repository, InputGitTreeElement, GithubException
+from github import PullRequest, InputGitTreeElement, GithubException
 from jwt import encode
 from loguru import logger
 from urllib3 import Retry
@@ -308,7 +309,7 @@ def commit_multi_file_changes(
     renames_dict: dict[str, str] = {},
 ):
     assert file_changes or renames_dict
-    repo = cloned_repo.repo
+    repo: Repository = cloned_repo.repo
     if renames_dict:
         blobs_to_commit = []
         # make a separate commit with just the renames

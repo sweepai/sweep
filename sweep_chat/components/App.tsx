@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "../components/ui/input"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { FaArrowLeft, FaCheck, FaChevronDown, FaChevronUp, FaCog, FaComments, FaExclamationTriangle, FaGithub, FaPaperPlane, FaPencilAlt, FaPlus, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes, FaTrash } from "react-icons/fa";
+import { FaArrowLeft, FaCheck, FaChevronDown, FaChevronUp, FaCog, FaComments, FaExclamationTriangle, FaGithub, FaPaperPlane, FaPencilAlt, FaPlus, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes, FaTrash, FaCodeBranch } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -14,6 +14,21 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuIndicator,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  NavigationMenuViewport,
+} from "@/components/ui/navigation-menu"
 import { AutoComplete } from "@/components/ui/autocomplete";
 import { Toaster } from "@/components/ui/toaster";
 import { toast } from "@/components/ui/use-toast";
@@ -45,6 +60,7 @@ import { debounce } from "lodash"
 import { streamMessages } from "@/lib/streamingUtils";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Skeleton } from "./ui/skeleton";
+import { isPullRequestEqual } from "@/lib/pullUtils";
 // @ts-ignore
 import * as Diff from "diff";
 
@@ -259,6 +275,7 @@ const MessageDisplay = ({
   onEdit,
   repoName,
   branch,
+  commitToPR,
   setSuggestedChanges,
   index
 }: {
@@ -267,6 +284,7 @@ const MessageDisplay = ({
   onEdit: (content: string) => void,
   repoName: string,
   branch: string,
+  commitToPR: boolean,
   setSuggestedChanges: React.Dispatch<React.SetStateAction<StatefulCodeSuggestion[]>>,
   index: number
 }) => {
@@ -558,12 +576,15 @@ function App({
   const [pullRequestTitle, setPullRequestTitle] = useState<string | null>(null)
   const [pullRequestBody, setPullRequestBody] = useState<string | null>(null)
   const [isCreatingPullRequest, setIsCreatingPullRequest] = useState<boolean>(false)
+  const [userMentionedPullRequest, setUserMentionedPullRequest] = useState<PullRequest | null>(null)
+  const [userMentionedPullRequests, setUserMentionedPullRequests] = useState<PullRequest[] | null>(null)
   const [pullRequest, setPullRequest] = useState<PullRequest | null>(null)
-  const [pullRequests, setPullRequests] = useState<PullRequest[]>([])
   const [baseBranch, setBaseBranch] = useState<string>(branch)
   const [featureBranch, setFeatureBranch] = useState<string | null>(null)
-
+  const [commitToPR, setCommitToPR] = useState<boolean>(false) // controls whether or not we commit to the userMetionedPullRequest or create a new pr
+  const [commitToPRIsOpen, setCommitToPRIsOpen] = useState<boolean>(false)
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [commitMessage, setCommitMessage] = useState<string>("")
 
   const { data: session } = useSession()
 
@@ -595,8 +616,8 @@ function App({
         })
         const data = await response.json()
         if (data.status == "success") {
-          const { repo_name, messages, snippets, original_code_suggestions, code_suggestions, pull_request, pull_request_title, pull_request_body } = data.data
-          console.log(repo_name, messages, snippets)
+          const { repo_name, messages, snippets, original_code_suggestions, code_suggestions, pull_request, pull_request_title, pull_request_body, user_mentioned_pull_request, user_mentioned_pull_requests, commit_to_pr } = data.data
+          console.log(repo_name, messages, snippets, user_mentioned_pull_requests)
           setRepoName(repo_name)
           setRepoNameValid(true)
           setMessages(messages)
@@ -606,6 +627,13 @@ function App({
           setPullRequest(pull_request)
           setPullRequestTitle(pull_request_title)
           setPullRequestBody(pull_request_body)
+          setUserMentionedPullRequest(user_mentioned_pull_request)
+          setUserMentionedPullRequests(user_mentioned_pull_requests)
+          if (commit_to_pr === "true") {
+            setCommitToPR(true)
+          } else {
+            setCommitToPR(false)
+          }
         } else {
           toast({
             title: "Failed to load message",
@@ -686,12 +714,16 @@ function App({
     currentRepoName: string,
     currentMessages: Message[],
     currentSnippets: Snippet[],
+    currentUserMentionedPullRequest: PullRequest | null = null,
+    currentUserMentionedPullRequests: PullRequest[] | null = null,
+    currentCommitToPR: boolean = false,
     currentOriginalCodeSuggestions: StatefulCodeSuggestion[],
     currentSuggestedChanges: StatefulCodeSuggestion[],
     currentPullRequest: PullRequest | null = null,
     currentPullRequestTitle: string | null = null,
     currentPullRequestBody: string | null = null,
   ) => {
+    const commitToPRString: string = (currentCommitToPR || commitToPR) ? "true" : "false"
     const saveResponse = await fetch("/backend/messages/save", {
       method: "POST",
       headers: {
@@ -710,6 +742,9 @@ function App({
           pull_request: currentPullRequest || pullRequest,
           pull_request_title: currentPullRequestTitle || pullRequestTitle,
           pull_request_body: currentPullRequestBody || pullRequestBody,
+          user_mentioned_pull_request: currentUserMentionedPullRequest || userMentionedPullRequest,
+          user_mentioned_pull_requests: currentUserMentionedPullRequests || userMentionedPullRequests,
+          commit_to_pr: commitToPRString
         }
       )
     })
@@ -726,16 +761,64 @@ function App({
     }
   }
 
-  const debouncedSave = useCallback(debounce((repoName, messages, snippets, suggestedChanges, pullRequest) => {
+  const debouncedSave = useCallback(debounce((
+    repoName, 
+    messages, 
+    snippets, 
+    userMentionedPullRequest, 
+    userMentionedPullRequests, 
+    commitToPR,
+    originalSuggestedChanges, 
+    suggestedChanges, 
+    pullRequest, 
+    pullRequestTitle, 
+    pullRequestBody, 
+  ) => {
     console.log("saving...")
-    save(repoName, messages, snippets, suggestedChanges, pullRequest);
+    save(
+      repoName, 
+      messages, 
+      snippets, 
+      userMentionedPullRequest, 
+      userMentionedPullRequests, 
+      commitToPR,
+      originalSuggestedChanges, 
+      suggestedChanges, 
+      pullRequest, 
+      pullRequestTitle, 
+      pullRequestBody, 
+    );
   }, 2000, { leading: true, maxWait: 5000 }), []); // can tune these timeouts
 
   useEffect(() => {
     if (messages.length > 0 && snippets.length > 0) {
-      debouncedSave(repoName, messages, snippets, suggestedChanges, pullRequest);
+      debouncedSave(
+        repoName, 
+        messages, 
+        snippets, 
+        userMentionedPullRequest, 
+        userMentionedPullRequests, 
+        commitToPR,
+        originalSuggestedChanges, 
+        suggestedChanges, 
+        pullRequest,
+        pullRequestTitle, 
+        pullRequestBody, 
+      );
     }
-  }, [repoName, messages, snippets, suggestedChanges, pullRequest]);
+  }, [
+    repoName, 
+    messages, 
+    snippets, 
+    userMentionedPullRequest, 
+    userMentionedPullRequests, 
+    commitToPR,
+    originalSuggestedChanges, 
+    suggestedChanges, 
+    pullRequest, 
+    pullRequestTitle, 
+    pullRequestBody, 
+  ]);
 
   const reactCodeMirrors = suggestedChanges.map((suggestion, index) => {
     const fileExtension = suggestion.filePath.split(".").pop();
@@ -804,7 +887,10 @@ function App({
 
   const lastAssistantMessageIndex = messages.findLastIndex((message) => message.role === "assistant" && !message.annotations?.pulls && message.content.trim().length > 0)
 
-  const applySuggestions = async (codeSuggestions: CodeSuggestion[]) => {
+  const applySuggestions = async (
+    codeSuggestions: CodeSuggestion[],
+    commitToPR: boolean,
+  ) => {
     isStream.current = true
     let currentCodeSuggestions: StatefulCodeSuggestion[] = codeSuggestions.map((suggestion) => ({
       ...suggestion,
@@ -1082,6 +1168,19 @@ function App({
     setMessages(newMessages);
     setCurrentMessage("");
     const pulls = await parsePullRequests(repoName, currentMessage, octokit!)
+    if (pulls.length) {
+      setUserMentionedPullRequest(pulls[pulls.length - 1])
+      setCommitToPR(true)
+    }
+    let newPulls = userMentionedPullRequests ? [...userMentionedPullRequests] : [];
+
+    pulls.forEach(pull1 => {
+      if (!newPulls.some(pull2 => isPullRequestEqual(pull1, pull2))) {
+        newPulls.push(pull1);
+      }
+    });
+    
+    setUserMentionedPullRequests(newPulls)
     newMessages = [...messages, { content: currentMessage, role: "user", annotations: { pulls } }];
     setMessages(newMessages);
     setCurrentMessage("");
@@ -1183,6 +1282,70 @@ function App({
           value={baseBranch}
           onChange={(e) => setBaseBranch(e.target.value)}
         />
+        {repoName ?
+        <NavigationMenu>
+          <NavigationMenuList>
+            <NavigationMenuItem>
+              <NavigationMenuTrigger className="bg-secondary hover:bg-secondary">
+                { userMentionedPullRequest && commitToPR ? 
+                  <Button
+                    className="w-full"
+                    variant="secondary"
+                    disabled={isLoading}
+                  >
+                    <FaCodeBranch />&nbsp;&nbsp;Will commit to {userMentionedPullRequest.number}
+                  </Button>
+                  :
+                  <Button
+                    className="w-full"
+                    variant="secondary"
+                    disabled={isLoading || !userMentionedPullRequest}
+                  >
+                    <FaCodeBranch />&nbsp;&nbsp;Will create new PR
+                  </Button>
+                } 
+                </NavigationMenuTrigger>
+              <NavigationMenuContent>
+              { commitToPR ? 
+                <Button 
+                  className="w-full"
+                  variant="secondary"
+                  disabled={isLoading}
+                  onClick={() => {
+                    setCommitToPR(false)
+                    setCommitToPRIsOpen(false)
+                  }}>
+                  Will create new PR
+                </Button>
+                : <></>}
+                {// loop through all pull requests
+                  userMentionedPullRequests?.map((pr, index) => {
+                    // dont show current selected pr, unless we are creating a pr rn
+                    if (pr.number !== userMentionedPullRequest?.number || !commitToPR) {
+                      return (
+                        <Button
+                          className="w-full"
+                          variant="secondary"
+                          disabled={isLoading}
+                          onClick={() => {
+                            setCommitToPR(true)
+                            setUserMentionedPullRequest(pr)
+                            setCommitToPRIsOpen(false)
+                          }}
+                          key={index}
+                        >
+                          <FaCodeBranch />&nbsp;&nbsp;Will commit to {pr.number}
+                        </Button>
+                      )
+                    }
+                  })
+                }
+              </NavigationMenuContent>
+            </NavigationMenuItem>
+          </NavigationMenuList>
+        </NavigationMenu>: 
+        <></>
+        }
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="outline" className="ml-4">
@@ -1264,7 +1427,6 @@ function App({
           setSnippets={setSnippets}
           repoName={repoName}
           branch={branch}
-          pulls={pullRequests}
           k={k}
         /> : <></>}
       <div
@@ -1285,7 +1447,19 @@ function App({
               setIsLoading(false);
 
               const pulls = await parsePullRequests(repoName, content, octokit!)
-              setPullRequests(pulls)
+              if (pulls.length) {
+                setUserMentionedPullRequest(pulls[pulls.length - 1])
+                setCommitToPR(true)
+              }
+              let newPulls = userMentionedPullRequests ? [...userMentionedPullRequests] : [];
+
+              pulls.forEach(pull1 => {
+                if (!newPulls.some(pull2 => isPullRequestEqual(pull1, pull2))) {
+                  newPulls.push(pull1);
+                }
+              });
+              
+              setUserMentionedPullRequests(newPulls)
 
               const newMessages: Message[] = [
                 ...messages.slice(0, index),
@@ -1304,6 +1478,7 @@ function App({
                 startStream(content, newMessages, snippets, { pulls })
               }
             }}
+            commitToPR={commitToPR}
             setSuggestedChanges={(suggestedChanges) => {
               setOriginalSuggestedChanges(suggestedChanges)
               setSuggestedChanges(suggestedChanges)
@@ -1330,7 +1505,7 @@ function App({
               <div>
                 <Button
                   className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0 pt-0"
-                  onClick={() => applySuggestions(originalSuggestedChanges)}
+                  onClick={() => applySuggestions(originalSuggestedChanges, commitToPR)}
                   aria-label="Retry applying changes"
                   disabled={isStream.current}
                 >
@@ -1375,7 +1550,11 @@ function App({
             )}
             {isCreatingPullRequest && (
               <div className="flex justify-around w-full pb-2 mb-4">
-                <p>Creating pull request...</p>
+                <p>
+                  {commitToPR && userMentionedPullRequest
+                    ? `Committing to ${userMentionedPullRequest.branch}` 
+                    : "Creating pull request..."}
+                </p>
               </div>
             )}
             <div style={{ opacity: isCreatingPullRequest ? 0.5 : 1, pointerEvents: isCreatingPullRequest ? 'none' : 'auto' }}>
@@ -1406,33 +1585,49 @@ function App({
               {codeSuggestionsState == "staging" && (
                 <Button className="mt-0 bg-blue-900 text-white hover:bg-blue-800" onClick={() => {
                   setCodeSuggestionsState("validating")
-                  applySuggestions(suggestedChanges)
+                  applySuggestions(suggestedChanges, commitToPR)
                 }}>
                   <FaCheck />&nbsp;&nbsp;Apply Changes
                 </Button>
               )}
               {(codeSuggestionsState == "validating" || codeSuggestionsState == "creating") && (
                 <>
-                  <Input
-                    value={pullRequestTitle || ""}
-                    onChange={(e) => setPullRequestTitle(e.target.value)}
-                    placeholder="Pull Request Title"
-                    className="w-full mb-4 text-zinc-300"
-                    disabled={pullRequestTitle == null}
-                  />
-                  <Textarea
-                    value={pullRequestBody || ""}
-                    onChange={(e) => setPullRequestBody(e.target.value)}
-                    placeholder="Pull Request Body"
-                    className="w-full mb-4 text-zinc-300"
-                    disabled={pullRequestBody == null}
-                    rows={8}
-                  />
+                  { commitToPR && userMentionedPullRequest ?
+                    <></>
+                    :
+                    <><Input
+                      value={pullRequestTitle || ""}
+                      onChange={(e) => setPullRequestTitle(e.target.value)}
+                      placeholder="Pull Request Title"
+                      className="w-full mb-4 text-zinc-300"
+                      disabled={pullRequestTitle == null}
+                    />
+                    <Textarea
+                      value={pullRequestBody || ""}
+                      onChange={(e) => setPullRequestBody(e.target.value)}
+                      placeholder="Pull Request Body"
+                      className="w-full mb-4 text-zinc-300"
+                      disabled={pullRequestBody == null}
+                      rows={8}
+                    /></>
+                  }
+                  
+                  {commitToPR && userMentionedPullRequest ?
                   <div className="flex grow items-center mb-4">
+                    {`You are commiting to ${userMentionedPullRequest.branch}`}
+                  </div>
+                  :<div className="flex grow items-center mb-4">
                     <Input className="flex items-center w-[600px]" value={baseBranch || ""} onChange={(e) => setBaseBranch(e.target.value)} placeholder="Base Branch" style={{ opacity: isProcessingSuggestedChanges ? 0.5 : 1 }} />
                     <FaArrowLeft className="mx-4" />
                     <Input className="flex items-center w-[600px]" value={featureBranch || ""} onChange={(e) => setFeatureBranch(e.target.value)} placeholder="Feature Branch" style={{ opacity: isProcessingSuggestedChanges ? 0.5 : 1 }} />
                   </div>
+                  }
+                  { commitToPR && userMentionedPullRequest ?
+                  <div className="flex grow items-center mb-4">
+                    <Input className="flex items-center w-[600px]" value={commitMessage || ""} onChange={(e) => setCommitMessage(e.target.value)} placeholder="Commit Message" style={{ opacity: isProcessingSuggestedChanges ? 0.5 : 1 }} />
+                  </div>:
+                    <></>
+                  }
                   {!suggestedChanges.every((suggestion) => suggestion.state == "done") && !isProcessingSuggestedChanges && (
                     <Alert className="mb-4 bg-yellow-900">
                       <FaExclamationTriangle className="h-4 w-4" />
@@ -1452,19 +1647,37 @@ function App({
                         return acc;
                       }, {})
                       try {
-                        const response = await authorizedFetch(
-                          `/backend/create_pull`,
-                          {
-                            body: JSON.stringify({
-                              repo_name: repoName,
-                              file_changes: file_changes,
-                              branch: "sweep-chat-patch-" + new Date().toISOString().split("T")[0], // use ai for better branch name, title, and body later
-                              base_branch: baseBranch,
-                              title: pullRequestTitle,
-                              body: pullRequestBody + `\n\nSuggested changes from Sweep Chat by @${session?.user?.username}. Continue chatting at ${window.location.origin}/c/${messagesId}.`,
-                            }),
-                          }
-                        )
+                        let response: Response | undefined = undefined
+                        console.log("commit topr", commitToPR)
+                        if (commitToPR && userMentionedPullRequest) {
+                          response = await authorizedFetch(
+                            `/backend/commit_to_pull`,
+                            {
+                              body: JSON.stringify({
+                                repo_name: repoName,
+                                file_changes: file_changes,
+                                pr_number: String(userMentionedPullRequest?.number),
+                                base_branch: baseBranch,
+                                commit_message: commitMessage
+                              }),
+                            }
+                          )
+                        } else {
+                          response = await authorizedFetch(
+                            `/backend/create_pull`,
+                            {
+                              body: JSON.stringify({
+                                repo_name: repoName,
+                                file_changes: file_changes,
+                                branch: "sweep-chat-patch-" + new Date().toISOString().split("T")[0], // use ai for better branch name, title, and body later
+                                base_branch: baseBranch,
+                                title: pullRequestTitle,
+                                body: pullRequestBody + `\n\nSuggested changes from Sweep Chat by @${session?.user?.username}. Continue chatting at ${window.location.origin}/c/${messagesId}.`,
+                              }),
+                            }
+                          )
+                        }
+                        
                         const data = await response.json()
                         const {pull_request: pullRequest} = data
                         console.log(pullRequest)
@@ -1495,7 +1708,9 @@ function App({
                     }}
                     disabled={isCreatingPullRequest || isProcessingSuggestedChanges}
                   >
-                    Create Pull Request
+                    { commitToPR && userMentionedPullRequest ? 
+                      `Commit to Pull Request ${userMentionedPullRequest?.number}` : "Create Pull Request"
+                    }
                   </Button>
                 </>
               )}
@@ -1532,6 +1747,10 @@ function App({
                 setFeatureBranch(null)
                 setPullRequestTitle(null)
                 setPullRequestBody(null)
+                setUserMentionedPullRequest(null)
+                setUserMentionedPullRequests(null)
+                setCommitToPR(false)
+                setCommitToPRIsOpen(false)
               }}
               disabled={isLoading}
             >
