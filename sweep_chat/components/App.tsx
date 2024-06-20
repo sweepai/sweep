@@ -638,7 +638,7 @@ const MessageDisplay = ({
                   }
                 }
                 const firstLines = truncate(
-                  suggestion.originalCode.split('\n').slice(0, 1).join('\n'),
+                  suggestion.originalCode.split('\n').slice(0, 1).join('\n') || suggestion.newCode.split('\n').slice(0, 1).join('\n'),
                   80
                 )
                 return (
@@ -668,12 +668,12 @@ const MessageDisplay = ({
                         </Button>
                         <code className="text-zinc-200 px-2">
                           {suggestion.filePath}{' '}
-                          <span className="text-green-500">
+                          {numLinesAdded > 0 && <span className="text-green-500">
                             +{numLinesAdded}
-                          </span>{' '}
-                          <span className="text-red-500">
+                          </span>}
+                          {numLinesRemoved > 0 && <span className="text-red-500">
                             -{numLinesRemoved}
-                          </span>{' '}
+                          </span>}
                           <span className="text-zinc-500 ml-4">
                             {firstLines}
                           </span>
