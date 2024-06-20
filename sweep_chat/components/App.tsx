@@ -413,7 +413,7 @@ const MessageDisplay = ({
                     {suggestion.error ? (
                       <HoverCard openDelay={300} closeDelay={200}>
                         <HoverCardTrigger>
-                          <FaExclamationTriangle className="hover:cursor-pointer mr-2 text-red-500" style={{marginTop: 2}} />
+                          <FaExclamationTriangle className="hover:cursor-pointer mr-4 text-red-500" style={{marginTop: 2}} />
                         </HoverCardTrigger>
                         <HoverCardContent className="w-[800px] max-h-[500px] overflow-y-auto">
                           <MarkdownRenderer content={`**This patch could not be directly applied. We will send the LLM the following message to resolve the error:**\n\n${suggestion.error}`} />
