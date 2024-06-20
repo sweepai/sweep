@@ -1410,7 +1410,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         if (!currentSnippets.length) {
           throw new Error('No snippets found')
         }
-      } catch (e) {
+      } catch (e: any) {
         console.log(e)
         toast({
           title: 'Failed to search codebase',
@@ -1477,7 +1477,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           message,
         })
       }
-    } catch (e) {
+    } catch (e: any) {
       toast({
         title: 'Chat stream failed',
         description: e.message,
@@ -1627,7 +1627,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                   }
                 )
                 data = await response.json()
-              } catch (e) {
+              } catch (e: any) {
                 setRepoNameValid(false)
                 toast({
                   title: 'Failed to load repository',
