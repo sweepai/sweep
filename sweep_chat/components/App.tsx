@@ -1605,7 +1605,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                 </p>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="center" className="mt-2">
-                {previousChats.length > 0 ? previousChats.map((chat) => (
+                {previousChats.length > 0 ? previousChats.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 10).map((chat) => (
                   <DropdownMenuItem
                     key={chat.messagesId}
                     className="hover:cursor-pointer"
