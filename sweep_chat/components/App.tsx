@@ -52,6 +52,7 @@ const Original = CodeMirrorMerge.Original
 const Modified = CodeMirrorMerge.Modified
 
 const sum = (arr: number[]) => arr.reduce((acc, cur) => acc + cur, 0)
+const truncate = (str: string, maxLength: number) => str.length > maxLength ? str.slice(0, maxLength) + "..." : str
 
 const PullRequestHeader = ({ pr }: { pr: PullRequest }) => {
   return (
@@ -271,7 +272,7 @@ const MessageDisplay = ({
   index: number
 }) => {
   const [collapsedArray, setCollapsedArray] = useState<boolean[]>((
-    message.annotations?.codeSuggestions?.map((suggestion) => false) || []
+    message.annotations?.codeSuggestions?.map(() => false) || []
   ))
   if (message.role === "user") {
     return <UserMessageDisplay message={message} onEdit={onEdit} />
@@ -280,6 +281,45 @@ const MessageDisplay = ({
   if (matches.some((match) => !match.groups?.closingTag)) {
     matches = []
   }
+  const codeMirrors = useMemo(() => {
+    return message.annotations?.codeSuggestions?.map((suggestion) => {
+      const fileExtension = suggestion.filePath.split(".").pop()
+      let languageExtension = languageMapping["js"];
+      if (fileExtension) {
+        languageExtension = languageMapping[fileExtension]
+      }
+      return (
+        <CodeMirrorMerge
+          hidden={collapsedArray[index]}
+          className="w-full"
+          theme={dracula}
+          collapseUnchanged={{
+            margin: 3,
+            minSize: 4,
+          }}
+          autoFocus={false}
+          key={JSON.stringify(suggestion)}
+        >
+          <Original
+            value={suggestion.originalCode}
+            readOnly={true}
+            extensions={[
+              EditorView.editable.of(false),
+              ...(languageExtension ? [languageExtension] : [])
+            ]}
+          />
+          <Modified
+            value={suggestion.newCode}
+            readOnly={true}
+            extensions={[
+              EditorView.editable.of(false),
+              ...(languageExtension ? [languageExtension] : [])
+            ]}
+          />
+        </CodeMirrorMerge>
+      )
+    }) || []
+  }, [message.annotations?.codeSuggestions])
   return (
     <>
       <div className={`flex justify-start`}>
@@ -374,7 +414,7 @@ const MessageDisplay = ({
       {message.annotations?.codeSuggestions && message.annotations?.codeSuggestions.length > 0 && (
         <div className="text-sm max-w-[80%] p-4 rounded bg-zinc-700 space-y-4 mb-4">
           <Button className="bg-green-800 hover:bg-green-700 text-white" size="sm" onClick={() => {
-            setCollapsedArray((message.annotations?.codeSuggestions!).map((suggestion) => true))
+            setCollapsedArray((message.annotations?.codeSuggestions!).map(() => true))
             setSuggestedChanges((suggestedChanges: StatefulCodeSuggestion[]) => [...suggestedChanges, ...message.annotations?.codeSuggestions!])
           }}>
             <FaPlus/>&nbsp;Stage All Changes
@@ -395,7 +435,7 @@ const MessageDisplay = ({
                 numLinesRemoved += line.count
               }
             }
-            console.log(diffLines)
+            const firstLines = truncate(suggestion.originalCode.split("\n").slice(0, 1).join("\n"), 80)
             return (
               <div className="flex flex-col border border-zinc-800" key={index}>
                 <div className="flex justify-between items-center bg-zinc-800 rounded-t-md p-2">
@@ -407,7 +447,7 @@ const MessageDisplay = ({
                     })}>
                       {collapsedArray[index] ? <FaChevronDown /> : <FaChevronUp />}
                     </Button>
-                    <code className="text-zinc-200 px-2">{suggestion.filePath} <span className="text-green-500">+{numLinesAdded}</span> <span className="text-red-500">-{numLinesRemoved}</span></code>
+                    <code className="text-zinc-200 px-2">{suggestion.filePath} <span className="text-green-500">+{numLinesAdded}</span> <span className="text-red-500">-{numLinesRemoved}</span> <span className="text-zinc-500 ml-4">{firstLines}</span></code>
                   </div>
                   <div className="flex items-center">
                     {suggestion.error ? (
@@ -429,39 +469,19 @@ const MessageDisplay = ({
                         </HoverCardContent>
                       </HoverCard>
                     )}
-                    <Button className="bg-green-800 hover:bg-green-700 text-white" size="sm" onClick={() => setSuggestedChanges((suggestedChanges: StatefulCodeSuggestion[]) => [...suggestedChanges, suggestion])}>
+                    <Button className="bg-green-800 hover:bg-green-700 text-white" size="sm" onClick={() => {
+                      setSuggestedChanges((suggestedChanges: StatefulCodeSuggestion[]) => [...suggestedChanges, suggestion])
+                      setCollapsedArray((collapsedArray: boolean[]) => {
+                        const newArray = [...collapsedArray]
+                        newArray[index] = true
+                        return newArray
+                      })
+                    }}>
                       <FaPlus/>&nbsp;Stage Change
                     </Button>
                   </div>
                 </div>
-                <CodeMirrorMerge
-                  hidden={collapsedArray[index]}
-                  className="w-full"
-                  theme={dracula}
-                  collapseUnchanged={{
-                    margin: 3,
-                    minSize: 4,
-                  }}
-                  autoFocus={false}
-                  key={JSON.stringify(suggestion)}
-                >
-                  <Original
-                    value={suggestion.originalCode}
-                    readOnly={true}
-                    extensions={[
-                      EditorView.editable.of(false),
-                      ...(languageExtension ? [languageExtension] : [])
-                    ]}
-                  />
-                  <Modified
-                    value={suggestion.newCode}
-                    readOnly={true}
-                    extensions={[
-                      EditorView.editable.of(false),
-                      ...(languageExtension ? [languageExtension] : [])
-                    ]}
-                  />
-                </CodeMirrorMerge>
+                {codeMirrors[index]}
               </div>
             )
           })}
@@ -508,7 +528,6 @@ const parsePullRequests = async (repoName: string, message: string, octokit: Oct
         }
         return b.changes - a.changes;
       })
-      // console.log(file_diffs)
       pulls.push({
         number: parseInt(prNumber!),
         repo_name: repoName,
@@ -732,6 +751,7 @@ function App({
   }, 2000, { leading: true, maxWait: 5000 }), []); // can tune these timeouts
 
   useEffect(() => {
+    console.log("pr", pullRequest)
     if (messages.length > 0 && snippets.length > 0) {
       debouncedSave(repoName, messages, snippets, suggestedChanges, pullRequest);
     }
@@ -766,8 +786,9 @@ function App({
         />
         <Modified
           value={suggestion.newCode}
-          readOnly={suggestion.state != "done" && suggestion.state != "error"}
+          readOnly={!(suggestion.state == "done" || suggestion.state == "error")}
           extensions={[
+            EditorView.editable.of(suggestion.state == "done" || suggestion.state == "error"),
             ...(languageExtension ? [languageExtension] : [])
           ]}
           onChange={debounce((value: string) => {
@@ -1418,14 +1439,14 @@ function App({
                     onChange={(e) => setPullRequestTitle(e.target.value)}
                     placeholder="Pull Request Title"
                     className="w-full mb-4 text-zinc-300"
-                    disabled={pullRequestTitle == null}
+                    disabled={pullRequestTitle == null || isProcessingSuggestedChanges}
                   />
                   <Textarea
                     value={pullRequestBody || ""}
                     onChange={(e) => setPullRequestBody(e.target.value)}
                     placeholder="Pull Request Body"
-                    className="w-full mb-4 text-zinc-300"
-                    disabled={pullRequestBody == null}
+                    className="w-full mb-4 text-zinc-30"
+                    disabled={pullRequestBody == null || isProcessingSuggestedChanges}
                     rows={8}
                   />
                   <div className="flex grow items-center mb-4">
@@ -1479,7 +1500,9 @@ function App({
                             }
                           }
                         ])
-                        // save(repoName, messages, snippets, suggestedChanges, pullRequest)
+                        setIsCreatingPullRequest(false)
+                        setOriginalSuggestedChanges([])
+                        setSuggestedChanges([])
                       } catch (e) {
                         toast({
                           title: "Error",
@@ -1487,10 +1510,6 @@ function App({
                           variant: "destructive",
                           duration: Infinity,
                         })
-                      } finally {
-                        setIsCreatingPullRequest(false)
-                        setOriginalSuggestedChanges([])
-                        setSuggestedChanges([])
                       }
                     }}
                     disabled={isCreatingPullRequest || isProcessingSuggestedChanges}
