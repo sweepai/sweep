@@ -7,6 +7,7 @@ import { Extension } from "@uiw/react-codemirror";
 const codeStyle = dracula;
 
 const modelMap: Record<string, string> = {
+  "claude-3-5-sonnet-20240620": "Sonnet 3.5",
   "claude-3-opus-20240229": "Opus",
   "claude-3-sonnet-20240229": "Sonnet",
   "claude-3-haiku-20240307": "Haiku",
