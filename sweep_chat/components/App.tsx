@@ -599,24 +599,27 @@ const MessageDisplay = ({
       {message.annotations?.codeSuggestions &&
         message.annotations?.codeSuggestions.length > 0 && (
           <div className="text-sm max-w-[80%] p-4 rounded bg-zinc-700 space-y-4 mb-4">
-            <Button
-              className="bg-green-800 hover:bg-green-700 text-white"
-              size="sm"
-              onClick={() => {
-                setCollapsedArray(
-                  message.annotations?.codeSuggestions!.map(() => true) || []
-                )
-                setSuggestedChanges(
-                  (suggestedChanges: StatefulCodeSuggestion[]) => [
-                    ...suggestedChanges,
-                    ...message.annotations?.codeSuggestions!,
-                  ]
-                )
-              }}
-            >
-              <FaPlus />
-              &nbsp;Stage All Changes
-            </Button>
+            <div className="flex justify-between items-center">
+              <h2 className='font-bold'>Suggested Changes</h2>
+              <Button
+                className="bg-green-800 hover:bg-green-700 text-white"
+                size="sm"
+                onClick={() => {
+                  setCollapsedArray(
+                    message.annotations?.codeSuggestions!.map(() => true) || []
+                  )
+                  setSuggestedChanges(
+                    (suggestedChanges: StatefulCodeSuggestion[]) => [
+                      ...suggestedChanges,
+                      ...message.annotations?.codeSuggestions!,
+                    ]
+                  )
+                }}
+              >
+                <FaPlus />
+                &nbsp;Stage All Changes
+              </Button>
+            </div>
             {message.annotations?.codeSuggestions?.map(
               (suggestion: StatefulCodeSuggestion, index: number) => {
                 const fileExtension = suggestion.filePath.split('.').pop()
@@ -2046,7 +2049,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
               </div>
               {codeSuggestionsState == 'staging' && (
                 <div className="flex justify-around w-full pb-2 mb-4">
-                  <p>Staged Changes</p>
+                  <p className='font-bold'>Staged Changes</p>
                 </div>
               )}
               {!suggestedChanges.every(
@@ -2317,6 +2320,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                           setOriginalSuggestedChanges([])
                           setSuggestedChanges([])
                         } catch (e) {
+                          setIsCreatingPullRequest(false)
                           toast({
                             title: 'Error',
                             description: `An error occurred while creating the pull request: ${e}`,
