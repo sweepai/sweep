@@ -45,17 +45,11 @@ import { debounce } from "lodash"
 import { streamMessages } from "@/lib/streamingUtils";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Skeleton } from "./ui/skeleton";
+// @ts-ignore
 import * as Diff from "diff";
 
 const Original = CodeMirrorMerge.Original
 const Modified = CodeMirrorMerge.Modified
-
-const makeCodeSuggestionStateful = (suggestion: CodeSuggestion): StatefulCodeSuggestion => {
-  return {
-    ...suggestion,
-    state: "pending"
-  }
-}
 
 const sum = (arr: number[]) => arr.reduce((acc, cur) => acc + cur, 0)
 
@@ -265,7 +259,6 @@ const MessageDisplay = ({
   onEdit,
   repoName,
   branch,
-  onApplyChanges,
   setSuggestedChanges,
   index
 }: {
@@ -274,7 +267,6 @@ const MessageDisplay = ({
   onEdit: (content: string) => void,
   repoName: string,
   branch: string,
-  onApplyChanges: (codeSuggestions: CodeSuggestion[]) => void,
   setSuggestedChanges: React.Dispatch<React.SetStateAction<StatefulCodeSuggestion[]>>,
   index: number
 }) => {
@@ -1312,12 +1304,6 @@ function App({
                 startStream(content, newMessages, snippets, { pulls })
               }
             }}
-            onApplyChanges={(codeSuggestions: CodeSuggestion[]) => {
-              if (suggestedChanges.length == 0) {
-                setOriginalSuggestedChanges(codeSuggestions)
-                applySuggestions(codeSuggestions)
-              }
-            }}
             setSuggestedChanges={(suggestedChanges) => {
               setOriginalSuggestedChanges(suggestedChanges)
               setSuggestedChanges(suggestedChanges)
@@ -1503,7 +1489,6 @@ function App({
                         })
                       } finally {
                         setIsCreatingPullRequest(false)
-                        setOpenSuggestionDialog(false)
                         setOriginalSuggestedChanges([])
                         setSuggestedChanges([])
                       }
