@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Input } from "../components/ui/input"
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Input } from '../components/ui/input'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import {
   FaArrowLeft,
   FaCheck,
@@ -23,26 +23,26 @@ import {
   FaTimes,
   FaTrash,
   FaCodeBranch,
-} from "react-icons/fa"
-import { FaArrowsRotate } from "react-icons/fa6"
-import { Button } from "@/components/ui/button"
-import { useLocalStorage } from "usehooks-ts"
+} from 'react-icons/fa'
+import { FaArrowsRotate } from 'react-icons/fa6'
+import { Button } from '@/components/ui/button'
+import { useLocalStorage } from 'usehooks-ts'
 import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
-} from "@/components/ui/hover-card"
+} from '@/components/ui/hover-card'
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion"
+} from '@/components/ui/accordion'
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible"
+} from '@/components/ui/collapsible'
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -52,18 +52,18 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
   NavigationMenuViewport,
-} from "@/components/ui/navigation-menu"
-import { AutoComplete } from "@/components/ui/autocomplete"
-import { Toaster } from "@/components/ui/toaster"
-import { toast } from "@/components/ui/use-toast"
-import { useSession, signIn, SessionProvider, signOut } from "next-auth/react"
-import { Session } from "next-auth"
-import { PostHogProvider, usePostHog } from "posthog-js/react"
-import Survey from "./Survey"
-import * as jsonpatch from "fast-json-patch"
-import { Textarea } from "./ui/textarea"
-import { Slider } from "./ui/slider"
-import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog"
+} from '@/components/ui/navigation-menu'
+import { AutoComplete } from '@/components/ui/autocomplete'
+import { Toaster } from '@/components/ui/toaster'
+import { toast } from '@/components/ui/use-toast'
+import { useSession, signIn, SessionProvider, signOut } from 'next-auth/react'
+import { Session } from 'next-auth'
+import { PostHogProvider, usePostHog } from 'posthog-js/react'
+import Survey from './Survey'
+import * as jsonpatch from 'fast-json-patch'
+import { Textarea } from './ui/textarea'
+import { Slider } from './ui/slider'
+import { Dialog, DialogContent, DialogTrigger } from './ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -73,9 +73,9 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "./ui/dropdown-menu"
-import { Label } from "./ui/label"
-import PulsingLoader from "./shared/PulsingLoader"
+} from './ui/dropdown-menu'
+import { Label } from './ui/label'
+import PulsingLoader from './shared/PulsingLoader'
 import {
   codeStyle,
   DEFAULT_K,
@@ -83,7 +83,7 @@ import {
   roleToColor,
   typeNameToColor,
   languageMapping,
-} from "@/lib/constants"
+} from '@/lib/constants'
 import {
   Repository,
   Snippet,
@@ -92,40 +92,40 @@ import {
   Message,
   CodeSuggestion,
   StatefulCodeSuggestion,
-} from "@/lib/types"
+} from '@/lib/types'
 
-import { Octokit } from "octokit"
+import { Octokit } from 'octokit'
 import {
   renderPRDiffs,
   getJSONPrefix,
   getFunctionCallHeaderString,
   getDiff,
-} from "@/lib/str_utils"
+} from '@/lib/str_utils'
 import {
   CODE_CHANGE_PATTERN,
   MarkdownRenderer,
-} from "./shared/MarkdownRenderer"
-import { SnippetBadge } from "./shared/SnippetBadge"
-import { ContextSideBar } from "./shared/ContextSideBar"
-import { posthog } from "@/lib/posthog"
+} from './shared/MarkdownRenderer'
+import { SnippetBadge } from './shared/SnippetBadge'
+import { ContextSideBar } from './shared/ContextSideBar'
+import { posthog } from '@/lib/posthog'
 
-import CodeMirrorMerge from "react-codemirror-merge"
-import { dracula } from "@uiw/codemirror-theme-dracula"
-import { EditorView } from "codemirror"
-import { debounce } from "lodash"
-import { streamMessages } from "@/lib/streamingUtils"
-import { Alert, AlertDescription, AlertTitle } from "./ui/alert"
-import { Skeleton } from "./ui/skeleton"
-import { isPullRequestEqual } from "@/lib/pullUtils"
+import CodeMirrorMerge from 'react-codemirror-merge'
+import { dracula } from '@uiw/codemirror-theme-dracula'
+import { EditorView } from 'codemirror'
+import { debounce } from 'lodash'
+import { streamMessages } from '@/lib/streamingUtils'
+import { Alert, AlertDescription, AlertTitle } from './ui/alert'
+import { Skeleton } from './ui/skeleton'
+import { isPullRequestEqual } from '@/lib/pullUtils'
 // @ts-ignore
-import * as Diff from "diff"
+import * as Diff from 'diff'
 
 const Original = CodeMirrorMerge.Original
 const Modified = CodeMirrorMerge.Modified
 
 const sum = (arr: number[]) => arr.reduce((acc, cur) => acc + cur, 0)
 const truncate = (str: string, maxLength: number) =>
-  str.length > maxLength ? str.slice(0, maxLength) + "..." : str
+  str.length > maxLength ? str.slice(0, maxLength) + '...' : str
 
 const PullRequestHeader = ({ pr }: { pr: PullRequest }) => {
   return (
@@ -134,17 +134,17 @@ const PullRequestHeader = ({ pr }: { pr: PullRequest }) => {
       onClick={() => {
         window.open(
           `https://github.com/${pr.repo_name}/pull/${pr.number}`,
-          "_blank"
+          '_blank'
         )
       }}
     >
       <div
         className={`border-l-4 ${
-          pr.status === "open"
-            ? "border-green-500"
-            : pr.status === "merged"
-            ? "border-purple-500"
-            : "border-red-500"
+          pr.status === 'open'
+            ? 'border-green-500'
+            : pr.status === 'merged'
+              ? 'border-purple-500'
+              : 'border-red-500'
         } pl-4`}
       >
         <div className="mb-2 font-bold text-md">
@@ -153,10 +153,10 @@ const PullRequestHeader = ({ pr }: { pr: PullRequest }) => {
         <div className="mb-4 text-sm">{pr.body}</div>
         <div className="text-xs text-zinc-300">
           <div className="mb-1">{pr.repo_name}</div>
-          {pr.file_diffs.length} files changed{" "}
+          {pr.file_diffs.length} files changed{' '}
           <span className="text-green-500">
             +{sum(pr.file_diffs.map((diff) => diff.additions))}
-          </span>{" "}
+          </span>{' '}
           <span className="text-red-500">
             -{sum(pr.file_diffs.map((diff) => diff.deletions))}
           </span>
@@ -175,27 +175,27 @@ const PullRequestContent = ({ pr }: { pr: PullRequest }) => {
           <ol>
             {pr.file_diffs.map((file, index) => (
               <li key={index} className="mb-1">
-                {file.filename}{" "}
+                {file.filename}{' '}
                 <span
                   className={`${
-                    file.status === "added"
-                      ? "text-green-500"
-                      : file.status === "removed"
-                      ? "text-red-500"
-                      : "text-gray-400"
+                    file.status === 'added'
+                      ? 'text-green-500'
+                      : file.status === 'removed'
+                        ? 'text-red-500'
+                        : 'text-gray-400'
                   }`}
                 >
-                  {file.status === "added" ? (
+                  {file.status === 'added' ? (
                     <span className="text-green-500">
                       Added (+{file.additions})
                     </span>
-                  ) : file.status === "removed" ? (
+                  ) : file.status === 'removed' ? (
                     <span className="text-red-500">
                       Deleted ({file.deletions})
                     </span>
                   ) : (
                     <>
-                      <span className="text-green-500">+{file.additions}</span>{" "}
+                      <span className="text-green-500">+{file.additions}</span>{' '}
                       <span className="text-red-500">-{file.deletions}</span>
                     </>
                   )}
@@ -209,8 +209,8 @@ const PullRequestContent = ({ pr }: { pr: PullRequest }) => {
         language="diff"
         style={codeStyle}
         customStyle={{
-          backgroundColor: "transparent",
-          whiteSpace: "pre-wrap",
+          backgroundColor: 'transparent',
+          whiteSpace: 'pre-wrap',
         }}
         className="rounded-xl p-4 text-xs w-full"
       >
@@ -272,7 +272,7 @@ const UserMessageDisplay = ({
 
   useEffect(() => {
     if (textareaRef.current) {
-      textareaRef.current.style.height = "auto"
+      textareaRef.current.style.height = 'auto'
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
     }
   }, [editedContent])
@@ -358,22 +358,22 @@ const FeedbackBlock = ({
       <FaThumbsUp
         className={`inline-block text-lg ${
           isLiked
-            ? "text-green-500 cursor-not-allowed"
-            : "text-zinc-400 hover:cursor-pointer hover:text-zinc-200 hover:drop-shadow-md"
+            ? 'text-green-500 cursor-not-allowed'
+            : 'text-zinc-400 hover:cursor-pointer hover:text-zinc-200 hover:drop-shadow-md'
         }`}
         onClick={() => {
           if (isLiked) {
             return
           }
-          posthog.capture("message liked", {
+          posthog.capture('message liked', {
             message: message,
             index: index,
           })
           toast({
-            title: "We received your like",
+            title: 'We received your like',
             description:
-              "Thank you for your feedback! If you would like to share any highlights, feel free to shoot us a message on Slack!",
-            variant: "default",
+              'Thank you for your feedback! If you would like to share any highlights, feel free to shoot us a message on Slack!',
+            variant: 'default',
             duration: 2000,
           })
           setIsLiked(true)
@@ -383,22 +383,22 @@ const FeedbackBlock = ({
       <FaThumbsDown
         className={`inline-block ml-3 text-lg ${
           isDisliked
-            ? "text-red-500 cursor-not-allowed"
-            : "text-zinc-400 hover:cursor-pointer hover:text-zinc-200 hover:drop-shadow-md"
+            ? 'text-red-500 cursor-not-allowed'
+            : 'text-zinc-400 hover:cursor-pointer hover:text-zinc-200 hover:drop-shadow-md'
         }`}
         onClick={() => {
           if (isDisliked) {
             return
           }
-          posthog.capture("message disliked", {
+          posthog.capture('message disliked', {
             message: message,
             index: index,
           })
           toast({
-            title: "We received your dislike",
+            title: 'We received your dislike',
             description:
-              "Thank you for your feedback! If you would like to report any persistent issues, feel free to shoot us a message on Slack!",
-            variant: "default",
+              'Thank you for your feedback! If you would like to report any persistent issues, feel free to shoot us a message on Slack!',
+            variant: 'default',
             duration: 2000,
           })
           setIsDisliked(true)
@@ -433,7 +433,7 @@ const MessageDisplay = ({
   const [collapsedArray, setCollapsedArray] = useState<boolean[]>(
     message.annotations?.codeSuggestions?.map(() => false) || []
   )
-  if (message.role === "user") {
+  if (message.role === 'user') {
     return <UserMessageDisplay message={message} onEdit={onEdit} />
   }
   let matches = Array.from(message.content.matchAll(CODE_CHANGE_PATTERN))
@@ -443,8 +443,8 @@ const MessageDisplay = ({
   const codeMirrors = useMemo(() => {
     return (
       message.annotations?.codeSuggestions?.map((suggestion) => {
-        const fileExtension = suggestion.filePath.split(".").pop()
-        let languageExtension = languageMapping["js"]
+        const fileExtension = suggestion.filePath.split('.').pop()
+        let languageExtension = languageMapping['js']
         if (fileExtension) {
           languageExtension = languageMapping[fileExtension]
         }
@@ -488,11 +488,11 @@ const MessageDisplay = ({
           message.annotations!.pulls?.length == 0) && (
           <div
             className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] text-left w-[80%]
-              ${message.role === "assistant" ? "py-1" : ""} ${
-              className || roleToColor[message.role]
-            }`}
+              ${message.role === 'assistant' ? 'py-1' : ''} ${
+                className || roleToColor[message.role]
+              }`}
           >
-            {message.role === "function" ? (
+            {message.role === 'function' ? (
               <Accordion
                 type="single"
                 collapsible
@@ -520,14 +520,14 @@ const MessageDisplay = ({
                     className={`pb-0 ${
                       message.content &&
                       message.function_call?.function_name ===
-                        "search_codebase" &&
+                        'search_codebase' &&
                       !message.function_call?.is_complete
-                        ? "pt-6"
-                        : "pt-0"
+                        ? 'pt-6'
+                        : 'pt-0'
                     }`}
                   >
                     {message.function_call?.function_name ===
-                      "search_codebase" &&
+                      'search_codebase' &&
                       message.content &&
                       !message.function_call.is_complete && (
                         <span className="p-4 pl-2">{message.content}</span>
@@ -553,8 +553,8 @@ const MessageDisplay = ({
                         )}
                       </div>
                     ) : message.function_call!.function_name ===
-                        "self_critique" ||
-                      message.function_call!.function_name === "analysis" ? (
+                        'self_critique' ||
+                      message.function_call!.function_name === 'analysis' ? (
                       <MarkdownRenderer
                         content={message.content}
                         className="reactMarkdown mt-4 mb-0 py-2"
@@ -564,9 +564,9 @@ const MessageDisplay = ({
                         language="xml"
                         style={codeStyle}
                         customStyle={{
-                          backgroundColor: "transparent",
-                          whiteSpace: "pre-wrap",
-                          maxHeight: "300px",
+                          backgroundColor: 'transparent',
+                          whiteSpace: 'pre-wrap',
+                          maxHeight: '300px',
                         }}
                         className="rounded-xl p-4"
                       >
@@ -577,7 +577,7 @@ const MessageDisplay = ({
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
-            ) : message.role === "assistant" ? (
+            ) : message.role === 'assistant' ? (
               <>
                 <MarkdownRenderer
                   content={message.content}
@@ -619,8 +619,8 @@ const MessageDisplay = ({
             </Button>
             {message.annotations?.codeSuggestions?.map(
               (suggestion: StatefulCodeSuggestion, index: number) => {
-                const fileExtension = suggestion.filePath.split(".").pop()
-                let languageExtension = languageMapping["js"]
+                const fileExtension = suggestion.filePath.split('.').pop()
+                let languageExtension = languageMapping['js']
                 if (fileExtension) {
                   languageExtension = languageMapping[fileExtension]
                 }
@@ -638,7 +638,7 @@ const MessageDisplay = ({
                   }
                 }
                 const firstLines = truncate(
-                  suggestion.originalCode.split("\n").slice(0, 1).join("\n"),
+                  suggestion.originalCode.split('\n').slice(0, 1).join('\n'),
                   80
                 )
                 return (
@@ -667,13 +667,13 @@ const MessageDisplay = ({
                           )}
                         </Button>
                         <code className="text-zinc-200 px-2">
-                          {suggestion.filePath}{" "}
+                          {suggestion.filePath}{' '}
                           <span className="text-green-500">
                             +{numLinesAdded}
-                          </span>{" "}
+                          </span>{' '}
                           <span className="text-red-500">
                             -{numLinesRemoved}
-                          </span>{" "}
+                          </span>{' '}
                           <span className="text-zinc-500 ml-4">
                             {firstLines}
                           </span>
@@ -745,18 +745,18 @@ const parsePullRequests = async (
   message: string,
   octokit: Octokit
 ): Promise<PullRequest[]> => {
-  const [orgName, repo] = repoName.split("/")
+  const [orgName, repo] = repoName.split('/')
   const pulls = []
 
   try {
     const prURLs = message.match(
       new RegExp(
         `https?:\/\/github.com\/${repoName}\/pull\/(?<prNumber>[0-9]+)`,
-        "gm"
+        'gm'
       )
     )
     for (const prURL of prURLs || []) {
-      const prNumber = prURL.split("/").pop()
+      const prNumber = prURL.split('/').pop()
       const pr = await octokit!.rest.pulls.get({
         owner: orgName,
         repo: repo,
@@ -766,7 +766,7 @@ const parsePullRequests = async (
       const body = pr.data.body
       const labels = pr.data.labels.map((label) => label.name)
       const status =
-        pr.data.state === "open" ? "open" : pr.data.merged ? "merged" : "closed"
+        pr.data.state === 'open' ? 'open' : pr.data.merged ? 'merged' : 'closed'
       const file_diffs = (
         await octokit!.rest.pulls.listFiles({
           owner: orgName,
@@ -803,28 +803,28 @@ const parsePullRequests = async (
     return pulls
   } catch (e) {
     toast({
-      title: "Failed to retrieve pull request",
+      title: 'Failed to retrieve pull request',
       description: `The following error has occurred: ${e.message}. Sometimes, logging out and logging back in can resolve this issue.`,
-      variant: "destructive",
+      variant: 'destructive',
     })
     return []
   }
 }
 
-function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
-  const [repoName, setRepoName] = useState<string>("")
-  const [branch, setBranch] = useState<string>("main")
+function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
+  const [repoName, setRepoName] = useState<string>('')
+  const [branch, setBranch] = useState<string>('main')
   const [repoNameValid, setRepoNameValid] = useState<boolean>(false)
   const [repoNameDisabled, setRepoNameDisabled] = useState<boolean>(false)
 
-  const [k, setK] = useLocalStorage<number>("k", DEFAULT_K)
+  const [k, setK] = useLocalStorage<number>('k', DEFAULT_K)
   const [model, setModel] = useLocalStorage<keyof typeof modelMap>(
-    "model",
-    "gpt-4o"
+    'model',
+    'gpt-4o'
   )
   const [snippets, setSnippets] = useState<Snippet[]>([])
   const [messages, setMessages] = useState<Message[]>([])
-  const [currentMessage, setCurrentMessage] = useState<string>("")
+  const [currentMessage, setCurrentMessage] = useState<string>('')
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const isStream = useRef<boolean>(false)
   const [showSurvey, setShowSurvey] = useState<boolean>(false)
@@ -836,21 +836,16 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
     StatefulCodeSuggestion[]
   >([])
   const [codeSuggestionsState, setCodeSuggestionsState] = useState<
-    "staging" | "validating" | "creating" | "done"
-  >("staging")
-  const [
-    isProcessingSuggestedChanges,
-    setIsProcessingSuggestedChanges,
-  ] = useState<boolean>(false)
+    'staging' | 'validating' | 'creating' | 'done'
+  >('staging')
+  const [isProcessingSuggestedChanges, setIsProcessingSuggestedChanges] =
+    useState<boolean>(false)
   const [pullRequestTitle, setPullRequestTitle] = useState<string | null>(null)
   const [pullRequestBody, setPullRequestBody] = useState<string | null>(null)
-  const [isCreatingPullRequest, setIsCreatingPullRequest] = useState<boolean>(
-    false
-  )
-  const [
-    userMentionedPullRequest,
-    setUserMentionedPullRequest,
-  ] = useState<PullRequest | null>(null)
+  const [isCreatingPullRequest, setIsCreatingPullRequest] =
+    useState<boolean>(false)
+  const [userMentionedPullRequest, setUserMentionedPullRequest] =
+    useState<PullRequest | null>(null)
   const [userMentionedPullRequests, setUserMentionedPullRequests] = useState<
     PullRequest[] | null
   >(null)
@@ -860,7 +855,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
   const [commitToPR, setCommitToPR] = useState<boolean>(false) // controls whether or not we commit to the userMetionedPullRequest or create a new pr
   const [commitToPRIsOpen, setCommitToPRIsOpen] = useState<boolean>(false)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
-  const [commitMessage, setCommitMessage] = useState<string>("")
+  const [commitMessage, setCommitMessage] = useState<string>('')
 
   const { data: session } = useSession()
 
@@ -873,10 +868,10 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
   const authorizedFetch = useCallback(
     (url: string, options: RequestInit = {}) => {
       return fetch(url, {
-        method: "POST",
+        method: 'POST',
         headers: {
           ...options.headers,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${session?.user.accessToken}`,
         },
         ...options,
@@ -892,11 +887,11 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
         const response = await authorizedFetch(
           `/backend/messages/load/${defaultMessageId}`,
           {
-            method: "GET",
+            method: 'GET',
           }
         )
         const data = await response.json()
-        if (data.status == "success") {
+        if (data.status == 'success') {
           const {
             repo_name,
             messages,
@@ -927,16 +922,16 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
           setPullRequestBody(pull_request_body)
           setUserMentionedPullRequest(user_mentioned_pull_request)
           setUserMentionedPullRequests(user_mentioned_pull_requests)
-          if (commit_to_pr === "true") {
+          if (commit_to_pr === 'true') {
             setCommitToPR(true)
           } else {
             setCommitToPR(false)
           }
         } else {
           toast({
-            title: "Failed to load message",
+            title: 'Failed to load message',
             description: `The following error has occurred: ${data.error}. Sometimes, logging out and logging back in can resolve this issue.`,
-            variant: "destructive",
+            variant: 'destructive',
           })
         }
       })()
@@ -945,11 +940,8 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
 
   useEffect(() => {
     if (messagesContainerRef.current) {
-      const {
-        scrollTop,
-        scrollHeight,
-        clientHeight,
-      } = messagesContainerRef.current
+      const { scrollTop, scrollHeight, clientHeight } =
+        messagesContainerRef.current
       if (scrollHeight - scrollTop - clientHeight < 80) {
         messagesContainerRef.current.scrollTop =
           messagesContainerRef.current.scrollHeight
@@ -968,8 +960,8 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
         let response
         do {
           response = await octokit.rest.repos.listForAuthenticatedUser({
-            visibility: "all",
-            sort: "pushed",
+            visibility: 'all',
+            sort: 'pushed',
             per_page: 100,
             page: page,
           })
@@ -1002,8 +994,8 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
     if (repoName && octokit) {
       ;(async () => {
         const repoData = await octokit.rest.repos.get({
-          owner: repoName.split("/")[0],
-          repo: repoName.split("/")[1],
+          owner: repoName.split('/')[0],
+          repo: repoName.split('/')[1],
         })
         setBranch(repoData.data.default_branch)
         setBaseBranch(repoData.data.default_branch)
@@ -1013,7 +1005,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
 
   useEffect(() => {
     if (suggestedChanges.length == 0) {
-      setCodeSuggestionsState("staging")
+      setCodeSuggestionsState('staging')
     }
   }, [suggestedChanges])
 
@@ -1031,11 +1023,11 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
     currentPullRequestBody: string | null = null
   ) => {
     const commitToPRString: string =
-      currentCommitToPR || commitToPR ? "true" : "false"
-    const saveResponse = await fetch("/backend/messages/save", {
-      method: "POST",
+      currentCommitToPR || commitToPR ? 'true' : 'false'
+    const saveResponse = await fetch('/backend/messages/save', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         // @ts-ignore
         Authorization: `Bearer ${session?.user.accessToken}`,
       },
@@ -1043,7 +1035,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
         repo_name: currentRepoName || repoName,
         messages: currentMessages || messages,
         snippets: currentSnippets || snippets,
-        message_id: messagesId || "",
+        message_id: messagesId || '',
         original_code_suggestions:
           currentOriginalCodeSuggestions || originalSuggestedChanges,
         code_suggestions: currentSuggestedChanges || originalSuggestedChanges,
@@ -1058,15 +1050,15 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
       }),
     })
     const saveData = await saveResponse.json()
-    if (saveData.status == "success") {
+    if (saveData.status == 'success') {
       const { message_id } = saveData
       if (!messagesId && message_id) {
         setMessagesId(message_id)
         const updatedUrl = `/c/${message_id}`
-        window.history.pushState({}, "", updatedUrl)
+        window.history.pushState({}, '', updatedUrl)
       }
     } else {
-      console.warn("Failed to save message", saveData)
+      console.warn('Failed to save message', saveData)
     }
   }
 
@@ -1085,7 +1077,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
         pullRequestTitle,
         pullRequestBody
       ) => {
-        console.log("saving...")
+        console.log('saving...')
         save(
           repoName,
           messages,
@@ -1107,7 +1099,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
   ) // can tune these timeouts
 
   useEffect(() => {
-    console.log("pr", pullRequest)
+    console.log('pr', pullRequest)
     if (messages.length > 0 && snippets.length > 0) {
       debouncedSave(
         repoName,
@@ -1138,9 +1130,9 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
   ])
 
   const reactCodeMirrors = suggestedChanges.map((suggestion, index) => {
-    const fileExtension = suggestion.filePath.split(".").pop()
+    const fileExtension = suggestion.filePath.split('.').pop()
     // default to javascript
-    let languageExtension = languageMapping["js"]
+    let languageExtension = languageMapping['js']
     if (fileExtension) {
       languageExtension = languageMapping[fileExtension]
     }
@@ -1148,7 +1140,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
     return (
       <CodeMirrorMerge
         theme={dracula}
-        revertControls={"a-to-b"}
+        revertControls={'a-to-b'}
         collapseUnchanged={{
           margin: 3,
           minSize: 4,
@@ -1167,11 +1159,11 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
         <Modified
           value={suggestion.newCode}
           readOnly={
-            !(suggestion.state == "done" || suggestion.state == "error")
+            !(suggestion.state == 'done' || suggestion.state == 'error')
           }
           extensions={[
             EditorView.editable.of(
-              suggestion.state == "done" || suggestion.state == "error"
+              suggestion.state == 'done' || suggestion.state == 'error'
             ),
             ...(languageExtension ? [languageExtension] : []),
           ]}
@@ -1197,7 +1189,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
     return (
       <main className="flex h-screen items-center justify-center p-12">
         <Toaster />
-        <Button onClick={() => signIn("github")} variant="secondary">
+        <Button onClick={() => signIn('github')} variant="secondary">
           <FaGithub className="inline-block mr-2" style={{ marginTop: -2 }} />
           Sign in with GitHub
         </Button>
@@ -1207,7 +1199,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
 
   const lastAssistantMessageIndex = messages.findLastIndex(
     (message) =>
-      message.role === "assistant" &&
+      message.role === 'assistant' &&
       !message.annotations?.pulls &&
       message.content.trim().length > 0
   )
@@ -1220,7 +1212,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
     let currentCodeSuggestions: StatefulCodeSuggestion[] = codeSuggestions.map(
       (suggestion) => ({
         ...suggestion,
-        state: "pending",
+        state: 'pending',
       })
     )
     setSuggestedChanges(currentCodeSuggestions)
@@ -1264,13 +1256,13 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
         console.log(isStream.current)
         if (!isStream.current) {
           currentCodeSuggestions = currentCodeSuggestions.map((suggestion) =>
-            suggestion.state == "done"
+            suggestion.state == 'done'
               ? suggestion
               : {
                   ...suggestion,
                   originalCode:
                     suggestion.fileContents || suggestion.originalCode,
-                  state: "error",
+                  state: 'error',
                 }
           )
           console.log(currentCodeSuggestions)
@@ -1279,27 +1271,27 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
       } catch (e) {
         console.error(e)
         toast({
-          title: "Failed to auto-fix changes!",
+          title: 'Failed to auto-fix changes!',
           description:
-            "The following error occurred while applying these changes:\n\n" +
+            'The following error occurred while applying these changes:\n\n' +
             e.message +
-            "\n\nFeel free to shoot us a message if you keep running into this!",
-          variant: "destructive",
+            '\n\nFeel free to shoot us a message if you keep running into this!',
+          variant: 'destructive',
           duration: Infinity,
         })
         currentCodeSuggestions = currentCodeSuggestions.map((suggestion) =>
-          suggestion.state == "done"
+          suggestion.state == 'done'
             ? suggestion
             : {
                 ...suggestion,
                 originalCode:
                   suggestion.fileContents || suggestion.originalCode,
-                state: "error",
+                state: 'error',
               }
         )
         console.log(currentCodeSuggestions)
         setSuggestedChanges(currentCodeSuggestions)
-        posthog.capture("auto fix error", {
+        posthog.capture('auto fix error', {
           error: e.message,
         })
       } finally {
@@ -1308,7 +1300,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
 
         if (!featureBranch || !pullRequestTitle || !pullRequestBody) {
           const prMetadata = await authorizedFetch(
-            "/backend/create_pull_metadata",
+            '/backend/create_pull_metadata',
             {
               body: JSON.stringify({
                 repo_name: repoName,
@@ -1337,15 +1329,15 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
           const { title, description, branch: featureBranch } = prData
           setFeatureBranch(
             featureBranch ||
-              "sweep-chat-suggested-changes-" +
+              'sweep-chat-suggested-changes-' +
                 new Date()
                   .toISOString()
                   .slice(0, 19)
-                  .replace("T", "_")
-                  .replace(":", "_")
+                  .replace('T', '_')
+                  .replace(':', '_')
           )
-          setPullRequestTitle(title || "Sweep Chat Suggested Changes")
-          setPullRequestBody(description || "Suggested changes by Sweep Chat.")
+          setPullRequestTitle(title || 'Sweep Chat Suggested Changes')
+          setPullRequestBody(description || 'Suggested changes by Sweep Chat.')
         }
       }
     })()
@@ -1363,9 +1355,9 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
     if (currentSnippets.length == 0) {
       try {
         const snippetsResponse = await fetch(`/backend/search`, {
-          method: "POST",
+          method: 'POST',
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
             // @ts-ignore
             Authorization: `Bearer ${session?.user.accessToken}`,
           },
@@ -1378,7 +1370,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
         })
 
         let streamedMessages: Message[] = [...newMessages]
-        let streamedMessage: string = ""
+        let streamedMessage: string = ''
         const reader = snippetsResponse.body?.getReader()!
         for await (const chunk of streamMessages(reader, isStream)) {
           streamedMessage = chunk[0]
@@ -1388,9 +1380,9 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
             ...newMessages,
             {
               content: streamedMessage,
-              role: "function",
+              role: 'function',
               function_call: {
-                function_name: "search_codebase",
+                function_name: 'search_codebase',
                 function_parameters: {},
                 snippets: currentSnippets,
                 is_complete: false,
@@ -1407,7 +1399,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
           {
             ...streamedMessages[streamedMessages.length - 1],
             function_call: {
-              function_name: "search_codebase",
+              function_name: 'search_codebase',
               function_parameters: {},
               snippets: currentSnippets,
               is_complete: true,
@@ -1416,19 +1408,19 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
         ]
         setMessages(streamedMessages)
         if (!currentSnippets.length) {
-          throw new Error("No snippets found")
+          throw new Error('No snippets found')
         }
       } catch (e) {
         console.log(e)
         toast({
-          title: "Failed to search codebase",
+          title: 'Failed to search codebase',
           description: `The following error has occurred: ${e.message}. Sometimes, logging out and logging back in can resolve this issue.`,
-          variant: "destructive",
+          variant: 'destructive',
           duration: Infinity,
         })
         setIsLoading(false)
         isStream.current = false
-        posthog.capture("chat errored", {
+        posthog.capture('chat errored', {
           repoName,
           snippets,
           newMessages,
@@ -1439,10 +1431,10 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
       }
     }
 
-    const chatResponse = await fetch("/backend/chat", {
-      method: "POST",
+    const chatResponse = await fetch('/backend/chat', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         // @ts-ignore
         Authorization: `Bearer ${session?.user.accessToken}`,
       },
@@ -1461,14 +1453,16 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
     var streamedMessages: Message[] = []
     var respondedMessages: Message[] = [
       ...newMessages,
-      { content: "", role: "assistant" } as Message,
+      { content: '', role: 'assistant' } as Message,
     ]
     setMessages(respondedMessages)
     let messageLength = newMessages.length
     try {
       for await (const patch of streamMessages(reader, isStream)) {
-        streamedMessages = jsonpatch.applyPatch(streamedMessages, patch)
-          .newDocument
+        streamedMessages = jsonpatch.applyPatch(
+          streamedMessages,
+          patch
+        ).newDocument
         setMessages([...newMessages, ...streamedMessages])
         if (streamedMessages.length > messageLength) {
           messageLength = streamedMessages.length
@@ -1476,7 +1470,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
       }
       if (!isStream.current) {
         reader!.cancel()
-        posthog.capture("chat stopped", {
+        posthog.capture('chat stopped', {
           repoName,
           snippets,
           newMessages,
@@ -1485,13 +1479,13 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
       }
     } catch (e) {
       toast({
-        title: "Chat stream failed",
+        title: 'Chat stream failed',
         description: e.message,
-        variant: "destructive",
+        variant: 'destructive',
         duration: Infinity,
       })
       setIsLoading(false)
-      posthog.capture("chat errored", {
+      posthog.capture('chat errored', {
         repoName,
         snippets,
         newMessages,
@@ -1505,7 +1499,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
 
     var lastMessage = streamedMessages[streamedMessages.length - 1]
     if (
-      lastMessage.role == "function" &&
+      lastMessage.role == 'function' &&
       lastMessage.function_call?.is_complete == false
     ) {
       lastMessage.function_call.is_complete = true
@@ -1524,7 +1518,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
       setShowSurvey(true)
     }
     setIsLoading(false)
-    posthog.capture("chat succeeded", {
+    posthog.capture('chat succeeded', {
       repoName,
       snippets,
       newMessages,
@@ -1533,7 +1527,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
   }
 
   const sendMessage = async () => {
-    posthog.capture("chat submitted", {
+    posthog.capture('chat submitted', {
       repoName,
       snippets,
       messages,
@@ -1541,10 +1535,10 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
     })
     let newMessages: Message[] = [
       ...messages,
-      { content: currentMessage, role: "user" },
+      { content: currentMessage, role: 'user' },
     ]
     setMessages(newMessages)
-    setCurrentMessage("")
+    setCurrentMessage('')
     const pulls = await parsePullRequests(repoName, currentMessage, octokit!)
     if (pulls.length) {
       setUserMentionedPullRequest(pulls[pulls.length - 1])
@@ -1563,10 +1557,10 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
     setUserMentionedPullRequests(newPulls)
     newMessages = [
       ...messages,
-      { content: currentMessage, role: "user", annotations: { pulls } },
+      { content: currentMessage, role: 'user', annotations: { pulls } },
     ]
     setMessages(newMessages)
-    setCurrentMessage("")
+    setCurrentMessage('')
     startStream(currentMessage, newMessages, snippets, { pulls })
   }
 
@@ -1580,7 +1574,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
               setShowSurvey(false)
               if (didSubmit) {
                 toast({
-                  title: "Thanks for your feedback!",
+                  title: 'Thanks for your feedback!',
                   description: "We'll reach back out shortly.",
                 })
               }
@@ -1589,7 +1583,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
         )}
         <div
           className={`mb-4 w-full flex items-center ${
-            repoNameValid || defaultMessageId ? "" : "grow"
+            repoNameValid || defaultMessageId ? '' : 'grow'
           }`}
         >
           {/* <img src="https://avatars.githubusercontent.com/u/170980334?v=4" className="w-12 h-12 rounded-full" /> */}
@@ -1605,20 +1599,20 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
             disabled={repoNameDisabled}
             onBlur={async (repoName: string) => {
               console.log(repoName)
-              const cleanedRepoName = repoName.replace(/\s/g, "") // might be unsafe but we'll handle it once we get there
+              const cleanedRepoName = repoName.replace(/\s/g, '') // might be unsafe but we'll handle it once we get there
               console.log(repoName)
               setRepoName(cleanedRepoName)
-              if (cleanedRepoName === "") {
+              if (cleanedRepoName === '') {
                 setRepoNameValid(false)
                 return
               }
-              if (!cleanedRepoName.includes("/")) {
+              if (!cleanedRepoName.includes('/')) {
                 setRepoNameValid(false)
                 toast({
-                  title: "Invalid repository name",
+                  title: 'Invalid repository name',
                   description:
                     "Please enter a valid repository name in the format 'owner/repo'",
-                  variant: "destructive",
+                  variant: 'destructive',
                   duration: Infinity,
                 })
                 return
@@ -1629,16 +1623,16 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                 const response = await authorizedFetch(
                   `/backend/repo?repo_name=${cleanedRepoName}`,
                   {
-                    method: "GET",
+                    method: 'GET',
                   }
                 )
                 data = await response.json()
               } catch (e) {
                 setRepoNameValid(false)
                 toast({
-                  title: "Failed to load repository",
+                  title: 'Failed to load repository',
                   description: e.message,
-                  variant: "destructive",
+                  variant: 'destructive',
                   duration: Infinity,
                 })
                 setRepoNameDisabled(false)
@@ -1647,23 +1641,23 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
               if (!data.success) {
                 setRepoNameValid(false)
                 toast({
-                  title: "Failed to load repository",
+                  title: 'Failed to load repository',
                   description: data.error,
-                  variant: "destructive",
+                  variant: 'destructive',
                   duration: Infinity,
                 })
               } else {
                 setRepoNameValid(true)
                 toast({
-                  title: "Successfully loaded repository",
-                  variant: "default",
+                  title: 'Successfully loaded repository',
+                  variant: 'default',
                 })
               }
               setRepoNameDisabled(false)
               if (octokit) {
                 const repo = await octokit.rest.repos.get({
-                  owner: cleanedRepoName.split("/")[0],
-                  repo: cleanedRepoName.split("/")[1],
+                  owner: cleanedRepoName.split('/')[0],
+                  repo: cleanedRepoName.split('/')[1],
                 })
                 setBranch(repo.data.default_branch)
                 setBaseBranch(repo.data.default_branch)
@@ -1688,7 +1682,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                         disabled={isLoading}
                       >
                         <FaCodeBranch />
-                        &nbsp;&nbsp;Will commit to{" "}
+                        &nbsp;&nbsp;Will commit to{' '}
                         {userMentionedPullRequest.number}
                       </Button>
                     ) : (
@@ -1718,33 +1712,31 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                     ) : (
                       <></>
                     )}
-                    {
-                      // loop through all pull requests
-                      userMentionedPullRequests?.map((pr, index) => {
-                        // dont show current selected pr, unless we are creating a pr rn
-                        if (
-                          pr.number !== userMentionedPullRequest?.number ||
-                          !commitToPR
-                        ) {
-                          return (
-                            <Button
-                              className="w-full"
-                              variant="secondary"
-                              disabled={isLoading}
-                              onClick={() => {
-                                setCommitToPR(true)
-                                setUserMentionedPullRequest(pr)
-                                setCommitToPRIsOpen(false)
-                              }}
-                              key={index}
-                            >
-                              <FaCodeBranch />
-                              &nbsp;&nbsp;Will commit to {pr.number}
-                            </Button>
-                          )
-                        }
-                      })
-                    }
+                    {// loop through all pull requests
+                    userMentionedPullRequests?.map((pr, index) => {
+                      // dont show current selected pr, unless we are creating a pr rn
+                      if (
+                        pr.number !== userMentionedPullRequest?.number ||
+                        !commitToPR
+                      ) {
+                        return (
+                          <Button
+                            className="w-full"
+                            variant="secondary"
+                            disabled={isLoading}
+                            onClick={() => {
+                              setCommitToPR(true)
+                              setUserMentionedPullRequest(pr)
+                              setCommitToPRIsOpen(false)
+                            }}
+                            key={index}
+                          >
+                            <FaCodeBranch />
+                            &nbsp;&nbsp;Will commit to {pr.number}
+                          </Button>
+                        )
+                      }
+                    })}
                   </NavigationMenuContent>
                 </NavigationMenuItem>
               </NavigationMenuList>
@@ -1778,7 +1770,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                     }
                   >
                     {Object.keys(modelMap).map((model) =>
-                      model.includes("claude") ? (
+                      model.includes('claude') ? (
                         <DropdownMenuRadioItem value={model} key={model}>
                           {modelMap[model]}
                         </DropdownMenuRadioItem>
@@ -1794,7 +1786,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                     }
                   >
                     {Object.keys(modelMap).map((model) =>
-                      model.includes("gpt") ? (
+                      model.includes('gpt') ? (
                         <DropdownMenuRadioItem value={model} key={model}>
                           {modelMap[model]}
                         </DropdownMenuRadioItem>
@@ -1823,8 +1815,8 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
               <div className="flex items-center">
                 <img
                   className="rounded-full w-12 h-12 m-0 ml-2"
-                  src={session!.user!.image || ""}
-                  alt={session!.user!.name || ""}
+                  src={session!.user!.image || ''}
+                  alt={session!.user!.name || ''}
                 />
               </div>
             </DropdownMenuTrigger>
@@ -1880,7 +1872,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                   repoName={repoName}
                   branch={branch}
                   className={
-                    index == lastAssistantMessageIndex ? "bg-slate-700" : ""
+                    index == lastAssistantMessageIndex ? 'bg-slate-700' : ''
                   }
                   onEdit={async (content) => {
                     isStream.current = false
@@ -1987,15 +1979,15 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                   &nbsp;&nbsp;Unstage Changes
                 </Button>
               </div>
-              {codeSuggestionsState == "staging" && (
+              {codeSuggestionsState == 'staging' && (
                 <div className="flex justify-around w-full pb-2 mb-4">
                   <p>Staged Changes</p>
                 </div>
               )}
               {!suggestedChanges.every(
-                (suggestion) => suggestion.state == "done"
+                (suggestion) => suggestion.state == 'done'
               ) &&
-                codeSuggestionsState == "validating" &&
+                codeSuggestionsState == 'validating' &&
                 !isProcessingSuggestedChanges && (
                   <div className="flex justify-around w-full pb-2 mb-4">
                     Some patches failed to validate, so you may get some
@@ -2018,40 +2010,40 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                   <p>
                     {commitToPR && userMentionedPullRequest
                       ? `Committing to ${userMentionedPullRequest.branch}`
-                      : "Creating pull request..."}
+                      : 'Creating pull request...'}
                   </p>
                 </div>
               )}
               <div
                 style={{
                   opacity: isCreatingPullRequest ? 0.5 : 1,
-                  pointerEvents: isCreatingPullRequest ? "none" : "auto",
+                  pointerEvents: isCreatingPullRequest ? 'none' : 'auto',
                 }}
               >
                 {suggestedChanges.map((suggestion, index) => (
                   <div className="fit-content mb-6" key={index}>
                     <div
                       className={`flex justify-between items-center w-full text-sm p-2 px-4 rounded-t-md ${
-                        suggestion.state === "done"
-                          ? "bg-green-900"
-                          : suggestion.state === "error"
-                          ? "bg-red-900"
-                          : suggestion.state === "pending"
-                          ? "bg-zinc-800"
-                          : "bg-yellow-800"
+                        suggestion.state === 'done'
+                          ? 'bg-green-900'
+                          : suggestion.state === 'error'
+                            ? 'bg-red-900'
+                            : suggestion.state === 'pending'
+                              ? 'bg-zinc-800'
+                              : 'bg-yellow-800'
                       }`}
                     >
                       <code>
-                        {suggestion.filePath}{" "}
-                        {suggestion.state == "pending" ? (
-                          "(pending)"
-                        ) : suggestion.state == "processing" ? (
-                          "(processing)"
-                        ) : suggestion.state == "error" ? (
-                          "(error)"
+                        {suggestion.filePath}{' '}
+                        {suggestion.state == 'pending' ? (
+                          '(pending)'
+                        ) : suggestion.state == 'processing' ? (
+                          '(processing)'
+                        ) : suggestion.state == 'error' ? (
+                          '(error)'
                         ) : (
                           <FaCheck
-                            style={{ display: "inline", marginTop: -2 }}
+                            style={{ display: 'inline', marginTop: -2 }}
                           />
                         )}
                       </code>
@@ -2088,11 +2080,11 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                     {reactCodeMirrors[index]}
                   </div>
                 ))}
-                {codeSuggestionsState == "staging" && (
+                {codeSuggestionsState == 'staging' && (
                   <Button
                     className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
                     onClick={() => {
-                      setCodeSuggestionsState("validating")
+                      setCodeSuggestionsState('validating')
                       applySuggestions(suggestedChanges, commitToPR)
                     }}
                   >
@@ -2100,15 +2092,15 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                     &nbsp;&nbsp;Apply Changes
                   </Button>
                 )}
-                {(codeSuggestionsState == "validating" ||
-                  codeSuggestionsState == "creating") && (
+                {(codeSuggestionsState == 'validating' ||
+                  codeSuggestionsState == 'creating') && (
                   <>
                     {commitToPR && userMentionedPullRequest ? (
                       <></>
                     ) : (
                       <>
                         <Input
-                          value={pullRequestTitle || ""}
+                          value={pullRequestTitle || ''}
                           onChange={(e) => setPullRequestTitle(e.target.value)}
                           placeholder="Pull Request Title"
                           className="w-full mb-4 text-zinc-300"
@@ -2118,7 +2110,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                           }
                         />
                         <Textarea
-                          value={pullRequestBody || ""}
+                          value={pullRequestBody || ''}
                           onChange={(e) => setPullRequestBody(e.target.value)}
                           placeholder="Pull Request Body"
                           className="w-full mb-4 text-zinc-300"
@@ -2139,7 +2131,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                       <div className="flex grow items-center mb-4">
                         <Input
                           className="flex items-center w-[600px]"
-                          value={baseBranch || ""}
+                          value={baseBranch || ''}
                           onChange={(e) => setBaseBranch(e.target.value)}
                           placeholder="Base Branch"
                           style={{
@@ -2149,7 +2141,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                         <FaArrowLeft className="mx-4" />
                         <Input
                           className="flex items-center w-[600px]"
-                          value={featureBranch || ""}
+                          value={featureBranch || ''}
                           onChange={(e) => setFeatureBranch(e.target.value)}
                           placeholder="Feature Branch"
                           style={{
@@ -2162,7 +2154,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                       <div className="flex grow items-center mb-4">
                         <Input
                           className="flex items-center w-[600px]"
-                          value={commitMessage || ""}
+                          value={commitMessage || ''}
                           onChange={(e) => setCommitMessage(e.target.value)}
                           placeholder="Commit Message"
                           style={{
@@ -2174,7 +2166,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                       <></>
                     )}
                     {!suggestedChanges.every(
-                      (suggestion) => suggestion.state == "done"
+                      (suggestion) => suggestion.state == 'done'
                     ) &&
                       !isProcessingSuggestedChanges && (
                         <Alert className="mb-4 bg-yellow-900">
@@ -2192,7 +2184,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                       className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
                       onClick={async () => {
                         setIsCreatingPullRequest(true)
-                        setCodeSuggestionsState("creating")
+                        setCodeSuggestionsState('creating')
                         const file_changes = suggestedChanges.reduce(
                           (
                             acc: Record<string, string>,
@@ -2205,7 +2197,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                         )
                         try {
                           let response: Response | undefined = undefined
-                          console.log("commit topr", commitToPR)
+                          console.log('commit topr', commitToPR)
                           if (commitToPR && userMentionedPullRequest) {
                             response = await authorizedFetch(
                               `/backend/commit_to_pull`,
@@ -2229,8 +2221,8 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                                   repo_name: repoName,
                                   file_changes: file_changes,
                                   branch:
-                                    "sweep-chat-patch-" +
-                                    new Date().toISOString().split("T")[0], // use ai for better branch name, title, and body later
+                                    'sweep-chat-patch-' +
+                                    new Date().toISOString().split('T')[0], // use ai for better branch name, title, and body later
                                   base_branch: baseBranch,
                                   title: pullRequestTitle,
                                   body:
@@ -2249,7 +2241,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                             ...messages,
                             {
                               content: `Pull request created: [https://github.com/${repoName}/pull/${pullRequest.number}](https://github.com/${repoName}/pull/${pullRequest.number})`,
-                              role: "assistant",
+                              role: 'assistant',
                               annotations: {
                                 pulls: [pullRequest],
                               },
@@ -2260,9 +2252,9 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                           setSuggestedChanges([])
                         } catch (e) {
                           toast({
-                            title: "Error",
+                            title: 'Error',
                             description: `An error occurred while creating the pull request: ${e}`,
-                            variant: "destructive",
+                            variant: 'destructive',
                             duration: Infinity,
                           })
                         }
@@ -2273,7 +2265,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                     >
                       {commitToPR && userMentionedPullRequest
                         ? `Commit to Pull Request ${userMentionedPullRequest?.number}`
-                        : "Create Pull Request"}
+                        : 'Create Pull Request'}
                     </Button>
                   </>
                 )}
@@ -2301,11 +2293,11 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                 variant="secondary"
                 onClick={async () => {
                   setMessages([])
-                  setCurrentMessage("")
+                  setCurrentMessage('')
                   setIsLoading(false)
                   setSnippets([])
-                  setMessagesId("")
-                  window.history.pushState({}, "", "/")
+                  setMessagesId('')
+                  window.history.pushState({}, '', '/')
                   setSuggestedChanges([])
                   setPullRequest(null)
                   setFeatureBranch(null)
@@ -2338,16 +2330,16 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                 </p>
                 <Input
                   value={`${
-                    typeof window !== "undefined" ? window.location.origin : ""
+                    typeof window !== 'undefined' ? window.location.origin : ''
                   }/c/${messagesId}`}
                   onClick={() => {
                     navigator.clipboard.writeText(
                       `${window.location.origin}/c/${messagesId}`
                     )
                     toast({
-                      title: "Link copied",
+                      title: 'Link copied',
                       description:
-                        "The link to your current session has been copied to your clipboard.",
+                        'The link to your current session has been copied to your clipboard.',
                     })
                   }}
                   disabled
@@ -2360,9 +2352,9 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
                       `${window.location.origin}/c/${messagesId}`
                     )
                     toast({
-                      title: "Link copied",
+                      title: 'Link copied',
                       description:
-                        "The link to your current session has been copied to your clipboard.",
+                        'The link to your current session has been copied to your clipboard.',
                     })
                   }}
                 >
@@ -2373,7 +2365,7 @@ function App({ defaultMessageId = "" }: { defaultMessageId?: string }) {
             <Input
               data-ph-capture-attribute-current-message={currentMessage}
               onKeyUp={async (e) => {
-                if (e.key === "Enter") {
+                if (e.key === 'Enter') {
                   sendMessage()
                 }
               }}

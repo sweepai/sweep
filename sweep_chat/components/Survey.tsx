@@ -1,5 +1,5 @@
-"use client"
-import { usePostHog } from "posthog-js/react"
+'use client'
+import { usePostHog } from 'posthog-js/react'
 import {
   Card,
   CardContent,
@@ -7,11 +7,11 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "./ui/card"
-import { Label } from "./ui/label"
-import { Button } from "./ui/button"
-import { Textarea } from "./ui/textarea"
-import { useEffect, useState } from "react"
+} from './ui/card'
+import { Label } from './ui/label'
+import { Button } from './ui/button'
+import { Textarea } from './ui/textarea'
+import { useEffect, useState } from 'react'
 
 export default function Feedback({
   onClose,
@@ -19,32 +19,32 @@ export default function Feedback({
   onClose: (didSubmit: boolean) => void
 }) {
   const posthog = usePostHog()
-  const [feedback, setFeedback] = useState("")
+  const [feedback, setFeedback] = useState('')
   const surveyID = process.env.NEXT_PUBLIC_SURVEY_ID
 
   useEffect(() => {
-    posthog.capture("survey shown", {
+    posthog.capture('survey shown', {
       $survey_id: surveyID, // required
     })
   }, [posthog, surveyID])
 
   const handleSurveyDismissed = (e: any) => {
     e.preventDefault()
-    posthog.capture("survey dismissed", {
+    posthog.capture('survey dismissed', {
       $survey_id: surveyID,
     })
-    localStorage.setItem(`hasInteractedWithSurvey_${surveyID}`, "true")
+    localStorage.setItem(`hasInteractedWithSurvey_${surveyID}`, 'true')
     onClose(false)
   }
 
   const handleFeedbackSubmit = (e: any) => {
     e.preventDefault()
     console.log(feedback)
-    posthog.capture("survey sent", {
+    posthog.capture('survey sent', {
       $survey_id: surveyID,
       $survey_response: feedback,
     })
-    localStorage.setItem(`hasInteractedWithSurvey_${surveyID}`, "true")
+    localStorage.setItem(`hasInteractedWithSurvey_${surveyID}`, 'true')
     onClose(true)
   }
 

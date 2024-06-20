@@ -1,6 +1,6 @@
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Sheet,
   SheetClose,
@@ -10,12 +10,12 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet"
-import { SnippetBadge } from "../shared/SnippetBadge"
-import { PullRequest, Snippet } from "@/lib/types"
-import { Dispatch, SetStateAction, useState } from "react"
-import { ScrollArea } from "../ui/scroll-area"
-import { SnippetSearch } from "./SnippetSearch"
+} from '@/components/ui/sheet'
+import { SnippetBadge } from '../shared/SnippetBadge'
+import { PullRequest, Snippet } from '@/lib/types'
+import { Dispatch, SetStateAction, useState } from 'react'
+import { ScrollArea } from '../ui/scroll-area'
+import { SnippetSearch } from './SnippetSearch'
 
 const ContextSideBar = ({
   snippets,
@@ -30,7 +30,7 @@ const ContextSideBar = ({
   branch: string
   k: number
 }) => {
-  const side = "left"
+  const side = 'left'
   return (
     <>
       <div className="grid grid-cols-4 gap-2">
@@ -70,7 +70,7 @@ const ContextSideBar = ({
                     branch={branch}
                     snippets={snippets}
                     setSnippets={setSnippets}
-                    options={["remove"]}
+                    options={['remove']}
                   />
                   <br />
                 </>

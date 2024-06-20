@@ -1,14 +1,14 @@
-import { AuthOptions } from "next-auth"
-import GitHubProvider from "next-auth/providers/github"
-import { refreshToken } from "@octokit/oauth-methods"
-import { Octokit } from "octokit"
-import { cache } from "react"
+import { AuthOptions } from 'next-auth'
+import GitHubProvider from 'next-auth/providers/github'
+import { refreshToken } from '@octokit/oauth-methods'
+import { Octokit } from 'octokit'
+import { cache } from 'react'
 
 const getUserData = cache(async (accessToken: string, sub: string) => {
   const octokit = new Octokit({
     auth: accessToken,
   })
-  const response = await octokit.request("GET /user/{id}", {
+  const response = await octokit.request('GET /user/{id}', {
     id: sub,
   })
   return response.data
@@ -17,11 +17,11 @@ const getUserData = cache(async (accessToken: string, sub: string) => {
 const authOptions: AuthOptions = {
   providers: [
     GitHubProvider({
-      clientId: process.env.GITHUB_ID || "",
-      clientSecret: process.env.GITHUB_SECRET || "",
+      clientId: process.env.GITHUB_ID || '',
+      clientSecret: process.env.GITHUB_SECRET || '',
     }),
   ],
-  debug: process.env.NODE_ENV === "development",
+  debug: process.env.NODE_ENV === 'development',
   callbacks: {
     async session({ session, token }: any) {
       const { sub } = token
@@ -37,7 +37,7 @@ const authOptions: AuthOptions = {
       return session
     },
     async signIn({ user, account, profile }: any) {
-      if (account.provider === "github") {
+      if (account.provider === 'github') {
         user.username = profile.login
       }
       return true
@@ -56,9 +56,9 @@ const authOptions: AuthOptions = {
       }
       if (hasExpired) {
         const { data, authentication } = await refreshToken({
-          clientType: "github-app",
-          clientId: process.env.GITHUB_ID || "",
-          clientSecret: process.env.GITHUB_SECRET || "",
+          clientType: 'github-app',
+          clientId: process.env.GITHUB_ID || '',
+          clientSecret: process.env.GITHUB_SECRET || '',
           refreshToken: token.refreshToken as string,
         })
         token.accessToken = data.access_token
@@ -76,7 +76,7 @@ const authOptions: AuthOptions = {
   },
 }
 
-declare module "next-auth" {
+declare module 'next-auth' {
   interface Session {
     user: {
       email: string

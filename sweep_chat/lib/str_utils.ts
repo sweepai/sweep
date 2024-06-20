@@ -1,26 +1,26 @@
-import { Message, PullRequest } from "./types"
+import { Message, PullRequest } from './types'
 // @ts-ignore
-import * as Diff from "diff"
+import * as Diff from 'diff'
 
 export const renderPRDiffs = (pr: PullRequest) => {
   return pr.file_diffs
     .map((diff, index) => `@@ ${diff.filename} @@\n${diff.patch}`)
-    .join("\n\n")
+    .join('\n\n')
 }
 
 export const sliceLines = (content: string, start: number, end: number) => {
   return content
-    .split("\n")
+    .split('\n')
     .slice(Math.max(start - 1, 0), end)
-    .join("\n")
+    .join('\n')
 }
 
 export const getJSONPrefix = (buffer: string): [any[], number] => {
   let stack: string[] = []
   const matchingBrackets: Record<string, string> = {
-    "[": "]",
-    "{": "}",
-    "(": ")",
+    '[': ']',
+    '{': '}',
+    '(': ')',
   }
   var currentIndex = 0
   const results = []
@@ -35,7 +35,7 @@ export const getJSONPrefix = (buffer: string): [any[], number] => {
       continue
     }
 
-    if (char === "\\") {
+    if (char === '\\') {
       escapeNext = true
       continue
     }
@@ -67,29 +67,29 @@ export const getJSONPrefix = (buffer: string): [any[], number] => {
 }
 
 export const getFunctionCallHeaderString = (
-  functionCall: Message["function_call"]
+  functionCall: Message['function_call']
 ) => {
   switch (functionCall?.function_name) {
-    case "analysis":
-      return functionCall.is_complete ? "Analysis" : "Analyzing..."
-    case "self_critique":
-      return functionCall.is_complete ? "Self critique" : "Self critiquing..."
-    case "search_codebase":
+    case 'analysis':
+      return functionCall.is_complete ? 'Analysis' : 'Analyzing...'
+    case 'self_critique':
+      return functionCall.is_complete ? 'Self critique' : 'Self critiquing...'
+    case 'search_codebase':
       if (functionCall!.function_parameters?.query) {
         return functionCall.is_complete
           ? `Search codebase for "${functionCall.function_parameters.query.trim()}"`
           : `Searching codebase for "${functionCall.function_parameters.query.trim()}"...`
       } else {
         return functionCall.is_complete
-          ? "Search codebase"
-          : "Searching codebase..."
+          ? 'Search codebase'
+          : 'Searching codebase...'
       }
     default:
       return `${functionCall?.function_name}(${Object.entries(
         functionCall?.function_parameters!
       )
         .map(([key, value]) => `${key}="${value}"`)
-        .join(", ")})`
+        .join(', ')})`
   }
 }
 
@@ -105,12 +105,12 @@ export const getDiff = (originalCode: string, newCode: string) => {
         }: { added: boolean; removed: boolean; value: string },
         index: number
       ): string => {
-        let symbol = added ? "+" : removed ? "-" : " "
-        const results = symbol + value.trimEnd().replaceAll("\n", "\n" + symbol)
+        let symbol = added ? '+' : removed ? '-' : ' '
+        const results = symbol + value.trimEnd().replaceAll('\n', '\n' + symbol)
         return results
       }
     )
-    .join("\n")
+    .join('\n')
     .trim()
   return formattedChange
 }

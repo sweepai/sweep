@@ -1,6 +1,6 @@
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 import {
   Dialog,
@@ -10,18 +10,18 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from '@/components/ui/dialog'
 
-import { SnippetBadge } from "../shared/SnippetBadge"
-import { Message, PullRequest, Snippet } from "@/lib/types"
-import { Dispatch, SetStateAction, useState } from "react"
-import { ScrollArea } from "../ui/scroll-area"
-import { toast } from "../ui/use-toast"
-import { posthog } from "@/lib/posthog"
-import { streamMessages } from "@/lib/streamingUtils"
-import { useSession } from "next-auth/react"
-import { Session } from "next-auth"
-import PulsingLoader from "./PulsingLoader"
+import { SnippetBadge } from '../shared/SnippetBadge'
+import { Message, PullRequest, Snippet } from '@/lib/types'
+import { Dispatch, SetStateAction, useState } from 'react'
+import { ScrollArea } from '../ui/scroll-area'
+import { toast } from '../ui/use-toast'
+import { posthog } from '@/lib/posthog'
+import { streamMessages } from '@/lib/streamingUtils'
+import { useSession } from 'next-auth/react'
+import { Session } from 'next-auth'
+import PulsingLoader from './PulsingLoader'
 
 const SnippetSearch = ({
   snippets,
@@ -37,9 +37,9 @@ const SnippetSearch = ({
   k: number
 }) => {
   const [newSnippets, setNewSnippets] = useState<Snippet[]>([])
-  const [searchQuery, setSearchQuery] = useState<string>("")
+  const [searchQuery, setSearchQuery] = useState<string>('')
   const [searchIsLoading, setSearchIsLoading] = useState<boolean>(false)
-  const [progressMessage, setProgressMessage] = useState<string>("")
+  const [progressMessage, setProgressMessage] = useState<string>('')
   const { data: session } = useSession()
 
   const searchForSnippets = async () => {
@@ -51,9 +51,9 @@ const SnippetSearch = ({
     // execute a search
     try {
       const snippetsResponse = await fetch(`/backend/search`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           // @ts-ignore
           Authorization: `Bearer ${session?.user.accessToken}`,
         },
@@ -75,18 +75,18 @@ const SnippetSearch = ({
         }
       }
       if (!currentSnippets.length) {
-        throw new Error("No snippets found")
+        throw new Error('No snippets found')
       }
       setSearchIsLoading(false)
     } catch (e) {
       console.log(e)
       toast({
-        title: "Failed to search codebase",
+        title: 'Failed to search codebase',
         description: `The following error has occurred: ${e.message}. Sometimes, logging out and logging back in can resolve this issue.`,
-        variant: "destructive",
+        variant: 'destructive',
         duration: Infinity,
       })
-      posthog.capture("SnippetSearch errored", {
+      posthog.capture('SnippetSearch errored', {
         repoName,
         newSnippets,
         error: e.message,
@@ -97,7 +97,7 @@ const SnippetSearch = ({
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
+    if (event.key === 'Enter') {
       // Call searchForSnippets when Enter key is pressed
       searchForSnippets()
     }
@@ -153,7 +153,7 @@ const SnippetSearch = ({
                 setSnippets={setSnippets}
                 setNewSnippets={setNewSnippets}
                 newSnippets={newSnippets}
-                options={["add"]}
+                options={['add']}
               />
             ))}
           </ScrollArea>
@@ -164,7 +164,7 @@ const SnippetSearch = ({
             disabled={searchQuery.length == 0 || searchIsLoading}
             onClick={searchForSnippets}
           >
-            {searchIsLoading ? "Searching..." : "Search"}
+            {searchIsLoading ? 'Searching...' : 'Search'}
           </Button>
         </DialogFooter>
       </DialogContent>

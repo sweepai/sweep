@@ -1,4 +1,4 @@
-import { PullRequest } from "./types"
+import { PullRequest } from './types'
 
 const isPullRequestEqual = (pr1: PullRequest, pr2: PullRequest) => {
   return (

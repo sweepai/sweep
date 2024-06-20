@@ -10,7 +10,7 @@ export default function PulsingLoader({
       className={`animate-pulse rounded-full bg-zinc-700 mr-2 p-4`}
       style={{ padding: `${size}rem` }}
     >
-      {message ? message : ""}
+      {message ? message : ''}
     </div>
   )
 }

@@ -1,15 +1,15 @@
-import { typeNameToColor, codeStyle } from "@/lib/constants"
-import { sliceLines } from "@/lib/str_utils"
-import { Snippet } from "@/lib/types"
+import { typeNameToColor, codeStyle } from '@/lib/constants'
+import { sliceLines } from '@/lib/str_utils'
+import { Snippet } from '@/lib/types'
 import {
   HoverCard,
   HoverCardTrigger,
   HoverCardContent,
-} from "@/components/ui/hover-card"
-import { FaTrash, FaPlus } from "react-icons/fa"
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
-import { Button } from "../ui/button"
-import { Dispatch, SetStateAction } from "react"
+} from '@/components/ui/hover-card'
+import { FaTrash, FaPlus } from 'react-icons/fa'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { Button } from '../ui/button'
+import { Dispatch, SetStateAction } from 'react'
 
 const snippetIsEqual = ({
   snippetOne,
@@ -49,7 +49,7 @@ const RenderPath = ({
   let truncatedPath = path
   const maxPathLength = 100
   if (path.length > maxPathLength) {
-    truncatedPath = "..." + path.slice((maxPathLength - 3) * -1)
+    truncatedPath = '...' + path.slice((maxPathLength - 3) * -1)
   }
   return (
     <span>
@@ -58,24 +58,24 @@ const RenderPath = ({
         onClick={() => {
           window.open(
             `https://github.com/${repoName}/blob/${branch}/${snippet.file_path}`,
-            "_blank"
+            '_blank'
           )
         }}
       >
-        {truncatedPath.substring(0, truncatedPath.lastIndexOf("/") + 1)}
+        {truncatedPath.substring(0, truncatedPath.lastIndexOf('/') + 1)}
       </span>
       <span
         className="text-white inline-block align-middle"
         onClick={() => {
           window.open(
             `https://github.com/${repoName}/blob/${branch}/${snippet.file_path}`,
-            "_blank"
+            '_blank'
           )
         }}
       >
-        {truncatedPath.substring(truncatedPath.lastIndexOf("/") + 1)}
+        {truncatedPath.substring(truncatedPath.lastIndexOf('/') + 1)}
       </span>
-      {snippet.end > snippet.content.split("\n").length - 3 &&
+      {snippet.end > snippet.content.split('\n').length - 3 &&
       snippet.start == 0 ? (
         <></>
       ) : (
@@ -83,13 +83,13 @@ const RenderPath = ({
           :{snippet.start}-{snippet.end}
         </span>
       )}
-      {snippet.type_name !== "source" && (
+      {snippet.type_name !== 'source' && (
         <code className="ml-2 bg-opacity-20 bg-black text-white rounded p-1 px-2 text-xs">
           {snippet.type_name}
         </code>
       )}
       <span className="inline-block align-middle">
-        {options.includes("remove") ? (
+        {options.includes('remove') ? (
           <FaTrash
             className="ml-3 hover:drop-shadow-md hover:text-gray-300"
             onClick={() => {
@@ -110,7 +110,7 @@ const RenderPath = ({
         ) : (
           <></>
         )}
-        {options.includes("add") ? (
+        {options.includes('add') ? (
           <FaPlus
             className="ml-3 hover:drop-shadow-md hover:text-gray-300"
             onClick={() => {
@@ -145,7 +145,7 @@ const RenderPath = ({
 }
 
 const getLanguage = (filePath: string) => {
-  return filePath.split(".").pop()
+  return filePath.split('.').pop()
 }
 
 const SnippetBadge = ({
@@ -176,7 +176,7 @@ const SnippetBadge = ({
       <div
         className={`p-2 rounded-xl mb-2 text-xs inline-block mr-2 ${
           typeNameToColor[snippet.type_name]
-        } ${className || ""} `}
+        } ${className || ''} `}
         style={{ opacity: `${Math.max(Math.min(1, snippet.score), 0.5)}` }}
       >
         <HoverCardTrigger asChild>
@@ -202,8 +202,8 @@ const SnippetBadge = ({
           language={getLanguage(snippet.file_path)}
           style={codeStyle}
           customStyle={{
-            backgroundColor: "transparent",
-            whiteSpace: "pre-wrap",
+            backgroundColor: 'transparent',
+            whiteSpace: 'pre-wrap',
           }}
           className="rounded-xl max-h-[600px] overflow-y-auto p-4 w-full"
         >
