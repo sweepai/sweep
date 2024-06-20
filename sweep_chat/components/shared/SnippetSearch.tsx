@@ -78,7 +78,7 @@ const SnippetSearch = ({
         throw new Error('No snippets found')
       }
       setSearchIsLoading(false)
-    } catch (e) {
+    } catch (e: any) {
       console.log(e)
       toast({
         title: 'Failed to search codebase',
