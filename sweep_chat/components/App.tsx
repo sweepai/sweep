@@ -902,11 +902,11 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   }, [messagesId, messages.length])
 
   useEffect(() => {
-    console.log(defaultMessageId)
-    if (defaultMessageId) {
+    console.log('loading message', messagesId)
+    if (messagesId) {
       ;(async () => {
         const response = await authorizedFetch(
-          `/backend/messages/load/${defaultMessageId}`,
+          `/backend/messages/load/${messagesId}`,
           {
             method: 'GET',
           }
@@ -957,7 +957,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         }
       })()
     }
-  }, [defaultMessageId])
+  }, [messagesId])
 
   useEffect(() => {
     if (messagesContainerRef.current) {
@@ -1034,6 +1034,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     currentRepoName: string,
     currentMessages: Message[],
     currentSnippets: Snippet[],
+    currentMessagesId: string,
     currentUserMentionedPullRequest: PullRequest | null = null,
     currentUserMentionedPullRequests: PullRequest[] | null = null,
     currentCommitToPR: boolean = false,
@@ -1056,7 +1057,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         repo_name: currentRepoName || repoName,
         messages: currentMessages || messages,
         snippets: currentSnippets || snippets,
-        message_id: messagesId || '',
+        message_id: currentMessagesId || '',
         original_code_suggestions:
           currentOriginalCodeSuggestions || originalSuggestedChanges,
         code_suggestions: currentSuggestedChanges || originalSuggestedChanges,
@@ -1073,7 +1074,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     const saveData = await saveResponse.json()
     if (saveData.status == 'success') {
       const { message_id } = saveData
-      if (!messagesId && message_id) {
+      if (!currentMessagesId && message_id) {
         setMessagesId(message_id)
         const updatedUrl = `/c/${message_id}`
         window.history.pushState({}, '', updatedUrl)
@@ -1089,6 +1090,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         repoName,
         messages,
         snippets,
+        currentMessagesId,
         userMentionedPullRequest,
         userMentionedPullRequests,
         commitToPR,
@@ -1103,6 +1105,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           repoName,
           messages,
           snippets,
+          currentMessagesId,
           userMentionedPullRequest,
           userMentionedPullRequests,
           commitToPR,
@@ -1120,12 +1123,12 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   ) // can tune these timeouts
 
   useEffect(() => {
-    console.log('pr', pullRequest)
     if (messages.length > 0 && snippets.length > 0) {
       debouncedSave(
         repoName,
         messages,
         snippets,
+        messagesId,
         userMentionedPullRequest,
         userMentionedPullRequests,
         commitToPR,
@@ -1140,6 +1143,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     repoName,
     messages,
     snippets,
+    messagesId,
     userMentionedPullRequest,
     userMentionedPullRequests,
     commitToPR,
@@ -1274,7 +1278,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           }))
           setSuggestedChanges(currentCodeSuggestions)
         }
-        console.log(isStream.current)
         if (!isStream.current) {
           currentCodeSuggestions = currentCodeSuggestions.map((suggestion) =>
             suggestion.state == 'done'
@@ -1286,7 +1289,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                   state: 'error',
                 }
           )
-          console.log(currentCodeSuggestions)
           setSuggestedChanges(currentCodeSuggestions)
         }
       } catch (e: any) {
@@ -1748,7 +1750,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         )}
         <div
           className={`mb-4 w-full flex items-center ${
-            repoNameValid || defaultMessageId ? '' : 'grow'
+            repoNameValid || messagesId ? '' : 'grow'
           }`}
         >
           <AutoComplete
@@ -1921,7 +1923,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         <div
           ref={messagesContainerRef}
           className="w-full border flex-grow mb-4 p-4 max-h-[90%] overflow-y-auto rounded-xl"
-          hidden={!repoNameValid && !defaultMessageId}
+          hidden={!repoNameValid && !messagesId}
         >
           {messages.length > 0
             ? messages.map((message, index) => (
@@ -1970,6 +1972,8 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                     setMessages(newMessages)
                     setIsCreatingPullRequest(false)
                     if (index == 0) {
+                      window.history.pushState({}, "", "/")
+                      setMessagesId("")
                       setOriginalSuggestedChanges([])
                       setSuggestedChanges([])
                       setIsProcessingSuggestedChanges(false)
@@ -2333,7 +2337,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
             </div>
           )}
         </div>
-        {(repoNameValid || defaultMessageId) && (
+        {(repoNameValid || messagesId) && (
           <div className={`flex w-full`}>
             {isStream.current ? (
               <Button
