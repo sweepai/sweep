@@ -15,7 +15,7 @@ from loguru import logger
 import yaml
 from sweepai.agents.modify import modify
 
-from sweepai.agents.modify_utils import validate_and_parse_function_call
+from sweepai.agents.modify_utils import get_error_message_dict, validate_and_parse_function_call
 from sweepai.agents.search_agent import extract_xml_tag
 from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, anthropic_system_message, function_response, pr_format, relevant_snippets_message_for_pr, openai_system_message, query_optimizer_system_prompt, query_optimizer_user_prompt
 from sweepai.config.client import SweepConfig
@@ -28,7 +28,7 @@ from sweepai.dataclasses.code_suggestions import CodeSuggestion
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import ClonedRepo, CustomGithub, MockClonedRepo, clean_branch_name, commit_multi_file_changes, create_branch, get_github_client, get_installation_id
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.str_utils import get_hash
+from sweepai.utils.str_utils import extract_objects_from_string, get_hash
 from sweepai.utils.streamable_functions import streamable
 from sweepai.utils.ticket_utils import prep_snippets
 from sweepai.utils.timer import Timer
@@ -708,38 +708,45 @@ def chat_codebase_stream(
                 break
         yield new_messages
 
-        # new_messages.append(
-        #     Message(
-        #         content="",
-        #         role="function",
-        #         function_call={
-        #             "function_name": "subtasks",
-        #             "function_parameters": {
-        #                 "subtasks": []
-        #             },
-        #             "is_complete": False,
-        #         }
-        #     )
-        # )
-
-        # chat_gpt.messages[0].content = action_items_system_prompt
-
-        # streamed_string = ""
-        # for token in chat_gpt.chat_anthropic(
-        #     action_items_prompt,
-        #     model=model,
-        #     use_openai=use_openai,
-        #     stream=True
-        # ):
-        #     streamed_string += token
-        #     action_items = extract_objects_from_string(streamed_string, "subtask")
-        #     new_messages[-1].function_call["function_parameters"]["subtasks"] = action_items
-        #     yield new_messages
-
+        message_content = new_messages[-1].content
+        code_suggestions_raw, _ = extract_objects_from_string(message_content, "code_change", ["file_path", "original_code", "new_code"])
+        if code_suggestions_raw:
+            new_messages[-1].annotations = {
+                "codeSuggestions": [
+                    {
+                        "filePath": code_suggestion["file_path"],
+                        "originalCode": code_suggestion["original_code"],
+                        "newCode": code_suggestion["new_code"],
+                        "state": "pending",
+                        "error": None
+                    } for code_suggestion in code_suggestions_raw
+                ]
+            }
         
-        # breakpoint()
+        # validating
+        file_change_requests = []
+        for code_suggestion in code_suggestions_raw:
+            try:
+                cloned_repo.get_contents(code_suggestion["file_path"])
+                change_type = "modify"
+            except Exception as e:
+                change_type = "create"
+            file_change_requests.append(
+                FileChangeRequest(
+                    filename=code_suggestion["file_path"],
+                    instructions=f"<original_code>\n{code_suggestion['original_code']}\n</original_code>\n<new_code>\n{code_suggestion['new_code']}\n</new_code>",
+                    change_type=change_type
+                )
+            )
+        error_messages_dict = get_error_message_dict(
+            file_change_requests=file_change_requests,
+            cloned_repo=cloned_repo
+        )
 
-        # last_assistant_message = [message.content for message in new_messages if message.role == "assistant"][-1]
+        for i, error_message in error_messages_dict.items():
+            new_messages[-1].annotations["codeSuggestions"][i]["error"] = error_message
+        
+        yield new_messages
 
         posthog.capture(metadata["username"], "chat_codebase complete", properties={
             **metadata,
