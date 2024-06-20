@@ -1666,7 +1666,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           />
           <Input
             placeholder="Branch"
-            className="w-[600px] ml-4"
+            className="w-[400px] ml-4"
             value={baseBranch}
             onChange={(e) => setBaseBranch(e.target.value)}
           />
@@ -1674,22 +1674,20 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
             <NavigationMenu>
               <NavigationMenuList>
                 <NavigationMenuItem>
-                  <NavigationMenuTrigger className="bg-secondary hover:bg-secondary">
+                  <NavigationMenuTrigger className="bg-secondary hover:bg-secondary ml-4" disabled={isLoading || !userMentionedPullRequest}>
                     {userMentionedPullRequest && commitToPR ? (
                       <Button
                         className="w-full"
                         variant="secondary"
-                        disabled={isLoading}
                       >
                         <FaCodeBranch />
-                        &nbsp;&nbsp;Will commit to{' '}
+                        &nbsp;&nbsp;Will commit to PR #
                         {userMentionedPullRequest.number}
                       </Button>
                     ) : (
                       <Button
                         className="w-full"
                         variant="secondary"
-                        disabled={isLoading || !userMentionedPullRequest}
                       >
                         <FaCodeBranch />
                         &nbsp;&nbsp;Will create new PR
@@ -1812,9 +1810,9 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           </Dialog>
           <DropdownMenu>
             <DropdownMenuTrigger className="outline-none">
-              <div className="flex items-center">
+              <div className="flex items-center w-12 h-12 ml-2">
                 <img
-                  className="rounded-full w-12 h-12 m-0 ml-2"
+                  className="rounded-full w-12 h-12 m-0"
                   src={session!.user!.image || ''}
                   alt={session!.user!.name || ''}
                 />
