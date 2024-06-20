@@ -5,7 +5,8 @@ import { ReadableStreamDefaultReadResult } from "stream/web";
 async function* streamMessages(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   isStream?: React.MutableRefObject<boolean>,
-  timeout: number = 90000
+  timeout: number = 90000,
+  maxBufferSize: number = 1024 * 1024 // 1MB max buffer size
 ): AsyncGenerator<any, void, unknown> {
   let done = false;
   let buffer = "";
@@ -30,6 +31,9 @@ async function* streamMessages(
       
       if (value) {
         const decodedValue = new TextDecoder().decode(value);
+        if (buffer.length + decodedValue.length > maxBufferSize) {
+          throw new Error("Buffer size exceeded. Possible malformed input.");
+        }
         buffer += decodedValue;
 
         const [parsedObjects, currentIndex] = getJSONPrefix(buffer)
@@ -37,10 +41,18 @@ async function* streamMessages(
           yield parsedObject
         }
         buffer = buffer.slice(currentIndex)
+        if (buffer.length > 0 && !buffer.startsWith('{')) {
+          continue;
+        }
       }
     } catch (error) {
       console.error("Error during streaming:", error);
-      throw error;
+      if (error instanceof Error && error.message.includes("Stream timeout")) {
+        throw error; // Rethrow timeout errors
+      }
+      console.warn("Attempting to continue streaming after error");
+      buffer = ""; // Clear buffer to start fresh
+      continue;
     } finally {
       if (timeoutId) {
         clearTimeout(timeoutId)
