@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "../components/ui/input"
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { FaArrowLeft, FaCheck, FaCog, FaComments, FaExclamationTriangle, FaGithub, FaPaperPlane, FaPencilAlt, FaPlus, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes, FaTrash } from "react-icons/fa";
+import { FaArrowLeft, FaCheck, FaChevronDown, FaChevronUp, FaCog, FaComments, FaExclamationTriangle, FaGithub, FaPaperPlane, FaPencilAlt, FaPlus, FaShareAlt, FaSignOutAlt, FaStop, FaThumbsDown, FaThumbsUp, FaTimes, FaTrash } from "react-icons/fa";
 import { FaArrowsRotate } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "usehooks-ts";
@@ -45,6 +45,7 @@ import { debounce } from "lodash"
 import { streamMessages } from "@/lib/streamingUtils";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Skeleton } from "./ui/skeleton";
+import * as Diff from "diff";
 
 const Original = CodeMirrorMerge.Original
 const Modified = CodeMirrorMerge.Modified
@@ -277,6 +278,9 @@ const MessageDisplay = ({
   setSuggestedChanges: React.Dispatch<React.SetStateAction<StatefulCodeSuggestion[]>>,
   index: number
 }) => {
+  const [collapsedArray, setCollapsedArray] = useState<boolean[]>((
+    message.annotations?.codeSuggestions?.map((suggestion) => false) || []
+  ))
   if (message.role === "user") {
     return <UserMessageDisplay message={message} onEdit={onEdit} />
   }
@@ -284,7 +288,6 @@ const MessageDisplay = ({
   if (matches.some((match) => !match.groups?.closingTag)) {
     matches = []
   }
-  console.log(message)
   return (
     <>
       <div className={`flex justify-start`}>
@@ -378,7 +381,10 @@ const MessageDisplay = ({
       ))}
       {message.annotations?.codeSuggestions && message.annotations?.codeSuggestions.length > 0 && (
         <div className="text-sm max-w-[80%] p-4 rounded bg-zinc-700 space-y-4 mb-4">
-          <Button className="bg-green-800 hover:bg-green-700 text-white" size="sm" onClick={() => setSuggestedChanges((suggestedChanges: StatefulCodeSuggestion[]) => [...suggestedChanges, ...message.annotations?.codeSuggestions!])}>
+          <Button className="bg-green-800 hover:bg-green-700 text-white" size="sm" onClick={() => {
+            setCollapsedArray((message.annotations?.codeSuggestions!).map((suggestion) => true))
+            setSuggestedChanges((suggestedChanges: StatefulCodeSuggestion[]) => [...suggestedChanges, ...message.annotations?.codeSuggestions!])
+          }}>
             <FaPlus/>&nbsp;Stage All Changes
           </Button>
           {message.annotations?.codeSuggestions?.map((suggestion: StatefulCodeSuggestion, index: number) => {
@@ -387,10 +393,30 @@ const MessageDisplay = ({
             if (fileExtension) {
               languageExtension = languageMapping[fileExtension]
             }
+            let diffLines = Diff.diffLines(suggestion.originalCode.trim(), suggestion.newCode.trim())
+            let numLinesAdded = 0
+            let numLinesRemoved = 0
+            for (const line of diffLines) {
+              if (line.added) {
+                numLinesAdded += line.count
+              } else if (line.removed) {
+                numLinesRemoved += line.count
+              }
+            }
+            console.log(diffLines)
             return (
               <div className="flex flex-col border border-zinc-800" key={index}>
                 <div className="flex justify-between items-center bg-zinc-800 rounded-t-md p-2">
-                  <code className="text-zinc-200">{suggestion.filePath}</code>
+                  <div className="flex items-center">
+                    <Button variant="secondary" size="sm" className="mr-2" onClick={() => setCollapsedArray((collapsedArray: boolean[]) => {
+                      const newArray = [...collapsedArray]
+                      newArray[index] = !newArray[index]
+                      return newArray
+                    })}>
+                      {collapsedArray[index] ? <FaChevronDown /> : <FaChevronUp />}
+                    </Button>
+                    <code className="text-zinc-200 px-2">{suggestion.filePath} <span className="text-green-500">+{numLinesAdded}</span> <span className="text-red-500">-{numLinesRemoved}</span></code>
+                  </div>
                   <div className="flex items-center">
                     {suggestion.error ? (
                       <HoverCard openDelay={300} closeDelay={200}>
@@ -398,7 +424,7 @@ const MessageDisplay = ({
                           <FaExclamationTriangle className="hover:cursor-pointer mr-2 text-red-500" style={{marginTop: 2}} />
                         </HoverCardTrigger>
                         <HoverCardContent className="w-[800px] max-h-[500px] overflow-y-auto">
-                          <MarkdownRenderer content={`**This patch could not be directly applied. We're sending the LLM the following message to resolve the error:**\n\n${suggestion.error}`} />
+                          <MarkdownRenderer content={`**This patch could not be directly applied. We will send the LLM the following message to resolve the error:**\n\n${suggestion.error}`} />
                         </HoverCardContent>
                       </HoverCard>
                     ) : (
@@ -417,6 +443,7 @@ const MessageDisplay = ({
                   </div>
                 </div>
                 <CodeMirrorMerge
+                  hidden={collapsedArray[index]}
                   className="w-full"
                   theme={dracula}
                   collapseUnchanged={{
@@ -1420,7 +1447,7 @@ function App({
                     <FaArrowLeft className="mx-4" />
                     <Input className="flex items-center w-[600px]" value={featureBranch || ""} onChange={(e) => setFeatureBranch(e.target.value)} placeholder="Feature Branch" style={{ opacity: isProcessingSuggestedChanges ? 0.5 : 1 }} />
                   </div>
-                  {!suggestedChanges.every((suggestion) => suggestion.state == "done") && (
+                  {!suggestedChanges.every((suggestion) => suggestion.state == "done") && !isProcessingSuggestedChanges && (
                     <Alert className="mb-4 bg-yellow-900">
                       <FaExclamationTriangle className="h-4 w-4" />
                       <AlertTitle>Warning</AlertTitle>
