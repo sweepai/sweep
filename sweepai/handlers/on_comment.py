@@ -336,10 +336,10 @@ def on_comment(
                 installation_id=installation_id,
                 renames_dict=renames_dict,
             )
-            logger.info("\n".join(generate_diff(file_data["original_contents"], file_data["contents"]) for file_data in modify_files_dict.values())) # pylint: disable=E1101
+            logger.info("\n".join(generate_diff(file_data["original_contents"], file_data["contents"]) for file_data in modify_files_dict.values()))
             pull_request_bot = PRSummaryBot()
             commit_message = pull_request_bot.get_commit_message(modify_files_dict, renames_dict=renames_dict, chat_logger=chat_logger)[:50]
-            new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()} # pylint: disable=E1101
+            new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
             previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
             new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(cloned_repo.repo, new_file_contents_to_commit, file_change_requests)
             if files_removed and username:
@@ -385,7 +385,7 @@ def on_comment(
                 pass
 
         patch_diff = ""
-        for file_path, file_data in modify_files_dict.items(): # pylint: disable=E1101
+        for file_path, file_data in modify_files_dict.items():
             if file_path in new_file_contents_to_commit:
                 patch_diff += f"--- {file_path}\n+++ {file_path}\n{generate_diff(file_data['original_contents'], file_data['contents'])}\n\n"
         

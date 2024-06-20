@@ -285,7 +285,6 @@ SNIPPET_FORMAT = """<snippet>
 </snippet>"""
 
 class Snippet(BaseModel):
-    # pylint: disable=E1101
     """
     Start and end refer to line numbers
     """
