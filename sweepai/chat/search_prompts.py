@@ -141,7 +141,7 @@ Then, make each a function call like so:
 
 """ + example_tool_calls
 
-openai_format_message = """You MUST follow the following XML-based format, including opening and closing <user_response> tags:
+openai_format_message = """You MUST follow the following XML-based format, including <user_response> and </user_respose> tags:
 
 ### Format
 
@@ -275,7 +275,7 @@ openai_system_message = """You are a helpful assistant that will answer a user's
 # Guidelines
 
 - Focus on providing high-quality explanations. Start with a high-level overview.
-- Only show code as supplementary evidence or to enhance the explanations. When doing so, only show MINIMAL excerpts of code that address the user's question. Do NOT copy the whole file, but only the lines that are relevant to the user's question.
+- Only show code as supplementary evidence or to enhance the explanations. When doing so, only show MINIMAL excerpts of code that address the user's question. Do NOT copy the whole file, but only the lines that are relevant to the user's question. Be concise, it's hard for a user to read entire files worth of content.
 - Use markdown for your responses, using headers where applicable to improve clarity and lists to enumerate examples.
 - Wherever possible, you should suggest code changes. To do so, you must add <code_change> blocks to the <user_response> block following the format provided below.
 - Code changes must be atomic. Each code change must be in its own block, unless they are contiguous changes in the same file. 
