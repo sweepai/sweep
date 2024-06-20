@@ -433,13 +433,6 @@ const MessageDisplay = ({
   const [collapsedArray, setCollapsedArray] = useState<boolean[]>(
     message.annotations?.codeSuggestions?.map(() => false) || []
   )
-  if (message.role === 'user') {
-    return <UserMessageDisplay message={message} onEdit={onEdit} />
-  }
-  let matches = Array.from(message.content.matchAll(CODE_CHANGE_PATTERN))
-  if (matches.some((match) => !match.groups?.closingTag)) {
-    matches = []
-  }
   const codeMirrors = useMemo(() => {
     return (
       message.annotations?.codeSuggestions?.map((suggestion) => {
@@ -481,6 +474,13 @@ const MessageDisplay = ({
       }) || []
     )
   }, [message.annotations?.codeSuggestions])
+  if (message.role === 'user') {
+    return <UserMessageDisplay message={message} onEdit={onEdit} />
+  }
+  let matches = Array.from(message.content.matchAll(CODE_CHANGE_PATTERN))
+  if (matches.some((match) => !match.groups?.closingTag)) {
+    matches = []
+  }
   return (
     <>
       <div className={`flex justify-start`}>
