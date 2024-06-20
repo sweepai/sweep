@@ -22,14 +22,12 @@ const ContextSideBar = ({
   setSnippets,
   repoName,
   branch,
-  pulls,
   k,
 }: {
   snippets: Snippet[];
   setSnippets: Dispatch<SetStateAction<Snippet[]>>;
   repoName: string;
   branch: string;
-  pulls: PullRequest[];
   k: number;
 }) => {
   const side = "left"
@@ -51,8 +49,7 @@ const ContextSideBar = ({
                 snippets={snippets}
                 setSnippets={setSnippets} 
                 repoName={repoName} 
-                branch={branch}  
-                pulls={pulls}    
+                branch={branch}   
                 k={k}        
               />
             </div>

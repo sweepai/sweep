@@ -27,14 +27,12 @@ import PulsingLoader from "./PulsingLoader";
 const SnippetSearch = ({
   snippets,
   setSnippets,
-  pulls,
   repoName,
   branch,
   k,
 }: {
   snippets: Snippet[];
   setSnippets: Dispatch<SetStateAction<Snippet[]>>;
-  pulls: PullRequest[];
   repoName: string;
   branch: string;
   k: number;
