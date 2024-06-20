@@ -2,7 +2,7 @@
   "name": "sweep_chat",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
+  "type": "commonjs",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -75,6 +75,7 @@
     "eslint": "^8",
     "eslint-config-next": "14.2.3",
     "postcss": "^8",
+    "prettier": "3.3.2",
     "start-server-and-test": "^2.0.3",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
