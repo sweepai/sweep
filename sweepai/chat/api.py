@@ -916,6 +916,7 @@ async def create_pull(
     base_branch: str = Body(""),
     access_token: str = Depends(get_token_header)
 ):
+    breakpoint()
     with Timer() as timer:
         g = get_authenticated_github_client(repo_name, access_token)
     logger.debug(f"Getting authenticated GitHub client took {timer.time_elapsed} seconds")
@@ -983,6 +984,74 @@ async def create_pull(
         "new_branch": new_branch
     }
 
+@app.post("/backend/commit_to_pull")
+async def commit_to_pull(
+    repo_name: str = Body(...),
+    file_changes: dict[str, str] = Body(...),
+    pr_number: str = Body(...),
+    base_branch: str = Body(""),
+    access_token: str = Depends(get_token_header)
+):
+    with Timer() as timer:
+        g = get_authenticated_github_client(repo_name, access_token)
+    logger.debug(f"Getting authenticated GitHub client took {timer.time_elapsed} seconds")
+    if not g:
+        return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
+    
+    org_name, repo_name_ = repo_name.split("/")
+    
+    _token, g = get_github_client_from_org(org_name) # TODO: handle users as well
+    
+    repo = g.get_repo(repo_name)
+    pr = repo.get_pull(int(pr_number))
+    base_branch = base_branch or repo.default_branch
+    
+    cloned_repo = MockClonedRepo(
+        f"{repo_cache}/{repo_name_}",
+        repo_name,
+        token=access_token,
+        repo=repo
+    )
+
+    commit_multi_file_changes(
+        cloned_repo,
+        file_changes,
+        commit_message=f"Updated {len(file_changes)} files",
+        branch=pr.head.ref,
+    )
+    
+    title = pr.title or "Sweep AI Pull Request"
+    file_diffs = pr.get_files()
+
+    return {
+        "success": True,
+        "pull_request": {
+            "number": pr.number,
+            "repo_name": repo_name,
+            "title": title,
+            "body": pr.body,
+            "labels": [],
+            "status": "open",
+            "file_diffs": [
+                {
+                    "sha": file.sha,
+                    "filename": file.filename,
+                    "status": file.status,
+                    "additions": file.additions,
+                    "deletions": file.deletions,
+                    "changes": file.changes,
+                    "blob_url": file.blob_url,
+                    "raw_url": file.raw_url,
+                    "contents_url": file.contents_url,
+                    "patch": file.patch,
+                    "previous_filename": file.previous_filename,
+                }
+                for file in file_diffs
+            ],
+        },
+        "new_branch": pr.head.ref
+    }
+
 @app.post("/backend/create_pull_metadata")
 async def create_pull_metadata(
     repo_name: str = Body(...),
@@ -1017,6 +1086,7 @@ async def write_message_to_disk(
     code_suggestions: list = Body([]),
     pull_request: dict | None = Body(None),
     message_id: str = Body(""),
+    user_mentioned_pull_request: dict | None = Body(None),
 ):
     if not message_id:
         message_id = str(uuid.uuid4())
@@ -1027,6 +1097,7 @@ async def write_message_to_disk(
             "snippets": [snippet.model_dump() for snippet in snippets],
             "code_suggestions": [code_suggestion.__dict__ if isinstance(code_suggestion, CodeSuggestion) else code_suggestion for code_suggestion in code_suggestions],
             "pull_request": pull_request,
+            "user_mentioned_pull_request": user_mentioned_pull_request
         }
         with open(f"{CACHE_DIRECTORY}/messages/{message_id}.json", "w") as file:
             json.dump(data, file)
