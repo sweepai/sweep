@@ -619,8 +619,8 @@ def contains_ignoring_whitespace(needle: str, haystack: str):
             return start_line, end_line
     return False
 
-MODEL = "claude-3-haiku-20240307"
-SLOW_MODEL = "claude-3-opus-20240229" # try haiku
+MODEL = "claude-3-5-sonnet-20240620"
+SLOW_MODEL = "claude-3-5-sonnet-20240620"
 
 def validate_and_parse_function_call(
     function_calls_string: str, chat_gpt: ChatGPT
@@ -1194,7 +1194,7 @@ def handle_function_call(
                     llm_response = "DONE"
                 llm_state["attempt_lazy_change"] = True # successful application with no warning message means we can attempt lazy change again
         if not error_message:
-            diff_string = generate_diff(file_contents, new_file_contents)
+            _diff_string = generate_diff(file_contents, new_file_contents)
             current_fcr_index = get_current_task_index(llm_state["fcrs"])
             # set contents
             if file_name not in modify_files_dict:

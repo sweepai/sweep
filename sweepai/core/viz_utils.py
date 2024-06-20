@@ -40,7 +40,7 @@ functions_to_unique_f_locals_string_getter = {
 } # just need to add the function name and the lambda to get the unique f_locals
 
 # these are common wrappers that we don't want to use as our caller_function_name
-llm_call_wrappers = ["continuous_llm_calls", "call_llm"]
+llm_call_wrappers = ["continuous_llm_calls", "call_llm", "_bootstrap_inner"]
 
 def save_messages_for_visualization(messages: list[Message], use_openai: bool):
     current_datetime = datetime.now(pst_timezone)
