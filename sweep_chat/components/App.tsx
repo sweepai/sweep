@@ -111,6 +111,7 @@ import { streamMessages } from '@/lib/streamingUtils'
 import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 import { Skeleton } from './ui/skeleton'
 import { isPullRequestEqual } from '@/lib/pullUtils'
+import Image from 'next/image'
 // @ts-ignore
 import * as Diff from 'diff'
 
@@ -1584,8 +1585,9 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       <main className="flex h-screen flex-col items-center justify-between p-12 pt-20">
         <NavigationMenu className="fixed top-0 left-0 w-[100vw]">
           <div className="flex items-center justify-between w-[100vw] p-4 px-4 mb-2 align-center">
-            <img
+            <Image
               src="/banner.png"
+              alt="Sweep Chat"
               className="h-10 rounded-lg hover:cursor-pointer box-shadow-md"
               onClick={() => {
                 window.location.href = '/'
@@ -2427,7 +2429,9 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                 }
                 if (e.key === 'Enter' && !e.shiftKey && currentMessage.trim().length > 0) {
                   sendMessage()
+                  // @ts-ignore
                   e.target.style!.height = 'auto';
+                  // @ts-ignore
                   e.target.style!.height = `42px`;
                 }
               }}
