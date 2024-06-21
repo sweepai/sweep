@@ -164,6 +164,11 @@
     } */
 }
 
+.reactMarkdown.userMessage {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 .hljs-addition {
   color: #1ae073;
 }
