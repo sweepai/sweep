@@ -246,6 +246,7 @@ const CodeMirrorEditor = ({suggestion, index, setSuggestedChanges}: {suggestion:
 
 const PrValidationStatusDisplay = ({status}: {status: PrValidationStatus}) => {
   // TODO: make these collapsible
+
   return (
     <div className="flex justify-start">
       <div className='rounded-xl bg-zinc-800 w-full'>
@@ -280,23 +281,29 @@ const PrValidationStatusesDisplay = ({statuses, fixPrValidationErrors = () => {}
   return (
     <div className='flex justify-start mb-4'>
       <div className='rounded-xl p-4 bg-zinc-800 w-[80%] space-y-4'>
-        {statuses.map((status, index) => (
-          <PrValidationStatusDisplay key={index} status={status} />
-        ))}
-        {statuses.some((status) => status.status == "failure") ? (
-          <>
-            <p className="text-red-500 font-bold">Some tests have failed.</p>
-            <Button
-              variant="primary"
-              onClick={fixPrValidationErrors}
-            >
-              Fix errors
-            </Button>
-          </>
-        ): statuses.some((status) => status.status == "pending" || status.status == "running") ? (
-          <p className="text-yellow-500 font-bold">Some tests are still running. Currently checking every 10s.</p>
+        {statuses.length == 0 ? (
+          <p className="text-zinc-500 font-bold">I&apos;m monitoring the CI/CD pipeline to validate this PR. This may take a few minutes.</p>
         ) : (
-          <p className="text-green-500 font-bold">All tests have passed.</p>
+          <>
+            {statuses.map((status, index) => (
+              <PrValidationStatusDisplay key={index} status={status} />
+            ))}
+            {statuses.some((status) => status.status == "failure") ? (
+              <>
+                <p className="text-red-500 font-bold">Some tests have failed.</p>
+                <Button
+                  variant="primary"
+                  onClick={fixPrValidationErrors}
+                >
+                  Fix errors
+                </Button>
+              </>
+            ): statuses.some((status) => status.status == "pending" || status.status == "running") ? (
+              <p className="text-yellow-500 font-bold">Some tests are still running. Currently checking every 10s.</p>
+            ) : (
+              <p className="text-green-500 font-bold">All tests have passed.</p>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -753,7 +760,7 @@ const MessageDisplay = ({
       ))}
       {message.annotations?.prValidationStatuses &&
         message.annotations?.prValidationStatuses.length > 0 && (
-          <PrValidationStatusesDisplay statuses={message.annotations?.prValidationStatuses} fixPrValidationErrors={onValidatePR} />
+          <PrValidationStatusesDisplay statuses={message.annotations?.prValidationStatuses} fixPrValidationErrors={fixPrValidationErrors} />
         )}
       {message.annotations?.codeSuggestions &&
         message.annotations?.codeSuggestions.length > 0 && (
@@ -1741,7 +1748,17 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       let currentPrValidationStatuses = []
       for await (const streamedPrValidationStatuses of streamMessages(reader, isStream)) {
         currentPrValidationStatuses = streamedPrValidationStatuses.map((status: SnakeCaseKeys<PrValidationStatus>) => toCamelCaseKeys(status))
-        setPrValidationStatuses(currentPrValidationStatuses)
+        setMessages([
+          ...messages.slice(0, index),
+          {
+            ...messages[index],
+            annotations: {
+              ...messages[index].annotations,
+              prValidationStatuses: currentPrValidationStatuses
+            }
+          },
+          ...messages.slice(index + 1)
+        ])
         if (!scrolledToBottom) {
           scrollToBottom(100)
           scrolledToBottom = true
@@ -1749,26 +1766,47 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       }
       isStream.current = false
 
-      const prFailed = currentPrValidationStatuses.some((status: PrValidationStatus) => status.status == "failure")
-      console.log(currentPrValidationStatuses, prFailed)
-      setMessages([
-        ...messages.slice(0, index),
-        {
-          ...messages[index],
-          annotations: {
-            ...messages[index].annotations,
-            prValidationStatuses: currentPrValidationStatuses
-          }
-        },
-        ...messages.slice(index + 1)
-      ])
-      setPrValidationStatuses([])
+      const prFailed = currentPrValidationStatuses.some((status: PrValidationStatus) => status.status == "failure" && status.stdout.length > 0)
+      console.log(prFailed) // TODO: make this automatically run the fix
+      if (prFailed) {
+        fixPrValidationErrors(index)
+      }
     } catch (e) {
       console.log(e)
+      toast({
+        title: "Error validating PR",
+        description: "Please try again later.",
+        variant: "destructive",
+      })
     } finally {
       isStream.current = false
       setIsValidatingPR(false)
     }
+  }
+
+  const fixPrValidationErrors = async (index: number) => {
+    const currentPrValidationStatuses = messages[index]!.annotations!.prValidationStatuses
+    const failedPrValidationStatuses = currentPrValidationStatuses?.find((status) => status.status === "failure" && status.stdout.length > 0)
+    // sometimes theres no stdout for some reason, will look into this
+    if (!failedPrValidationStatuses) {
+      toast({
+        title: "No failed PR checks.",
+        description: "Please try again later.",
+        variant: "destructive",
+      })
+      return
+    }
+    const content = `Help me fix the following CI/CD pipeline errors:\n\`\`\`\n${failedPrValidationStatuses?.stdout}\n\`\`\``
+    const newMessages: Message[] = [
+      ...messages,
+      {
+        role: "user",
+        content: content,
+      }
+    ]
+
+    setMessages(newMessages)
+    startStream(content, newMessages, snippets)
   }
 
   return (
@@ -2118,21 +2156,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                     setSuggestedChanges(suggestedChanges)
                   }}
                   onValidatePR={(pr) => validatePr(pr, index)}
-                  fixPrValidationErrors={async () => {
-                    const currentPrValidationStatuses = messages[index]!.annotations!.prValidationStatuses
-                    const failedPrValidationStatuses = currentPrValidationStatuses?.find((status) => status.status === "failure")
-                    const content = `Help me fix the following CI/CD pipeline errors:\n\`\`\`\n${failedPrValidationStatuses?.stdout}\n\`\`\``
-                    const newMessages: Message[] = [
-                      ...messages,
-                      {
-                        role: "user",
-                        content: content,
-                      }
-                    ]
-
-                    setMessages(newMessages)
-                    startStream(content, newMessages, snippets)
-                  }}
+                  fixPrValidationErrors={() => fixPrValidationErrors(index)}
                 />
               ))
             : messagesId.length > 0 && (
@@ -2148,15 +2172,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
               <PulsingLoader size={1.5} />
             </div>
           )}
-          {prValidationStatuses.length > 0 ? (
-            <PrValidationStatusesDisplay statuses={prValidationStatuses} fixPrValidationErrors={validatePr} />
-          ): (isValidatingPR && (
-            <div className=" mt-4 flex justify-start">
-              <div className='rounded-xl p-4 bg-zinc-800 w-[80%]'>
-                I&apos;m monitoring the CI/CD pipeline to validate this PR. This may take a few minutes.
-              </div>
-            </div>
-          ))}
           {suggestedChanges.length > 0 && (
             <div className="bg-zinc-900 rounded-xl p-4 mt-8">
               <div className="flex justify-between mb-4 align-start">
