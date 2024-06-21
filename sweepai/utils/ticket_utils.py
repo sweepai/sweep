@@ -8,6 +8,7 @@ import concurrent.futures
 from loguru import logger
 from tqdm import tqdm
 import networkx as nx
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.streamable_functions import streamable
 
 from sweepai.utils.timer import Timer
@@ -509,10 +510,8 @@ def fetch_relevant_files(
     username,
     metadata,
     on_ticket_start_time,
-    tracking_id,
-    is_paying_user,
-    issue_url,
-    chat_logger,
+    tracking_id: str = "",
+    chat_logger: ChatLogger | None = None,
     images = None
 ):
     logger.info("Fetching relevant files...")

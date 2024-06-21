@@ -32,3 +32,20 @@ def convert_lines_to_and_merge_ranges(
             else:
                 ranges.append((start, end))
     return ranges
+
+
+def merge_snippet_ranges(ranges: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    """
+    Merges overlapping ranges
+    """
+    if not ranges:
+        return []
+    ranges.sort()
+    merged_ranges = [ranges[0]]
+    for current_start, current_end in ranges[1:]:
+        previous_start, previous_end = merged_ranges[-1]
+        if current_start <= previous_end:
+            merged_ranges[-1] = (previous_start, max(previous_end, current_end))
+        else:
+            merged_ranges.append((current_start, current_end))
+    return merged_ranges
