@@ -2,13 +2,13 @@ type SnakeCase<S extends string> = S extends `${infer T}${infer U}`
   ? U extends Uncapitalize<U>
     ? `${Lowercase<T>}${SnakeCase<U>}`
     : `${Lowercase<T>}_${SnakeCase<U>}`
-  : S;
+  : S
 
 type SnakeCaseKeys<T> = {
   [K in keyof T as SnakeCase<string & K>]: T[K] extends object
     ? SnakeCaseKeys<T[K]>
-    : T[K];
-};
+    : T[K]
+}
 
 type Repository = any
 
@@ -91,7 +91,7 @@ interface PrValidationStatus {
   message: string
   stdout: string
   succeeded: boolean | null
-  status: "pending" | "running" | "success" | "failure" | "cancelled"
+  status: 'pending' | 'running' | 'success' | 'failure' | 'cancelled'
   llmMessage: string
   containerName: string
 }

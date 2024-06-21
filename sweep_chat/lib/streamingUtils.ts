@@ -74,7 +74,7 @@ async function* streamMessages(
   }
 
   if (isStream && !isStream.current) {
-    console.log("Stream interrupted by user")
+    console.log('Stream interrupted by user')
     reader.cancel()
   }
   // if (buffer) {
