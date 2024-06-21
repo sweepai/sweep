@@ -1604,44 +1604,46 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       <main className="flex h-screen flex-col items-center justify-between p-12 pt-20">
         <NavigationMenu className="fixed top-0 left-0 w-[100vw]">
           <div className="flex items-center justify-between w-[100vw] p-4 px-4 mb-2 align-center">
-            <img
-              src="/banner.svg"
-              width={100}
-              width={110}
-              height={100}
-              className="h-10 rounded-lg hover:cursor-pointer box-shadow-md"
-              onClick={() => {
-                window.location.href = '/'
-              }}
-            />
+            <div className="flex items-center gap-4">
+              <img
+                src="/banner.svg"
+                width={200}
+                height={200}
+                alt="Sweep AI Logo"
+                className="h-20 rounded-lg hover:cursor-pointer box-shadow-md"
+                onClick={() => {
+                  window.location.href = '/'
+                }}
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger className="outline-none">
+                  <p className="text-sm font-bold flex items-center">
+                    Previous Chats <FaChevronDown className="ml-2" />
+                  </p>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" className="mt-2">
+                  {previousChats.length > 0 ? previousChats.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 10).map((chat) => (
+                    <DropdownMenuItem
+                      key={chat.messagesId}
+                      className="hover:cursor-pointer"
+                      onClick={() => {
+                        setMessagesId(chat.messagesId)
+                        window.location.href = `/c/${chat.messagesId}`
+                      }}
+                      disabled={chat.messagesId === messagesId}
+                    >
+                      <b>{truncate(chat.initialMessage, 80)}</b>&nbsp;created {formatDistanceToNow(new Date(chat.createdAt), { addSuffix: true })}
+                    </DropdownMenuItem>
+                  )) : (
+                      <DropdownMenuItem>No history</DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+                {/* Warning: these message IDs are stored in local storage.
+                  If you want to delete them, you will need to clear your browser cache. */}
+              </DropdownMenu>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger className="outline-none">
-                <p className="text-sm font-bold flex items-center">
-                  Previous Chats <FaChevronDown className="ml-2" />
-                </p>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="mt-2">
-                {previousChats.length > 0 ? previousChats.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 10).map((chat) => (
-                  <DropdownMenuItem
-                    key={chat.messagesId}
-                    className="hover:cursor-pointer"
-                    onClick={() => {
-                      setMessagesId(chat.messagesId)
-                      window.location.href = `/c/${chat.messagesId}`
-                    }}
-                    disabled={chat.messagesId === messagesId}
-                  >
-                    <b>{truncate(chat.initialMessage, 80)}</b>&nbsp;created {formatDistanceToNow(new Date(chat.createdAt), { addSuffix: true })}
-                  </DropdownMenuItem>
-                )) : (
-                    <DropdownMenuItem>No history</DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-              {/* Warning: these message IDs are stored in local storage.
-                If you want to delete them, you will need to clear your browser cache. */}
-            </DropdownMenu>
-
+            
+            </div>
             <NavigationMenuList className='w-full flex justify-between'>
               <Dialog>
                 <DialogTrigger asChild>
