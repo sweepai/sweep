@@ -1,6 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Dispatch,
+  SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { Input } from '../components/ui/input'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import {
@@ -23,6 +31,8 @@ import {
   FaTimes,
   FaTrash,
   FaCodeBranch,
+  FaCircle,
+  FaTimesCircle,
 } from 'react-icons/fa'
 import { FaArrowsRotate, FaCodeCommit } from 'react-icons/fa6'
 import { Button } from '@/components/ui/button'
@@ -85,6 +95,8 @@ import {
   CodeSuggestion,
   StatefulCodeSuggestion,
   ChatSummary,
+  PrValidationStatus,
+  SnakeCaseKeys,
 } from '@/lib/types'
 
 import { Octokit } from 'octokit'
@@ -103,10 +115,11 @@ import { ContextSideBar } from './shared/ContextSideBar'
 import { posthog } from '@/lib/posthog'
 
 import CodeMirrorMerge from 'react-codemirror-merge'
+import CodeMirror from '@uiw/react-codemirror'
 import { dracula } from '@uiw/codemirror-theme-dracula'
 import { EditorView } from 'codemirror'
 import { debounce } from 'lodash'
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns'
 import { streamMessages } from '@/lib/streamingUtils'
 import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 import { Skeleton } from './ui/skeleton'
@@ -114,6 +127,7 @@ import { isPullRequestEqual } from '@/lib/pullUtils'
 import Image from 'next/image'
 // @ts-ignore
 import * as Diff from 'diff'
+import { ScrollArea } from './ui/scroll-area'
 
 const Original = CodeMirrorMerge.Original
 const Modified = CodeMirrorMerge.Modified
@@ -122,10 +136,243 @@ const sum = (arr: number[]) => arr.reduce((acc, cur) => acc + cur, 0)
 const truncate = (str: string, maxLength: number) =>
   str.length > maxLength ? str.slice(0, maxLength) + '...' : str
 
+const snakeCaseToCamelCase = (str: string) => {
+  return str.replace(/([_]+)([a-z])/g, (match, p1, p2) => p2.toUpperCase())
+}
+
+function toCamelCaseKeys<A extends string, B>(
+  obj: SnakeCaseKeys<Record<A, B>>
+): Record<A, B> {
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => [
+      snakeCaseToCamelCase(key),
+      value,
+    ])
+  ) as Record<A, B>
+}
+
+const camelCaseToSnakeCase = (str: string) => {
+  return str.replace(/([A-Z])/g, '_$1').toLowerCase()
+}
+
+function toSnakeCaseKeys<A extends string, B>(
+  obj: Record<A, B>
+): SnakeCaseKeys<Record<A, B>> {
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => [
+      camelCaseToSnakeCase(key),
+      value,
+    ])
+  ) as SnakeCaseKeys<Record<A, B>>
+}
+
+const AutoScrollArea = ({
+  children,
+  className = '',
+  threshold = Infinity,
+}: {
+  children: React.ReactNode
+  className?: string
+  threshold?: number
+}) => {
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (scrollAreaRef.current && scrollAreaRef.current.scrollHeight > 0) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollAreaRef.current
+      if (scrollHeight - scrollTop - clientHeight < threshold) {
+        scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight
+      }
+    }
+  }, [children])
+  return (
+    <ScrollArea ref={scrollAreaRef} className={className}>
+      {children}
+    </ScrollArea>
+  )
+}
+
+const CodeMirrorEditor = ({
+  suggestion,
+  index,
+  setSuggestedChanges,
+}: {
+  suggestion: StatefulCodeSuggestion
+  index: number
+  setSuggestedChanges: Dispatch<SetStateAction<StatefulCodeSuggestion[]>>
+}) => {
+  const fileExtension = suggestion.filePath.split('.').pop()
+  // default to javascript
+  let languageExtension = languageMapping['js']
+  if (fileExtension) {
+    languageExtension = languageMapping[fileExtension]
+  }
+
+  if (suggestion.originalCode.length === 0) {
+    return (
+      <CodeMirror
+        theme={dracula}
+        autoFocus={false}
+        key={JSON.stringify(suggestion)}
+        value={suggestion.newCode}
+        readOnly={!(suggestion.state == 'done' || suggestion.state == 'error')}
+        extensions={[
+          EditorView.editable.of(
+            suggestion.state == 'done' || suggestion.state == 'error'
+          ),
+          ...(languageExtension ? [languageExtension] : []),
+        ]}
+        onChange={debounce((value: string) => {
+          setSuggestedChanges((suggestedChanges) =>
+            suggestedChanges.map((suggestion, i) =>
+              i == index ? { ...suggestion, newCode: value } : suggestion
+            )
+          )
+        }, 1000)}
+      />
+    )
+  }
+
+  return (
+    <CodeMirrorMerge
+      theme={dracula}
+      revertControls={'a-to-b'}
+      collapseUnchanged={{
+        margin: 3,
+        minSize: 4,
+      }}
+      autoFocus={false}
+      key={JSON.stringify(suggestion)}
+    >
+      <Original
+        value={suggestion.originalCode}
+        readOnly={true}
+        extensions={[
+          EditorView.editable.of(false),
+          ...(languageExtension ? [languageExtension] : []),
+        ]}
+      />
+      <Modified
+        value={suggestion.newCode}
+        readOnly={!(suggestion.state == 'done' || suggestion.state == 'error')}
+        extensions={[
+          EditorView.editable.of(
+            suggestion.state == 'done' || suggestion.state == 'error'
+          ),
+          ...(languageExtension ? [languageExtension] : []),
+        ]}
+        onChange={debounce((value: string) => {
+          setSuggestedChanges((suggestedChanges) =>
+            suggestedChanges.map((suggestion, i) =>
+              i == index ? { ...suggestion, newCode: value } : suggestion
+            )
+          )
+        }, 1000)}
+      />
+    </CodeMirrorMerge>
+  )
+}
+
+const PrValidationStatusDisplay = ({
+  status,
+}: {
+  status: PrValidationStatus
+}) => {
+  // TODO: make these collapsible
+
+  return (
+    <div className="flex justify-start">
+      <div className="rounded-xl bg-zinc-800 w-full">
+        <h2 className="font-bold text-sm">
+          {status.status === 'success' ? (
+            <FaCheck
+              className="text-green-500 inline mr-2 text-sm"
+              style={{ marginTop: -2 }}
+            />
+          ) : status.status === 'failure' ? (
+            <FaTimes
+              className="text-red-500 inline mr-2 text-sm"
+              style={{ marginTop: -2 }}
+            />
+          ) : status.status === 'cancelled' ? (
+            <FaTimesCircle
+              className="text-zinc-500 inline mr-2 text-sm"
+              style={{ marginTop: -2 }}
+            />
+          ) : (
+            <FaCircle
+              className={
+                {
+                  pending: 'text-zinc-500',
+                  running: 'text-yellow-500',
+                }[status.status] + ' inline mr-2 text-sm'
+              }
+              style={{ marginTop: -2 }}
+            />
+          )}
+          {status.message} - {status.containerName}
+        </h2>
+        {status.stdout && (
+          <AutoScrollArea className="max-h-[500px] overflow-y-auto mt-4">
+            <pre className="whitespace-pre-wrap text-sm bg-zinc-900 p-4 rounded-lg">
+              {status.stdout}
+            </pre>
+          </AutoScrollArea>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const PrValidationStatusesDisplay = ({
+  statuses,
+  fixPrValidationErrors = () => {},
+}: {
+  statuses: PrValidationStatus[]
+  fixPrValidationErrors: any
+}) => {
+  return (
+    <div className="flex justify-start mb-4">
+      <div className="rounded-xl p-4 bg-zinc-800 w-[80%] space-y-4">
+        {statuses.length == 0 ? (
+          <p className="text-zinc-500 font-bold">
+            I&apos;m monitoring the CI/CD pipeline to validate this PR. This may
+            take a few minutes.
+          </p>
+        ) : (
+          <>
+            {statuses.map((status, index) => (
+              <PrValidationStatusDisplay key={index} status={status} />
+            ))}
+            {statuses.some((status) => status.status == 'failure') ? (
+              <>
+                <p className="text-red-500 font-bold">
+                  Some tests have failed.
+                </p>
+                <Button variant="primary" onClick={fixPrValidationErrors}>
+                  Fix errors
+                </Button>
+              </>
+            ) : statuses.some(
+                (status) =>
+                  status.status == 'pending' || status.status == 'running'
+              ) ? (
+              <p className="text-yellow-500 font-bold">
+                Some tests are still running. Currently checking every 10s.
+              </p>
+            ) : (
+              <p className="text-green-500 font-bold">All tests have passed.</p>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 const PullRequestHeader = ({ pr }: { pr: PullRequest }) => {
   return (
     <div
-      className="bg-zinc-800 rounded-xl p-4 mb-2 text-left hover:bg-zinc-700 hover:cursor-pointer max-w-[800px]"
+      className="bg-zinc-800 rounded-xl p-4 mb-4 text-left hover:bg-zinc-700 hover:cursor-pointer max-w-[800px]"
       onClick={() => {
         window.open(
           `https://github.com/${pr.repo_name}/pull/${pr.number}`,
@@ -217,13 +464,13 @@ const PullRequestContent = ({ pr }: { pr: PullRequest }) => {
 
 const PullRequestDisplay = ({
   pr,
-  useHoverCard = true,
+  onValidatePR,
 }: {
   pr: PullRequest
-  useHoverCard?: boolean
+  onValidatePR?: (pr: PullRequest) => void
 }) => {
-  if (useHoverCard) {
-    return (
+  return (
+    <div>
       <HoverCard openDelay={300} closeDelay={200}>
         <HoverCardTrigger>
           <PullRequestHeader pr={pr} />
@@ -232,17 +479,18 @@ const PullRequestDisplay = ({
           <PullRequestContent pr={pr} />
         </HoverCardContent>
       </HoverCard>
-    )
-  } else {
-    return (
-      <div className="flex justify-end flex-col">
-        <PullRequestHeader pr={pr} />
-        <div className="bg-zinc-800 rounded-xl p-4 mb-2 text-left max-w-[800px]">
-          <PullRequestContent pr={pr} />
-        </div>
-      </div>
-    )
-  }
+      {onValidatePR && (
+        <Button
+          variant="secondary"
+          className="bg-zinc-800 text-white mb-4"
+          onClick={() => onValidatePR(pr)}
+        >
+          <FaArrowsRotate className="inline-block mr-2" />
+          Re-validate Pull Request
+        </Button>
+      )}
+    </div>
+  )
 }
 
 const UserMessageDisplay = ({
@@ -294,8 +542,8 @@ const UserMessageDisplay = ({
                 value={editedContent}
                 onChange={(e) => {
                   setEditedContent(e.target.value)
-                  e.target.style.height = 'auto';
-                  e.target.style.height = `${e.target.scrollHeight}px`;
+                  e.target.style.height = 'auto'
+                  e.target.style.height = `${e.target.scrollHeight}px`
                 }}
                 style={{ height: (editedContent.split('\n').length + 1) * 16 }}
                 autoFocus
@@ -420,6 +668,8 @@ const MessageDisplay = ({
   branch,
   commitToPR,
   setSuggestedChanges,
+  onValidatePR,
+  fixPrValidationErrors,
   index,
 }: {
   message: Message
@@ -431,6 +681,8 @@ const MessageDisplay = ({
   setSuggestedChanges: React.Dispatch<
     React.SetStateAction<StatefulCodeSuggestion[]>
   >
+  onValidatePR?: (pr: PullRequest) => void
+  fixPrValidationErrors: () => void
   index: number
 }) => {
   const [collapsedArray, setCollapsedArray] = useState<boolean[]>(
@@ -438,43 +690,14 @@ const MessageDisplay = ({
   )
   const codeMirrors = useMemo(() => {
     return (
-      message.annotations?.codeSuggestions?.map((suggestion) => {
-        const fileExtension = suggestion.filePath.split('.').pop()
-        let languageExtension = languageMapping['js']
-        if (fileExtension) {
-          languageExtension = languageMapping[fileExtension]
-        }
-        return (
-          <CodeMirrorMerge
-            hidden={collapsedArray[index]}
-            className="w-full"
-            theme={dracula}
-            collapseUnchanged={{
-              margin: 3,
-              minSize: 4,
-            }}
-            autoFocus={false}
-            key={JSON.stringify(suggestion)}
-          >
-            <Original
-              value={suggestion.originalCode}
-              readOnly={true}
-              extensions={[
-                EditorView.editable.of(false),
-                ...(languageExtension ? [languageExtension] : []),
-              ]}
-            />
-            <Modified
-              value={suggestion.newCode}
-              readOnly={true}
-              extensions={[
-                EditorView.editable.of(false),
-                ...(languageExtension ? [languageExtension] : []),
-              ]}
-            />
-          </CodeMirrorMerge>
-        )
-      }) || []
+      message.annotations?.codeSuggestions?.map((suggestion) => (
+        <CodeMirrorEditor
+          suggestion={suggestion}
+          index={index}
+          setSuggestedChanges={setSuggestedChanges}
+          key={index}
+        />
+      )) || []
     )
   }, [message.annotations?.codeSuggestions, collapsedArray])
   if (message.role === 'user') {
@@ -596,32 +819,42 @@ const MessageDisplay = ({
       </div>
       {message.annotations?.pulls?.map((pr) => (
         <div className="flex justify-start text-sm" key={pr.number}>
-          <PullRequestDisplay pr={pr} />
+          <PullRequestDisplay pr={pr} onValidatePR={onValidatePR} />
         </div>
       ))}
+      {message.annotations?.prValidationStatuses &&
+        message.annotations?.prValidationStatuses.length > 0 && (
+          <PrValidationStatusesDisplay
+            statuses={message.annotations?.prValidationStatuses}
+            fixPrValidationErrors={fixPrValidationErrors}
+          />
+        )}
       {message.annotations?.codeSuggestions &&
         message.annotations?.codeSuggestions.length > 0 && (
           <div className="text-sm max-w-[80%] p-4 rounded bg-zinc-700 space-y-4 mb-4">
             <div className="flex justify-between items-center">
-              <h2 className='font-bold'>Suggested Changes</h2>
-              <Button
-                className="bg-green-800 hover:bg-green-700 text-white"
-                size="sm"
-                onClick={() => {
-                  setCollapsedArray(
-                    message.annotations?.codeSuggestions!.map(() => true) || []
-                  )
-                  setSuggestedChanges(
-                    (suggestedChanges: StatefulCodeSuggestion[]) => [
-                      ...suggestedChanges,
-                      ...message.annotations?.codeSuggestions!,
-                    ]
-                  )
-                }}
-              >
-                <FaPlus />
-                &nbsp;Stage All Changes
-              </Button>
+              <h2 className="font-bold">Suggested Changes</h2>
+              {message.annotations?.codeSuggestions?.length > 1 && (
+                <Button
+                  className="bg-green-800 hover:bg-green-700 text-white"
+                  size="sm"
+                  onClick={() => {
+                    setCollapsedArray(
+                      message.annotations?.codeSuggestions!.map(() => true) ||
+                        []
+                    )
+                    setSuggestedChanges(
+                      (suggestedChanges: StatefulCodeSuggestion[]) => [
+                        ...suggestedChanges,
+                        ...message.annotations?.codeSuggestions!,
+                      ]
+                    )
+                  }}
+                >
+                  <FaPlus />
+                  &nbsp;Stage All Changes
+                </Button>
+              )}
             </div>
             {message.annotations?.codeSuggestions?.map(
               (suggestion: StatefulCodeSuggestion, index: number) => {
@@ -644,7 +877,8 @@ const MessageDisplay = ({
                   }
                 }
                 const firstLines = truncate(
-                  suggestion.originalCode.split('\n').slice(0, 1).join('\n') || suggestion.newCode.split('\n').slice(0, 1).join('\n'),
+                  suggestion.originalCode.split('\n').slice(0, 1).join('\n') ||
+                    suggestion.newCode.split('\n').slice(0, 1).join('\n'),
                   80
                 )
                 return (
@@ -674,12 +908,16 @@ const MessageDisplay = ({
                         </Button>
                         <code className="text-zinc-200 px-2">
                           {suggestion.filePath}{' '}
-                          {numLinesAdded > 0 && <span className="text-green-500 mr-2">
-                            +{numLinesAdded}
-                          </span>}
-                          {numLinesRemoved > 0 && <span className="text-red-500 mr-2">
-                            -{numLinesRemoved}
-                          </span>}
+                          {numLinesAdded > 0 && (
+                            <span className="text-green-500 mr-2">
+                              +{numLinesAdded}
+                            </span>
+                          )}
+                          {numLinesRemoved > 0 && (
+                            <span className="text-red-500 mr-2">
+                              -{numLinesRemoved}
+                            </span>
+                          )}
                           <span className="text-zinc-500 ml-4">
                             {firstLines}
                           </span>
@@ -780,10 +1018,12 @@ const parsePullRequests = async (
           pull_number: parseInt(prNumber!),
         })
       ).data.sort((a, b) => {
-        const aIsMarkdown = a.filename.endsWith('.md') || a.filename.endsWith('.rst')
-        const bIsMarkdown = b.filename.endsWith('.md') || b.filename.endsWith('.rst')
+        const aIsMarkdown =
+          a.filename.endsWith('.md') || a.filename.endsWith('.rst')
+        const bIsMarkdown =
+          b.filename.endsWith('.md') || b.filename.endsWith('.rst')
         if (aIsMarkdown !== bIsMarkdown) {
-          return aIsMarkdown ? 1 : -1;
+          return aIsMarkdown ? 1 : -1
         }
         const statusOrder: Record<string, number> = {
           renamed: 0,
@@ -866,7 +1106,11 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   const [commitToPR, setCommitToPR] = useState<boolean>(false) // controls whether or not we commit to the userMetionedPullRequest or create a new pr
   const [commitToPRIsOpen, setCommitToPRIsOpen] = useState<boolean>(false)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
-  const [commitMessage, setCommitMessage] = useState<string>('')
+
+  const [isValidatingPR, setIsValidatingPR] = useState<boolean>(false)
+  const [prValidationStatuses, setPrValidationStatuses] = useState<
+    PrValidationStatus[]
+  >([])
 
   const { data: session } = useSession()
 
@@ -883,7 +1127,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   const authorizedFetch = useCallback(
     (url: string, options: RequestInit = {}) => {
       return fetch(url, {
-        method: 'POST',
+        method: options.method || 'POST',
         headers: {
           ...options.headers,
           'Content-Type': 'application/json',
@@ -896,12 +1140,19 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   )
 
   useEffect(() => {
-    if (messagesId && !previousChats.some((chat) => chat.messagesId === messagesId) && messages.length > 0) {
-      setPreviousChats([...previousChats, {
-        messagesId: messagesId,
-        createdAt: new Date().toISOString(),
-        initialMessage: messages[0].content
-      }])
+    if (
+      messagesId &&
+      !previousChats.some((chat) => chat.messagesId === messagesId) &&
+      messages.length > 0
+    ) {
+      setPreviousChats([
+        ...previousChats,
+        {
+          messagesId: messagesId,
+          createdAt: new Date().toISOString(),
+          initialMessage: messages[0].content,
+        },
+      ])
     }
   }, [messagesId, messages.length])
 
@@ -967,12 +1218,12 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     if (messagesContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } =
         messagesContainerRef.current
-      if (scrollHeight - scrollTop - clientHeight < 80) {
+      if (scrollHeight - scrollTop - clientHeight < 120) {
         messagesContainerRef.current.scrollTop =
           messagesContainerRef.current.scrollHeight
       }
     }
-  }, [messages])
+  }, [messages, isValidatingPR, prValidationStatuses])
 
   useEffect(() => {
     if (session) {
@@ -1033,6 +1284,18 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       setCodeSuggestionsState('staging')
     }
   }, [suggestedChanges])
+
+  useEffect(() => {
+    if (messages.length > 0 && userMentionedPullRequests?.length == 0) {
+      for (const message of messages) {
+        if (message.role == "assistant" && message.annotations?.pulls) {
+          setUserMentionedPullRequests(message.annotations.pulls)
+          setBranch(message.annotations.pulls[0].branch)
+          setBaseBranch(message.annotations.pulls[0].branch)
+        }
+      }
+    }
+  }, [messages])
 
   const save = async (
     currentRepoName: string,
@@ -1158,55 +1421,14 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     pullRequestBody,
   ])
 
-  const reactCodeMirrors = suggestedChanges.map((suggestion, index) => {
-    const fileExtension = suggestion.filePath.split('.').pop()
-    // default to javascript
-    let languageExtension = languageMapping['js']
-    if (fileExtension) {
-      languageExtension = languageMapping[fileExtension]
-    }
-
-    return (
-      <CodeMirrorMerge
-        theme={dracula}
-        revertControls={'a-to-b'}
-        collapseUnchanged={{
-          margin: 3,
-          minSize: 4,
-        }}
-        autoFocus={false}
-        key={JSON.stringify(suggestion)}
-      >
-        <Original
-          value={suggestion.originalCode}
-          readOnly={true}
-          extensions={[
-            EditorView.editable.of(false),
-            ...(languageExtension ? [languageExtension] : []),
-          ]}
-        />
-        <Modified
-          value={suggestion.newCode}
-          readOnly={
-            !(suggestion.state == 'done' || suggestion.state == 'error')
-          }
-          extensions={[
-            EditorView.editable.of(
-              suggestion.state == 'done' || suggestion.state == 'error'
-            ),
-            ...(languageExtension ? [languageExtension] : []),
-          ]}
-          onChange={debounce((value: string) => {
-            setSuggestedChanges((suggestedChanges) =>
-              suggestedChanges.map((suggestion, i) =>
-                i == index ? { ...suggestion, newCode: value } : suggestion
-              )
-            )
-          }, 1000)}
-        />
-      </CodeMirrorMerge>
-    )
-  })
+  const reactCodeMirrors = suggestedChanges.map((suggestion, index) => (
+    <CodeMirrorEditor
+      suggestion={suggestion}
+      index={index}
+      setSuggestedChanges={setSuggestedChanges}
+      key={index}
+    />
+  ))
 
   if (session) {
     posthog.identify(session.user!.email!, {
@@ -1247,6 +1469,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     setSuggestedChanges(currentCodeSuggestions)
     setIsProcessingSuggestedChanges(true)
     ;(async () => {
+      console.log(userMentionedPullRequest)
       const streamedResponse = await authorizedFetch(`/backend/autofix`, {
         body: JSON.stringify({
           repo_name: repoName,
@@ -1257,7 +1480,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
               new_code: suggestion.newCode,
             })
           ),
-          branch: baseBranch,
+          branch: commitToPR ? userMentionedPullRequest?.branch : baseBranch,
         }), // TODO: casing should be automatically handled
       })
 
@@ -1368,6 +1591,15 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         }
       }
     })()
+  }
+
+  const scrollToBottom = (timeout = 0) => {
+    setTimeout(() => {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop =
+          messagesContainerRef.current.scrollHeight
+      }
+    }, timeout)
   }
 
   const startStream = async (
@@ -1487,7 +1719,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     try {
       for await (const patches of streamMessages(reader, isStream)) {
         for (const patch of patches) {
-          if (patch.op == "error") {
+          if (patch.op == 'error') {
             throw new Error(patch.value)
           }
         }
@@ -1602,20 +1834,125 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     startStream(currentMessage, newMessages, snippets, { pulls })
   }
 
+  const validatePr = async (pr: PullRequest, index: number) => {
+    // TODO: put repo name into every body and make it all jsonified
+    setPrValidationStatuses([])
+    setIsValidatingPR(true)
+    const response = await authorizedFetch(`/backend/validate_pull`, {
+      body: JSON.stringify({
+        repo_name: repoName,
+        pull_request_number: pr.number,
+      }),
+    })
+    const reader = response.body!.getReader()
+    try {
+      isStream.current = true
+      let scrolledToBottom = false
+      let currentPrValidationStatuses: PrValidationStatus[] = []
+      setMessages([
+        ...messages.slice(0, index),
+        {
+          ...messages[index],
+          annotations: {
+            ...messages[index].annotations,
+            prValidationStatuses: currentPrValidationStatuses,
+          },
+        },
+        ...messages.slice(index + 1),
+      ])
+      for await (const streamedPrValidationStatuses of streamMessages(
+        reader,
+        isStream
+      )) {
+        currentPrValidationStatuses = streamedPrValidationStatuses.map(
+          (status: SnakeCaseKeys<PrValidationStatus>) => toCamelCaseKeys(status)
+        )
+        setMessages([
+          ...messages.slice(0, index),
+          {
+            ...messages[index],
+            annotations: {
+              ...messages[index].annotations,
+              prValidationStatuses: currentPrValidationStatuses,
+            },
+          },
+          ...messages.slice(index + 1),
+        ])
+        if (!scrolledToBottom) {
+          scrollToBottom(100)
+          scrolledToBottom = true
+        }
+      }
+      isStream.current = false
+
+      const prFailed = currentPrValidationStatuses.some(
+        (status: PrValidationStatus) =>
+          status.status == 'failure' && status.stdout.length > 0
+      )
+      console.log(prFailed) // TODO: make this automatically run the fix
+      if (prFailed) {
+        fixPrValidationErrors(currentPrValidationStatuses)
+      }
+    } catch (e) {
+      console.log(e)
+      toast({
+        title: 'Error validating PR',
+        description: 'Please try again later.',
+        variant: 'destructive',
+      })
+    } finally {
+      isStream.current = false
+      setIsValidatingPR(false)
+    }
+  }
+
+  const fixPrValidationErrors = async (
+    prValidationStatuses: PrValidationStatus[]
+  ) => {
+    const failedPrValidationStatuses = prValidationStatuses?.find(
+      (status) => status.status === 'failure' && status.stdout.length > 0
+    )
+    // sometimes theres no stdout for some reason, will look into this
+    if (!failedPrValidationStatuses) {
+      toast({
+        title: 'No failed PR checks.',
+        description: 'Please try again later.',
+        variant: 'destructive',
+      })
+      return
+    }
+    const content = `Help me fix the following CI/CD pipeline errors:\n\`\`\`\n${failedPrValidationStatuses?.stdout}\n\`\`\``
+
+    setMessages(currentMessages => {
+      const newMessages: Message[] = [
+        ...currentMessages,
+        {
+          role: 'user',
+          content: content,
+        },
+      ]
+      startStream(content, newMessages, snippets)
+      return newMessages
+    })
+  }
+
   return (
     <>
       <main className="flex h-screen flex-col items-center justify-between p-12 pt-20">
-        <NavigationMenu className="fixed top-0 left-0 w-[100vw]">
-          <div className="flex items-center justify-between w-[100vw] p-4 px-4 mb-2 align-center">
+        <NavigationMenu className="fixed top-0 left-0 w-[100vw] px-4">
+          <div className="flex items-center justify-between w-[100vw] mb-2 align-center">
             <div className="flex items-center gap-4">
               <img
                 src="/banner.svg"
-                width={200}
+                width={140}
                 height={200}
                 alt="Sweep AI Logo"
-                className="h-20 rounded-lg hover:cursor-pointer box-shadow-md"
+                className="h-20 rounded-lg hover:cursor-pointer box-shadow-md -z-10"
                 onClick={() => {
                   window.location.href = '/'
+                }}
+                style={{
+                  marginTop: 2,
                 }}
               />
               <DropdownMenu>
@@ -1625,29 +1962,40 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                   </p>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center" className="mt-2">
-                  {previousChats.length > 0 ? previousChats.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 10).map((chat) => (
-                    <DropdownMenuItem
-                      key={chat.messagesId}
-                      className="hover:cursor-pointer"
-                      onClick={() => {
-                        setMessagesId(chat.messagesId)
-                        window.location.href = `/c/${chat.messagesId}`
-                      }}
-                      disabled={chat.messagesId === messagesId}
-                    >
-                      <b>{truncate(chat.initialMessage, 80)}</b>&nbsp;created {formatDistanceToNow(new Date(chat.createdAt), { addSuffix: true })}
-                    </DropdownMenuItem>
-                  )) : (
-                      <DropdownMenuItem>No history</DropdownMenuItem>
+                  {previousChats.length > 0 ? (
+                    previousChats
+                      .sort(
+                        (a, b) =>
+                          new Date(b.createdAt).getTime() -
+                          new Date(a.createdAt).getTime()
+                      )
+                      .slice(0, 10)
+                      .map((chat) => (
+                        <DropdownMenuItem
+                          key={chat.messagesId}
+                          className="hover:cursor-pointer"
+                          onClick={() => {
+                            setMessagesId(chat.messagesId)
+                            window.location.href = `/c/${chat.messagesId}`
+                          }}
+                          disabled={chat.messagesId === messagesId}
+                        >
+                          <b>{truncate(chat.initialMessage, 80)}</b>
+                          &nbsp;created{' '}
+                          {formatDistanceToNow(new Date(chat.createdAt), {
+                            addSuffix: true,
+                          })}
+                        </DropdownMenuItem>
+                      ))
+                  ) : (
+                    <DropdownMenuItem>No history</DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
                 {/* Warning: these message IDs are stored in local storage.
                   If you want to delete them, you will need to clear your browser cache. */}
               </DropdownMenu>
-
-            
             </div>
-            <NavigationMenuList className='w-full flex justify-between'>
+            <NavigationMenuList className="w-full flex justify-between">
               <Dialog>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="ml-4">
@@ -1656,7 +2004,9 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="w-120 p-16">
-                  <h2 className="text-2xl font-bold mb-4 text-center">Settings</h2>
+                  <h2 className="text-2xl font-bold mb-4 text-center">
+                    Settings
+                  </h2>
                   <Label>Model</Label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -1897,9 +2247,10 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                       setUserMentionedPullRequest(pulls[pulls.length - 1])
                       setCommitToPR(true)
                     }
-                    let newPulls = userMentionedPullRequests
-                      ? [...userMentionedPullRequests]
-                      : []
+                    let newPulls =
+                      userMentionedPullRequests && index > 0
+                        ? [...userMentionedPullRequests]
+                        : []
 
                     pulls.forEach((pull1) => {
                       if (
@@ -1911,7 +2262,16 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                       }
                     })
 
-                    setUserMentionedPullRequests(newPulls)
+                    setUserMentionedPullRequests(
+                      newPulls.length > 0 ? newPulls : null
+                    )
+
+                    if (newPulls.length > 0) {
+                      setUserMentionedPullRequest(newPulls[newPulls.length - 1])
+                    } else {
+                      setUserMentionedPullRequest(null)
+                      setCommitToPR(false)
+                    }
 
                     const newMessages: Message[] = [
                       ...messages.slice(0, index),
@@ -1920,14 +2280,15 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                     setMessages(newMessages)
                     setIsCreatingPullRequest(false)
                     if (index == 0) {
-                      window.history.pushState({}, "", "/")
-                      setMessagesId("")
+                      window.history.pushState({}, '', '/')
+                      setMessagesId('')
                       setOriginalSuggestedChanges([])
                       setSuggestedChanges([])
                       setIsProcessingSuggestedChanges(false)
                       setPullRequestTitle(null)
                       setPullRequestBody(null)
                       startStream(content, newMessages, snippets, { pulls })
+                      setPrValidationStatuses([])
                     } else {
                       startStream(content, newMessages, snippets, { pulls })
                     }
@@ -1936,6 +2297,14 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                   setSuggestedChanges={(suggestedChanges) => {
                     setOriginalSuggestedChanges(suggestedChanges)
                     setSuggestedChanges(suggestedChanges)
+                  }}
+                  onValidatePR={(pr) => validatePr(pr, index)}
+                  fixPrValidationErrors={() => {
+                    const currentPrValidationStatuses =
+                      messages[index]!.annotations!.prValidationStatuses
+                    if (currentPrValidationStatuses) {
+                      fixPrValidationErrors(currentPrValidationStatuses)
+                    }
                   }}
                 />
               ))
@@ -1962,13 +2331,13 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                         <NavigationMenuTrigger className="bg-secondary hover:bg-secondary mr-2">
                           {userMentionedPullRequest && commitToPR ? (
                             <span className="text-sm w-full p-2">
-                              <FaCodeCommit style={{ display: "inline" }} />
+                              <FaCodeCommit style={{ display: 'inline' }} />
                               &nbsp;&nbsp;Commit to PR #
                               {userMentionedPullRequest.number}
                             </span>
                           ) : (
                             <span className="text-sm w-full p-2">
-                              <FaCodeBranch style={{ display: "inline" }} />
+                              <FaCodeBranch style={{ display: 'inline' }} />
                               &nbsp;&nbsp;Create New PR
                             </span>
                           )}
@@ -1984,7 +2353,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                                 setCommitToPRIsOpen(false)
                               }}
                             >
-                              <FaCodeBranch style={{ display: "inline" }} />
+                              <FaCodeBranch style={{ display: 'inline' }} />
                               &nbsp;&nbsp;Create New PR
                             </Button>
                           )}
@@ -2007,7 +2376,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                                   }}
                                   key={index}
                                 >
-                                  <FaCodeCommit style={{ display: "inline" }} />
+                                  <FaCodeCommit style={{ display: 'inline' }} />
                                   &nbsp;&nbsp;Commit to PR #{pr.number}
                                 </Button>
                               )
@@ -2054,7 +2423,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
               </div>
               {codeSuggestionsState == 'staging' && (
                 <div className="flex justify-around w-full pb-2 mb-4">
-                  <p className='font-bold'>Staged Changes</p>
+                  <p className="font-bold">Staged Changes</p>
                 </div>
               )}
               {!suggestedChanges.every(
@@ -2283,7 +2652,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                                     userMentionedPullRequest?.number
                                   ),
                                   base_branch: baseBranch,
-                                  commit_message: commitMessage,
+                                  commit_message: pullRequestTitle,
                                 }),
                               }
                             )
@@ -2308,9 +2677,12 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                           }
 
                           const data = await response.json()
-                          const { pull_request: pullRequest, new_branch: branch } = data
+                          const {
+                            pull_request: pullRequest,
+                            new_branch: branch,
+                          } = data
                           pullRequest.branch = branch
-                          console.log("pullrequest", pullRequest)
+                          console.log('pullrequest', pullRequest)
                           setPullRequest(pullRequest)
                           setUserMentionedPullRequest(pullRequest)
                           let newPulls = userMentionedPullRequests
@@ -2325,7 +2697,8 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
 
                           setUserMentionedPullRequests(newPulls)
 
-                          setMessages([
+                          // for commits, show a different message
+                          const newMessages: Message[] = [
                             ...messages,
                             {
                               content: `Pull request created: [https://github.com/${repoName}/pull/${pullRequest.number}](https://github.com/${repoName}/pull/${pullRequest.number})`,
@@ -2334,10 +2707,15 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                                 pulls: [pullRequest],
                               },
                             },
-                          ])
+                          ]
+                          console.log(pullRequest)
+                          setPullRequest(pullRequest)
+                          setMessages(newMessages)
                           setIsCreatingPullRequest(false)
                           setOriginalSuggestedChanges([])
                           setSuggestedChanges([])
+
+                          validatePr(pullRequest, newMessages.length - 1)
                         } catch (e) {
                           setIsCreatingPullRequest(false)
                           toast({
@@ -2349,14 +2727,16 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                         }
                       }}
                       disabled={
-                        isCreatingPullRequest || isProcessingSuggestedChanges
+                        isCreatingPullRequest ||
+                        isProcessingSuggestedChanges ||
+                        !pullRequestTitle ||
+                        !pullRequestBody
                       }
                     >
                       {commitToPR && userMentionedPullRequest
                         ? `Commit to Pull Request #${userMentionedPullRequest?.number}`
                         : 'Create Pull Request'}
                     </Button>
-
                   </>
                 )}
               </div>
@@ -2382,12 +2762,12 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                 className="mr-2"
                 variant="secondary"
                 onClick={async () => {
+                  window.history.pushState({}, '', '/')
                   setMessages([])
                   setCurrentMessage('')
                   setIsLoading(false)
                   setSnippets([])
                   setMessagesId('')
-                  window.history.pushState({}, '', '/')
                   setSuggestedChanges([])
                   setPullRequest(null)
                   setFeatureBranch(null)
@@ -2400,8 +2780,8 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                 }}
                 disabled={isLoading}
               >
-                <FaArrowsRotate />
-                &nbsp;&nbsp;Reset
+                <FaPlus />
+                &nbsp;&nbsp;New Chat
               </Button>
             )}
             <Dialog>
@@ -2456,19 +2836,23 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
               data-ph-capture-attribute-current-message={currentMessage}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && e.shiftKey) {
-                  e.currentTarget.style.height = `${e.currentTarget.scrollHeight / 2}px`;
+                  e.currentTarget.style.height = `${e.currentTarget.scrollHeight / 2}px`
                 }
-                if (e.key === 'Enter' && !e.shiftKey && currentMessage.trim().length > 0) {
+                if (
+                  e.key === 'Enter' &&
+                  !e.shiftKey &&
+                  currentMessage.trim().length > 0
+                ) {
                   sendMessage()
                   // @ts-ignore
-                  e.target.style!.height = 'auto';
+                  e.target.style!.height = 'auto'
                   // @ts-ignore
-                  e.target.style!.height = `42px`;
+                  e.target.style!.height = `42px`
                 }
               }}
               onChange={(e) => {
-                setCurrentMessage(e.target.value);
-                e.target.style.height = `${e.target.scrollHeight}px`;
+                setCurrentMessage(e.target.value)
+                e.target.style.height = `${e.target.scrollHeight}px`
               }}
               className="p-2 overflow-y-hidden"
               style={{ minHeight: 24, height: 42 }}

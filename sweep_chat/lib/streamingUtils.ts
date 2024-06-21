@@ -65,18 +65,17 @@ async function* streamMessages(
       }
     } catch (error) {
       console.error('Error during streaming:', error)
-      if (error instanceof Error && error.message.includes('Stream timeout')) {
-        throw error // Rethrow timeout errors
-      }
-      // For other errors, try to continue streaming
-      console.warn('Attempting to continue streaming after error')
-      buffer = '' // Clear buffer to start fresh
-      continue
+      throw error // Rethrow timeout errors
     } finally {
       if (timeoutId) {
         clearTimeout(timeoutId)
       }
     }
+  }
+
+  if (isStream && !isStream.current) {
+    console.log('Stream interrupted by user')
+    reader.cancel()
   }
   // if (buffer) {
   //   console.warn("Buffer:", buffer)

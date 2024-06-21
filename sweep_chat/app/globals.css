@@ -96,7 +96,7 @@
     /* margin-bottom: 1.5rem; */
   }
   
-  h1:not(:first-child) {
+  h1 {
     margin-top: 2rem;
   }
 

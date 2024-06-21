@@ -140,7 +140,6 @@ const RenderPath = ({
           {snippet.type_name}
         </code>
       )}
-      
     </span>
   )
 }
