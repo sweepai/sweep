@@ -671,10 +671,10 @@ const MessageDisplay = ({
                         </Button>
                         <code className="text-zinc-200 px-2">
                           {suggestion.filePath}{' '}
-                          {numLinesAdded > 0 && <span className="text-green-500">
+                          {numLinesAdded > 0 && <span className="text-green-500 mr-2">
                             +{numLinesAdded}
                           </span>}
-                          {numLinesRemoved > 0 && <span className="text-red-500">
+                          {numLinesRemoved > 0 && <span className="text-red-500 mr-2">
                             -{numLinesRemoved}
                           </span>}
                           <span className="text-zinc-500 ml-4">

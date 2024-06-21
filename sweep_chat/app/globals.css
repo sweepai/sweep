@@ -76,6 +76,10 @@
 }
 
 .reactMarkdown {
+
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+
   pre {
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
@@ -89,20 +93,29 @@
 
   h1 {
     font-size: 2rem;
-    margin-top: 2rem;
     /* margin-bottom: 1.5rem; */
+  }
+  
+  h1:not(:first-child) {
+    margin-top: 2rem;
   }
 
   h2 {
     font-size: 1.5rem;
-    margin-top: 2rem;
     /* margin-bottom: 1.5rem; */
+  }
+
+  h2:not(:first-child) {
+    margin-top: 2rem;
   }
 
   h3 {
     font-size: 1.25rem;
-    margin-top: 2rem;
     /* margin-bottom: 0.75rem; */
+  }
+
+  h3:not(:first-child) {
+    margin-top: 2rem;
   }
 
   code {
