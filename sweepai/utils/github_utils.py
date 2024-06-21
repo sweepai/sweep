@@ -689,11 +689,7 @@ class ClonedRepo:
         return files
 
     def get_file_contents(self, file_path, ref=None):
-        local_path = (
-            f"{self.repo_dir}{file_path}"
-            if file_path.startswith("/")
-            else f"{self.repo_dir}/{file_path}"
-        )
+        local_path = os.path.join(self.repo_dir, file_path.lstrip("/"))
         if os.path.exists(local_path) and os.path.isfile(local_path):
             with open(local_path, "r", encoding="utf-8", errors="replace") as f:
                 contents = f.read()
