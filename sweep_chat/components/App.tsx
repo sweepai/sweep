@@ -1605,17 +1605,20 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   return (
     <>
       <main className="flex h-screen flex-col items-center justify-between p-12 pt-20">
-        <NavigationMenu className="fixed top-0 left-0 w-[100vw]">
-          <div className="flex items-center justify-between w-[100vw] p-4 px-4 mb-2 align-center">
+        <NavigationMenu className="fixed top-0 left-0 w-[100vw] -z-10 px-4">
+          <div className="flex items-center justify-between w-[100vw] mb-2 align-center">
             <div className="flex items-center gap-4">
               <img
                 src="/banner.svg"
-                width={200}
+                width={140}
                 height={200}
                 alt="Sweep AI Logo"
-                className="h-20 rounded-lg hover:cursor-pointer box-shadow-md"
+                className="h-20 rounded-lg hover:cursor-pointer box-shadow-md -z-10"
                 onClick={() => {
                   window.location.href = '/'
+                }}
+                style={{
+                  marginTop: 2,
                 }}
               />
               <DropdownMenu>
