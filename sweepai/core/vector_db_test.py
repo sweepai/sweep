@@ -1,6 +1,7 @@
 import pytest
 import numpy as np
 import requests
+import openai
 from unittest.mock import patch, MagicMock
 from sweepai.core.vector_db import (
     cosine_similarity,
@@ -9,7 +10,8 @@ from sweepai.core.vector_db import (
     openai_with_expo_backoff,
     normalize_l2,
 )
-from sweepai.config.server import CACHE_DIRECTORY
+# Remove or comment out the unused import
+# from sweepai.config.server import CACHE_DIRECTORY
 
 # Mock the Cache class
 @pytest.fixture
@@ -67,11 +69,11 @@ def test_openai_call_embedding_token_limit():
     with patch('sweepai.core.vector_db.tiktoken_client.count', return_value=10000):
         with patch('sweepai.core.vector_db.tiktoken_client.truncate_string', return_value="truncated"):
             with patch('sweepai.core.vector_db.openai_call_embedding_router', side_effect=[
-                openai.BadRequestError("maximum context length"),
+                openai.BadRequestError("maximum context length", response=MagicMock(), body={}),
                 np.array([[1, 2, 3]])
             ]) as mock_router:
                 result = openai_call_embedding([long_text])
-                
+
                 assert np.array_equal(result, np.array([[1, 2, 3]]))
                 assert mock_router.call_count == 2
                 mock_router.assert_called_with(["truncated"], "document")
