@@ -773,7 +773,7 @@ export default function CallToAction() {
 }
 """
     extract_definitions("main.tsx", typescript_code)
-    breakpoint()
+    breakpoint() # noqa
     python_code = """\
 import math
 import pandas

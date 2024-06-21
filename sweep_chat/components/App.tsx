@@ -111,6 +111,7 @@ import { streamMessages } from '@/lib/streamingUtils'
 import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 import { Skeleton } from './ui/skeleton'
 import { isPullRequestEqual } from '@/lib/pullUtils'
+import Image from 'next/image'
 // @ts-ignore
 import * as Diff from 'diff'
 
@@ -269,7 +270,7 @@ const UserMessageDisplay = ({
       textareaRef.current.style.height = 'auto'
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
     }
-  }, [editedContent])
+  }, [editedContent, textareaRef])
 
   return (
     <>
@@ -288,10 +289,15 @@ const UserMessageDisplay = ({
           <div className={`text-sm text-white`}>
             {isEditing ? (
               <Textarea
-                className="w-full mb-4 bg-transparent text-white max-w-[500px] w-[500px] hover:bg-initial"
+                className="w-full mb-4 bg-transparent text-white max-w-[800px] w-[800px] hover:bg-initial"
                 ref={textareaRef}
                 value={editedContent}
-                onChange={(e) => setEditedContent(e.target.value)}
+                onChange={(e) => {
+                  setEditedContent(e.target.value)
+                  e.target.style.height = 'auto';
+                  e.target.style.height = `${e.target.scrollHeight}px`;
+                }}
+                style={{ height: (editedContent.split('\n').length + 1) * 16 }}
                 autoFocus
               />
             ) : (
@@ -322,7 +328,7 @@ const UserMessageDisplay = ({
                 variant="default"
                 className="ml-2 bg-slate-600 text-white hover:bg-slate-700"
               >
-                Generate
+                Send
               </Button>
             </>
           )}
@@ -1586,6 +1592,8 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           <div className="flex items-center justify-between w-[100vw] p-4 px-4 mb-2 align-center">
             <img
               src="/banner.svg"
+              width={100}
+              height={100}
               className="h-10 rounded-lg hover:cursor-pointer box-shadow-md"
               onClick={() => {
                 window.location.href = '/'
@@ -2419,15 +2427,26 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                 </Button>
               </DialogContent>
             </Dialog>
-            <Input
+            <Textarea
               data-ph-capture-attribute-current-message={currentMessage}
-              onKeyUp={async (e) => {
-                if (e.key === 'Enter') {
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.shiftKey) {
+                  e.currentTarget.style.height = `${e.currentTarget.scrollHeight / 2}px`;
+                }
+                if (e.key === 'Enter' && !e.shiftKey && currentMessage.trim().length > 0) {
                   sendMessage()
+                  // @ts-ignore
+                  e.target.style!.height = 'auto';
+                  // @ts-ignore
+                  e.target.style!.height = `42px`;
                 }
               }}
-              onChange={(e) => setCurrentMessage(e.target.value)}
-              className="p-4"
+              onChange={(e) => {
+                setCurrentMessage(e.target.value);
+                e.target.style.height = `${e.target.scrollHeight}px`;
+              }}
+              className="p-2 overflow-y-hidden"
+              style={{ minHeight: 24, height: 42 }}
               value={currentMessage}
               placeholder="Type a message..."
               disabled={isLoading || !repoNameValid || isStream.current}
