@@ -116,6 +116,125 @@ def get_error_locations_from_error_logs(error_logs: str, cloned_repo: ClonedRepo
         logger.error(f"Error in getting error locations: {e}")
         return error_logs, []
 
+def handle_failing_github_actions(
+    problem_statement: str,
+    failing_logs: str,
+    repo: Repository,
+    pull_request: PullRequest,
+    user_token: str,
+    username: str,
+    installation_id: int,
+    modify_files_dict: dict[str, dict[str, str | list[str]]] = {},
+    modify_files_dict_history: list[dict[str, dict[str, str]]] = [],
+    gha_history: list[str] = [],
+    chat_logger: ChatLogger | None = None,
+):
+    # cleanup the gha logs
+    chat_gpt = ChatGPT()
+    chat_gpt.messages = [
+        Message(role="system", content=gha_context_cleanup_system_prompt)
+    ]
+    formatted_gha_context_prompt = gha_context_cleanup_user_prompt.format(
+        github_actions_logs=failing_logs
+    )
+    # we can also gate github actions fixes here
+    failing_logs = chat_gpt.chat_anthropic(
+        content=formatted_gha_context_prompt,
+        temperature=0.2,
+        use_openai=True,
+    )
+    failing_logs = strip_triple_quotes(failing_logs)
+    # make edits to the PR
+    # TODO: look into rollbacks so we don't continue adding onto errors
+    cloned_repo = ClonedRepo( # reinitialize cloned_repo to avoid conflicts
+        repo.full_name,
+        installation_id=installation_id,
+        token=user_token,
+        repo=repo,
+        branch=pull_request.head.ref,
+    )
+    failing_logs, _ = get_error_locations_from_error_logs(failing_logs, cloned_repo=cloned_repo)
+    diffs = get_branch_diff_text(repo=repo, branch=pull_request.head.ref, base_branch=pull_request.base.ref)
+    # problem_statement = f"{title}\n{internal_message_summary}\n{replies_text}"
+    all_information_prompt = GHA_PROMPT.format(
+        problem_statement=problem_statement,
+        github_actions_logs=failing_logs,
+        changes_made=diffs,
+    )
+    if gha_history:
+        previous_gha_logs = gha_history[-1]
+        all_information_prompt = GHA_PROMPT_WITH_HISTORY.format(
+            problem_statement=problem_statement,
+            current_github_actions_logs=failing_logs,
+            changes_made=diffs,
+            previous_github_actions_logs=previous_gha_logs,
+        )
+    snippets: list[Snippet] = prep_snippets(cloned_repo=cloned_repo, query=all_information_prompt, ticket_progress=None) # need to do this, can use the old query for speed
+    issue_request = get_issue_request(
+        "Fix the following errors to complete the user request.",
+        all_information_prompt,
+    )
+    # only pass in top 10 relevant snippets at this point we dont really need context anymore, we are just modifying the existing files
+    file_change_requests, plan = get_files_to_change_for_gha(
+        relevant_snippets=snippets[:10],  # pylint: disable=unsubscriptable-object
+        read_only_snippets=[],
+        problem_statement=all_information_prompt,
+        updated_files=modify_files_dict,
+        cloned_repo=cloned_repo,
+        chat_logger=chat_logger,
+        use_openai=True
+    )
+    set_fcr_change_type(file_change_requests, cloned_repo)
+    previous_modify_files_dict: dict[str, dict[str, str | list[str]]] | None = None
+    modify_files_dict, _, file_change_requests = handle_file_change_requests(
+        file_change_requests=file_change_requests,
+        request=issue_request,
+        cloned_repo=cloned_repo,
+        username=username,
+        installation_id=installation_id,
+        previous_modify_files_dict=previous_modify_files_dict,
+    )
+    pull_request_bot = PRSummaryBot()
+    if modify_files_dict_history:
+        commit_message = pull_request_bot.get_commit_message(
+            modify_files_dict=modify_files_dict,
+            renames_dict={},
+            previous_modify_files_dict=modify_files_dict_history[-1], 
+            chat_logger=chat_logger
+        )[:50]
+    else:
+        commit_message = pull_request_bot.get_commit_message(
+            modify_files_dict=modify_files_dict,
+            renames_dict={},
+            chat_logger=chat_logger
+        )[:50]
+    modify_files_dict_history.append(copy.deepcopy(modify_files_dict))
+    try:
+        new_file_contents_to_commit = {file_path: file_data["contents"] for file_path, file_data in modify_files_dict.items()}
+        previous_file_contents_to_commit = copy.deepcopy(new_file_contents_to_commit)
+        new_file_contents_to_commit, files_removed = validate_and_sanitize_multi_file_changes(
+            cloned_repo.repo,
+            new_file_contents_to_commit,
+            file_change_requests
+        )
+        if files_removed and username:
+            posthog.capture(
+                username,
+                "polluted_commits_error",
+                properties={
+                    "old_keys": ",".join(previous_file_contents_to_commit.keys()),
+                    "new_keys": ",".join(new_file_contents_to_commit.keys()) 
+                },
+            )
+        # refresh access token
+        _token, g = get_github_client(installation_id)
+        cloned_repo.repo = g.get_repo(repo.full_name)
+        commit = commit_multi_file_changes(cloned_repo, new_file_contents_to_commit, commit_message, cloned_repo.branch)
+        return commit
+    except Exception as e:
+        logger.info(f"Error in updating file{e}")
+        raise e
+
 def on_failing_github_actions(
     problem_statement: str,
     repo: Repository,

@@ -1,4 +1,5 @@
 from functools import wraps
+import time
 import traceback
 from typing import Any, Callable
 import uuid
@@ -24,13 +25,16 @@ from sweepai.core.chat import ChatGPT, call_llm
 from sweepai.core.entities import FileChangeRequest, Message, Snippet
 from sweepai.core.pull_request_bot import get_pr_summary_for_chat
 from sweepai.core.review_utils import split_diff_into_patches
+from sweepai.dataclasses.check_status import CheckStatus, gha_to_check_status, gha_to_message
 from sweepai.dataclasses.code_suggestions import CodeSuggestion
 from sweepai.handlers.on_check_suite import get_failing_docker_logs
+from sweepai.handlers.on_failing_github_actions import handle_failing_github_actions
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import ClonedRepo, CustomGithub, MockClonedRepo, clean_branch_name, commit_multi_file_changes, create_branch, get_github_client, get_installation_id
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.str_utils import extract_objects_from_string, get_hash
 from sweepai.utils.streamable_functions import streamable
+from sweepai.utils.ticket_rendering_utils import get_failing_gha_logs
 from sweepai.utils.ticket_utils import prep_snippets
 from sweepai.utils.timer import Timer
 
@@ -1116,16 +1120,77 @@ async def validate_pull(
     pull_request = repo.get_pull(int(pull_request_number))
 
     cloned_repo = get_cloned_repo(repo_name, access_token, pull_request.head.ref)
+    current_commit = pull_request.head.sha
 
     def stream():
         try:
-            for statuses in get_failing_docker_logs.stream(cloned_repo):
-                yield json.dumps(statuses)
+            all_statuses: list[CheckStatus] = []
+            docker_statuses: list[CheckStatus] = []
+            # for docker_statuses in get_failing_docker_logs.stream(cloned_repo):
+            #     yield json.dumps(docker_statuses)
+            any_failed = not all_statuses or any(status["succeeded"] is False for status in docker_statuses)
+            if any_failed:
+                while True:
+                    runs = list(repo.get_commit(current_commit).get_check_runs())
+                    suite_runs = list(repo.get_workflow_runs(branch=pull_request.head.ref, head_sha=pull_request.head.sha))
+                    suite_statuses: list[CheckStatus] = [
+                        {
+                            "message": gha_to_message[run.status],
+                            "stdout": "", # TODO, fille this in
+                            "succeeded": gha_to_check_status[run.status],
+                            "status": gha_to_check_status[run.status],
+                            "llm_message": "",
+                            "container_name": run.name,
+                        }
+                        for run in suite_runs
+                    ]
+                    yield json.dumps(docker_statuses + suite_statuses)
+                    if all(run.status == "completed" for run in suite_runs):
+                        break
+                    if all([run.conclusion in ["success", "skipped", None] and \
+                            run.status not in ["in_progress", "waiting", "pending", "requested", "queued"] for run in runs]):
+                        logger.info("All Github Actions have succeeded or have no result.")
+                        break
+                    if not any([run.conclusion == "failure" for run in runs]):
+                        continue
+                    logger.info("Github Actions incomplete, sleeping for 10s...")
+                    time.sleep(10)
         except Exception as e:
             yield json.dumps({"error": str(e)})
             raise e
 
     return StreamingResponse(stream())
+
+@app.post("/backend/fix_pull")
+async def fix_pull(
+    repo_name: str = Body(...),
+    pull_request_number: int = Body(...),
+    problem_statement: str = Body(...),
+    failing_logs: str = Body(...),
+    snippets: list[Snippet] = Body(...),
+    access_token: str = Depends(get_token_header)
+):
+    """
+    Temporarily disabled
+    """
+    with Timer() as timer:
+        g = get_authenticated_github_client(repo_name, access_token)
+    logger.debug(f"Getting authenticated GitHub client took {timer.time_elapsed} seconds")
+    if not g:
+        return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
+    
+    org_name, repo_name_ = repo_name.split("/")
+    commit = handle_failing_github_actions(
+        problem_statement=problem_statement,
+        failing_logs=failing_logs,
+        repo=g.get_repo(repo_name),
+        pull_request=g.get_repo(repo_name).get_pull(pull_request_number),
+        user_token=access_token,
+        username=Github(access_token).get_user().login,
+        installation_id=get_installation_id(org_name, GITHUB_APP_PEM, GITHUB_APP_ID),
+    )
+
+    return commit
 
 @app.post("/backend/messages/save")
 async def write_message_to_disk(

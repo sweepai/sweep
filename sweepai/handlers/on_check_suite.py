@@ -16,20 +16,12 @@ from github.Repository import Repository
 from github.CommitStatus import CommitStatus
 from sweepai.config.client import get_config_key_value
 from sweepai.config.server import CIRCLE_CI_PAT, DOCKERFILE_CONFIG_LOCATION
+from sweepai.dataclasses.check_status import CheckStatus
 from sweepai.dataclasses.dockerfile_config import DockerfileConfig, load_dockerfile_configs_from_path
 from sweepai.logn.cache import file_cache
 from sweepai.utils.github_utils import ClonedRepo, get_token
 from sweepai.utils.streamable_functions import streamable
 from sweepai.utils.timer import Timer
-from typing import Literal, TypedDict, Optional
-
-class DockerStatus(TypedDict):
-    message: str
-    stdout: str
-    succeeded: Optional[bool]
-    status: Literal["pending", "running", "success", "failure", "cancelled"]
-    llm_message: str
-    container_name: str
 
 MAX_LINES = 500
 LINES_TO_KEEP = 100
@@ -130,7 +122,7 @@ def get_failing_docker_logs(cloned_repo: ClonedRepo):
         dockerfile_path = os.path.join(os.getcwd(), dockerfile_path)
         logs = ""
 
-        status: DockerStatus = {
+        status: CheckStatus = {
             "message": "",
             "stdout": "",
             "succeeded": None,
