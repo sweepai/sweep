@@ -1120,6 +1120,7 @@ async def validate_pull(
     pull_request = repo.get_pull(int(pull_request_number))
 
     cloned_repo = get_cloned_repo(repo_name, access_token, pull_request.head.ref)
+    installation_id = get_installation_id(org_name, GITHUB_APP_PEM, GITHUB_APP_ID)
     current_commit = pull_request.head.sha
 
     def stream():
@@ -1142,19 +1143,29 @@ async def validate_pull(
                             "llm_message": "",
                             "container_name": run.name,
                         }
-                        for run in suite_runs
+                        for run in sorted(suite_runs, key=lambda run: run.name)
                     ]
                     yield json.dumps(docker_statuses + suite_statuses)
-                    if all(run.status == "completed" for run in suite_runs):
-                        break
                     if all([run.conclusion in ["success", "skipped", None] and \
                             run.status not in ["in_progress", "waiting", "pending", "requested", "queued"] for run in runs]):
                         logger.info("All Github Actions have succeeded or have no result.")
                         break
                     if not any([run.conclusion == "failure" for run in runs]):
+                        time.sleep(10)
                         continue
-                    logger.info("Github Actions incomplete, sleeping for 10s...")
-                    time.sleep(10)
+                    for i, run in enumerate(sorted(suite_runs, key=lambda run: run.name)):
+                        if run.conclusion == "failure":
+                            failed_logs = get_failing_gha_logs(
+                                [run],
+                                installation_id,
+                            )
+                            suite_statuses[i]["stdout"] = failed_logs
+                            suite_statuses[i]["succeeded"] = False
+                            suite_statuses[i]["status"] = "failure"
+                            suite_statuses[i]["llm_message"] = failed_logs
+                            yield json.dumps(docker_statuses + suite_statuses)
+                    logger.info("Github Actions failed!")
+                    break
         except Exception as e:
             yield json.dumps({"error": str(e)})
             raise e
