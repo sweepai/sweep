@@ -21,6 +21,15 @@ from sweepai.logn.cache import file_cache
 from sweepai.utils.github_utils import ClonedRepo, get_token
 from sweepai.utils.streamable_functions import streamable
 from sweepai.utils.timer import Timer
+from typing import Literal, TypedDict, Optional
+
+class DockerStatus(TypedDict):
+    message: str
+    stdout: str
+    succeeded: Optional[bool]
+    status: Literal["pending", "running", "success", "failure"]
+    llm_message: str
+    container_name: str
 
 MAX_LINES = 500
 LINES_TO_KEEP = 100
@@ -120,15 +129,17 @@ def get_failing_docker_logs(cloned_repo: ClonedRepo):
         env_exists = os.path.exists(env_path)
         dockerfile_path = os.path.join(os.getcwd(), dockerfile_path)
         logs = ""
-        status = {
+
+        status: DockerStatus = {
             "message": "",
             "stdout": "",
             "succeeded": None,
+            "status": "running",
             "llm_message": "",
-            "image_name": image_name,
+            "container_name": container_name,
         }
-        try:
-            with Timer():
+        with Timer():
+            try:
                 with change_dir(cloned_repo.repo_dir):
                     # Build the Docker image
                     build_command = f"docker build -t {image_name} -f {dockerfile_path} --build-arg CODE_PATH=. ."
@@ -137,20 +148,19 @@ def get_failing_docker_logs(cloned_repo: ClonedRepo):
                     build_command = f"{disable_buildkit_prefix} {build_command}"
                     status["message"] = "Building Docker image..."
                     yield status
-                    subprocess.run(build_command, shell=True, check=True)
+                    subprocess.run(build_command, shell=True, check=True, capture_output=True, text=True)
                     logger.info(f"Built Docker image {image_name}")
                     # Run the Docker container and remove it after it exits
                     if env_exists:
-                        run_command = f"docker run --env-file {env_path} --name {container_name} {image_name}"
+                        run_command = f"docker run --env-file {env_path} --name {container_name} {image_name} {dockerfile_config.command}"
                     else:
-                        run_command = f"docker run --name {container_name} {image_name}"
+                        run_command = f"docker run --name {container_name} {image_name} {dockerfile_config.command}"
                     status["message"] = "Running Docker image..."
                     yield status
                     logger.info(f"Running Docker image {image_name}...")
                     with Timer():
                         # Use Popen to stream output
                         stdout = ""
-                        stderr = ""
                         with subprocess.Popen(run_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as proc:
                             for line in proc.stdout:
                                 print(line, end='', flush=True)
@@ -158,6 +168,7 @@ def get_failing_docker_logs(cloned_repo: ClonedRepo):
                                 status["stdout"] = stdout
                                 yield status
                     status["message"] = f"Checks passed" if proc.returncode == 0 else f"Checks failed"
+                    status["status"] = "success" if proc.returncode == 0 else "failure"
                     status["succeeded"] = proc.returncode == 0
                     yield status
                     with Timer():
@@ -165,7 +176,7 @@ def get_failing_docker_logs(cloned_repo: ClonedRepo):
                         remove_command = f"docker rm {container_name}"
                         status["message"] = "Removing Docker container..."
                         yield status
-                        subprocess.run(remove_command, shell=True, check=True)
+                        subprocess.run(remove_command, shell=True, check=True, capture_output=True, text=True)
                         if proc.returncode == 0:
                             logger.info(f"Docker container {container_name} exited successfully")
                             status["message"] = "Checks passed"
@@ -176,36 +187,42 @@ def get_failing_docker_logs(cloned_repo: ClonedRepo):
                         logger.info(f"Removed Docker container {container_name}")
                         gha_formatted_prompt = gha_prompt.format(
                             command_line=dockerfile_config.command,
-                            error_content=stderr,
-                            cleaned_logs_str=stdout,
+                            error_content=stdout,
+                            cleaned_logs_str="",
                         )
-                        status["message"] = "Checks failed"
                         status["llm_message"] = gha_formatted_prompt
+                        status["message"] = "Checks failed"
                         yield status
                         return gha_formatted_prompt, image_name
-        except subprocess.CalledProcessError as e:
-            # TODO: handle this case
-            logs = e.output
+            except subprocess.CalledProcessError as e:
+                # TODO: handle this case
+                logs = e.stdout + e.stderr
+            gha_formatted_prompt = gha_prompt.format(
+                command_line=dockerfile_config.command,
+                error_content=logs,
+                cleaned_logs_str="",
+            )
             status["message"] = "Checks failed"
+            status["succeeded"] = False
+            status["stdout"] = logs
             status["llm_message"] = gha_formatted_prompt
             yield status
-        gha_formatted_prompt = gha_prompt.format(
-            command_line=dockerfile_config.command,
-            error_content=logs,
-            cleaned_logs_str="",
-        )
-        status["message"] = "Checks failed"
-        status["llm_message"] = gha_formatted_prompt
-        yield status
-        return gha_formatted_prompt, image_name
+            return gha_formatted_prompt, image_name
     # run dockerfile configs in parallel
     docker_logs = ""
     image_names = []
-    statuses = []
-    for dockerfile_config in dockerfile_configs:
+    statuses = [{
+        "message": "Queued",
+        "stdout": "",
+        "succeeded": None,
+        "status": "pending",
+        "llm_message": "",
+        "container_name": dockerfile_config.container_name + "-" + str(hash(cloned_repo.repo_dir))[-8:],
+    } for dockerfile_config in dockerfile_configs]
+    for i, dockerfile_config in enumerate(dockerfile_configs):
         for status in run_dockerfile_config.stream(dockerfile_config, cloned_repo):
-            yield [*statuses, status]
-        statuses.append(status)
+            statuses[i] = status
+            yield statuses
         if status["succeeded"] == False:
             break # stop at the first failing docker container
     return docker_logs, image_names
