@@ -680,14 +680,14 @@ const MessageDisplay = ({
       ))}
       {message.annotations?.prValidationStatuses &&
         message.annotations?.prValidationStatuses.length > 0 && (
-          <div className='mt-4 flex justify-start mb-4'>
+          <div className='flex justify-start mb-4'>
             <div className='rounded-xl p-4 bg-zinc-800 w-[80%] space-y-4'>
               {message.annotations?.prValidationStatuses.map((status, index) => (
                 <PrValidationStatusDisplay key={index} status={status} />
               ))}
               {message.annotations?.prValidationStatuses.some((status) => status.status == "failure") ? (
                 <>
-                  <p className="text-red-500">Some tests have failed.</p>
+                  <p className="text-red-500 font-bold">Some tests have failed.</p>
                   <Button
                     variant="primary"
                     onClick={fixPrValidationErrors}
@@ -696,7 +696,7 @@ const MessageDisplay = ({
                   </Button>
                 </>
               ): (
-                <p className="text-green-500">All tests have passed.</p>
+                <p className="text-green-500 font-bold">All tests have passed.</p>
               )}
             </div>
           </div>
@@ -2052,6 +2052,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                       setPullRequestTitle(null)
                       setPullRequestBody(null)
                       startStream(content, newMessages, snippets, { pulls })
+                      setPrValidationStatuses([])
                     } else {
                       startStream(content, newMessages, snippets, { pulls })
                     }
@@ -2570,12 +2571,12 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                 className="mr-2"
                 variant="secondary"
                 onClick={async () => {
+                  window.history.pushState({}, '', '/')
                   setMessages([])
                   setCurrentMessage('')
                   setIsLoading(false)
                   setSnippets([])
                   setMessagesId('')
-                  window.history.pushState({}, '', '/')
                   setSuggestedChanges([])
                   setPullRequest(null)
                   setFeatureBranch(null)
@@ -2588,8 +2589,8 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                 }}
                 disabled={isLoading}
               >
-                <FaArrowsRotate />
-                &nbsp;&nbsp;Reset
+                <FaPlus />
+                &nbsp;&nbsp;New Chat
               </Button>
             )}
             <Dialog>

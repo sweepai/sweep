@@ -77,8 +77,8 @@
 
 .reactMarkdown {
 
-  padding-top: 2rem;
-  padding-bottom: 2rem;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
 
   pre {
     padding-top: 0.5rem;
@@ -96,7 +96,7 @@
     /* margin-bottom: 1.5rem; */
   }
   
-  h1:not(:first-child) {
+  h1 {
     margin-top: 2rem;
   }
 
