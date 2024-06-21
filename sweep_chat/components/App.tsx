@@ -166,6 +166,35 @@ const AutoScrollArea = ({
   return <ScrollArea ref={scrollAreaRef} className={className}>{children}</ScrollArea>
 }
 
+const PrValidationStatusDisplay = ({status}: {status: PrValidationStatus}) => {
+  return (
+    <div className="flex justify-start">
+      <div className='rounded-xl bg-zinc-800 w-full'>
+        <h2 className='font-bold text-sm'>
+          {status.status != "cancelled" ? (
+            <FaCircle className={{
+              "success": "text-green-500",
+              "failure": "text-red-500",
+              "pending": "text-zinc-500",
+              "running": "text-yellow-500",
+            }[status.status] + " inline mr-2 text-sm"} style={{marginTop: -2}}/>
+          ): (
+            <FaTimesCircle className="text-zinc-500 inline mr-2 text-sm" style={{marginTop: -2}}/>
+          )}
+          {status.message} - {status.containerName}
+        </h2>
+        {status.stdout && (
+          <AutoScrollArea className='max-h-[500px] overflow-y-auto mt-4'>
+            <pre className='whitespace-pre-wrap text-sm bg-zinc-900 p-4 rounded-lg'>
+              {status.stdout}
+            </pre>
+          </AutoScrollArea>
+        )}
+      </div>
+    </div>
+  )
+}
+
 const PullRequestHeader = ({ pr }: { pr: PullRequest }) => {
   return (
     <div
@@ -282,6 +311,7 @@ const PullRequestDisplay = ({
           className="bg-zinc-800 text-white mb-4"
           onClick={() => onValidatePR(pr)}
         >
+          <FaArrowsRotate className="inline-block mr-2" />
           Re-validate Pull Request
         </Button>
       )}
@@ -645,29 +675,41 @@ const MessageDisplay = ({
           <PullRequestDisplay pr={pr} onValidatePR={onValidatePR} />
         </div>
       ))}
+      {message.annotations?.prValidationStatuses &&
+        message.annotations?.prValidationStatuses.length > 0 && (
+          <div className='mt-4 flex justify-start'>
+            <div className='rounded-xl p-4 bg-zinc-800 w-[80%] space-y-4'>
+              {message.annotations?.prValidationStatuses.map((status, index) => (
+                <PrValidationStatusDisplay key={index} status={status} />
+              ))}
+            </div>
+          </div>
+      )}
       {message.annotations?.codeSuggestions &&
         message.annotations?.codeSuggestions.length > 0 && (
           <div className="text-sm max-w-[80%] p-4 rounded bg-zinc-700 space-y-4 mb-4">
             <div className="flex justify-between items-center">
               <h2 className='font-bold'>Suggested Changes</h2>
-              <Button
-                className="bg-green-800 hover:bg-green-700 text-white"
-                size="sm"
-                onClick={() => {
-                  setCollapsedArray(
-                    message.annotations?.codeSuggestions!.map(() => true) || []
-                  )
-                  setSuggestedChanges(
-                    (suggestedChanges: StatefulCodeSuggestion[]) => [
-                      ...suggestedChanges,
-                      ...message.annotations?.codeSuggestions!,
-                    ]
-                  )
-                }}
-              >
-                <FaPlus />
-                &nbsp;Stage All Changes
-              </Button>
+              {message.annotations?.codeSuggestions?.length > 1 && (
+                <Button
+                  className="bg-green-800 hover:bg-green-700 text-white"
+                  size="sm"
+                  onClick={() => {
+                    setCollapsedArray(
+                      message.annotations?.codeSuggestions!.map(() => true) || []
+                    )
+                    setSuggestedChanges(
+                      (suggestedChanges: StatefulCodeSuggestion[]) => [
+                        ...suggestedChanges,
+                        ...message.annotations?.codeSuggestions!,
+                      ]
+                    )
+                  }}
+                >
+                  <FaPlus />
+                  &nbsp;Stage All Changes
+                </Button>
+              )}
             </div>
             {message.annotations?.codeSuggestions?.map(
               (suggestion: StatefulCodeSuggestion, index: number) => {
@@ -2024,6 +2066,23 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                           scrolledToBottom = true
                         }
                       }
+                      isStream.current = false
+
+                      const prFailed = prValidationStatuses.some((status) => status.status == "failure")
+                      if (prFailed) {
+                        setMessages([
+                          ...messages.slice(0, index),
+                          {
+                            ...messages[index],
+                            annotations: {
+                              ...messages[index].annotations,
+                              prValidationStatuses: prValidationStatuses
+                            }
+                          },
+                          ...messages.slice(index + 1)
+                        ])
+                        setPrValidationStatuses([])
+                      }
                     } catch (e) {
                       console.log(e)
                     } finally {
@@ -2047,33 +2106,10 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
             </div>
           )}
           {prValidationStatuses.length > 0 ? (
-            <div className='mt-8 flex justify-start '>
+            <div className='mt-4 flex justify-start'>
               <div className='rounded-xl p-4 bg-zinc-800 w-[80%] space-y-4'>
                 {prValidationStatuses.map((status, index) => (
-                  <div key={index} className="flex justify-start">
-                    <div className='rounded-xl bg-zinc-800 w-full'>
-                      <h2 className='font-bold'>
-                        {status.status != "cancelled" ? (
-                          <FaCircle className={{
-                            "success": "text-green-500",
-                            "failure": "text-red-500",
-                            "pending": "text-zinc-500",
-                            "running": "text-yellow-500",
-                          }[status.status] + " inline mr-2 text-sm"} style={{marginTop: -2}}/>
-                        ): (
-                          <FaTimesCircle className="text-zinc-500 inline mr-2 text-sm" style={{marginTop: -2}}/>
-                        )}
-                        {status.message} - {status.containerName}
-                      </h2>
-                      {status.stdout && (
-                        <AutoScrollArea className='max-h-[500px] overflow-y-auto mt-4'>
-                          <pre className='whitespace-pre-wrap text-sm bg-zinc-900 p-4 rounded-lg'>
-                            {status.stdout}
-                          </pre>
-                        </AutoScrollArea>
-                      )}
-                    </div>
-                  </div>
+                  <PrValidationStatusDisplay key={index} status={status} />
                 ))}
               </div>
             </div>

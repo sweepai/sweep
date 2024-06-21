@@ -77,6 +77,7 @@ interface Message {
   annotations?: {
     pulls?: PullRequest[]
     codeSuggestions?: StatefulCodeSuggestion[]
+    prValidationStatuses?: PrValidationStatus[]
   }
 }
 
