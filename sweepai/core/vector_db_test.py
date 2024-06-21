@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+import requests
 from unittest.mock import patch, MagicMock
 from sweepai.core.vector_db import (
     cosine_similarity,
