@@ -2314,9 +2314,23 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                           }
 
                           const data = await response.json()
-                          const { pull_request: pullRequest } = data
-                          console.log(pullRequest)
+                          const { pull_request: pullRequest, new_branch: branch } = data
+                          pullRequest.branch = branch
+                          console.log("pullrequest", pullRequest)
                           setPullRequest(pullRequest)
+                          setUserMentionedPullRequest(pullRequest)
+                          let newPulls = userMentionedPullRequests
+                            ? [...userMentionedPullRequests]
+                            : []
+
+                          newPulls.forEach((pull) => {
+                            if (!isPullRequestEqual(pull, pullRequest)) {
+                              newPulls.push(pullRequest)
+                            }
+                          })
+
+                          setUserMentionedPullRequests(newPulls)
+
                           setMessages([
                             ...messages,
                             {
