@@ -1316,7 +1316,6 @@ def get_files_to_change_for_test(
         # breakpoint()
         max_tokens = 4096 * 3.5 * 0.9 # approx max tokens per response
         expected_plan_count = 1
-        # pylint: disable=E1101
         call_anthropic_second_time = len(files_to_change_response) > max_tokens and files_to_change_response.count("</plan>") < expected_plan_count
         if call_anthropic_second_time:
             # ask for a second response
