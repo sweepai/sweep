@@ -866,7 +866,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   const [commitToPR, setCommitToPR] = useState<boolean>(false) // controls whether or not we commit to the userMetionedPullRequest or create a new pr
   const [commitToPRIsOpen, setCommitToPRIsOpen] = useState<boolean>(false)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
-  const [commitMessage, setCommitMessage] = useState<string>('')
+  console.log(userMentionedPullRequests)
 
   const { data: session } = useSession()
 
@@ -1897,10 +1897,10 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                       setUserMentionedPullRequest(pulls[pulls.length - 1])
                       setCommitToPR(true)
                     }
-                    let newPulls = userMentionedPullRequests
+                    let newPulls = (userMentionedPullRequests && index > 0)
                       ? [...userMentionedPullRequests]
                       : []
-
+                    
                     pulls.forEach((pull1) => {
                       if (
                         !newPulls.some((pull2) =>
@@ -1911,7 +1911,14 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                       }
                     })
 
-                    setUserMentionedPullRequests(newPulls)
+                    setUserMentionedPullRequests(newPulls.length > 0 ? newPulls: null)
+                    
+                    if (newPulls.length > 0) {
+                      setUserMentionedPullRequest(newPulls[newPulls.length - 1])
+                    } else {
+                      setUserMentionedPullRequest(null)
+                      setCommitToPR(false)
+                    }
 
                     const newMessages: Message[] = [
                       ...messages.slice(0, index),
@@ -2283,7 +2290,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                                     userMentionedPullRequest?.number
                                   ),
                                   base_branch: baseBranch,
-                                  commit_message: commitMessage,
+                                  commit_message: pullRequestTitle,
                                 }),
                               }
                             )
