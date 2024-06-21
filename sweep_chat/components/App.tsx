@@ -495,6 +495,7 @@ const MessageDisplay = ({
   commitToPR,
   setSuggestedChanges,
   onValidatePR,
+  fixPrValidationErrors,
   index,
 }: {
   message: Message
@@ -507,6 +508,7 @@ const MessageDisplay = ({
     React.SetStateAction<StatefulCodeSuggestion[]>
   >
   onValidatePR?: (pr: PullRequest) => void
+  fixPrValidationErrors: () => void
   index: number
 }) => {
   const [collapsedArray, setCollapsedArray] = useState<boolean[]>(
@@ -682,6 +684,12 @@ const MessageDisplay = ({
               {message.annotations?.prValidationStatuses.map((status, index) => (
                 <PrValidationStatusDisplay key={index} status={status} />
               ))}
+              <Button
+                variant="primary"
+                onClick={fixPrValidationErrors}
+              >
+                Fix errors
+              </Button>
             </div>
           </div>
       )}
@@ -1703,7 +1711,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   return (
     <>
       <main className="flex h-screen flex-col items-center justify-between p-12 pt-20">
-        <NavigationMenu className="fixed top-0 left-0 w-[100vw] -z-10 px-4">
+        <NavigationMenu className="fixed top-0 left-0 w-[100vw] px-4">
           <div className="flex items-center justify-between w-[100vw] mb-2 align-center">
             <div className="flex items-center gap-4">
               <img
@@ -2089,6 +2097,11 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                       isStream.current = false
                       setIsValidatingPR(false)
                     }
+                  }}
+                  fixPrValidationErrors={() => {
+                    const currentPrValidationStatuses = messages[index].annotations?.prValidationStatuses
+                    const failedPrValidationStatuses = currentPrValidationStatuses?.find((status) => status.status === "failure")
+                    console.log(failedPrValidationStatuses)
                   }}
                 />
               ))
