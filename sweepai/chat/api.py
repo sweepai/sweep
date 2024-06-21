@@ -830,43 +830,6 @@ def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, s
     else:
         return "ERROR\n\nTool not found.", []
 
-# @app.post("/backend/autofix")
-# async def autofix(
-#     repo_name: str = Body(...),
-#     code_suggestions: list[CodeSuggestion] = Body(...),
-#     access_token: str = Depends(get_token_header)
-# ):
-#     with Timer() as timer:
-#         g = get_authenticated_github_client(repo_name, access_token)
-#     logger.debug(f"Getting authenticated GitHub client took {timer.time_elapsed} seconds")
-#     if not g:
-#         return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
-    
-#     file_change_requests = []
-#     for code_suggestion in code_suggestions:
-#         file_change_requests.append(FileChangeRequest(
-#             filename=code_suggestion.file_path,
-#             instructions=f"<original_code>\n{code_suggestion.original_code}\n</original_code>\n<new_code>\n{code_suggestion.new_code}\n</new_code>",
-#             change_type="modify",
-#         ))
-
-#     org_name, repo_name_ = repo_name.split("/")
-#     cloned_repo = MockClonedRepo(
-#         f"{repo_cache}/{repo_name_}",
-#         repo_name,
-#         token=access_token
-#     )
-
-#     error_messages, error_indices = get_error_message_formatted(
-#         file_change_requests=file_change_requests,
-#         cloned_repo=cloned_repo,
-#     )
-
-#     return {
-#         "success": True,
-#         "error_messages": error_messages
-#     }
-
 @app.post("/backend/autofix")
 async def autofix(
     repo_name: str = Body(...),
