@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Input } from '../components/ui/input'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import {
@@ -107,6 +107,7 @@ import { ContextSideBar } from './shared/ContextSideBar'
 import { posthog } from '@/lib/posthog'
 
 import CodeMirrorMerge from 'react-codemirror-merge'
+import CodeMirror from '@uiw/react-codemirror'
 import { dracula } from '@uiw/codemirror-theme-dracula'
 import { EditorView } from 'codemirror'
 import { debounce } from 'lodash'
@@ -166,21 +167,100 @@ const AutoScrollArea = ({
   return <ScrollArea ref={scrollAreaRef} className={className}>{children}</ScrollArea>
 }
 
+const CodeMirrorEditor = ({suggestion, index, setSuggestedChanges}: {suggestion: StatefulCodeSuggestion, index: number, setSuggestedChanges: Dispatch<SetStateAction<StatefulCodeSuggestion[]>>}) => {
+  const fileExtension = suggestion.filePath.split('.').pop()
+  // default to javascript
+  let languageExtension = languageMapping['js']
+  if (fileExtension) {
+    languageExtension = languageMapping[fileExtension]
+  }
+
+  if (suggestion.originalCode.length === 0) {
+    return (
+      <CodeMirror
+        theme={dracula}
+        autoFocus={false}
+        key={JSON.stringify(suggestion)}
+        value={suggestion.newCode}
+        readOnly={
+          !(suggestion.state == 'done' || suggestion.state == 'error')
+        }
+        extensions={[
+          EditorView.editable.of(
+            suggestion.state == 'done' || suggestion.state == 'error'
+          ),
+          ...(languageExtension ? [languageExtension] : []),
+        ]}
+        onChange={debounce((value: string) => {
+          setSuggestedChanges((suggestedChanges) =>
+            suggestedChanges.map((suggestion, i) =>
+              i == index ? { ...suggestion, newCode: value } : suggestion
+            )
+          )
+        }, 1000)}
+      />
+    )
+  }
+
+  return (
+    <CodeMirrorMerge
+      theme={dracula}
+      revertControls={'a-to-b'}
+      collapseUnchanged={{
+        margin: 3,
+        minSize: 4,
+      }}
+      autoFocus={false}
+      key={JSON.stringify(suggestion)}
+    >
+      <Original
+        value={suggestion.originalCode}
+        readOnly={true}
+        extensions={[
+          EditorView.editable.of(false),
+          ...(languageExtension ? [languageExtension] : []),
+        ]}
+      />
+      <Modified
+        value={suggestion.newCode}
+        readOnly={
+          !(suggestion.state == 'done' || suggestion.state == 'error')
+        }
+        extensions={[
+          EditorView.editable.of(
+            suggestion.state == 'done' || suggestion.state == 'error'
+          ),
+          ...(languageExtension ? [languageExtension] : []),
+        ]}
+        onChange={debounce((value: string) => {
+          setSuggestedChanges((suggestedChanges) =>
+            suggestedChanges.map((suggestion, i) =>
+              i == index ? { ...suggestion, newCode: value } : suggestion
+            )
+          )
+        }, 1000)}
+      />
+    </CodeMirrorMerge>
+  )
+}
+
 const PrValidationStatusDisplay = ({status}: {status: PrValidationStatus}) => {
   // TODO: make these collapsible
   return (
     <div className="flex justify-start">
       <div className='rounded-xl bg-zinc-800 w-full'>
         <h2 className='font-bold text-sm'>
-          {status.status != "cancelled" ? (
+          {status.status === "success" ? (
+            <FaCheck className="text-green-500 inline mr-2 text-sm" style={{marginTop: -2}}/>
+          ) : status.status === "failure" ? (
+            <FaTimes className="text-red-500 inline mr-2 text-sm" style={{marginTop: -2}}/>
+          ) : status.status === "cancelled" ? (
+            <FaTimesCircle className="text-zinc-500 inline mr-2 text-sm" style={{marginTop: -2}}/>
+          ) : (
             <FaCircle className={{
-              "success": "text-green-500",
-              "failure": "text-red-500",
               "pending": "text-zinc-500",
               "running": "text-yellow-500",
             }[status.status] + " inline mr-2 text-sm"} style={{marginTop: -2}}/>
-          ): (
-            <FaTimesCircle className="text-zinc-500 inline mr-2 text-sm" style={{marginTop: -2}}/>
           )}
           {status.message} - {status.containerName}
         </h2>
@@ -517,43 +597,9 @@ const MessageDisplay = ({
   )
   const codeMirrors = useMemo(() => {
     return (
-      message.annotations?.codeSuggestions?.map((suggestion) => {
-        const fileExtension = suggestion.filePath.split('.').pop()
-        let languageExtension = languageMapping['js']
-        if (fileExtension) {
-          languageExtension = languageMapping[fileExtension]
-        }
-        return (
-          <CodeMirrorMerge
-            hidden={collapsedArray[index]}
-            className="w-full"
-            theme={dracula}
-            collapseUnchanged={{
-              margin: 3,
-              minSize: 4,
-            }}
-            autoFocus={false}
-            key={JSON.stringify(suggestion)}
-          >
-            <Original
-              value={suggestion.originalCode}
-              readOnly={true}
-              extensions={[
-                EditorView.editable.of(false),
-                ...(languageExtension ? [languageExtension] : []),
-              ]}
-            />
-            <Modified
-              value={suggestion.newCode}
-              readOnly={true}
-              extensions={[
-                EditorView.editable.of(false),
-                ...(languageExtension ? [languageExtension] : []),
-              ]}
-            />
-          </CodeMirrorMerge>
-        )
-      }) || []
+      message.annotations?.codeSuggestions?.map((suggestion) => (
+        <CodeMirrorEditor suggestion={suggestion} index={index} setSuggestedChanges={setSuggestedChanges} />
+      )) || []
     )
   }, [message.annotations?.codeSuggestions, collapsedArray])
   if (message.role === 'user') {
@@ -695,7 +741,9 @@ const MessageDisplay = ({
                     Fix errors
                   </Button>
                 </>
-              ): (
+              ): message.annotations?.prValidationStatuses.some((status) => status.status == "pending" || status.status == "running") ? (
+                <p className="text-yellow-500 font-bold">Some tests are still running. Currently checking every 10s.</p>
+              ) : (
                 <p className="text-green-500 font-bold">All tests have passed.</p>
               )}
             </div>
@@ -1264,55 +1312,9 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     pullRequestBody,
   ])
 
-  const reactCodeMirrors = suggestedChanges.map((suggestion, index) => {
-    const fileExtension = suggestion.filePath.split('.').pop()
-    // default to javascript
-    let languageExtension = languageMapping['js']
-    if (fileExtension) {
-      languageExtension = languageMapping[fileExtension]
-    }
-
-    return (
-      <CodeMirrorMerge
-        theme={dracula}
-        revertControls={'a-to-b'}
-        collapseUnchanged={{
-          margin: 3,
-          minSize: 4,
-        }}
-        autoFocus={false}
-        key={JSON.stringify(suggestion)}
-      >
-        <Original
-          value={suggestion.originalCode}
-          readOnly={true}
-          extensions={[
-            EditorView.editable.of(false),
-            ...(languageExtension ? [languageExtension] : []),
-          ]}
-        />
-        <Modified
-          value={suggestion.newCode}
-          readOnly={
-            !(suggestion.state == 'done' || suggestion.state == 'error')
-          }
-          extensions={[
-            EditorView.editable.of(
-              suggestion.state == 'done' || suggestion.state == 'error'
-            ),
-            ...(languageExtension ? [languageExtension] : []),
-          ]}
-          onChange={debounce((value: string) => {
-            setSuggestedChanges((suggestedChanges) =>
-              suggestedChanges.map((suggestion, i) =>
-                i == index ? { ...suggestion, newCode: value } : suggestion
-              )
-            )
-          }, 1000)}
-        />
-      </CodeMirrorMerge>
-    )
-  })
+  const reactCodeMirrors = suggestedChanges.map((suggestion, index) => (
+    <CodeMirrorEditor suggestion={suggestion} index={index} setSuggestedChanges={setSuggestedChanges} />
+  ))
 
   if (session) {
     posthog.identify(session.user!.email!, {
