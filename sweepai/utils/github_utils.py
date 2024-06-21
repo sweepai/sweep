@@ -502,11 +502,13 @@ class ClonedRepo:
             # Pulling with pat doesn't work, have to reclone
             try:
                 repo = git.Repo(self.cached_dir)
+                # consider rm -rf /mnt/caches/repos/ if this fails
                 repo.git.remote("set-url", "origin", self.clone_url)
                 repo.git.pull()
                 logger.info("Pull repo succeeded")
             except Exception as e:
                 logger.warning(f"Could not pull repo, cloning instead: {str(e)}")
+                logger.info("Consider rm -rf /mnt/caches/repos/ if this continues")
                 shutil.rmtree(self.cached_dir, ignore_errors=True)
                 if self.branch:
                     repo = git.Repo.clone_from(

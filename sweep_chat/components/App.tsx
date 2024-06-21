@@ -1585,7 +1585,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         <NavigationMenu className="fixed top-0 left-0 w-[100vw]">
           <div className="flex items-center justify-between w-[100vw] p-4 px-4 mb-2 align-center">
             <img
-              src="/banner.png"
+              src="/banner.svg"
               className="h-10 rounded-lg hover:cursor-pointer box-shadow-md"
               onClick={() => {
                 window.location.href = '/'
