@@ -198,13 +198,11 @@ def posthog_trace(
             return result
     return wrapper
 
-@auth_cache.memoize(expire=None)
-def get_cached_installation_id(org_name: str) -> str:
+def get_installation_id_for_org(org_name: str) -> str:
     return get_installation_id(org_name)
 
-@auth_cache.memoize(expire=60 * 10)
 def get_github_client_from_org(org_name: str) -> tuple[str, CustomGithub]:
-    return get_github_client(get_cached_installation_id(org_name))
+    return get_github_client(get_installation_id_for_org(org_name))
 
 def get_authenticated_github_client(
     repo_name: str,
