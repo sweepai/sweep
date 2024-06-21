@@ -276,6 +276,33 @@ const PrValidationStatusDisplay = ({status}: {status: PrValidationStatus}) => {
   )
 }
 
+const PrValidationStatusesDisplay = ({statuses, fixPrValidationErrors = () => {}}: {statuses: PrValidationStatus[], fixPrValidationErrors: any}) => {
+  return (
+    <div className='flex justify-start mb-4'>
+      <div className='rounded-xl p-4 bg-zinc-800 w-[80%] space-y-4'>
+        {statuses.map((status, index) => (
+          <PrValidationStatusDisplay key={index} status={status} />
+        ))}
+        {statuses.some((status) => status.status == "failure") ? (
+          <>
+            <p className="text-red-500 font-bold">Some tests have failed.</p>
+            <Button
+              variant="primary"
+              onClick={fixPrValidationErrors}
+            >
+              Fix errors
+            </Button>
+          </>
+        ): statuses.some((status) => status.status == "pending" || status.status == "running") ? (
+          <p className="text-yellow-500 font-bold">Some tests are still running. Currently checking every 10s.</p>
+        ) : (
+          <p className="text-green-500 font-bold">All tests have passed.</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 const PullRequestHeader = ({ pr }: { pr: PullRequest }) => {
   return (
     <div
@@ -726,29 +753,8 @@ const MessageDisplay = ({
       ))}
       {message.annotations?.prValidationStatuses &&
         message.annotations?.prValidationStatuses.length > 0 && (
-          <div className='flex justify-start mb-4'>
-            <div className='rounded-xl p-4 bg-zinc-800 w-[80%] space-y-4'>
-              {message.annotations?.prValidationStatuses.map((status, index) => (
-                <PrValidationStatusDisplay key={index} status={status} />
-              ))}
-              {message.annotations?.prValidationStatuses.some((status) => status.status == "failure") ? (
-                <>
-                  <p className="text-red-500 font-bold">Some tests have failed.</p>
-                  <Button
-                    variant="primary"
-                    onClick={fixPrValidationErrors}
-                  >
-                    Fix errors
-                  </Button>
-                </>
-              ): message.annotations?.prValidationStatuses.some((status) => status.status == "pending" || status.status == "running") ? (
-                <p className="text-yellow-500 font-bold">Some tests are still running. Currently checking every 10s.</p>
-              ) : (
-                <p className="text-green-500 font-bold">All tests have passed.</p>
-              )}
-            </div>
-          </div>
-      )}
+          <PrValidationStatusesDisplay statuses={message.annotations?.prValidationStatuses} fixPrValidationErrors={onValidatePR} />
+        )}
       {message.annotations?.codeSuggestions &&
         message.annotations?.codeSuggestions.length > 0 && (
           <div className="text-sm max-w-[80%] p-4 rounded bg-zinc-700 space-y-4 mb-4">
@@ -1745,20 +1751,18 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
 
       const prFailed = currentPrValidationStatuses.some((status: PrValidationStatus) => status.status == "failure")
       console.log(currentPrValidationStatuses, prFailed)
-      if (prFailed) {
-        setMessages([
-          ...messages.slice(0, index),
-          {
-            ...messages[index],
-            annotations: {
-              ...messages[index].annotations,
-              prValidationStatuses: currentPrValidationStatuses
-            }
-          },
-          ...messages.slice(index + 1)
-        ])
-        setPrValidationStatuses([])
-      }
+      setMessages([
+        ...messages.slice(0, index),
+        {
+          ...messages[index],
+          annotations: {
+            ...messages[index].annotations,
+            prValidationStatuses: currentPrValidationStatuses
+          }
+        },
+        ...messages.slice(index + 1)
+      ])
+      setPrValidationStatuses([])
     } catch (e) {
       console.log(e)
     } finally {
@@ -2145,17 +2149,11 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
             </div>
           )}
           {prValidationStatuses.length > 0 ? (
-            <div className='mt-4 flex justify-start'>
-              <div className='rounded-xl p-4 bg-zinc-800 w-[80%] space-y-4'>
-                {prValidationStatuses.map((status, index) => (
-                  <PrValidationStatusDisplay key={index} status={status} />
-                ))}
-              </div>
-            </div>
+            <PrValidationStatusesDisplay statuses={prValidationStatuses} fixPrValidationErrors={validatePr} />
           ): (isValidatingPR && (
-            <div className=" mt-8 flex justify-start">
+            <div className=" mt-4 flex justify-start">
               <div className='rounded-xl p-4 bg-zinc-800 w-[80%]'>
-                I&apos;m monitoring the CI/CD pipeline to validate the PR. This may take a few minutes.
+                I&apos;m monitoring the CI/CD pipeline to validate this PR. This may take a few minutes.
               </div>
             </div>
           ))}
