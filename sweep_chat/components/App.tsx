@@ -329,9 +329,10 @@ const UserMessageDisplay = ({
                   e.preventDefault()
                 }}
                 variant="default"
-                className="ml-2 bg-slate-600 text-white hover:bg-slate-700"
+                className="ml-2 bg-blue-900 text-white hover:bg-blue-800"
               >
-                Send
+              <FaPaperPlane />
+                &nbsp;&nbsp;Send
               </Button>
             </>
           )}
