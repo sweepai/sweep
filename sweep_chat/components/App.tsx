@@ -1718,6 +1718,55 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     startStream(currentMessage, newMessages, snippets, { pulls })
   }
 
+  const validatePr = async (pr: PullRequest, index: number) => {
+    // TODO: put repo name into every body and make it all jsonified
+    setPrValidationStatuses([])
+    setIsValidatingPR(true)
+    const response = await authorizedFetch(`/backend/validate_pull`, {
+      body: JSON.stringify({
+        repo_name: repoName,
+        pull_request_number: pr.number,
+      }),
+    })
+    const reader = response.body!.getReader()
+    try {
+      isStream.current = true
+      let scrolledToBottom = false
+      let currentPrValidationStatuses = []
+      for await (const streamedPrValidationStatuses of streamMessages(reader, isStream)) {
+        currentPrValidationStatuses = streamedPrValidationStatuses.map((status: SnakeCaseKeys<PrValidationStatus>) => toCamelCaseKeys(status))
+        setPrValidationStatuses(currentPrValidationStatuses)
+        if (!scrolledToBottom) {
+          scrollToBottom(100)
+          scrolledToBottom = true
+        }
+      }
+      isStream.current = false
+
+      const prFailed = currentPrValidationStatuses.some((status: PrValidationStatus) => status.status == "failure")
+      console.log(currentPrValidationStatuses, prFailed)
+      if (prFailed) {
+        setMessages([
+          ...messages.slice(0, index),
+          {
+            ...messages[index],
+            annotations: {
+              ...messages[index].annotations,
+              prValidationStatuses: currentPrValidationStatuses
+            }
+          },
+          ...messages.slice(index + 1)
+        ])
+        setPrValidationStatuses([])
+      }
+    } catch (e) {
+      console.log(e)
+    } finally {
+      isStream.current = false
+      setIsValidatingPR(false)
+    }
+  }
+
   return (
     <>
       <main className="flex h-screen flex-col items-center justify-between p-12 pt-20">
@@ -2064,54 +2113,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                     setOriginalSuggestedChanges(suggestedChanges)
                     setSuggestedChanges(suggestedChanges)
                   }}
-                  onValidatePR={async (pr: PullRequest) => {
-                    // TODO: put repo name into every body and make it all jsonified
-                    setPrValidationStatuses([])
-                    setIsValidatingPR(true)
-                    const response = await authorizedFetch(`/backend/validate_pull`, {
-                      body: JSON.stringify({
-                        repo_name: repoName,
-                        pull_request_number: pr.number,
-                      }),
-                    })
-                    const reader = response.body!.getReader()
-                    try {
-                      isStream.current = true
-                      let scrolledToBottom = false
-                      let currentPrValidationStatuses = []
-                      for await (const streamedPrValidationStatuses of streamMessages(reader, isStream)) {
-                        currentPrValidationStatuses = streamedPrValidationStatuses.map((status: SnakeCaseKeys<PrValidationStatus>) => toCamelCaseKeys(status))
-                        setPrValidationStatuses(currentPrValidationStatuses)
-                        if (!scrolledToBottom) {
-                          scrollToBottom(100)
-                          scrolledToBottom = true
-                        }
-                      }
-                      isStream.current = false
-
-                      const prFailed = currentPrValidationStatuses.some((status: PrValidationStatus) => status.status == "failure")
-                      console.log(currentPrValidationStatuses, prFailed)
-                      if (prFailed) {
-                        setMessages([
-                          ...messages.slice(0, index),
-                          {
-                            ...messages[index],
-                            annotations: {
-                              ...messages[index].annotations,
-                              prValidationStatuses: currentPrValidationStatuses
-                            }
-                          },
-                          ...messages.slice(index + 1)
-                        ])
-                        setPrValidationStatuses([])
-                      }
-                    } catch (e) {
-                      console.log(e)
-                    } finally {
-                      isStream.current = false
-                      setIsValidatingPR(false)
-                    }
-                  }}
+                  onValidatePR={(pr) => validatePr(pr, index)}
                   fixPrValidationErrors={async () => {
                     const currentPrValidationStatuses = messages[index]!.annotations!.prValidationStatuses
                     const failedPrValidationStatuses = currentPrValidationStatuses?.find((status) => status.status === "failure")
@@ -2514,9 +2516,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
 
                           const data = await response.json()
                           const { pull_request: pullRequest } = data
-                          console.log(pullRequest)
-                          setPullRequest(pullRequest)
-                          setMessages([
+                          const newMessages: Message[] = [
                             ...messages,
                             {
                               content: `Pull request created: [https://github.com/${repoName}/pull/${pullRequest.number}](https://github.com/${repoName}/pull/${pullRequest.number})`,
@@ -2525,10 +2525,15 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                                 pulls: [pullRequest],
                               },
                             },
-                          ])
+                          ]
+                          console.log(pullRequest)
+                          setPullRequest(pullRequest)
+                          setMessages(newMessages)
                           setIsCreatingPullRequest(false)
                           setOriginalSuggestedChanges([])
                           setSuggestedChanges([])
+
+                          validatePr(pullRequest, newMessages.length - 1)
                         } catch (e) {
                           setIsCreatingPullRequest(false)
                           toast({
