@@ -23,6 +23,7 @@ import {
   FaTimes,
   FaTrash,
   FaCodeBranch,
+  FaCircle,
 } from 'react-icons/fa'
 import { FaArrowsRotate, FaCodeCommit } from 'react-icons/fa6'
 import { Button } from '@/components/ui/button'
@@ -1416,6 +1417,14 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     })()
   }
 
+  const scrollToBottom = (timeout = 0) => {
+    setTimeout(() => {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
+      }
+    }, timeout)
+  }
+
   const startStream = async (
     message: string,
     newMessages: Message[],
@@ -2006,8 +2015,13 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                     const reader = response.body!.getReader()
                     try {
                       isStream.current = true
+                      let scrolledToBottom = false
                       for await (const streamedPrValidationStatuses of streamMessages(reader, isStream)) {
                         setPrValidationStatuses(streamedPrValidationStatuses.map((status: SnakeCaseKeys<PrValidationStatus>) => toCamelCaseKeys(status)))
+                        if (!scrolledToBottom) {
+                          scrollToBottom(100)
+                          scrolledToBottom = true
+                        }
                       }
                     } catch (e) {
                       console.log(e)
@@ -2031,22 +2045,36 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
               <PulsingLoader size={1.5} />
             </div>
           )}
-          {prValidationStatuses.length > 0 ? prValidationStatuses.map((status, index) => (
-            <div key={index} className=" mt-8 flex justify-start">
-              <div className='rounded-xl p-4 bg-zinc-900 w-[80%]'>
-                <h2 className='font-bold mb-2'>
-                  {status.message} - {status.containerName}
-                </h2>
-                <AutoScrollArea className='max-h-[500px] overflow-y-auto'>
-                  <pre className='whitespace-pre-wrap'>
-                    {status.stdout}
-                  </pre>
-                </AutoScrollArea>
+          {prValidationStatuses.length > 0 ? (
+            <div className='mt-8 flex justify-start '>
+              <div className='rounded-xl p-4 bg-zinc-800 w-[80%] space-y-4'>
+                {prValidationStatuses.map((status, index) => (
+                  <div key={index} className="flex justify-start">
+                    <div className='rounded-xl bg-zinc-800 w-full'>
+                      <h2 className='font-bold'>
+                        <FaCircle className={{
+                          "success": "text-green-500",
+                          "failure": "text-red-500",
+                          "pending": "text-zinc-500",
+                          "running": "text-yellow-500",
+                        }[status.status] + " inline mr-2 text-sm"} style={{marginTop: -2}}/>
+                        {status.message} - {status.containerName}
+                      </h2>
+                      {status.stdout && (
+                        <AutoScrollArea className='max-h-[500px] overflow-y-auto mt-4'>
+                          <pre className='whitespace-pre-wrap text-sm bg-zinc-900 p-4 rounded-lg'>
+                            {status.stdout}
+                          </pre>
+                        </AutoScrollArea>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          )): (isValidatingPR && (
+          ): (isValidatingPR && (
             <div className=" mt-8 flex justify-start">
-              <div className='rounded-xl p-4 bg-zinc-900 w-[80%]'>
+              <div className='rounded-xl p-4 bg-zinc-800 w-[80%]'>
                 I&apos;m monitoring the CI/CD pipeline to validate the PR. This may take a few minutes.
               </div>
             </div>
