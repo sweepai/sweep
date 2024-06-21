@@ -501,12 +501,15 @@ class ClonedRepo:
         else:
             # Pulling with pat doesn't work, have to reclone
             try:
+                # Try to open existing repo
                 repo = git.Repo(self.cached_dir)
                 repo.git.remote("set-url", "origin", self.clone_url)
+                repo.git.clean('-fd')
                 repo.git.pull()
                 logger.info("Pull repo succeeded")
             except Exception as e:
                 logger.warning(f"Could not pull repo, cloning instead: {str(e)}")
+                logger.info("Consider rm -rf /mnt/caches/repos/ if this continues")
                 shutil.rmtree(self.cached_dir, ignore_errors=True)
                 if self.branch:
                     repo = git.Repo.clone_from(
@@ -536,7 +539,31 @@ class ClonedRepo:
         if self.branch not in self.git_repo.heads:
             raise Exception(f"Branch '{self.branch}' does not exist.")
         # branch may have been deleted or not exist
-        self.git_repo.git.checkout(self.branch)
+        try:
+            self.git_repo.git.checkout(self.branch)
+        except Exception as e:
+            self.handle_checkout_failures()
+            os.environ['GIT_LFS_SKIP_SMUDGE'] = '1'
+            self.git_repo.git.checkout(self.branch)
+
+    def handle_checkout_failures(self):
+        untracked_files = self.git_repo.untracked_files
+        if untracked_files:
+            logger.info(f"Untracked files found: {', '.join(untracked_files)}")
+            for file in untracked_files:
+                file_path = os.path.join(self.git_repo.working_dir, file)
+                if os.path.isfile(file_path):
+                    logger.info(f"Removing untracked file: {file}")
+                    os.remove(file_path)
+                elif os.path.isdir(file_path):
+                    logger.info(f"Removing untracked directory: {file}")
+                    os.removedirs(file_path)
+        else:
+            logger.info("No untracked files found")
+
+        logger.info("Cleaning untracked files")
+        self.git_repo.git.clean('-fd')
+
 
     def __del__(self):
         try:

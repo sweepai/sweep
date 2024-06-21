@@ -24,7 +24,7 @@ import {
   FaTrash,
   FaCodeBranch,
 } from 'react-icons/fa'
-import { FaArrowsRotate } from 'react-icons/fa6'
+import { FaArrowsRotate, FaCodeCommit } from 'react-icons/fa6'
 import { Button } from '@/components/ui/button'
 import { useLocalStorage } from 'usehooks-ts'
 import {
@@ -301,7 +301,10 @@ const UserMessageDisplay = ({
                 autoFocus
               />
             ) : (
-              <MarkdownRenderer content={message.content.trim()} />
+              <MarkdownRenderer
+                content={message.content.trim()}
+                className="userMessage"
+              />
             )}
           </div>
           {isEditing && (
@@ -557,7 +560,7 @@ const MessageDisplay = ({
                       message.function_call!.function_name === 'analysis' ? (
                       <MarkdownRenderer
                         content={message.content}
-                        className="reactMarkdown mt-4 mb-0 py-2"
+                        className="reactMarkdown mt-4 mb-0 py-0"
                       />
                     ) : (
                       <SyntaxHighlighter
@@ -671,10 +674,10 @@ const MessageDisplay = ({
                         </Button>
                         <code className="text-zinc-200 px-2">
                           {suggestion.filePath}{' '}
-                          {numLinesAdded > 0 && <span className="text-green-500">
+                          {numLinesAdded > 0 && <span className="text-green-500 mr-2">
                             +{numLinesAdded}
                           </span>}
-                          {numLinesRemoved > 0 && <span className="text-red-500">
+                          {numLinesRemoved > 0 && <span className="text-red-500 mr-2">
                             -{numLinesRemoved}
                           </span>}
                           <span className="text-zinc-500 ml-4">
@@ -687,7 +690,7 @@ const MessageDisplay = ({
                           <HoverCard openDelay={300} closeDelay={200}>
                             <HoverCardTrigger>
                               <FaExclamationTriangle
-                                className="hover:cursor-pointer mr-4 text-red-500"
+                                className="hover:cursor-pointer mr-4 text-yellow-500"
                                 style={{ marginTop: 2 }}
                               />
                             </HoverCardTrigger>
@@ -1604,44 +1607,46 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       <main className="flex h-screen flex-col items-center justify-between p-12 pt-20">
         <NavigationMenu className="fixed top-0 left-0 w-[100vw]">
           <div className="flex items-center justify-between w-[100vw] p-4 px-4 mb-2 align-center">
-            <Image
-              src="/banner.png"
-              alt="Sweep Chat"
-              width={110}
-              height={100}
-              className="h-10 rounded-lg hover:cursor-pointer box-shadow-md"
-              onClick={() => {
-                window.location.href = '/'
-              }}
-            />
+            <div className="flex items-center gap-4">
+              <img
+                src="/banner.svg"
+                width={200}
+                height={200}
+                alt="Sweep AI Logo"
+                className="h-20 rounded-lg hover:cursor-pointer box-shadow-md"
+                onClick={() => {
+                  window.location.href = '/'
+                }}
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger className="outline-none">
+                  <p className="text-sm font-bold flex items-center">
+                    Previous Chats <FaChevronDown className="ml-2" />
+                  </p>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" className="mt-2">
+                  {previousChats.length > 0 ? previousChats.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 10).map((chat) => (
+                    <DropdownMenuItem
+                      key={chat.messagesId}
+                      className="hover:cursor-pointer"
+                      onClick={() => {
+                        setMessagesId(chat.messagesId)
+                        window.location.href = `/c/${chat.messagesId}`
+                      }}
+                      disabled={chat.messagesId === messagesId}
+                    >
+                      <b>{truncate(chat.initialMessage, 80)}</b>&nbsp;created {formatDistanceToNow(new Date(chat.createdAt), { addSuffix: true })}
+                    </DropdownMenuItem>
+                  )) : (
+                      <DropdownMenuItem>No history</DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+                {/* Warning: these message IDs are stored in local storage.
+                  If you want to delete them, you will need to clear your browser cache. */}
+              </DropdownMenu>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger className="outline-none">
-                <p className="text-sm font-bold flex items-center">
-                  Previous Chats <FaChevronDown className="ml-2" />
-                </p>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="mt-2">
-                {previousChats.length > 0 ? previousChats.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 10).map((chat) => (
-                  <DropdownMenuItem
-                    key={chat.messagesId}
-                    className="hover:cursor-pointer"
-                    onClick={() => {
-                      setMessagesId(chat.messagesId)
-                      window.location.href = `/c/${chat.messagesId}`
-                    }}
-                    disabled={chat.messagesId === messagesId}
-                  >
-                    <b>{truncate(chat.initialMessage, 80)}</b>&nbsp;created {formatDistanceToNow(new Date(chat.createdAt), { addSuffix: true })}
-                  </DropdownMenuItem>
-                )) : (
-                    <DropdownMenuItem>No history</DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-              {/* Warning: these message IDs are stored in local storage.
-                If you want to delete them, you will need to clear your browser cache. */}
-            </DropdownMenu>
-
+            
+            </div>
             <NavigationMenuList className='w-full flex justify-between'>
               <Dialog>
                 <DialogTrigger asChild>
@@ -1851,78 +1856,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
             value={baseBranch}
             onChange={(e) => setBaseBranch(e.target.value)}
           />
-          {repoName ? (
-            <NavigationMenu>
-              <NavigationMenuList>
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger className="bg-secondary hover:bg-secondary ml-4" disabled={isLoading || !userMentionedPullRequest}>
-                    {userMentionedPullRequest && commitToPR ? (
-                      <Button
-                        className="w-full"
-                        variant="secondary"
-                      >
-                        <FaCodeBranch />
-                        &nbsp;&nbsp;Will commit to PR #
-                        {userMentionedPullRequest.number}
-                      </Button>
-                    ) : (
-                      <Button
-                        className="w-full"
-                        variant="secondary"
-                      >
-                        <FaCodeBranch />
-                        &nbsp;&nbsp;Will create new PR
-                      </Button>
-                    )}
-                  </NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    {commitToPR ? (
-                      <Button
-                        className="w-full"
-                        variant="secondary"
-                        disabled={isLoading}
-                        onClick={() => {
-                          setCommitToPR(false)
-                          setCommitToPRIsOpen(false)
-                        }}
-                      >
-                        Will create new PR
-                      </Button>
-                    ) : (
-                      <></>
-                    )}
-                    {// loop through all pull requests
-                    userMentionedPullRequests?.map((pr, index) => {
-                      // dont show current selected pr, unless we are creating a pr rn
-                      if (
-                        pr.number !== userMentionedPullRequest?.number ||
-                        !commitToPR
-                      ) {
-                        return (
-                          <Button
-                            className="w-full"
-                            variant="secondary"
-                            disabled={isLoading}
-                            onClick={() => {
-                              setCommitToPR(true)
-                              setUserMentionedPullRequest(pr)
-                              setCommitToPRIsOpen(false)
-                            }}
-                            key={index}
-                          >
-                            <FaCodeBranch />
-                            &nbsp;&nbsp;Will commit to {pr.number}
-                          </Button>
-                        )
-                      }
-                    })}
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-              </NavigationMenuList>
-            </NavigationMenu>
-          ) : (
-            <></>
-          )}
         </div>
         {snippets.length && repoName ? (
           <ContextSideBar
@@ -2022,9 +1955,70 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           {suggestedChanges.length > 0 && (
             <div className="bg-zinc-900 rounded-xl p-4 mt-8">
               <div className="flex justify-between mb-4 align-start">
-                <div>
+                <div className="flex items-center align-middle">
+                  <NavigationMenu>
+                    <NavigationMenuList>
+                      <NavigationMenuItem>
+                        <NavigationMenuTrigger className="bg-secondary hover:bg-secondary mr-2">
+                          {userMentionedPullRequest && commitToPR ? (
+                            <span className="text-sm w-full p-2">
+                              <FaCodeCommit style={{ display: "inline" }} />
+                              &nbsp;&nbsp;Commit to PR #
+                              {userMentionedPullRequest.number}
+                            </span>
+                          ) : (
+                            <span className="text-sm w-full p-2">
+                              <FaCodeBranch style={{ display: "inline" }} />
+                              &nbsp;&nbsp;Create New PR
+                            </span>
+                          )}
+                        </NavigationMenuTrigger>
+                        <NavigationMenuContent className="w-full">
+                          {commitToPR && (
+                            <Button
+                              className="w-full p-2 px-4"
+                              variant="secondary"
+                              disabled={isLoading}
+                              onClick={() => {
+                                setCommitToPR(false)
+                                setCommitToPRIsOpen(false)
+                              }}
+                            >
+                              <FaCodeBranch style={{ display: "inline" }} />
+                              &nbsp;&nbsp;Create New PR
+                            </Button>
+                          )}
+                          {// loop through all pull requests
+                          userMentionedPullRequests?.map((pr, index) => {
+                            // dont show current selected pr, unless we are creating a pr rn
+                            if (
+                              pr.number !== userMentionedPullRequest?.number ||
+                              !commitToPR
+                            ) {
+                              return (
+                                <Button
+                                  className="w-full p-2 px-4"
+                                  variant="secondary"
+                                  disabled={isLoading}
+                                  onClick={() => {
+                                    setCommitToPR(true)
+                                    setUserMentionedPullRequest(pr)
+                                    setCommitToPRIsOpen(false)
+                                  }}
+                                  key={index}
+                                >
+                                  <FaCodeCommit style={{ display: "inline" }} />
+                                  &nbsp;&nbsp;Commit to PR #{pr.number}
+                                </Button>
+                              )
+                            }
+                          })}
+                        </NavigationMenuContent>
+                      </NavigationMenuItem>
+                    </NavigationMenuList>
+                  </NavigationMenu>
                   <Button
-                    className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0 pt-0"
+                    className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full px-2 mt-0"
                     onClick={() =>
                       applySuggestions(originalSuggestedChanges, commitToPR)
                     }
@@ -2035,7 +2029,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                     &nbsp;&nbsp;Reapply changes
                   </Button>
                   <Button
-                    className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full p-2 mt-0 pt-0"
+                    className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full px-2 mt-0"
                     onClick={() => {
                       isStream.current = false
                     }}
@@ -2047,7 +2041,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                   </Button>
                 </div>
                 <Button
-                  className="text-red-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-red-500 rounded-full p-2 mt-0 pt-0"
+                  className="text-red-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-red-500 rounded-full px-2 mt-0"
                   onClick={() => {
                     setSuggestedChanges([])
                     setOriginalSuggestedChanges([])
@@ -2131,7 +2125,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                           <HoverCard openDelay={300} closeDelay={200}>
                             <HoverCardTrigger>
                               <FaExclamationTriangle
-                                className="hover:cursor-pointer mr-4"
+                                className="hover:cursor-pointer mr-4 text-yellow-500"
                                 style={{ marginTop: 2 }}
                               />
                             </HoverCardTrigger>
@@ -2205,7 +2199,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
 
                     {commitToPR && userMentionedPullRequest ? (
                       <div className="flex grow items-center mb-4">
-                        {`You are commiting to ${userMentionedPullRequest.branch}`}
+                        {`You are commiting to ${userMentionedPullRequest.branch} with the following commit message:`}
                       </div>
                     ) : (
                       <div className="flex grow items-center mb-4">
@@ -2234,9 +2228,9 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                       <div className="flex grow items-center mb-4">
                         <Input
                           className="flex items-center w-[600px]"
-                          value={commitMessage || ''}
-                          onChange={(e) => setCommitMessage(e.target.value)}
-                          placeholder="Commit Message"
+                          value={pullRequestTitle || ''}
+                          onChange={(e) => setPullRequestTitle(e.target.value)}
+                          placeholder="Commit message"
                           style={{
                             opacity: isProcessingSuggestedChanges ? 0.5 : 1,
                           }}
@@ -2359,9 +2353,10 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                       }
                     >
                       {commitToPR && userMentionedPullRequest
-                        ? `Commit to Pull Request ${userMentionedPullRequest?.number}`
+                        ? `Commit to Pull Request #${userMentionedPullRequest?.number}`
                         : 'Create Pull Request'}
                     </Button>
+
                   </>
                 )}
               </div>
