@@ -135,7 +135,7 @@ First, indicate whether you want to modify an existing file or create a new file
 path/to/file.py
 </file_path>
 <original_code>
-Copy the original section of code from path/to/file.py. This is the section of code that you will change. Paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED.
+Copy the original section of code from path/to/file.py. This is the section of code that you will change. Paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED. Leave empty for creating new files.
 </original_code>
 <new_code>
 New code to replace <original_code> with.

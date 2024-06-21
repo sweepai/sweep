@@ -716,6 +716,15 @@ def chat_codebase_stream(
 
         message_content = new_messages[-1].content
         code_suggestions_raw, _ = extract_objects_from_string(message_content, "code_change", ["file_path", "original_code", "new_code"])
+        # combine additions of the same file together
+        new_code_suggestions_raw = []
+        for code_suggestion in code_suggestions_raw:
+            fcr = next((fcr for fcr in new_code_suggestions_raw if fcr["file_path"] == code_suggestion["file_path"]), None)
+            if fcr:
+                fcr["new_code"] += code_suggestion["new_code"]
+            else:
+                new_code_suggestions_raw.append(code_suggestion)
+        code_suggestions_raw = new_code_suggestions_raw
         if code_suggestions_raw:
             new_messages[-1].annotations = {
                 "codeSuggestions": [
