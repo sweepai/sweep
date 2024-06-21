@@ -24,6 +24,28 @@ import {
   FaTrash,
   FaCodeBranch,
 } from 'react-icons/fa'
+
+const FloatingPrompts = ({ onPromptClick }: { onPromptClick: (prompt: string) => void }) => {
+  const prompts = [
+    "How do I implement a new feature?",
+    "Can you explain this code snippet?",
+    "What's the best way to optimize this function?"
+  ];
+
+  return (
+    <div className="fixed top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex space-x-4">
+      {prompts.map((prompt, index) => (
+        <div
+          key={index}
+          className="bg-zinc-800 p-4 rounded-xl cursor-pointer hover:bg-zinc-700 transition-colors"
+          onClick={() => onPromptClick(prompt)}
+        >
+          {prompt}
+        </div>
+      ))}
+    </div>
+  );
+};
 import { FaArrowsRotate, FaCodeCommit } from 'react-icons/fa6'
 import { Button } from '@/components/ui/button'
 import { useLocalStorage } from 'usehooks-ts'
@@ -1645,7 +1667,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                   If you want to delete them, you will need to clear your browser cache. */}
               </DropdownMenu>
 
-            
+
             </div>
             <NavigationMenuList className='w-full flex justify-between'>
               <Dialog>
@@ -2499,10 +2521,17 @@ export default function WrappedApp({
   session: Session | null
   [key: string]: any
 }) {
+  const [isNewLogin, setIsNewLogin] = useState(true)
+
+  const handlePromptClick = (prompt: string) => {
+    setInput(prompt);
+    setIsNewLogin(false);
+  };
+
   return (
     <PostHogProvider>
       <SessionProvider session={session}>
-        <App {...props} />
+        <App {...props} isNewLogin={isNewLogin} handlePromptClick={handlePromptClick} />
       </SessionProvider>
     </PostHogProvider>
   )
