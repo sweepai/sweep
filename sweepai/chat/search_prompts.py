@@ -86,7 +86,7 @@ Write a complete helpful response to the user's question in full detail, address
 
 When showing relevant examples of code, only show MINIMAL excerpts of code that address the user's question. Do NOT copy the whole file, but only the lines that are relevant to the user's question.
 
-When suggesting code changes, you add <code_change> blocks inside the <user_response></user_response> tags. These changes should be atomic -- to change multiple parts of the file, write multiple separate <code_change> blocks.
+To suggest code changes, first list each section of each file that you would like to change. Then for each section, write a <code_change> block for that change. These changes should be atomic -- to change multiple parts of the file, you MUST write multiple separate <code_change> blocks.
 </user_response>"""
 
 openai_format_message = """You MUST follow the following XML-based format, including <user_response> and </user_respose> tags:
