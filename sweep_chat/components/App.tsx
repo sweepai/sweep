@@ -167,6 +167,7 @@ const AutoScrollArea = ({
 }
 
 const PrValidationStatusDisplay = ({status}: {status: PrValidationStatus}) => {
+  // TODO: make these collapsible
   return (
     <div className="flex justify-start">
       <div className='rounded-xl bg-zinc-800 w-full'>
@@ -679,17 +680,24 @@ const MessageDisplay = ({
       ))}
       {message.annotations?.prValidationStatuses &&
         message.annotations?.prValidationStatuses.length > 0 && (
-          <div className='mt-4 flex justify-start'>
+          <div className='mt-4 flex justify-start mb-4'>
             <div className='rounded-xl p-4 bg-zinc-800 w-[80%] space-y-4'>
               {message.annotations?.prValidationStatuses.map((status, index) => (
                 <PrValidationStatusDisplay key={index} status={status} />
               ))}
-              <Button
-                variant="primary"
-                onClick={fixPrValidationErrors}
-              >
-                Fix errors
-              </Button>
+              {message.annotations?.prValidationStatuses.some((status) => status.status == "failure") ? (
+                <>
+                  <p className="text-red-500">Some tests have failed.</p>
+                  <Button
+                    variant="primary"
+                    onClick={fixPrValidationErrors}
+                  >
+                    Fix errors
+                  </Button>
+                </>
+              ): (
+                <p className="text-green-500">All tests have passed.</p>
+              )}
             </div>
           </div>
       )}
@@ -2067,8 +2075,10 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                     try {
                       isStream.current = true
                       let scrolledToBottom = false
+                      let currentPrValidationStatuses = []
                       for await (const streamedPrValidationStatuses of streamMessages(reader, isStream)) {
-                        setPrValidationStatuses(streamedPrValidationStatuses.map((status: SnakeCaseKeys<PrValidationStatus>) => toCamelCaseKeys(status)))
+                        currentPrValidationStatuses = streamedPrValidationStatuses.map((status: SnakeCaseKeys<PrValidationStatus>) => toCamelCaseKeys(status))
+                        setPrValidationStatuses(currentPrValidationStatuses)
                         if (!scrolledToBottom) {
                           scrollToBottom(100)
                           scrolledToBottom = true
@@ -2076,7 +2086,8 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                       }
                       isStream.current = false
 
-                      const prFailed = prValidationStatuses.some((status) => status.status == "failure")
+                      const prFailed = currentPrValidationStatuses.some((status: PrValidationStatus) => status.status == "failure")
+                      console.log(currentPrValidationStatuses, prFailed)
                       if (prFailed) {
                         setMessages([
                           ...messages.slice(0, index),
@@ -2084,7 +2095,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                             ...messages[index],
                             annotations: {
                               ...messages[index].annotations,
-                              prValidationStatuses: prValidationStatuses
+                              prValidationStatuses: currentPrValidationStatuses
                             }
                           },
                           ...messages.slice(index + 1)
@@ -2098,10 +2109,20 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                       setIsValidatingPR(false)
                     }
                   }}
-                  fixPrValidationErrors={() => {
-                    const currentPrValidationStatuses = messages[index].annotations?.prValidationStatuses
+                  fixPrValidationErrors={async () => {
+                    const currentPrValidationStatuses = messages[index]!.annotations!.prValidationStatuses
                     const failedPrValidationStatuses = currentPrValidationStatuses?.find((status) => status.status === "failure")
-                    console.log(failedPrValidationStatuses)
+                    const content = `Help me fix the following CI/CD pipeline errors:\n\`\`\`\n${failedPrValidationStatuses?.stdout}\n\`\`\``
+                    const newMessages: Message[] = [
+                      ...messages,
+                      {
+                        role: "user",
+                        content: content,
+                      }
+                    ]
+
+                    setMessages(newMessages)
+                    startStream(content, newMessages, snippets)
                   }}
                 />
               ))
@@ -2516,7 +2537,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                         }
                       }}
                       disabled={
-                        isCreatingPullRequest || isProcessingSuggestedChanges
+                        isCreatingPullRequest || isProcessingSuggestedChanges || !pullRequestTitle || !pullRequestBody
                       }
                     >
                       {commitToPR && userMentionedPullRequest
