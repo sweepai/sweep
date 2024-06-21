@@ -722,7 +722,7 @@ def chat_codebase_stream(
         for code_suggestion in code_suggestions_raw:
             fcr = next((fcr for fcr in new_code_suggestions_raw if fcr["file_path"] == code_suggestion["file_path"] and fcr["original_code"] == code_suggestion["original_code"] == ""), None)
             if fcr:
-                fcr["new_code"] += "\n" + code_suggestion["new_code"].lstrip("\n")
+                fcr["new_code"] += "\n\n" + code_suggestion["new_code"].lstrip("\n")
             else:
                 new_code_suggestions_raw.append(code_suggestion)
         code_suggestions_raw = new_code_suggestions_raw
