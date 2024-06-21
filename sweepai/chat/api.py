@@ -20,7 +20,7 @@ from sweepai.agents.modify_utils import get_error_message_dict, validate_and_par
 from sweepai.agents.search_agent import extract_xml_tag
 from sweepai.chat.search_prompts import relevant_snippets_message, relevant_snippet_template, anthropic_system_message, function_response, pr_format, relevant_snippets_message_for_pr, openai_system_message, query_optimizer_system_prompt, query_optimizer_user_prompt, openai_format_message, anthropic_format_message
 from sweepai.config.client import SweepConfig
-from sweepai.config.server import CACHE_DIRECTORY, GITHUB_APP_ID, GITHUB_APP_PEM
+from sweepai.config.server import CACHE_DIRECTORY, DOCKER_ENABLED, GITHUB_APP_ID, GITHUB_APP_PEM
 from sweepai.core.chat import ChatGPT, call_llm
 from sweepai.core.entities import FileChangeRequest, Message, Snippet
 from sweepai.core.pull_request_bot import get_pr_summary_for_chat
@@ -1090,8 +1090,9 @@ async def validate_pull(
         try:
             all_statuses: list[CheckStatus] = []
             docker_statuses: list[CheckStatus] = []
-            for docker_statuses in get_failing_docker_logs.stream(cloned_repo):
-                yield json.dumps(docker_statuses)
+            if DOCKER_ENABLED:
+                for docker_statuses in get_failing_docker_logs.stream(cloned_repo):
+                    yield json.dumps(docker_statuses)
             any_failed = not all_statuses or any(status["succeeded"] is False for status in docker_statuses)
             if not any_failed:
                 for _ in range(60 * 6):
