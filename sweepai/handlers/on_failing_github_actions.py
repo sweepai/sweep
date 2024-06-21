@@ -151,13 +151,6 @@ def on_failing_github_actions(
         if run.conclusion == "success"
     ]
 
-    def update_pr_status():
-        # currently this will work very jankily with the script
-        before_gha_summary, after_gha_summary = pull_request.body.split(GHA_SUMMARY_START)
-        _, after_gha_summary = after_gha_summary.split(GHA_SUMMARY_END)
-        new_gha_summary = GHA_SUMMARY_START + "\n".join([fix.to_markdown() for fix in gha_fixes]) + GHA_SUMMARY_END
-        pull_request.edit(body=before_gha_summary + new_gha_summary + after_gha_summary)
-    
     docker_image_names = []
 
     try:
