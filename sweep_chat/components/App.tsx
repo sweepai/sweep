@@ -85,6 +85,8 @@ import {
   CodeSuggestion,
   StatefulCodeSuggestion,
   ChatSummary,
+  PrValidationStatus,
+  SnakeCaseKeys,
 } from '@/lib/types'
 
 import { Octokit } from 'octokit'
@@ -114,6 +116,7 @@ import { isPullRequestEqual } from '@/lib/pullUtils'
 import Image from 'next/image'
 // @ts-ignore
 import * as Diff from 'diff'
+import { ScrollArea } from './ui/scroll-area'
 
 const Original = CodeMirrorMerge.Original
 const Modified = CodeMirrorMerge.Modified
@@ -122,10 +125,49 @@ const sum = (arr: number[]) => arr.reduce((acc, cur) => acc + cur, 0)
 const truncate = (str: string, maxLength: number) =>
   str.length > maxLength ? str.slice(0, maxLength) + '...' : str
 
+const snakeCaseToCamelCase = (str: string) => {
+  return str.replace(/([_]+)([a-z])/g, (match, p1, p2) => p2.toUpperCase());
+}
+
+function toCamelCaseKeys<A extends string, B>(obj: SnakeCaseKeys<Record<A, B>>): Record<A, B> {
+  return Object.fromEntries(Object.entries(obj).map(([key, value]) => [snakeCaseToCamelCase(key), value])) as Record<A, B>
+}
+
+const camelCaseToSnakeCase = (str: string) => {
+  return str.replace(/([A-Z])/g, '_$1').toLowerCase()
+}
+
+function toSnakeCaseKeys<A extends string, B>(obj: Record<A, B>): SnakeCaseKeys<Record<A, B>> {
+  return Object.fromEntries(Object.entries(obj).map(([key, value]) => [camelCaseToSnakeCase(key), value])) as SnakeCaseKeys<Record<A, B>>
+}
+
+const AutoScrollArea = ({ 
+  children,
+  className = '',
+  threshold = Infinity,
+}: { 
+  children: React.ReactNode,
+  className?: string,
+  threshold?: number
+}) => {
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (scrollAreaRef.current && scrollAreaRef.current.scrollHeight > 0) {
+      const { scrollTop, scrollHeight, clientHeight } =
+        scrollAreaRef.current
+      if (scrollHeight - scrollTop - clientHeight < threshold) {
+        scrollAreaRef.current.scrollTop =
+          scrollAreaRef.current.scrollHeight
+      }
+    }
+  }, [children])
+  return <ScrollArea ref={scrollAreaRef} className={className}>{children}</ScrollArea>
+}
+
 const PullRequestHeader = ({ pr }: { pr: PullRequest }) => {
   return (
     <div
-      className="bg-zinc-800 rounded-xl p-4 mb-2 text-left hover:bg-zinc-700 hover:cursor-pointer max-w-[800px]"
+      className="bg-zinc-800 rounded-xl p-4 mb-4 text-left hover:bg-zinc-700 hover:cursor-pointer max-w-[800px]"
       onClick={() => {
         window.open(
           `https://github.com/${pr.repo_name}/pull/${pr.number}`,
@@ -217,13 +259,13 @@ const PullRequestContent = ({ pr }: { pr: PullRequest }) => {
 
 const PullRequestDisplay = ({
   pr,
-  useHoverCard = true,
+  onValidatePR,
 }: {
-  pr: PullRequest
-  useHoverCard?: boolean
+  pr: PullRequest,
+  onValidatePR?: (pr: PullRequest) => void
 }) => {
-  if (useHoverCard) {
-    return (
+  return (
+    <div>
       <HoverCard openDelay={300} closeDelay={200}>
         <HoverCardTrigger>
           <PullRequestHeader pr={pr} />
@@ -232,17 +274,17 @@ const PullRequestDisplay = ({
           <PullRequestContent pr={pr} />
         </HoverCardContent>
       </HoverCard>
-    )
-  } else {
-    return (
-      <div className="flex justify-end flex-col">
-        <PullRequestHeader pr={pr} />
-        <div className="bg-zinc-800 rounded-xl p-4 mb-2 text-left max-w-[800px]">
-          <PullRequestContent pr={pr} />
-        </div>
-      </div>
-    )
-  }
+      {onValidatePR && (
+        <Button
+          variant="secondary"
+          className="bg-zinc-800 text-white mb-4"
+          onClick={() => onValidatePR(pr)}
+        >
+          Validate PR
+        </Button>
+      )}
+    </div>
+  )
 }
 
 const UserMessageDisplay = ({
@@ -420,6 +462,7 @@ const MessageDisplay = ({
   branch,
   commitToPR,
   setSuggestedChanges,
+  onValidatePR,
   index,
 }: {
   message: Message
@@ -431,6 +474,7 @@ const MessageDisplay = ({
   setSuggestedChanges: React.Dispatch<
     React.SetStateAction<StatefulCodeSuggestion[]>
   >
+  onValidatePR?: (pr: PullRequest) => void
   index: number
 }) => {
   const [collapsedArray, setCollapsedArray] = useState<boolean[]>(
@@ -596,7 +640,7 @@ const MessageDisplay = ({
       </div>
       {message.annotations?.pulls?.map((pr) => (
         <div className="flex justify-start text-sm" key={pr.number}>
-          <PullRequestDisplay pr={pr} />
+          <PullRequestDisplay pr={pr} onValidatePR={onValidatePR} />
         </div>
       ))}
       {message.annotations?.codeSuggestions &&
@@ -866,7 +910,9 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   const [commitToPR, setCommitToPR] = useState<boolean>(false) // controls whether or not we commit to the userMetionedPullRequest or create a new pr
   const [commitToPRIsOpen, setCommitToPRIsOpen] = useState<boolean>(false)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
-  console.log(userMentionedPullRequests)
+
+  const [isValidatingPR, setIsValidatingPR] = useState<boolean>(false)
+  const [prValidationStatuses, setPrValidationStatuses] = useState<PrValidationStatus[]>([])
 
   const { data: session } = useSession()
 
@@ -883,7 +929,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   const authorizedFetch = useCallback(
     (url: string, options: RequestInit = {}) => {
       return fetch(url, {
-        method: 'POST',
+        method: options.method || 'POST',
         headers: {
           ...options.headers,
           'Content-Type': 'application/json',
@@ -967,12 +1013,12 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     if (messagesContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } =
         messagesContainerRef.current
-      if (scrollHeight - scrollTop - clientHeight < 80) {
+      if (scrollHeight - scrollTop - clientHeight < 120) {
         messagesContainerRef.current.scrollTop =
           messagesContainerRef.current.scrollHeight
       }
     }
-  }, [messages])
+  }, [messages, isValidatingPR, prValidationStatuses])
 
   useEffect(() => {
     if (session) {
@@ -1947,6 +1993,29 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                     setOriginalSuggestedChanges(suggestedChanges)
                     setSuggestedChanges(suggestedChanges)
                   }}
+                  onValidatePR={async (pr: PullRequest) => {
+                    // TODO: put repo name into every body and make it all jsonified
+                    setPrValidationStatuses([])
+                    setIsValidatingPR(true)
+                    const response = await authorizedFetch(`/backend/validate_pull`, {
+                      body: JSON.stringify({
+                        repo_name: repoName,
+                        pull_request_number: pr.number,
+                      }),
+                    })
+                    const reader = response.body!.getReader()
+                    try {
+                      isStream.current = true
+                      for await (const streamedPrValidationStatuses of streamMessages(reader, isStream)) {
+                        setPrValidationStatuses(streamedPrValidationStatuses.map((status: SnakeCaseKeys<PrValidationStatus>) => toCamelCaseKeys(status)))
+                      }
+                    } catch (e) {
+                      console.log(e)
+                    } finally {
+                      isStream.current = false
+                      setIsValidatingPR(false)
+                    }
+                  }}
                 />
               ))
             : messagesId.length > 0 && (
@@ -1962,6 +2031,26 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
               <PulsingLoader size={1.5} />
             </div>
           )}
+          {prValidationStatuses.length > 0 ? prValidationStatuses.map((status, index) => (
+            <div key={index} className=" mt-8 flex justify-start">
+              <div className='rounded-xl p-4 bg-zinc-900 w-[80%]'>
+                <h2 className='font-bold mb-2'>
+                  {status.message} - {status.containerName}
+                </h2>
+                <AutoScrollArea className='max-h-[500px] overflow-y-auto'>
+                  <pre className='whitespace-pre-wrap'>
+                    {status.stdout}
+                  </pre>
+                </AutoScrollArea>
+              </div>
+            </div>
+          )): (isValidatingPR && (
+            <div className=" mt-8 flex justify-start">
+              <div className='rounded-xl p-4 bg-zinc-900 w-[80%]'>
+                I&apos;m monitoring the CI/CD pipeline to validate the PR. This may take a few minutes.
+              </div>
+            </div>
+          ))}
           {suggestedChanges.length > 0 && (
             <div className="bg-zinc-900 rounded-xl p-4 mt-8">
               <div className="flex justify-between mb-4 align-start">
