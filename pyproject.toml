@@ -99,4 +99,4 @@ disable=[
 ]
 
 [tool.ruff]
-select = ["T100"]
+lint.select = ["T100"]
