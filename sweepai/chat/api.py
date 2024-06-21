@@ -594,7 +594,7 @@ def chat_codebase_stream(
                 if not token:
                     continue
                 result_string += token
-                if len(result_string) < 30:
+                if len(result_string) < 50:
                     continue
                 current_string, *_ = result_string.split("<function_call>")
                 if "<analysis>" in current_string:
