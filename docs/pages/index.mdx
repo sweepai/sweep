@@ -54,15 +54,18 @@ Sweep has a couple of ways to deal with this though:
 Sweep defines and runs GitHub actions for you. After the PR is created, Sweep will work asynchronously until it fixes your CI. At this point, you can either try to fix it yourself or wait until Sweep completes it.
 
 ### Having Sweep edit an existing PR
-If you want Sweep to make an edit to it's previous change, you can leave a comment on it's PR. Sweep supports two types of comments - slow and fast.
+If you want Sweep to make an edit to it's previous change, you can leave a comment on it's PR. Sweep supports two types of comments - specific and general.
 
-#### Fast Comments
-You can create a fast comment by making a review comment. This comment will only modify the file that’s been commented on.
+> [!NOTE] 
+> All comments must be prefixed with "Sweep: "
+
+#### Review Comments (Specific)
+You can create a specific comment by making a review comment. This comment will only modify the file that’s been commented on.
 <br/>
 <div align="center"><img src="/assets/tutorial/pr_comment.gif" alt="Creating a review comment on GitHub for Sweep to handle" /></div>
 
-#### Slow Comments
-You can create a slow comment by making an issue comment. This comment can perform codebase wide changes, and will spin up a new dashboard.
+#### Issue Comments (General)
+You can create a general comment by making an issue comment. This comment can perform codebase wide changes.
 <br/>
 <div align="center"><img src="/assets/tutorial/issue_comment.gif" alt="Creating a review comment on GitHub for Sweep to handle" /></div>
 <br/>

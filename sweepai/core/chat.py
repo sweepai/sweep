@@ -676,7 +676,6 @@ def continuous_llm_calls(
     )
     next_response = response
     num_calls = 0
-    # pylint: disable=E1101
     while not any(token in response for token in stop_sequences) \
         and len(next_response) > 3.5 * 4096 * 0.8 \
         and num_calls < MAX_CALLS: # 80% of max tokens
