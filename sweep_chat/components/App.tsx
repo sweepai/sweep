@@ -599,24 +599,27 @@ const MessageDisplay = ({
       {message.annotations?.codeSuggestions &&
         message.annotations?.codeSuggestions.length > 0 && (
           <div className="text-sm max-w-[80%] p-4 rounded bg-zinc-700 space-y-4 mb-4">
-            <Button
-              className="bg-green-800 hover:bg-green-700 text-white"
-              size="sm"
-              onClick={() => {
-                setCollapsedArray(
-                  message.annotations?.codeSuggestions!.map(() => true) || []
-                )
-                setSuggestedChanges(
-                  (suggestedChanges: StatefulCodeSuggestion[]) => [
-                    ...suggestedChanges,
-                    ...message.annotations?.codeSuggestions!,
-                  ]
-                )
-              }}
-            >
-              <FaPlus />
-              &nbsp;Stage All Changes
-            </Button>
+            <div className="flex justify-between items-center">
+              <h2 className='font-bold'>Suggested Changes</h2>
+              <Button
+                className="bg-green-800 hover:bg-green-700 text-white"
+                size="sm"
+                onClick={() => {
+                  setCollapsedArray(
+                    message.annotations?.codeSuggestions!.map(() => true) || []
+                  )
+                  setSuggestedChanges(
+                    (suggestedChanges: StatefulCodeSuggestion[]) => [
+                      ...suggestedChanges,
+                      ...message.annotations?.codeSuggestions!,
+                    ]
+                  )
+                }}
+              >
+                <FaPlus />
+                &nbsp;Stage All Changes
+              </Button>
+            </div>
             {message.annotations?.codeSuggestions?.map(
               (suggestion: StatefulCodeSuggestion, index: number) => {
                 const fileExtension = suggestion.filePath.split('.').pop()
@@ -638,7 +641,7 @@ const MessageDisplay = ({
                   }
                 }
                 const firstLines = truncate(
-                  suggestion.originalCode.split('\n').slice(0, 1).join('\n'),
+                  suggestion.originalCode.split('\n').slice(0, 1).join('\n') || suggestion.newCode.split('\n').slice(0, 1).join('\n'),
                   80
                 )
                 return (
@@ -668,12 +671,12 @@ const MessageDisplay = ({
                         </Button>
                         <code className="text-zinc-200 px-2">
                           {suggestion.filePath}{' '}
-                          <span className="text-green-500">
+                          {numLinesAdded > 0 && <span className="text-green-500">
                             +{numLinesAdded}
-                          </span>{' '}
-                          <span className="text-red-500">
+                          </span>}
+                          {numLinesRemoved > 0 && <span className="text-red-500">
                             -{numLinesRemoved}
-                          </span>{' '}
+                          </span>}
                           <span className="text-zinc-500 ml-4">
                             {firstLines}
                           </span>
@@ -1479,11 +1482,22 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     setMessages(respondedMessages)
     let messageLength = newMessages.length
     try {
-      for await (const patch of streamMessages(reader, isStream)) {
-        streamedMessages = jsonpatch.applyPatch(
-          streamedMessages,
-          patch
-        ).newDocument
+      for await (const patches of streamMessages(reader, isStream)) {
+        for (const patch of patches) {
+          if (patch.op == "error") {
+            throw new Error(patch.value)
+          }
+        }
+        try {
+          streamedMessages = jsonpatch.applyPatch(
+            streamedMessages,
+            patches
+          ).newDocument
+        } catch (e: any) {
+          console.log(patches)
+          console.warn(e)
+          continue
+        }
         setMessages([...newMessages, ...streamedMessages])
         if (streamedMessages.length > messageLength) {
           messageLength = streamedMessages.length
@@ -1593,7 +1607,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
             <Image
               src="/banner.png"
               alt="Sweep Chat"
-              width={100}
+              width={110}
               height={100}
               className="h-10 rounded-lg hover:cursor-pointer box-shadow-md"
               onClick={() => {
@@ -2046,7 +2060,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
               </div>
               {codeSuggestionsState == 'staging' && (
                 <div className="flex justify-around w-full pb-2 mb-4">
-                  <p>Staged Changes</p>
+                  <p className='font-bold'>Staged Changes</p>
                 </div>
               )}
               {!suggestedChanges.every(
@@ -2317,6 +2331,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                           setOriginalSuggestedChanges([])
                           setSuggestedChanges([])
                         } catch (e) {
+                          setIsCreatingPullRequest(false)
                           toast({
                             title: 'Error',
                             description: `An error occurred while creating the pull request: ${e}`,
