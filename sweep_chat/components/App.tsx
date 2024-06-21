@@ -1284,6 +1284,18 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     }
   }, [suggestedChanges])
 
+  useEffect(() => {
+    if (messages.length > 0 && userMentionedPullRequests?.length == 0) {
+      for (const message of messages) {
+        if (message.role == "assistant" && message.annotations?.pulls) {
+          setUserMentionedPullRequests(message.annotations.pulls)
+          setBranch(message.annotations.pulls[0].branch)
+          setBaseBranch(message.annotations.pulls[0].branch)
+        }
+      }
+    }
+  }, [messages])
+
   const save = async (
     currentRepoName: string,
     currentMessages: Message[],
@@ -1455,6 +1467,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     setSuggestedChanges(currentCodeSuggestions)
     setIsProcessingSuggestedChanges(true)
     ;(async () => {
+      console.log(userMentionedPullRequest)
       const streamedResponse = await authorizedFetch(`/backend/autofix`, {
         body: JSON.stringify({
           repo_name: repoName,
@@ -1465,7 +1478,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
               new_code: suggestion.newCode,
             })
           ),
-          branch: baseBranch,
+          branch: commitToPR ? userMentionedPullRequest?.branch : baseBranch,
         }), // TODO: casing should be automatically handled
       })
 
@@ -1833,7 +1846,18 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     try {
       isStream.current = true
       let scrolledToBottom = false
-      let currentPrValidationStatuses = []
+      let currentPrValidationStatuses: PrValidationStatus[] = []
+      setMessages([
+        ...messages.slice(0, index),
+        {
+          ...messages[index],
+          annotations: {
+            ...messages[index].annotations,
+            prValidationStatuses: currentPrValidationStatuses,
+          },
+        },
+        ...messages.slice(index + 1),
+      ])
       for await (const streamedPrValidationStatuses of streamMessages(
         reader,
         isStream
@@ -1865,7 +1889,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       )
       console.log(prFailed) // TODO: make this automatically run the fix
       if (prFailed) {
-        fixPrValidationErrors(index)
+        fixPrValidationErrors(currentPrValidationStatuses)
       }
     } catch (e) {
       console.log(e)
@@ -1880,10 +1904,10 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     }
   }
 
-  const fixPrValidationErrors = async (index: number) => {
-    const currentPrValidationStatuses =
-      messages[index]!.annotations!.prValidationStatuses
-    const failedPrValidationStatuses = currentPrValidationStatuses?.find(
+  const fixPrValidationErrors = async (
+    prValidationStatuses: PrValidationStatus[]
+  ) => {
+    const failedPrValidationStatuses = prValidationStatuses?.find(
       (status) => status.status === 'failure' && status.stdout.length > 0
     )
     // sometimes theres no stdout for some reason, will look into this
@@ -2271,7 +2295,13 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                     setSuggestedChanges(suggestedChanges)
                   }}
                   onValidatePR={(pr) => validatePr(pr, index)}
-                  fixPrValidationErrors={() => fixPrValidationErrors(index)}
+                  fixPrValidationErrors={() => {
+                    const currentPrValidationStatuses =
+                      messages[index]!.annotations!.prValidationStatuses
+                    if (currentPrValidationStatuses) {
+                      fixPrValidationErrors(currentPrValidationStatuses)
+                    }
+                  }}
                 />
               ))
             : messagesId.length > 0 && (
@@ -2663,6 +2693,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
 
                           setUserMentionedPullRequests(newPulls)
 
+                          // for commits, show a different message
                           const newMessages: Message[] = [
                             ...messages,
                             {
