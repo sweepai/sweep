@@ -27,7 +27,7 @@ class DockerStatus(TypedDict):
     message: str
     stdout: str
     succeeded: Optional[bool]
-    status: Literal["pending", "running", "success", "failure"]
+    status: Literal["pending", "running", "success", "failure", "cancelled"]
     llm_message: str
     container_name: str
 
@@ -224,6 +224,8 @@ def get_failing_docker_logs(cloned_repo: ClonedRepo):
             statuses[i] = status
             yield statuses
         if status["succeeded"] == False:
+            statuses[i+1:] = [{**status, "status": "cancelled"} for status in statuses[i+1:]]
+            yield statuses
             break # stop at the first failing docker container
     return docker_logs, image_names
 
