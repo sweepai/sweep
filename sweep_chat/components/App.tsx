@@ -1920,16 +1920,18 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       return
     }
     const content = `Help me fix the following CI/CD pipeline errors:\n\`\`\`\n${failedPrValidationStatuses?.stdout}\n\`\`\``
-    const newMessages: Message[] = [
-      ...messages,
-      {
-        role: 'user',
-        content: content,
-      },
-    ]
 
-    setMessages(newMessages)
-    startStream(content, newMessages, snippets)
+    setMessages(currentMessages => {
+      const newMessages: Message[] = [
+        ...currentMessages,
+        {
+          role: 'user',
+          content: content,
+        },
+      ]
+      startStream(content, newMessages, snippets)
+      return newMessages
+    })
   }
 
   return (
