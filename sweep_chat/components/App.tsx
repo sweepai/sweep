@@ -695,6 +695,7 @@ const MessageDisplay = ({
           suggestion={suggestion}
           index={index}
           setSuggestedChanges={setSuggestedChanges}
+          key={index}
         />
       )) || []
     )
@@ -1425,6 +1426,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       suggestion={suggestion}
       index={index}
       setSuggestedChanges={setSuggestedChanges}
+      key={index}
     />
   ))
 
