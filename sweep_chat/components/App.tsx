@@ -687,7 +687,7 @@ const MessageDisplay = ({
                           <HoverCard openDelay={300} closeDelay={200}>
                             <HoverCardTrigger>
                               <FaExclamationTriangle
-                                className="hover:cursor-pointer mr-4 text-red-500"
+                                className="hover:cursor-pointer mr-4 text-yellow-500"
                                 style={{ marginTop: 2 }}
                               />
                             </HoverCardTrigger>
@@ -2131,7 +2131,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                           <HoverCard openDelay={300} closeDelay={200}>
                             <HoverCardTrigger>
                               <FaExclamationTriangle
-                                className="hover:cursor-pointer mr-4"
+                                className="hover:cursor-pointer mr-4 text-yellow-500"
                                 style={{ marginTop: 2 }}
                               />
                             </HoverCardTrigger>
