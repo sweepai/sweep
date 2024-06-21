@@ -53,45 +53,10 @@ const RenderPath = ({
   }
   return (
     <span>
-      <span
-        className="text-gray-400 inline-block align-middle"
-        onClick={() => {
-          window.open(
-            `https://github.com/${repoName}/blob/${branch}/${snippet.file_path}`,
-            '_blank'
-          )
-        }}
-      >
-        {truncatedPath.substring(0, truncatedPath.lastIndexOf('/') + 1)}
-      </span>
-      <span
-        className="text-white inline-block align-middle"
-        onClick={() => {
-          window.open(
-            `https://github.com/${repoName}/blob/${branch}/${snippet.file_path}`,
-            '_blank'
-          )
-        }}
-      >
-        {truncatedPath.substring(truncatedPath.lastIndexOf('/') + 1)}
-      </span>
-      {snippet.end > snippet.content.split('\n').length - 3 &&
-      snippet.start == 0 ? (
-        <></>
-      ) : (
-        <span className="text-gray-400 inline-block align-middle">
-          :{snippet.start}-{snippet.end}
-        </span>
-      )}
-      {snippet.type_name !== 'source' && (
-        <code className="ml-2 bg-opacity-20 bg-black text-white rounded p-1 px-2 text-xs">
-          {snippet.type_name}
-        </code>
-      )}
       <span className="inline-block align-middle">
         {options.includes('remove') ? (
           <FaTrash
-            className="ml-3 hover:drop-shadow-md hover:text-gray-300"
+            className="mr-2 hover:drop-shadow-md hover:text-gray-400"
             onClick={() => {
               let newSnippets = []
               for (let curSnippet of snippets) {
@@ -140,6 +105,42 @@ const RenderPath = ({
           <></>
         )}
       </span>
+      <span
+        className="text-gray-400 inline-block align-middle"
+        onClick={() => {
+          window.open(
+            `https://github.com/${repoName}/blob/${branch}/${snippet.file_path}`,
+            '_blank'
+          )
+        }}
+      >
+        {truncatedPath.substring(0, truncatedPath.lastIndexOf('/') + 1)}
+      </span>
+      <span
+        className="text-white inline-block align-middle"
+        onClick={() => {
+          window.open(
+            `https://github.com/${repoName}/blob/${branch}/${snippet.file_path}`,
+            '_blank'
+          )
+        }}
+      >
+        {truncatedPath.substring(truncatedPath.lastIndexOf('/') + 1)}
+      </span>
+      {snippet.end > snippet.content.split('\n').length - 3 &&
+      snippet.start == 0 ? (
+        <></>
+      ) : (
+        <span className="text-gray-400 inline-block align-middle">
+          :{snippet.start}-{snippet.end}
+        </span>
+      )}
+      {snippet.type_name !== 'source' && (
+        <code className="ml-2 bg-opacity-20 bg-black text-white rounded p-1 px-2 text-xs">
+          {snippet.type_name}
+        </code>
+      )}
+      
     </span>
   )
 }
