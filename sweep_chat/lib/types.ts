@@ -90,7 +90,7 @@ interface PrValidationStatus {
   message: string
   stdout: string
   succeeded: boolean | null
-  status: "pending" | "running" | "success" | "failure"
+  status: "pending" | "running" | "success" | "failure" | "cancelled"
   llmMessage: string
   containerName: string
 }

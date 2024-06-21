@@ -24,6 +24,7 @@ import {
   FaTrash,
   FaCodeBranch,
   FaCircle,
+  FaTimesCircle,
 } from 'react-icons/fa'
 import { FaArrowsRotate, FaCodeCommit } from 'react-icons/fa6'
 import { Button } from '@/components/ui/button'
@@ -281,7 +282,7 @@ const PullRequestDisplay = ({
           className="bg-zinc-800 text-white mb-4"
           onClick={() => onValidatePR(pr)}
         >
-          Validate PR
+          Re-validate Pull Request
         </Button>
       )}
     </div>
@@ -2052,12 +2053,16 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                   <div key={index} className="flex justify-start">
                     <div className='rounded-xl bg-zinc-800 w-full'>
                       <h2 className='font-bold'>
-                        <FaCircle className={{
-                          "success": "text-green-500",
-                          "failure": "text-red-500",
-                          "pending": "text-zinc-500",
-                          "running": "text-yellow-500",
-                        }[status.status] + " inline mr-2 text-sm"} style={{marginTop: -2}}/>
+                        {status.status != "cancelled" ? (
+                          <FaCircle className={{
+                            "success": "text-green-500",
+                            "failure": "text-red-500",
+                            "pending": "text-zinc-500",
+                            "running": "text-yellow-500",
+                          }[status.status] + " inline mr-2 text-sm"} style={{marginTop: -2}}/>
+                        ): (
+                          <FaTimesCircle className="text-zinc-500 inline mr-2 text-sm" style={{marginTop: -2}}/>
+                        )}
                         {status.message} - {status.containerName}
                       </h2>
                       {status.stdout && (
