@@ -113,6 +113,8 @@ def get_failing_docker_logs(cloned_repo: ClonedRepo):
         image_name = dockerfile_config.image_name + "-" + str(hash(cloned_repo.repo_dir))[-8:]
         container_name = dockerfile_config.container_name + "-" + str(hash(cloned_repo.repo_dir))[-8:]
         dockerfile_path = dockerfile_config.dockerfile_path
+        env_path = os.path.join(os.path.join(os.getcwd(), os.path.dirname(dockerfile_path)), ".env")
+        env_exists = os.path.exists(env_path)
         dockerfile_path = os.path.join(os.getcwd(), dockerfile_path)
         logs = ""
         try:
@@ -126,7 +128,10 @@ def get_failing_docker_logs(cloned_repo: ClonedRepo):
                     subprocess.run(build_command, shell=True, check=True)
                     logger.info(f"Built Docker image {image_name}")
                     # Run the Docker container and remove it after it exits
-                    run_command = f"docker run --name {container_name} {image_name}"
+                    if env_exists:
+                        run_command = f"docker run --env-file {env_path} --name {container_name} {image_name}"
+                    else:
+                        run_command = f"docker run --name {container_name} {image_name}"
                     logger.info(f"Running Docker image {image_name}...")
                     result = subprocess.run(run_command, shell=True, capture_output=True, text=True)
                     # Remove the Docker container
