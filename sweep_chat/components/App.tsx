@@ -1482,11 +1482,22 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     setMessages(respondedMessages)
     let messageLength = newMessages.length
     try {
-      for await (const patch of streamMessages(reader, isStream)) {
-        streamedMessages = jsonpatch.applyPatch(
-          streamedMessages,
-          patch
-        ).newDocument
+      for await (const patches of streamMessages(reader, isStream)) {
+        for (const patch of patches) {
+          if (patch.op == "error") {
+            throw new Error(patch.value)
+          }
+        }
+        try {
+          streamedMessages = jsonpatch.applyPatch(
+            streamedMessages,
+            patches
+          ).newDocument
+        } catch (e: any) {
+          console.log(patches)
+          console.warn(e)
+          continue
+        }
         setMessages([...newMessages, ...streamedMessages])
         if (streamedMessages.length > messageLength) {
           messageLength = streamedMessages.length
@@ -1596,7 +1607,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
             <Image
               src="/banner.png"
               alt="Sweep Chat"
-              width={100}
+              width={110}
               height={100}
               className="h-10 rounded-lg hover:cursor-pointer box-shadow-md"
               onClick={() => {
