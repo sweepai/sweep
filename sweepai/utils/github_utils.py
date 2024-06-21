@@ -489,6 +489,7 @@ class ClonedRepo:
         )
 
     def clone(self):
+        os.environ['GIT_LFS_SKIP_SMUDGE'] = '1'
         if not os.path.exists(self.cached_dir):
             logger.info("Cloning repo...")
             if self.branch:
@@ -505,6 +506,7 @@ class ClonedRepo:
                 repo = git.Repo(self.cached_dir)
                 repo.git.remote("set-url", "origin", self.clone_url)
                 repo.git.clean('-fd')
+                self.handle_checkout_failures(git_repo=repo)
                 repo.git.pull()
                 logger.info("Pull repo succeeded")
             except Exception as e:
@@ -517,6 +519,7 @@ class ClonedRepo:
                     )
                 else:
                     repo = git.Repo.clone_from(self.clone_url, self.cached_dir)
+                self.handle_checkout_failures(git_repo=repo)
         logger.info("Copying repo...")
         shutil.copytree(
             self.cached_dir, self.repo_dir, symlinks=True, copy_function=shutil.copy
@@ -542,16 +545,15 @@ class ClonedRepo:
         try:
             self.git_repo.git.checkout(self.branch)
         except Exception as e:
-            self.handle_checkout_failures()
-            os.environ['GIT_LFS_SKIP_SMUDGE'] = '1'
+            self.handle_checkout_failures(self.git_repo)
             self.git_repo.git.checkout(self.branch)
 
-    def handle_checkout_failures(self):
-        untracked_files = self.git_repo.untracked_files
+    def handle_checkout_failures(self, git_repo):
+        untracked_files = git_repo.untracked_files
         if untracked_files:
             logger.info(f"Untracked files found: {', '.join(untracked_files)}")
             for file in untracked_files:
-                file_path = os.path.join(self.git_repo.working_dir, file)
+                file_path = os.path.join(git_repo.working_dir, file)
                 if os.path.isfile(file_path):
                     logger.info(f"Removing untracked file: {file}")
                     os.remove(file_path)
@@ -562,7 +564,7 @@ class ClonedRepo:
             logger.info("No untracked files found")
 
         logger.info("Cleaning untracked files")
-        self.git_repo.git.clean('-fd')
+        git_repo.git.clean('-fd')
 
 
     def __del__(self):
@@ -575,6 +577,7 @@ class ClonedRepo:
     def pull(self):
         if self.git_repo:
             self.git_repo.git.remote("set-url", "origin", self.clone_url)
+            self.handle_checkout_failures(self.git_repo)
             self.git_repo.git.pull()
 
     def list_directory_tree(
