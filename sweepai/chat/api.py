@@ -1127,10 +1127,10 @@ async def validate_pull(
         try:
             all_statuses: list[CheckStatus] = []
             docker_statuses: list[CheckStatus] = []
-            # for docker_statuses in get_failing_docker_logs.stream(cloned_repo):
-            #     yield json.dumps(docker_statuses)
+            for docker_statuses in get_failing_docker_logs.stream(cloned_repo):
+                yield json.dumps(docker_statuses)
             any_failed = not all_statuses or any(status["succeeded"] is False for status in docker_statuses)
-            if any_failed:
+            if not any_failed:
                 for _ in range(60 * 6):
                     runs = list(repo.get_commit(current_commit).get_check_runs())
                     suite_runs = list(repo.get_workflow_runs(branch=pull_request.head.ref, head_sha=pull_request.head.sha))
