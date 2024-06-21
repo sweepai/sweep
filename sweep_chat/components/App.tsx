@@ -2197,7 +2197,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
 
                     {commitToPR && userMentionedPullRequest ? (
                       <div className="flex grow items-center mb-4">
-                        {`You are commiting to ${userMentionedPullRequest.branch}`}
+                        {`You are commiting to ${userMentionedPullRequest.branch} with the following commit message:`}
                       </div>
                     ) : (
                       <div className="flex grow items-center mb-4">
