@@ -25,6 +25,7 @@ from sweepai.core.entities import FileChangeRequest, Message, Snippet
 from sweepai.core.pull_request_bot import get_pr_summary_for_chat
 from sweepai.core.review_utils import split_diff_into_patches
 from sweepai.dataclasses.code_suggestions import CodeSuggestion
+from sweepai.handlers.on_check_suite import get_failing_docker_logs
 from sweepai.utils.convert_openai_anthropic import AnthropicFunctionCall
 from sweepai.utils.github_utils import ClonedRepo, CustomGithub, MockClonedRepo, clean_branch_name, commit_multi_file_changes, create_branch, get_github_client, get_installation_id
 from sweepai.utils.event_logger import posthog
@@ -721,7 +722,7 @@ def chat_codebase_stream(
         for code_suggestion in code_suggestions_raw:
             fcr = next((fcr for fcr in new_code_suggestions_raw if fcr["file_path"] == code_suggestion["file_path"] and fcr["original_code"] == code_suggestion["original_code"] == ""), None)
             if fcr:
-                fcr["new_code"] += code_suggestion["new_code"]
+                fcr["new_code"] += "\n" + code_suggestion["new_code"].lstrip("\n")
             else:
                 new_code_suggestions_raw.append(code_suggestion)
         code_suggestions_raw = new_code_suggestions_raw
@@ -921,6 +922,9 @@ async def autofix(
 
     return StreamingResponse(stream())
 
+# TODO: refactor all the PR stuff together
+# TODO: refactor all the github client stuff
+
 @app.post("/backend/create_pull")
 async def create_pull(
     repo_name: str = Body(...),
@@ -1094,6 +1098,34 @@ async def create_pull_metadata(
         "description": description,
         "branch": clean_branch_name(title),
     }
+
+@app.post("/backend/validate_pull")
+async def validate_pull(
+    repo_name: str = Body(...),
+    pull_request_number: int = Body(...),
+    access_token: str = Depends(get_token_header)
+):
+    with Timer() as timer:
+        g = get_authenticated_github_client(repo_name, access_token)
+    logger.debug(f"Getting authenticated GitHub client took {timer.time_elapsed} seconds")
+    if not g:
+        return {"success": False, "error": "The repository may not exist or you may not have access to this repository."}
+    
+    org_name, repo_name_ = repo_name.split("/")
+    repo = g.get_repo(repo_name)
+    pull_request = repo.get_pull(int(pull_request_number))
+
+    cloned_repo = get_cloned_repo(repo_name, access_token, pull_request.head.ref)
+
+    def stream():
+        try:
+            for statuses in get_failing_docker_logs.stream(cloned_repo):
+                yield json.dumps(statuses)
+        except Exception as e:
+            yield json.dumps({"error": str(e)})
+            raise e
+
+    return StreamingResponse(stream())
 
 @app.post("/backend/messages/save")
 async def write_message_to_disk(
