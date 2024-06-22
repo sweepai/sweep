@@ -177,14 +177,14 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session?.user.accessToken}`,
         },
-        body: body ? JSON.stringify({
+        body: (body && options.method != "GET") ? JSON.stringify({
           repo_name: repoName,
           ...body
         }) : undefined,
         ...options,
       })
     },
-    [session?.user.accessToken]
+    [session?.user.accessToken, repoName]
   )
 
   useEffect(() => {
