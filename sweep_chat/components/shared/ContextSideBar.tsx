@@ -50,7 +50,7 @@ const ContextSideBar = ({
           </HoverCard>
         </h2>
       </div>
-      <ScrollArea className="w-full rounded-md border p-4 grow mb-4">
+      <ScrollArea className="w-full rounded-md border p-4 grow mb-4 overflow-x-auto">
         {snippets.map((snippet, index) => (
           <>
             <SnippetBadge

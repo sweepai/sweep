@@ -1649,9 +1649,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
               },
             } as Message,
           ]
-          if (currentSnippets) {
-            setSnippets(currentSnippets)
-          }
+          setSnippets(currentSnippets)
           setMessages(streamedMessages)
         }
         streamedMessages = [
