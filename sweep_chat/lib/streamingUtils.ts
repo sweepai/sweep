@@ -1,3 +1,4 @@
+import { Tail } from './types'
 import { getJSONPrefix } from '@/lib/str_utils'
 import { ReadableStreamDefaultReadResult } from 'stream/web'
 
@@ -82,4 +83,13 @@ async function* streamMessages(
   // }
 }
 
-export { streamMessages }
+
+async function* streamResponseMessages(response: Response, ...args: Tail<Parameters<typeof streamMessages>>): ReturnType<typeof streamMessages> {
+  const reader = response.body?.getReader()
+  if (!reader) {
+    throw new Error('No reader found in response')
+  }
+  yield* streamMessages(reader, ...args)
+}
+
+export { streamMessages, streamResponseMessages }

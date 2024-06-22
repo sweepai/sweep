@@ -92,7 +92,7 @@ import parsePullRequests from '@/lib/parsePullRequest'
 
 import { debounce } from 'lodash'
 import { formatDistanceToNow } from 'date-fns'
-import { streamMessages } from '@/lib/streamingUtils'
+import { streamResponseMessages } from '@/lib/streamingUtils'
 import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 import { Skeleton } from './ui/skeleton'
 import { isPullRequestEqual } from '@/lib/pullUtils'
@@ -489,9 +489,8 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       // TODO: casing should be automatically handled
 
       try {
-        const reader = streamedResponse.body!.getReader()
-        for await (const currentState of streamMessages(
-          reader,
+        for await (const currentState of streamResponseMessages(
+          streamedResponse,
           isStream,
           5 * 60 * 1000
         )) {
@@ -616,8 +615,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
 
         let streamedMessages: Message[] = [...newMessages]
         let streamedMessage: string = ''
-        const reader = snippetsResponse.body?.getReader()!
-        for await (const chunk of streamMessages(reader, isStream)) {
+        for await (const chunk of streamResponseMessages(snippetsResponse, isStream)) {
           streamedMessage = chunk[0]
           currentSnippets = chunk[1]
           currentSnippets = currentSnippets.slice(0, k)
@@ -685,7 +683,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     })
 
     // Stream
-    const reader = chatResponse.body?.getReader()!
     var streamedMessages: Message[] = []
     var respondedMessages: Message[] = [
       ...newMessages,
@@ -694,7 +691,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     setMessages(respondedMessages)
     let messageLength = newMessages.length
     try {
-      for await (const patches of streamMessages(reader, isStream)) {
+      for await (const patches of streamResponseMessages(chatResponse, isStream)) {
         for (const patch of patches) {
           if (patch.op == 'error') {
             throw new Error(patch.value)
@@ -818,7 +815,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     const response = await authorizedFetch(`/validate_pull`, {
       pull_request_number: pr.number,
     })
-    const reader = response.body!.getReader()
     try {
       isStream.current = true
       let scrolledToBottom = false
@@ -834,8 +830,8 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         },
         ...messages.slice(index + 1),
       ])
-      for await (const streamedPrValidationStatuses of streamMessages(
-        reader,
+      for await (const streamedPrValidationStatuses of streamResponseMessages(
+        response,
         isStream
       )) {
         currentPrValidationStatuses = streamedPrValidationStatuses.map(
