@@ -113,134 +113,21 @@ import { SnippetBadge } from './shared/SnippetBadge'
 import { ContextSideBar } from './shared/ContextSideBar'
 import { posthog } from '@/lib/posthog'
 
-import CodeMirrorMerge from 'react-codemirror-merge'
-import CodeMirror from '@uiw/react-codemirror'
-import { dracula } from '@uiw/codemirror-theme-dracula'
-import { EditorView } from 'codemirror'
 import { debounce } from 'lodash'
 import { formatDistanceToNow } from 'date-fns'
 import { streamMessages } from '@/lib/streamingUtils'
 import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 import { Skeleton } from './ui/skeleton'
 import { isPullRequestEqual } from '@/lib/pullUtils'
-import Image from 'next/image'
+import CodeMirrorEditor from './CodeMirrorSuggestionEditor'
 // @ts-ignore
 import * as Diff from 'diff'
-import { ScrollArea } from './ui/scroll-area'
+import AutoScrollArea from './ui/autoscroll'
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from './ui/resizable'
-
-const Original = CodeMirrorMerge.Original
-const Modified = CodeMirrorMerge.Modified
-
-const AutoScrollArea = ({
-  children,
-  className = '',
-  threshold = Infinity,
-}: {
-  children: React.ReactNode
-  className?: string
-  threshold?: number
-}) => {
-  const scrollAreaRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (scrollAreaRef.current && scrollAreaRef.current.scrollHeight > 0) {
-      const { scrollTop, scrollHeight, clientHeight } = scrollAreaRef.current
-      if (scrollHeight - scrollTop - clientHeight < threshold) {
-        scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight
-      }
-    }
-  }, [children])
-  return (
-    <ScrollArea ref={scrollAreaRef} className={className}>
-      {children}
-    </ScrollArea>
-  )
-}
-
-const CodeMirrorEditor = ({
-  suggestion,
-  index,
-  setSuggestedChanges,
-}: {
-  suggestion: StatefulCodeSuggestion
-  index: number
-  setSuggestedChanges: Dispatch<SetStateAction<StatefulCodeSuggestion[]>>
-}) => {
-  const fileExtension = suggestion.filePath.split('.').pop()
-  // default to javascript
-  let languageExtension = languageMapping['js']
-  if (fileExtension) {
-    languageExtension = languageMapping[fileExtension]
-  }
-
-  if (suggestion.originalCode.length === 0) {
-    return (
-      <CodeMirror
-        theme={dracula}
-        autoFocus={false}
-        key={JSON.stringify(suggestion)}
-        value={suggestion.newCode}
-        readOnly={!(suggestion.state == 'done' || suggestion.state == 'error')}
-        extensions={[
-          EditorView.editable.of(
-            suggestion.state == 'done' || suggestion.state == 'error'
-          ),
-          ...(languageExtension ? [languageExtension] : []),
-        ]}
-        onChange={debounce((value: string) => {
-          setSuggestedChanges((suggestedChanges) =>
-            suggestedChanges.map((suggestion, i) =>
-              i == index ? { ...suggestion, newCode: value } : suggestion
-            )
-          )
-        }, 1000)}
-      />
-    )
-  }
-
-  return (
-    <CodeMirrorMerge
-      theme={dracula}
-      revertControls={'a-to-b'}
-      collapseUnchanged={{
-        margin: 3,
-        minSize: 4,
-      }}
-      autoFocus={false}
-      key={JSON.stringify(suggestion)}
-    >
-      <Original
-        value={suggestion.originalCode}
-        readOnly={true}
-        extensions={[
-          EditorView.editable.of(false),
-          ...(languageExtension ? [languageExtension] : []),
-        ]}
-      />
-      <Modified
-        value={suggestion.newCode}
-        readOnly={!(suggestion.state == 'done' || suggestion.state == 'error')}
-        extensions={[
-          EditorView.editable.of(
-            suggestion.state == 'done' || suggestion.state == 'error'
-          ),
-          ...(languageExtension ? [languageExtension] : []),
-        ]}
-        onChange={debounce((value: string) => {
-          setSuggestedChanges((suggestedChanges) =>
-            suggestedChanges.map((suggestion, i) =>
-              i == index ? { ...suggestion, newCode: value } : suggestion
-            )
-          )
-        }, 1000)}
-      />
-    </CodeMirrorMerge>
-  )
-}
 
 const PrValidationStatusDisplay = ({
   status,
