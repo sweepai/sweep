@@ -83,13 +83,11 @@ import {
   DEFAULT_K,
   modelMap,
   roleToColor,
-  typeNameToColor,
   languageMapping,
 } from '@/lib/constants'
 import {
   Repository,
   Snippet,
-  FileDiff,
   PullRequest,
   Message,
   CodeSuggestion,
@@ -102,9 +100,10 @@ import {
 import { Octokit } from 'octokit'
 import {
   renderPRDiffs,
-  getJSONPrefix,
   getFunctionCallHeaderString,
-  getDiff,
+  sum,
+  truncate,
+  toCamelCaseKeys,
 } from '@/lib/str_utils'
 import {
   CODE_CHANGE_PATTERN,
@@ -136,40 +135,6 @@ import {
 
 const Original = CodeMirrorMerge.Original
 const Modified = CodeMirrorMerge.Modified
-
-const sum = (arr: number[]) => arr.reduce((acc, cur) => acc + cur, 0)
-const truncate = (str: string, maxLength: number) =>
-  str.length > maxLength ? str.slice(0, maxLength) + '...' : str
-
-const snakeCaseToCamelCase = (str: string) => {
-  return str.replace(/([_]+)([a-z])/g, (match, p1, p2) => p2.toUpperCase())
-}
-
-function toCamelCaseKeys<A extends string, B>(
-  obj: SnakeCaseKeys<Record<A, B>>
-): Record<A, B> {
-  return Object.fromEntries(
-    Object.entries(obj).map(([key, value]) => [
-      snakeCaseToCamelCase(key),
-      value,
-    ])
-  ) as Record<A, B>
-}
-
-const camelCaseToSnakeCase = (str: string) => {
-  return str.replace(/([A-Z])/g, '_$1').toLowerCase()
-}
-
-function toSnakeCaseKeys<A extends string, B>(
-  obj: Record<A, B>
-): SnakeCaseKeys<Record<A, B>> {
-  return Object.fromEntries(
-    Object.entries(obj).map(([key, value]) => [
-      camelCaseToSnakeCase(key),
-      value,
-    ])
-  ) as SnakeCaseKeys<Record<A, B>>
-}
 
 const AutoScrollArea = ({
   children,
@@ -505,7 +470,6 @@ const UserMessageDisplay = ({
   message: Message
   onEdit: (content: string) => void
 }) => {
-  // TODO: finish this implementation
   const [isEditing, setIsEditing] = useState(false)
   const [editedContent, setEditedContent] = useState(message.content)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
