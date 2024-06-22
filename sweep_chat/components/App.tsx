@@ -1,8 +1,6 @@
 'use client'
 
 import {
-  Dispatch,
-  SetStateAction,
   useCallback,
   useEffect,
   useMemo,
@@ -111,7 +109,7 @@ import {
 } from './shared/MarkdownRenderer'
 import { SnippetBadge } from './shared/SnippetBadge'
 import { ContextSideBar } from './shared/ContextSideBar'
-import { posthog } from '@/lib/posthog'
+import parsePullRequests from '@/lib/parsePullRequest'
 
 import { debounce } from 'lodash'
 import { formatDistanceToNow } from 'date-fns'
@@ -128,6 +126,8 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from './ui/resizable'
+
+import FeedbackBlock from './FeedbackBlock'
 
 const PrValidationStatusDisplay = ({
   status,
@@ -448,71 +448,6 @@ const UserMessageDisplay = ({
           </div>
         ))}
     </>
-  )
-}
-
-const FeedbackBlock = ({
-  message,
-  index,
-}: {
-  message: Message
-  index: number
-}) => {
-  const [isLiked, setIsLiked] = useState(false)
-  const [isDisliked, setIsDisliked] = useState(false)
-  return (
-    <div className="flex justify-end my-2">
-      <FaThumbsUp
-        className={`inline-block text-lg ${
-          isLiked
-            ? 'text-green-500 cursor-not-allowed'
-            : 'text-zinc-400 hover:cursor-pointer hover:text-zinc-200 hover:drop-shadow-md'
-        }`}
-        onClick={() => {
-          if (isLiked) {
-            return
-          }
-          posthog.capture('message liked', {
-            message: message,
-            index: index,
-          })
-          toast({
-            title: 'We received your like',
-            description:
-              'Thank you for your feedback! If you would like to share any highlights, feel free to shoot us a message on Slack!',
-            variant: 'default',
-            duration: 2000,
-          })
-          setIsLiked(true)
-          setIsDisliked(false)
-        }}
-      />
-      <FaThumbsDown
-        className={`inline-block ml-3 text-lg ${
-          isDisliked
-            ? 'text-red-500 cursor-not-allowed'
-            : 'text-zinc-400 hover:cursor-pointer hover:text-zinc-200 hover:drop-shadow-md'
-        }`}
-        onClick={() => {
-          if (isDisliked) {
-            return
-          }
-          posthog.capture('message disliked', {
-            message: message,
-            index: index,
-          })
-          toast({
-            title: 'We received your dislike',
-            description:
-              'Thank you for your feedback! If you would like to report any persistent issues, feel free to shoot us a message on Slack!',
-            variant: 'default',
-            duration: 2000,
-          })
-          setIsDisliked(true)
-          setIsLiked(false)
-        }}
-      />
-    </div>
   )
 }
 
@@ -838,84 +773,6 @@ const MessageDisplay = ({
         )}
     </>
   )
-}
-
-const parsePullRequests = async (
-  repoName: string,
-  message: string,
-  octokit: Octokit
-): Promise<PullRequest[]> => {
-  const [orgName, repo] = repoName.split('/')
-  const pulls = []
-
-  try {
-    const prURLs = message.match(
-      new RegExp(
-        `https?:\/\/github.com\/${repoName}\/pull\/(?<prNumber>[0-9]+)`,
-        'gm'
-      )
-    )
-    for (const prURL of prURLs || []) {
-      const prNumber = prURL.split('/').pop()
-      const pr = await octokit!.rest.pulls.get({
-        owner: orgName,
-        repo: repo,
-        pull_number: parseInt(prNumber!),
-      })
-      const title = pr.data.title
-      const body = pr.data.body
-      const labels = pr.data.labels.map((label) => label.name)
-      const status =
-        pr.data.state === 'open' ? 'open' : pr.data.merged ? 'merged' : 'closed'
-      const file_diffs = (
-        await octokit!.rest.pulls.listFiles({
-          owner: orgName,
-          repo: repo,
-          pull_number: parseInt(prNumber!),
-        })
-      ).data.sort((a, b) => {
-        const aIsMarkdown =
-          a.filename.endsWith('.md') || a.filename.endsWith('.rst')
-        const bIsMarkdown =
-          b.filename.endsWith('.md') || b.filename.endsWith('.rst')
-        if (aIsMarkdown !== bIsMarkdown) {
-          return aIsMarkdown ? 1 : -1
-        }
-        const statusOrder: Record<string, number> = {
-          renamed: 0,
-          copied: 1,
-          added: 2,
-          modified: 3,
-          changed: 4,
-          deleted: 5,
-          unchanged: 6,
-        }
-        if (statusOrder[a.status] !== statusOrder[b.status]) {
-          return statusOrder[a.status] - statusOrder[b.status]
-        }
-        return b.changes - a.changes
-      })
-      pulls.push({
-        number: parseInt(prNumber!),
-        repo_name: repoName,
-        title,
-        body,
-        labels,
-        status,
-        file_diffs,
-        branch: pr.data.head.ref,
-      } as PullRequest)
-    }
-
-    return pulls
-  } catch (e: any) {
-    toast({
-      title: 'Failed to retrieve pull request',
-      description: `The following error has occurred: ${e.message}. Sometimes, logging out and logging back in can resolve this issue.`,
-      variant: 'destructive',
-    })
-    return []
-  }
 }
 
 function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
