@@ -875,6 +875,24 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     })
   }
 
+  const reset = () => {
+    window.history.pushState({}, '', '/')
+    setMessages([])
+    setCurrentMessage('')
+    setIsLoading(false)
+    setSnippets([])
+    setMessagesId('')
+    setSuggestedChanges([])
+    setPullRequest(null)
+    setFeatureBranch(null)
+    setPullRequestTitle(null)
+    setPullRequestBody(null)
+    setUserMentionedPullRequest(null)
+    setUserMentionedPullRequests(null)
+    setCommitToPR(false)
+    setCommitToPRIsOpen(false)
+  }
+
   return (
     <>
       <main className="flex h-screen flex-col items-center justify-between p-12 pt-20">
@@ -1125,6 +1143,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                   setBranch(repo.data.default_branch)
                   setBaseBranch(repo.data.default_branch)
                 }
+                reset()
               }, (error) => {
                 setRepoNameValid(false)
                 toast({
@@ -1735,23 +1754,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                   <Button
                     className="mr-2"
                     variant="secondary"
-                    onClick={async () => {
-                      window.history.pushState({}, '', '/')
-                      setMessages([])
-                      setCurrentMessage('')
-                      setIsLoading(false)
-                      setSnippets([])
-                      setMessagesId('')
-                      setSuggestedChanges([])
-                      setPullRequest(null)
-                      setFeatureBranch(null)
-                      setPullRequestTitle(null)
-                      setPullRequestBody(null)
-                      setUserMentionedPullRequest(null)
-                      setUserMentionedPullRequests(null)
-                      setCommitToPR(false)
-                      setCommitToPRIsOpen(false)
-                    }}
+                    onClick={reset}
                     disabled={isLoading}
                   >
                     <FaPlus />
