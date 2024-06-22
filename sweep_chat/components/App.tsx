@@ -82,6 +82,7 @@ import { Octokit } from 'octokit'
 import {
   truncate,
   toCamelCaseKeys,
+  toSnakeCaseKeys,
 } from '@/lib/str_utils'
 import {
   MarkdownRenderer,
@@ -520,11 +521,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       console.log(userMentionedPullRequest)
       const streamedResponse = await authorizedFetch(`/autofix`, {
         code_suggestions: codeSuggestions.map(
-          (suggestion: CodeSuggestion) => ({
-            file_path: suggestion.filePath,
-            original_code: suggestion.originalCode,
-            new_code: suggestion.newCode,
-          })
+          (suggestion: CodeSuggestion) => (toSnakeCaseKeys(suggestion))
         ),
         branch: commitToPR ? userMentionedPullRequest?.branch : baseBranch,
       })
@@ -601,21 +598,21 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
             {
               repo_name: repoName,
               modify_files_dict: suggestedChanges.reduce((
-                acc: Record<
-                  string,
-                  { original_contents: string; contents: string }
-                >,
-                suggestion: StatefulCodeSuggestion
-              ) => {
-                acc[suggestion.filePath] = {
-                  original_contents: suggestion.originalCode,
-                  contents: suggestion.newCode,
-                }
-                return acc
-              },
-              {}
-            ),
-            messages: messages,
+                    acc: Record<
+                      string,
+                      { original_contents: string; contents: string }
+                  >,
+                  suggestion: StatefulCodeSuggestion
+                ) => {
+                  acc[suggestion.filePath] = {
+                    original_contents: suggestion.originalCode,
+                    contents: suggestion.newCode,
+                  }
+                  return acc
+                },
+                {}
+              ),
+              messages,
             }
           )
 
@@ -660,7 +657,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         const snippetsResponse = await authorizedFetch(`/search`, {
           repo_name: repoName,
           query: message,
-          annotations: annotations,
+          annotations,
           branch: baseBranch,
         })
 
@@ -729,9 +726,9 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     const chatResponse = await authorizedFetch('/chat', {
       messages: newMessages,
       snippets: currentSnippets,
-      model: model,
+      model,
       branch: baseBranch,
-      k: k,
+      k,
     })
 
     // Stream
