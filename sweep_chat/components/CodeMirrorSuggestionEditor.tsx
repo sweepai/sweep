@@ -4,9 +4,8 @@ import CodeMirror from '@uiw/react-codemirror'
 import { dracula } from '@uiw/codemirror-theme-dracula'
 import { EditorView } from 'codemirror'
 import { StatefulCodeSuggestion } from '@/lib/types'
-import { languageMapping } from '@/lib/language_mapping'
-import { dracula } from '@/lib/theme'
-import { debounce } from '@/lib/utils'
+import { languageMapping } from '@/lib/constants'
+import { debounce } from 'lodash'
 
 const Original = CodeMirrorMerge.Original
 const Modified = CodeMirrorMerge.Modified

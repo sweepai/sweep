@@ -169,14 +169,18 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   )
 
   const authorizedFetch = useCallback(
-    (url: string, options: RequestInit = {}) => {
-      return fetch(url, {
+    (url: string, body: Record<string, any> = {}, options: RequestInit = {}) => {
+      return fetch(`/backend/${url}`, {
         method: options.method || 'POST',
         headers: {
           ...options.headers,
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session?.user.accessToken}`,
         },
+        body: body ? JSON.stringify({
+          repo_name: repoName,
+          ...body
+        }) : undefined,
         ...options,
       })
     },
@@ -205,7 +209,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     if (messagesId) {
       ;(async () => {
         const response = await authorizedFetch(
-          `/backend/messages/load/${messagesId}`,
+          `/messages/load/${messagesId}`,
           {
             method: 'GET',
           }
@@ -514,19 +518,18 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     setIsProcessingSuggestedChanges(true)
     ;(async () => {
       console.log(userMentionedPullRequest)
-      const streamedResponse = await authorizedFetch(`/backend/autofix`, {
-        body: JSON.stringify({
-          repo_name: repoName,
-          code_suggestions: codeSuggestions.map(
-            (suggestion: CodeSuggestion) => ({
-              file_path: suggestion.filePath,
-              original_code: suggestion.originalCode,
-              new_code: suggestion.newCode,
-            })
-          ),
-          branch: commitToPR ? userMentionedPullRequest?.branch : baseBranch,
-        }), // TODO: casing should be automatically handled
+      const streamedResponse = await authorizedFetch(`/autofix`, {
+        code_suggestions: codeSuggestions.map(
+          (suggestion: CodeSuggestion) => ({
+            file_path: suggestion.filePath,
+            original_code: suggestion.originalCode,
+            new_code: suggestion.newCode,
+          })
+        ),
+        branch: commitToPR ? userMentionedPullRequest?.branch : baseBranch,
       })
+
+      // TODO: casing should be automatically handled
 
       try {
         const reader = streamedResponse.body!.getReader()
@@ -594,28 +597,25 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
 
         if (!featureBranch || !pullRequestTitle || !pullRequestBody) {
           const prMetadata = await authorizedFetch(
-            '/backend/create_pull_metadata',
+            '/create_pull_metadata',
             {
-              body: JSON.stringify({
-                repo_name: repoName,
-                modify_files_dict: suggestedChanges.reduce(
-                  (
-                    acc: Record<
-                      string,
-                      { original_contents: string; contents: string }
-                    >,
-                    suggestion: StatefulCodeSuggestion
-                  ) => {
-                    acc[suggestion.filePath] = {
-                      original_contents: suggestion.originalCode,
-                      contents: suggestion.newCode,
-                    }
-                    return acc
-                  },
-                  {}
-                ),
-                messages: messages,
-              }),
+              repo_name: repoName,
+              modify_files_dict: suggestedChanges.reduce((
+                acc: Record<
+                  string,
+                  { original_contents: string; contents: string }
+                >,
+                suggestion: StatefulCodeSuggestion
+              ) => {
+                acc[suggestion.filePath] = {
+                  original_contents: suggestion.originalCode,
+                  contents: suggestion.newCode,
+                }
+                return acc
+              },
+              {}
+            ),
+            messages: messages,
             }
           )
 
@@ -657,19 +657,11 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     var currentSnippets = snippets
     if (currentSnippets.length == 0) {
       try {
-        const snippetsResponse = await fetch(`/backend/search`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            // @ts-ignore
-            Authorization: `Bearer ${session?.user.accessToken}`,
-          },
-          body: JSON.stringify({
-            repo_name: repoName,
-            query: message,
-            annotations: annotations,
-            branch: baseBranch,
-          }),
+        const snippetsResponse = await authorizedFetch(`/search`, {
+          repo_name: repoName,
+          query: message,
+          annotations: annotations,
+          branch: baseBranch,
         })
 
         let streamedMessages: Message[] = [...newMessages]
@@ -734,21 +726,12 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       }
     }
 
-    const chatResponse = await fetch('/backend/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // @ts-ignore
-        Authorization: `Bearer ${session?.user.accessToken}`,
-      },
-      body: JSON.stringify({
-        repo_name: repoName,
-        messages: newMessages,
-        snippets: currentSnippets,
-        model: model,
-        branch: baseBranch,
-        k: k,
-      }),
+    const chatResponse = await authorizedFetch('/chat', {
+      messages: newMessages,
+      snippets: currentSnippets,
+      model: model,
+      branch: baseBranch,
+      k: k,
     })
 
     // Stream
@@ -882,11 +865,8 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     // TODO: put repo name into every body and make it all jsonified
     setPrValidationStatuses([])
     setIsValidatingPR(true)
-    const response = await authorizedFetch(`/backend/validate_pull`, {
-      body: JSON.stringify({
-        repo_name: repoName,
-        pull_request_number: pr.number,
-      }),
+    const response = await authorizedFetch(`/validate_pull`, {
+      pull_request_number: pr.number,
     })
     const reader = response.body!.getReader()
     try {
@@ -1201,7 +1181,8 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
               try {
                 setRepoNameDisabled(true)
                 const response = await authorizedFetch(
-                  `/backend/repo?repo_name=${cleanedRepoName}`,
+                  `/repo?repo_name=${cleanedRepoName}`,
+                  {},
                   {
                     method: 'GET',
                   }
@@ -1730,37 +1711,31 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                                 console.log('commit topr', commitToPR)
                                 if (commitToPR && userMentionedPullRequest) {
                                   response = await authorizedFetch(
-                                    `/backend/commit_to_pull`,
+                                    `/commit_to_pull`,
                                     {
-                                      body: JSON.stringify({
-                                        repo_name: repoName,
-                                        file_changes: file_changes,
-                                        pr_number: String(
-                                          userMentionedPullRequest?.number
-                                        ),
-                                        base_branch: baseBranch,
-                                        commit_message: pullRequestTitle,
-                                      }),
+                                      file_changes: file_changes,
+                                      pr_number: String(
+                                        userMentionedPullRequest?.number
+                                      ),
+                                      base_branch: baseBranch,
+                                      commit_message: pullRequestTitle,
                                     }
                                   )
                                 } else {
                                   response = await authorizedFetch(
                                     `/backend/create_pull`,
                                     {
-                                      body: JSON.stringify({
-                                        repo_name: repoName,
-                                        file_changes: file_changes,
-                                        branch:
-                                          'sweep-chat-patch-' +
-                                          new Date()
-                                            .toISOString()
-                                            .split('T')[0], // use ai for better branch name, title, and body later
-                                        base_branch: baseBranch,
-                                        title: pullRequestTitle,
-                                        body:
-                                          pullRequestBody +
-                                          `\n\nSuggested changes from Sweep Chat by @${session?.user?.username}. Continue chatting at ${window.location.origin}/c/${messagesId}.`,
-                                      }),
+                                      file_changes: file_changes,
+                                      branch:
+                                        'sweep-chat-patch-' +
+                                        new Date()
+                                          .toISOString()
+                                          .split('T')[0], // use ai for better branch name, title, and body later
+                                      base_branch: baseBranch,
+                                      title: pullRequestTitle,
+                                      body:
+                                        pullRequestBody +
+                                        `\n\nSuggested changes from Sweep Chat by @${session?.user?.username}. Continue chatting at ${window.location.origin}/c/${messagesId}.`,
                                     }
                                   )
                                 }
