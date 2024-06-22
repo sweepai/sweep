@@ -432,6 +432,16 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     pullRequestBody,
   ])
 
+  const posthog_capture = useCallback((event: string, metadata: Record<string, any> = {}) => {
+    posthog.capture(event, {
+      repoName,
+      messages,
+      snippets,
+      messagesId,
+      ...metadata,
+    })
+  }, [repoName, messages, snippets, messagesId])
+
   const reactCodeMirrors = suggestedChanges.map((suggestion, index) => (
     <CodeMirrorEditor
       suggestion={suggestion}
@@ -537,7 +547,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         )
         console.log(currentCodeSuggestions)
         setSuggestedChanges(currentCodeSuggestions)
-        posthog.capture('auto fix error', {
+        posthog_capture('auto fix error', {
           error: e.message,
         })
       } finally {
@@ -663,11 +673,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         })
         setIsLoading(false)
         isStream.current = false
-        posthog.capture('chat errored', {
-          repoName,
-          snippets,
-          newMessages,
-          message,
+        posthog_capture('chat errored', {
           error: e.message,
         })
         throw e
@@ -712,15 +718,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           messageLength = streamedMessages.length
         }
       }
-      if (!isStream.current) {
-        reader!.cancel()
-        posthog.capture('chat stopped', {
-          repoName,
-          snippets,
-          newMessages,
-          message,
-        })
-      }
     } catch (e: any) {
       toast({
         title: 'Chat stream failed',
@@ -729,11 +726,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         duration: Infinity,
       })
       setIsLoading(false)
-      posthog.capture('chat errored', {
-        repoName,
-        snippets,
-        newMessages,
-        message,
+      posthog_capture('chat errored', {
         error: e.message,
       })
       throw e
@@ -762,21 +755,11 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       setShowSurvey(true)
     }
     setIsLoading(false)
-    posthog.capture('chat succeeded', {
-      repoName,
-      snippets,
-      newMessages,
-      message,
-    })
+    posthog_capture('chat succeeded')
   }
 
   const sendMessage = async () => {
-    posthog.capture('chat submitted', {
-      repoName,
-      snippets,
-      messages,
-      currentMessage,
-    })
+    posthog_capture('chat submitted')
     let newMessages: Message[] = [
       ...messages,
       { content: currentMessage, role: 'user' },
