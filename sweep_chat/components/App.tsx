@@ -212,6 +212,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       ;(async () => {
         const response = await authorizedFetch(
           `/messages/load/${messagesId}`,
+          {},
           {
             method: 'GET',
           }
@@ -622,43 +623,15 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           branch: baseBranch,
         })
 
-        let streamedMessages: Message[] = [...newMessages]
         let streamedMessage: string = ''
         for await (const chunk of streamResponseMessages(snippetsResponse, isStream)) {
           streamedMessage = chunk[0]
           currentSnippets = chunk[1]
           currentSnippets = currentSnippets.slice(0, k)
-          streamedMessages = [
-            ...newMessages,
-            {
-              content: streamedMessage,
-              role: 'function',
-              function_call: {
-                function_name: 'search_codebase',
-                function_parameters: {},
-                snippets: currentSnippets,
-                is_complete: false,
-              },
-            } as Message,
-          ]
           setSnippets(currentSnippets)
           setSearchMessage(streamedMessage)
-          setMessages(streamedMessages)
         }
         setSearchMessage('')
-        streamedMessages = [
-          ...streamedMessages.slice(0, streamedMessages.length - 1),
-          {
-            ...streamedMessages[streamedMessages.length - 1],
-            function_call: {
-              function_name: 'search_codebase',
-              function_parameters: {},
-              snippets: currentSnippets,
-              is_complete: true,
-            },
-          },
-        ]
-        setMessages(streamedMessages)
         if (!currentSnippets.length) {
           throw new Error('No snippets found')
         }
@@ -676,8 +649,8 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     }
 
     // Stream
-    var streamedMessages: Message[] = []
-    var respondedMessages: Message[] = [
+    let streamedMessages: Message[] = []
+    let respondedMessages: Message[] = [
       ...newMessages,
       { content: '', role: 'assistant' } as Message,
     ]
@@ -714,6 +687,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         }
       }
     }, (e) => {
+      console.error(e)
       toast({
         title: 'Chat stream failed',
         description: e.message,
