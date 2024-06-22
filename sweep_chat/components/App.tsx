@@ -104,6 +104,7 @@ import {
   ResizablePanelGroup,
 } from './ui/resizable'
 import MessageDisplay from './MessageDisplay'
+import { withLoading } from '@/lib/contextManagers'
 
 
 function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
@@ -613,7 +614,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     setIsLoading(true)
     var currentSnippets = snippets
     if (currentSnippets.length == 0) {
-      try {
+      await withLoading(setIsLoading, async () => {
         const snippetsResponse = await authorizedFetch(`/search`, {
           repo_name: repoName,
           query: message,
@@ -661,29 +662,18 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         if (!currentSnippets.length) {
           throw new Error('No snippets found')
         }
-      } catch (e: any) {
-        console.log(e)
+      }, (error) => {
         toast({
           title: 'Failed to search codebase',
-          description: `The following error has occurred: ${e.message}. Sometimes, logging out and logging back in can resolve this issue.`,
+          description: `The following error has occurred: ${error.message}. Sometimes, logging out and logging back in can resolve this issue.`,
           variant: 'destructive',
           duration: Infinity,
         })
-        setIsLoading(false)
         posthog_capture('chat errored', {
-          error: e.message,
+          error: error.message,
         })
-        throw e
-      }
+      })
     }
-
-    const chatResponse = await authorizedFetch('/chat', {
-      messages: newMessages,
-      snippets: currentSnippets,
-      model,
-      branch: baseBranch,
-      k,
-    })
 
     // Stream
     var streamedMessages: Message[] = []
@@ -692,8 +682,16 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       { content: '', role: 'assistant' } as Message,
     ]
     setMessages(respondedMessages)
-    let messageLength = newMessages.length
-    try {
+
+    await withLoading(setIsLoading, async () => {
+      const chatResponse = await authorizedFetch('/chat', {
+        messages: newMessages,
+        snippets: currentSnippets,
+        model,
+        branch: baseBranch,
+        k,
+      })
+      let messageLength = newMessages.length
       for await (const patches of streamResponseMessages(chatResponse, isStream)) {
         for (const patch of patches) {
           if (patch.op == 'error') {
@@ -715,7 +713,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           messageLength = streamedMessages.length
         }
       }
-    } catch (e: any) {
+    }, (e) => {
       toast({
         title: 'Chat stream failed',
         description: e.message,
@@ -727,7 +725,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         error: e.message,
       })
       throw e
-    }
+    })
 
     var lastMessage = streamedMessages[streamedMessages.length - 1]
     if (
@@ -790,10 +788,10 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     // TODO: put repo name into every body and make it all jsonified
     setPrValidationStatuses([])
     setIsValidatingPR(true)
-    const response = await authorizedFetch(`/validate_pull`, {
-      pull_request_number: pr.number,
-    })
-    try {
+    withLoading(setIsValidatingPR, async () => {
+      const response = await authorizedFetch(`/validate_pull`, {
+        pull_request_number: pr.number,
+      })
       let scrolledToBottom = false
       let currentPrValidationStatuses: PrValidationStatus[] = []
       setMessages([
@@ -839,16 +837,12 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       if (prFailed) {
         fixPrValidationErrors(currentPrValidationStatuses)
       }
-    } catch (e) {
-      console.log(e)
-      toast({
+    }, (error) => toast({
         title: 'Error validating PR',
-        description: 'Please try again later.',
+        description: `Please try again later. ${error.message}`,
         variant: 'destructive',
       })
-    } finally {
-      setIsValidatingPR(false)
-    }
+    )
   }
 
   const fixPrValidationErrors = async (
@@ -892,7 +886,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                 width={140}
                 height={200}
                 alt="Sweep AI Logo"
-                className="h-20 rounded-lg hover:cursor-pointer box-shadow-md -z-10"
+                className="h-20 rounded-lg hover:cursor-pointer box-shadow-md"
                 onClick={() => {
                   window.location.href = '/'
                 }}
@@ -1098,9 +1092,8 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                 })
                 return
               }
-              var data = null
-              try {
-                setRepoNameDisabled(true)
+              var data = null;
+              await withLoading(setRepoNameDisabled, async () => {
                 const response = await authorizedFetch(
                   `/repo?repo_name=${cleanedRepoName}`,
                   {},
@@ -1109,41 +1102,38 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                   }
                 )
                 data = await response.json()
-              } catch (e: any) {
+                if (!data.success) {
+                  setRepoNameValid(false)
+                  toast({
+                    title: 'Failed to load repository',
+                    description: data.error,
+                    variant: 'destructive',
+                    duration: Infinity,
+                  })
+                } else {
+                  setRepoNameValid(true)
+                  toast({
+                    title: 'Successfully loaded repository',
+                    variant: 'default',
+                  })
+                }
+                if (octokit) {
+                  const repo = await octokit.rest.repos.get({
+                    owner: cleanedRepoName.split('/')[0],
+                    repo: cleanedRepoName.split('/')[1],
+                  })
+                  setBranch(repo.data.default_branch)
+                  setBaseBranch(repo.data.default_branch)
+                }
+              }, (error) => {
                 setRepoNameValid(false)
                 toast({
                   title: 'Failed to load repository',
-                  description: e.message,
+                  description: error.message,
                   variant: 'destructive',
                   duration: Infinity,
                 })
-                setRepoNameDisabled(false)
-                return
-              }
-              if (!data.success) {
-                setRepoNameValid(false)
-                toast({
-                  title: 'Failed to load repository',
-                  description: data.error,
-                  variant: 'destructive',
-                  duration: Infinity,
-                })
-              } else {
-                setRepoNameValid(true)
-                toast({
-                  title: 'Successfully loaded repository',
-                  variant: 'default',
-                })
-              }
-              setRepoNameDisabled(false)
-              if (octokit) {
-                const repo = await octokit.rest.repos.get({
-                  owner: cleanedRepoName.split('/')[0],
-                  repo: cleanedRepoName.split('/')[1],
-                })
-                setBranch(repo.data.default_branch)
-                setBaseBranch(repo.data.default_branch)
-              }
+              });
             }}
           />
           <Input

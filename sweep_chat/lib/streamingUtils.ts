@@ -82,14 +82,13 @@ async function* streamMessages(
     console.error('Error during streaming:', error)
     throw error // Rethrow timeout errors
   } finally {
+    if (isStream && !isStream.current) {
+      console.log('Stream interrupted by user')
+      reader.cancel()
+    }
     if (isStream) {
       isStream.current = false
     }
-  }
-
-  if (isStream && !isStream.current) {
-    console.log('Stream interrupted by user')
-    reader.cancel()
   }
   // if (buffer) {
   //   console.warn("Buffer:", buffer)
