@@ -480,7 +480,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     codeSuggestions: CodeSuggestion[],
     commitToPR: boolean
   ) => {
-    isStream.current = true
     let currentCodeSuggestions: StatefulCodeSuggestion[] = codeSuggestions.map(
       (suggestion) => ({
         ...suggestion,
@@ -612,7 +611,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     annotations: { pulls: PullRequest[] } = { pulls: [] }
   ) => {
     setIsLoading(true)
-    isStream.current = true
     var currentSnippets = snippets
     if (currentSnippets.length == 0) {
       try {
@@ -672,7 +670,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           duration: Infinity,
         })
         setIsLoading(false)
-        isStream.current = false
         posthog_capture('chat errored', {
           error: e.message,
         })
@@ -731,8 +728,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       })
       throw e
     }
-
-    isStream.current = false
 
     var lastMessage = streamedMessages[streamedMessages.length - 1]
     if (
@@ -799,7 +794,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       pull_request_number: pr.number,
     })
     try {
-      isStream.current = true
       let scrolledToBottom = false
       let currentPrValidationStatuses: PrValidationStatus[] = []
       setMessages([
@@ -836,7 +830,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           scrolledToBottom = true
         }
       }
-      isStream.current = false
 
       const prFailed = currentPrValidationStatuses.some(
         (status: PrValidationStatus) =>
@@ -854,7 +847,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         variant: 'destructive',
       })
     } finally {
-      isStream.current = false
       setIsValidatingPR(false)
     }
   }
