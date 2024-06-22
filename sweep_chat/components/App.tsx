@@ -347,46 +347,34 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   }, [messages])
 
   const save = async (
-    currentRepoName: string,
-    currentMessages: Message[],
-    currentSnippets: Snippet[],
+    repoName: string,
+    messages: Message[],
+    snippets: Snippet[],
     currentMessagesId: string,
-    currentUserMentionedPullRequest: PullRequest | null = null,
-    currentUserMentionedPullRequests: PullRequest[] | null = null,
-    currentCommitToPR: boolean = false,
-    currentOriginalCodeSuggestions: StatefulCodeSuggestion[],
-    currentSuggestedChanges: StatefulCodeSuggestion[],
-    currentPullRequest: PullRequest | null = null,
-    currentPullRequestTitle: string | null = null,
-    currentPullRequestBody: string | null = null
+    userMentionedPullRequest: PullRequest | null = null,
+    userMentionedPullRequests: PullRequest[] | null = null,
+    commitToPR: boolean = false,
+    originalSuggestedChanges: StatefulCodeSuggestion[],
+    suggestedChanges: StatefulCodeSuggestion[],
+    pullRequest: PullRequest | null = null,
+    pullRequestTitle: string | null = null,
+    pullRequestBody: string | null = null
   ) => {
-    const commitToPRString: string =
-      currentCommitToPR || commitToPR ? 'true' : 'false'
-    const saveResponse = await fetch('/backend/messages/save', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // @ts-ignore
-        Authorization: `Bearer ${session?.user.accessToken}`,
-      },
-      body: JSON.stringify({
-        repo_name: currentRepoName || repoName,
-        messages: currentMessages || messages,
-        snippets: currentSnippets || snippets,
-        message_id: currentMessagesId || '',
-        original_code_suggestions:
-          currentOriginalCodeSuggestions || originalSuggestedChanges,
-        code_suggestions: currentSuggestedChanges || originalSuggestedChanges,
-        pull_request: currentPullRequest || pullRequest,
-        pull_request_title: currentPullRequestTitle || pullRequestTitle,
-        pull_request_body: currentPullRequestBody || pullRequestBody,
-        user_mentioned_pull_request:
-          currentUserMentionedPullRequest || userMentionedPullRequest,
-        user_mentioned_pull_requests:
-          currentUserMentionedPullRequests || userMentionedPullRequests,
-        commit_to_pr: commitToPRString,
-      }),
-    })
+    const commitToPRString: string = commitToPR ? 'true' : 'false'
+    const saveResponse = await authorizedFetch('/messages/save', toSnakeCaseKeys({
+      repoName,
+      messages,
+      snippets,
+      messagesId: currentMessagesId,
+      originalCodeSuggestions: originalSuggestedChanges,
+      codeSuggestions: suggestedChanges,
+      pullRequest,
+      pullRequestTitle,
+      pullRequestBody,
+      userMentionedPullRequest,
+      userMentionedPullRequests,
+      commitToPRString,
+    }))
     const saveData = await saveResponse.json()
     if (saveData.status == 'success') {
       const { message_id } = saveData
@@ -401,41 +389,15 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   }
 
   const debouncedSave = useCallback(
-    debounce(
-      (
-        repoName,
-        messages,
-        snippets,
-        currentMessagesId,
-        userMentionedPullRequest,
-        userMentionedPullRequests,
-        commitToPR,
-        originalSuggestedChanges,
-        suggestedChanges,
-        pullRequest,
-        pullRequestTitle,
-        pullRequestBody
-      ) => {
-        console.log('saving...')
-        save(
-          repoName,
-          messages,
-          snippets,
-          currentMessagesId,
-          userMentionedPullRequest,
-          userMentionedPullRequests,
-          commitToPR,
-          originalSuggestedChanges,
-          suggestedChanges,
-          pullRequest,
-          pullRequestTitle,
-          pullRequestBody
-        )
-      },
-      2000,
-      { leading: true, maxWait: 5000 }
-    ),
-    []
+    debounce((...args: Parameters<typeof save>) => {
+      console.log('saving...')
+      save(
+        ...args
+      )
+    },
+    2000,
+    { leading: true, maxWait: 5000 }
+    ), []
   ) // can tune these timeouts
 
   useEffect(() => {
@@ -520,9 +482,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     ;(async () => {
       console.log(userMentionedPullRequest)
       const streamedResponse = await authorizedFetch(`/autofix`, {
-        code_suggestions: codeSuggestions.map(
-          (suggestion: CodeSuggestion) => (toSnakeCaseKeys(suggestion))
-        ),
+        code_suggestions: codeSuggestions.map(toSnakeCaseKeys),
         branch: commitToPR ? userMentionedPullRequest?.branch : baseBranch,
       })
 
@@ -539,14 +499,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           if (currentState.error) {
             throw new Error(currentState.error)
           }
-          currentCodeSuggestions = currentState.map((suggestion: any) => ({
-            filePath: suggestion.file_path,
-            originalCode: suggestion.original_code,
-            newCode: suggestion.new_code,
-            fileContents: suggestion.file_contents,
-            state: suggestion.state,
-            error: suggestion.error,
-          }))
+          currentCodeSuggestions = currentState.map(toCamelCaseKeys)
           setSuggestedChanges(currentCodeSuggestions)
         }
         if (!isStream.current) {
