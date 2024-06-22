@@ -533,11 +533,7 @@ def chat_codebase_stream(
             content=snippets_message,
             role="user"
         ),
-        *messages[:-1],
-        Message(
-            content=anthropic_format_message,
-            role="user",
-        )
+        *messages[:-1]
     ]
 
     def stream_state(
@@ -550,7 +546,8 @@ def chat_codebase_stream(
         use_openai: bool,
         k: int = DEFAULT_K
     ):
-        user_message = initial_user_message
+        # this is where the format and query are joined
+        user_message = initial_user_message + "\n" + anthropic_format_message
 
         fetched_snippets = snippets
         new_messages = [
@@ -857,10 +854,10 @@ async def autofix(
     access_token: str = Depends(get_token_header)
 ):# -> dict[str, Any] | StreamingResponse:
     # for debugging with rerun_chat_modify_direct.py
-    # from dataclasses import asdict
-    # data = [asdict(query) for query in code_suggestions]
-    # with open("code_suggestions.json", "w") as file:
-    #     json.dump(data, file, indent=4)
+    from dataclasses import asdict
+    data = [asdict(query) for query in code_suggestions]
+    with open("code_suggestions.json", "w") as file:
+        json.dump(data, file, indent=4)
     with Timer() as timer:
         g = get_authenticated_github_client(repo_name, access_token)
     logger.debug(f"Getting authenticated GitHub client took {timer.time_elapsed} seconds")

@@ -50,6 +50,10 @@ class Message(BaseModel):
             obj["name"] = self.name
         return obj
 
+    def __repr__(self):
+        # take the first 100 and last 100 characters of the message if it's too long
+        truncated_message_content = self.content[:100] + "..." + self.content[-100:] if len(self.content) > 200 else self.content
+        return f"START OF MESSAGE\n\n{truncated_message_content}\n\nROLE: {self.role} FUNCTION_CALL: {self.function_call} NAME: {self.name} ANNOTATIONS: {self.annotations if self.annotations else ''} KEY: {self.key}\n\nEND OF MESSAGE\n\n"
 
 class Function(BaseModel):
     class Parameters(BaseModel):
