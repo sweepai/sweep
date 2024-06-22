@@ -1,9 +1,16 @@
+import backoff
+from loguru import logger
 import voyageai
 import cohere
 from sweepai.config.server import COHERE_API_KEY, VOYAGE_API_KEY
 from sweepai.logn.cache import file_cache
 
-
+@backoff.on_exception(
+    backoff.expo,
+    Exception,
+    max_tries=3,
+    jitter=backoff.random_jitter,
+)
 @file_cache()
 def cohere_rerank_call(
     query: str,
@@ -13,12 +20,16 @@ def cohere_rerank_call(
 ):
     # Cohere API call with caching
     co = cohere.Client(COHERE_API_KEY)
-    return co.rerank(
-        model=model,
-        query=query,
-        documents=documents,
-        **kwargs
-    )
+    try:
+        return co.rerank(
+            model=model,
+            query=query,
+            documents=documents,
+            **kwargs
+        )
+    except Exception as e:
+        logger.error(f"Cohere rerank failed: {e}")
+        raise e 
 
 @file_cache()
 def voyage_rerank_call(

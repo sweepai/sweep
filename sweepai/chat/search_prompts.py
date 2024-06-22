@@ -86,7 +86,7 @@ Write a complete helpful response to the user's question in full detail, address
 
 When showing relevant examples of code, only show MINIMAL excerpts of code that address the user's question. Do NOT copy the whole file, but only the lines that are relevant to the user's question.
 
-When suggesting code changes, you add <code_change> blocks inside the <user_response></user_response> tags.
+To suggest code changes, first list each section of each file that you would like to change. Then for each section, write a <code_change> block for that change. These changes should be atomic -- to change multiple parts of the file, you MUST write multiple separate <code_change> blocks.
 </user_response>"""
 
 openai_format_message = """You MUST follow the following XML-based format, including <user_response> and </user_respose> tags:
@@ -124,7 +124,8 @@ anthropic_system_message = """You are a helpful assistant that will answer a use
 - Only show code as supplementary evidence or to enhance the explanations. When doing so, only show MINIMAL excerpts of code that address the user's question. Do NOT copy the whole file, but only the lines that are relevant to the user's question. Be concise, it's hard for a user to read entire files worth of content.
 - Use markdown for your responses, using headers where applicable to improve clarity and lists to enumerate examples.
 - Wherever possible, you should suggest code changes. To do so, you must add <code_change> blocks to the <user_response> block following the format provided below.
-- Code changes must be atomic. Each code change must be in its own block, unless they are contiguous changes in the same file. 
+- Code changes must be atomic. Each code change must be in its own block, unless they are contiguous changes in the same file.
+- To change multiple parts of the file, write separate <code_change> blocks.
 
 # <code_change> Format
 First, indicate whether you want to modify an existing file or create a new file, then write in the following format:
@@ -134,7 +135,7 @@ First, indicate whether you want to modify an existing file or create a new file
 path/to/file.py
 </file_path>
 <original_code>
-Copy the original section of code from path/to/file.py. This is the section of code that you will change. Paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED.
+Copy the original section of code from path/to/file.py. This is the section of code that you will change. Paraphrasing, abbreviating the source code, or placeholder comments such as "# rest of code" are NEVER PERMITTED. Leave empty for creating new files.
 </original_code>
 <new_code>
 New code to replace <original_code> with.

@@ -1,6 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Dispatch,
+  SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { Input } from '../components/ui/input'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import {
@@ -23,6 +31,8 @@ import {
   FaTimes,
   FaTrash,
   FaCodeBranch,
+  FaCircle,
+  FaTimesCircle,
 } from 'react-icons/fa'
 import { FaArrowsRotate, FaCodeCommit } from 'react-icons/fa6'
 import { Button } from '@/components/ui/button'
@@ -85,6 +95,8 @@ import {
   CodeSuggestion,
   StatefulCodeSuggestion,
   ChatSummary,
+  PrValidationStatus,
+  SnakeCaseKeys,
 } from '@/lib/types'
 
 import { Octokit } from 'octokit'
@@ -103,10 +115,11 @@ import { ContextSideBar } from './shared/ContextSideBar'
 import { posthog } from '@/lib/posthog'
 
 import CodeMirrorMerge from 'react-codemirror-merge'
+import CodeMirror from '@uiw/react-codemirror'
 import { dracula } from '@uiw/codemirror-theme-dracula'
 import { EditorView } from 'codemirror'
 import { debounce } from 'lodash'
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns'
 import { streamMessages } from '@/lib/streamingUtils'
 import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 import { Skeleton } from './ui/skeleton'
@@ -114,6 +127,12 @@ import { isPullRequestEqual } from '@/lib/pullUtils'
 import Image from 'next/image'
 // @ts-ignore
 import * as Diff from 'diff'
+import { ScrollArea } from './ui/scroll-area'
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from './ui/resizable'
 
 const Original = CodeMirrorMerge.Original
 const Modified = CodeMirrorMerge.Modified
@@ -122,10 +141,243 @@ const sum = (arr: number[]) => arr.reduce((acc, cur) => acc + cur, 0)
 const truncate = (str: string, maxLength: number) =>
   str.length > maxLength ? str.slice(0, maxLength) + '...' : str
 
+const snakeCaseToCamelCase = (str: string) => {
+  return str.replace(/([_]+)([a-z])/g, (match, p1, p2) => p2.toUpperCase())
+}
+
+function toCamelCaseKeys<A extends string, B>(
+  obj: SnakeCaseKeys<Record<A, B>>
+): Record<A, B> {
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => [
+      snakeCaseToCamelCase(key),
+      value,
+    ])
+  ) as Record<A, B>
+}
+
+const camelCaseToSnakeCase = (str: string) => {
+  return str.replace(/([A-Z])/g, '_$1').toLowerCase()
+}
+
+function toSnakeCaseKeys<A extends string, B>(
+  obj: Record<A, B>
+): SnakeCaseKeys<Record<A, B>> {
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => [
+      camelCaseToSnakeCase(key),
+      value,
+    ])
+  ) as SnakeCaseKeys<Record<A, B>>
+}
+
+const AutoScrollArea = ({
+  children,
+  className = '',
+  threshold = Infinity,
+}: {
+  children: React.ReactNode
+  className?: string
+  threshold?: number
+}) => {
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (scrollAreaRef.current && scrollAreaRef.current.scrollHeight > 0) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollAreaRef.current
+      if (scrollHeight - scrollTop - clientHeight < threshold) {
+        scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight
+      }
+    }
+  }, [children])
+  return (
+    <ScrollArea ref={scrollAreaRef} className={className}>
+      {children}
+    </ScrollArea>
+  )
+}
+
+const CodeMirrorEditor = ({
+  suggestion,
+  index,
+  setSuggestedChanges,
+}: {
+  suggestion: StatefulCodeSuggestion
+  index: number
+  setSuggestedChanges: Dispatch<SetStateAction<StatefulCodeSuggestion[]>>
+}) => {
+  const fileExtension = suggestion.filePath.split('.').pop()
+  // default to javascript
+  let languageExtension = languageMapping['js']
+  if (fileExtension) {
+    languageExtension = languageMapping[fileExtension]
+  }
+
+  if (suggestion.originalCode.length === 0) {
+    return (
+      <CodeMirror
+        theme={dracula}
+        autoFocus={false}
+        key={JSON.stringify(suggestion)}
+        value={suggestion.newCode}
+        readOnly={!(suggestion.state == 'done' || suggestion.state == 'error')}
+        extensions={[
+          EditorView.editable.of(
+            suggestion.state == 'done' || suggestion.state == 'error'
+          ),
+          ...(languageExtension ? [languageExtension] : []),
+        ]}
+        onChange={debounce((value: string) => {
+          setSuggestedChanges((suggestedChanges) =>
+            suggestedChanges.map((suggestion, i) =>
+              i == index ? { ...suggestion, newCode: value } : suggestion
+            )
+          )
+        }, 1000)}
+      />
+    )
+  }
+
+  return (
+    <CodeMirrorMerge
+      theme={dracula}
+      revertControls={'a-to-b'}
+      collapseUnchanged={{
+        margin: 3,
+        minSize: 4,
+      }}
+      autoFocus={false}
+      key={JSON.stringify(suggestion)}
+    >
+      <Original
+        value={suggestion.originalCode}
+        readOnly={true}
+        extensions={[
+          EditorView.editable.of(false),
+          ...(languageExtension ? [languageExtension] : []),
+        ]}
+      />
+      <Modified
+        value={suggestion.newCode}
+        readOnly={!(suggestion.state == 'done' || suggestion.state == 'error')}
+        extensions={[
+          EditorView.editable.of(
+            suggestion.state == 'done' || suggestion.state == 'error'
+          ),
+          ...(languageExtension ? [languageExtension] : []),
+        ]}
+        onChange={debounce((value: string) => {
+          setSuggestedChanges((suggestedChanges) =>
+            suggestedChanges.map((suggestion, i) =>
+              i == index ? { ...suggestion, newCode: value } : suggestion
+            )
+          )
+        }, 1000)}
+      />
+    </CodeMirrorMerge>
+  )
+}
+
+const PrValidationStatusDisplay = ({
+  status,
+}: {
+  status: PrValidationStatus
+}) => {
+  // TODO: make these collapsible
+
+  return (
+    <div className="flex justify-start">
+      <div className="rounded-xl bg-zinc-800 w-full">
+        <h2 className="font-bold text-sm">
+          {status.status === 'success' ? (
+            <FaCheck
+              className="text-green-500 inline mr-2 text-sm"
+              style={{ marginTop: -2 }}
+            />
+          ) : status.status === 'failure' ? (
+            <FaTimes
+              className="text-red-500 inline mr-2 text-sm"
+              style={{ marginTop: -2 }}
+            />
+          ) : status.status === 'cancelled' ? (
+            <FaTimesCircle
+              className="text-zinc-500 inline mr-2 text-sm"
+              style={{ marginTop: -2 }}
+            />
+          ) : (
+            <FaCircle
+              className={
+                {
+                  pending: 'text-zinc-500',
+                  running: 'text-yellow-500',
+                }[status.status] + ' inline mr-2 text-sm'
+              }
+              style={{ marginTop: -2 }}
+            />
+          )}
+          {status.message} - {status.containerName}
+        </h2>
+        {status.stdout && (
+          <AutoScrollArea className="max-h-[500px] overflow-y-auto mt-4">
+            <pre className="whitespace-pre-wrap text-sm bg-zinc-900 p-4 rounded-lg">
+              {status.stdout}
+            </pre>
+          </AutoScrollArea>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const PrValidationStatusesDisplay = ({
+  statuses,
+  fixPrValidationErrors = () => {},
+}: {
+  statuses: PrValidationStatus[]
+  fixPrValidationErrors: any
+}) => {
+  return (
+    <div className="flex justify-start mb-4">
+      <div className="rounded-xl p-4 bg-zinc-800 w-[80%] space-y-4">
+        {statuses.length == 0 ? (
+          <p className="text-zinc-500 font-bold">
+            I&apos;m monitoring the CI/CD pipeline to validate this PR. This may
+            take a few minutes.
+          </p>
+        ) : (
+          <>
+            {statuses.map((status, index) => (
+              <PrValidationStatusDisplay key={index} status={status} />
+            ))}
+            {statuses.some((status) => status.status == 'failure') ? (
+              <>
+                <p className="text-red-500 font-bold">
+                  Some tests have failed.
+                </p>
+                <Button variant="primary" onClick={fixPrValidationErrors}>
+                  Fix errors
+                </Button>
+              </>
+            ) : statuses.some(
+                (status) =>
+                  status.status == 'pending' || status.status == 'running'
+              ) ? (
+              <p className="text-yellow-500 font-bold">
+                Some tests are still running. Currently checking every 10s.
+              </p>
+            ) : (
+              <p className="text-green-500 font-bold">All tests have passed.</p>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 const PullRequestHeader = ({ pr }: { pr: PullRequest }) => {
   return (
     <div
-      className="bg-zinc-800 rounded-xl p-4 mb-2 text-left hover:bg-zinc-700 hover:cursor-pointer max-w-[800px]"
+      className="bg-zinc-800 rounded-xl p-4 mb-4 text-left hover:bg-zinc-700 hover:cursor-pointer max-w-[800px]"
       onClick={() => {
         window.open(
           `https://github.com/${pr.repo_name}/pull/${pr.number}`,
@@ -217,13 +469,13 @@ const PullRequestContent = ({ pr }: { pr: PullRequest }) => {
 
 const PullRequestDisplay = ({
   pr,
-  useHoverCard = true,
+  onValidatePR,
 }: {
   pr: PullRequest
-  useHoverCard?: boolean
+  onValidatePR?: (pr: PullRequest) => void
 }) => {
-  if (useHoverCard) {
-    return (
+  return (
+    <div>
       <HoverCard openDelay={300} closeDelay={200}>
         <HoverCardTrigger>
           <PullRequestHeader pr={pr} />
@@ -232,17 +484,18 @@ const PullRequestDisplay = ({
           <PullRequestContent pr={pr} />
         </HoverCardContent>
       </HoverCard>
-    )
-  } else {
-    return (
-      <div className="flex justify-end flex-col">
-        <PullRequestHeader pr={pr} />
-        <div className="bg-zinc-800 rounded-xl p-4 mb-2 text-left max-w-[800px]">
-          <PullRequestContent pr={pr} />
-        </div>
-      </div>
-    )
-  }
+      {onValidatePR && (
+        <Button
+          variant="secondary"
+          className="bg-zinc-800 text-white mb-4"
+          onClick={() => onValidatePR(pr)}
+        >
+          <FaArrowsRotate className="inline-block mr-2" />
+          Re-validate Pull Request
+        </Button>
+      )}
+    </div>
+  )
 }
 
 const UserMessageDisplay = ({
@@ -294,8 +547,8 @@ const UserMessageDisplay = ({
                 value={editedContent}
                 onChange={(e) => {
                   setEditedContent(e.target.value)
-                  e.target.style.height = 'auto';
-                  e.target.style.height = `${e.target.scrollHeight}px`;
+                  e.target.style.height = 'auto'
+                  e.target.style.height = `${e.target.scrollHeight}px`
                 }}
                 style={{ height: (editedContent.split('\n').length + 1) * 16 }}
                 autoFocus
@@ -421,6 +674,8 @@ const MessageDisplay = ({
   branch,
   commitToPR,
   setSuggestedChanges,
+  onValidatePR,
+  fixPrValidationErrors,
   index,
 }: {
   message: Message
@@ -432,6 +687,8 @@ const MessageDisplay = ({
   setSuggestedChanges: React.Dispatch<
     React.SetStateAction<StatefulCodeSuggestion[]>
   >
+  onValidatePR?: (pr: PullRequest) => void
+  fixPrValidationErrors: () => void
   index: number
 }) => {
   const [collapsedArray, setCollapsedArray] = useState<boolean[]>(
@@ -439,43 +696,14 @@ const MessageDisplay = ({
   )
   const codeMirrors = useMemo(() => {
     return (
-      message.annotations?.codeSuggestions?.map((suggestion) => {
-        const fileExtension = suggestion.filePath.split('.').pop()
-        let languageExtension = languageMapping['js']
-        if (fileExtension) {
-          languageExtension = languageMapping[fileExtension]
-        }
-        return (
-          <CodeMirrorMerge
-            hidden={collapsedArray[index]}
-            className="w-full"
-            theme={dracula}
-            collapseUnchanged={{
-              margin: 3,
-              minSize: 4,
-            }}
-            autoFocus={false}
-            key={JSON.stringify(suggestion)}
-          >
-            <Original
-              value={suggestion.originalCode}
-              readOnly={true}
-              extensions={[
-                EditorView.editable.of(false),
-                ...(languageExtension ? [languageExtension] : []),
-              ]}
-            />
-            <Modified
-              value={suggestion.newCode}
-              readOnly={true}
-              extensions={[
-                EditorView.editable.of(false),
-                ...(languageExtension ? [languageExtension] : []),
-              ]}
-            />
-          </CodeMirrorMerge>
-        )
-      }) || []
+      message.annotations?.codeSuggestions?.map((suggestion) => (
+        <CodeMirrorEditor
+          suggestion={suggestion}
+          index={index}
+          setSuggestedChanges={setSuggestedChanges}
+          key={index}
+        />
+      )) || []
     )
   }, [message.annotations?.codeSuggestions, collapsedArray])
   if (message.role === 'user') {
@@ -597,32 +825,42 @@ const MessageDisplay = ({
       </div>
       {message.annotations?.pulls?.map((pr) => (
         <div className="flex justify-start text-sm" key={pr.number}>
-          <PullRequestDisplay pr={pr} />
+          <PullRequestDisplay pr={pr} onValidatePR={onValidatePR} />
         </div>
       ))}
+      {message.annotations?.prValidationStatuses &&
+        message.annotations?.prValidationStatuses.length > 0 && (
+          <PrValidationStatusesDisplay
+            statuses={message.annotations?.prValidationStatuses}
+            fixPrValidationErrors={fixPrValidationErrors}
+          />
+        )}
       {message.annotations?.codeSuggestions &&
         message.annotations?.codeSuggestions.length > 0 && (
           <div className="text-sm max-w-[80%] p-4 rounded bg-zinc-700 space-y-4 mb-4">
             <div className="flex justify-between items-center">
-              <h2 className='font-bold'>Suggested Changes</h2>
-              <Button
-                className="bg-green-800 hover:bg-green-700 text-white"
-                size="sm"
-                onClick={() => {
-                  setCollapsedArray(
-                    message.annotations?.codeSuggestions!.map(() => true) || []
-                  )
-                  setSuggestedChanges(
-                    (suggestedChanges: StatefulCodeSuggestion[]) => [
-                      ...suggestedChanges,
-                      ...message.annotations?.codeSuggestions!,
-                    ]
-                  )
-                }}
-              >
-                <FaPlus />
-                &nbsp;Stage All Changes
-              </Button>
+              <h2 className="font-bold">Suggested Changes</h2>
+              {message.annotations?.codeSuggestions?.length > 1 && (
+                <Button
+                  className="bg-green-800 hover:bg-green-700 text-white"
+                  size="sm"
+                  onClick={() => {
+                    setCollapsedArray(
+                      message.annotations?.codeSuggestions!.map(() => true) ||
+                        []
+                    )
+                    setSuggestedChanges(
+                      (suggestedChanges: StatefulCodeSuggestion[]) => [
+                        ...suggestedChanges,
+                        ...message.annotations?.codeSuggestions!,
+                      ]
+                    )
+                  }}
+                >
+                  <FaPlus />
+                  &nbsp;Stage All Changes
+                </Button>
+              )}
             </div>
             {message.annotations?.codeSuggestions?.map(
               (suggestion: StatefulCodeSuggestion, index: number) => {
@@ -645,7 +883,8 @@ const MessageDisplay = ({
                   }
                 }
                 const firstLines = truncate(
-                  suggestion.originalCode.split('\n').slice(0, 1).join('\n') || suggestion.newCode.split('\n').slice(0, 1).join('\n'),
+                  suggestion.originalCode.split('\n').slice(0, 1).join('\n') ||
+                    suggestion.newCode.split('\n').slice(0, 1).join('\n'),
                   80
                 )
                 return (
@@ -675,12 +914,16 @@ const MessageDisplay = ({
                         </Button>
                         <code className="text-zinc-200 px-2">
                           {suggestion.filePath}{' '}
-                          {numLinesAdded > 0 && <span className="text-green-500 mr-2">
-                            +{numLinesAdded}
-                          </span>}
-                          {numLinesRemoved > 0 && <span className="text-red-500 mr-2">
-                            -{numLinesRemoved}
-                          </span>}
+                          {numLinesAdded > 0 && (
+                            <span className="text-green-500 mr-2">
+                              +{numLinesAdded}
+                            </span>
+                          )}
+                          {numLinesRemoved > 0 && (
+                            <span className="text-red-500 mr-2">
+                              -{numLinesRemoved}
+                            </span>
+                          )}
                           <span className="text-zinc-500 ml-4">
                             {firstLines}
                           </span>
@@ -781,10 +1024,12 @@ const parsePullRequests = async (
           pull_number: parseInt(prNumber!),
         })
       ).data.sort((a, b) => {
-        const aIsMarkdown = a.filename.endsWith('.md') || a.filename.endsWith('.rst')
-        const bIsMarkdown = b.filename.endsWith('.md') || b.filename.endsWith('.rst')
+        const aIsMarkdown =
+          a.filename.endsWith('.md') || a.filename.endsWith('.rst')
+        const bIsMarkdown =
+          b.filename.endsWith('.md') || b.filename.endsWith('.rst')
         if (aIsMarkdown !== bIsMarkdown) {
-          return aIsMarkdown ? 1 : -1;
+          return aIsMarkdown ? 1 : -1
         }
         const statusOrder: Record<string, number> = {
           renamed: 0,
@@ -835,6 +1080,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     'gpt-4o'
   )
   const [snippets, setSnippets] = useState<Snippet[]>([])
+  const [searchMessage, setSearchMessage] = useState<string>('')
   const [messages, setMessages] = useState<Message[]>([])
   const [currentMessage, setCurrentMessage] = useState<string>('')
   const [isLoading, setIsLoading] = useState<boolean>(false)
@@ -867,7 +1113,11 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   const [commitToPR, setCommitToPR] = useState<boolean>(false) // controls whether or not we commit to the userMetionedPullRequest or create a new pr
   const [commitToPRIsOpen, setCommitToPRIsOpen] = useState<boolean>(false)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
-  const [commitMessage, setCommitMessage] = useState<string>('')
+
+  const [isValidatingPR, setIsValidatingPR] = useState<boolean>(false)
+  const [prValidationStatuses, setPrValidationStatuses] = useState<
+    PrValidationStatus[]
+  >([])
 
   const { data: session } = useSession()
 
@@ -884,7 +1134,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   const authorizedFetch = useCallback(
     (url: string, options: RequestInit = {}) => {
       return fetch(url, {
-        method: 'POST',
+        method: options.method || 'POST',
         headers: {
           ...options.headers,
           'Content-Type': 'application/json',
@@ -897,12 +1147,19 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   )
 
   useEffect(() => {
-    if (messagesId && !previousChats.some((chat) => chat.messagesId === messagesId) && messages.length > 0) {
-      setPreviousChats([...previousChats, {
-        messagesId: messagesId,
-        createdAt: new Date().toISOString(),
-        initialMessage: messages[0].content
-      }])
+    if (
+      messagesId &&
+      !previousChats.some((chat) => chat.messagesId === messagesId) &&
+      messages.length > 0
+    ) {
+      setPreviousChats([
+        ...previousChats,
+        {
+          messagesId: messagesId,
+          createdAt: new Date().toISOString(),
+          initialMessage: messages[0].content,
+        },
+      ])
     }
   }, [messagesId, messages.length])
 
@@ -968,12 +1225,12 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     if (messagesContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } =
         messagesContainerRef.current
-      if (scrollHeight - scrollTop - clientHeight < 80) {
+      if (scrollHeight - scrollTop - clientHeight < 120) {
         messagesContainerRef.current.scrollTop =
           messagesContainerRef.current.scrollHeight
       }
     }
-  }, [messages])
+  }, [messages, isValidatingPR, prValidationStatuses])
 
   useEffect(() => {
     if (session) {
@@ -1034,6 +1291,18 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       setCodeSuggestionsState('staging')
     }
   }, [suggestedChanges])
+
+  useEffect(() => {
+    if (messages.length > 0 && userMentionedPullRequests?.length == 0) {
+      for (const message of messages) {
+        if (message.role == 'assistant' && message.annotations?.pulls) {
+          setUserMentionedPullRequests(message.annotations.pulls)
+          setBranch(message.annotations.pulls[0].branch)
+          setBaseBranch(message.annotations.pulls[0].branch)
+        }
+      }
+    }
+  }, [messages])
 
   const save = async (
     currentRepoName: string,
@@ -1159,55 +1428,14 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     pullRequestBody,
   ])
 
-  const reactCodeMirrors = suggestedChanges.map((suggestion, index) => {
-    const fileExtension = suggestion.filePath.split('.').pop()
-    // default to javascript
-    let languageExtension = languageMapping['js']
-    if (fileExtension) {
-      languageExtension = languageMapping[fileExtension]
-    }
-
-    return (
-      <CodeMirrorMerge
-        theme={dracula}
-        revertControls={'a-to-b'}
-        collapseUnchanged={{
-          margin: 3,
-          minSize: 4,
-        }}
-        autoFocus={false}
-        key={JSON.stringify(suggestion)}
-      >
-        <Original
-          value={suggestion.originalCode}
-          readOnly={true}
-          extensions={[
-            EditorView.editable.of(false),
-            ...(languageExtension ? [languageExtension] : []),
-          ]}
-        />
-        <Modified
-          value={suggestion.newCode}
-          readOnly={
-            !(suggestion.state == 'done' || suggestion.state == 'error')
-          }
-          extensions={[
-            EditorView.editable.of(
-              suggestion.state == 'done' || suggestion.state == 'error'
-            ),
-            ...(languageExtension ? [languageExtension] : []),
-          ]}
-          onChange={debounce((value: string) => {
-            setSuggestedChanges((suggestedChanges) =>
-              suggestedChanges.map((suggestion, i) =>
-                i == index ? { ...suggestion, newCode: value } : suggestion
-              )
-            )
-          }, 1000)}
-        />
-      </CodeMirrorMerge>
-    )
-  })
+  const reactCodeMirrors = suggestedChanges.map((suggestion, index) => (
+    <CodeMirrorEditor
+      suggestion={suggestion}
+      index={index}
+      setSuggestedChanges={setSuggestedChanges}
+      key={index}
+    />
+  ))
 
   if (session) {
     posthog.identify(session.user!.email!, {
@@ -1248,6 +1476,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     setSuggestedChanges(currentCodeSuggestions)
     setIsProcessingSuggestedChanges(true)
     ;(async () => {
+      console.log(userMentionedPullRequest)
       const streamedResponse = await authorizedFetch(`/backend/autofix`, {
         body: JSON.stringify({
           repo_name: repoName,
@@ -1258,7 +1487,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
               new_code: suggestion.newCode,
             })
           ),
-          branch: baseBranch,
+          branch: commitToPR ? userMentionedPullRequest?.branch : baseBranch,
         }), // TODO: casing should be automatically handled
       })
 
@@ -1371,6 +1600,15 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     })()
   }
 
+  const scrollToBottom = (timeout = 0) => {
+    setTimeout(() => {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop =
+          messagesContainerRef.current.scrollHeight
+      }
+    }, timeout)
+  }
+
   const startStream = async (
     message: string,
     newMessages: Message[],
@@ -1417,11 +1655,11 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
               },
             } as Message,
           ]
-          if (currentSnippets) {
-            setSnippets(currentSnippets)
-          }
+          setSnippets(currentSnippets)
+          setSearchMessage(streamedMessage)
           setMessages(streamedMessages)
         }
+        setSearchMessage('')
         streamedMessages = [
           ...streamedMessages.slice(0, streamedMessages.length - 1),
           {
@@ -1488,7 +1726,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     try {
       for await (const patches of streamMessages(reader, isStream)) {
         for (const patch of patches) {
-          if (patch.op == "error") {
+          if (patch.op == 'error') {
             throw new Error(patch.value)
           }
         }
@@ -1603,20 +1841,125 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     startStream(currentMessage, newMessages, snippets, { pulls })
   }
 
+  const validatePr = async (pr: PullRequest, index: number) => {
+    // TODO: put repo name into every body and make it all jsonified
+    setPrValidationStatuses([])
+    setIsValidatingPR(true)
+    const response = await authorizedFetch(`/backend/validate_pull`, {
+      body: JSON.stringify({
+        repo_name: repoName,
+        pull_request_number: pr.number,
+      }),
+    })
+    const reader = response.body!.getReader()
+    try {
+      isStream.current = true
+      let scrolledToBottom = false
+      let currentPrValidationStatuses: PrValidationStatus[] = []
+      setMessages([
+        ...messages.slice(0, index),
+        {
+          ...messages[index],
+          annotations: {
+            ...messages[index].annotations,
+            prValidationStatuses: currentPrValidationStatuses,
+          },
+        },
+        ...messages.slice(index + 1),
+      ])
+      for await (const streamedPrValidationStatuses of streamMessages(
+        reader,
+        isStream
+      )) {
+        currentPrValidationStatuses = streamedPrValidationStatuses.map(
+          (status: SnakeCaseKeys<PrValidationStatus>) => toCamelCaseKeys(status)
+        )
+        setMessages([
+          ...messages.slice(0, index),
+          {
+            ...messages[index],
+            annotations: {
+              ...messages[index].annotations,
+              prValidationStatuses: currentPrValidationStatuses,
+            },
+          },
+          ...messages.slice(index + 1),
+        ])
+        if (!scrolledToBottom) {
+          scrollToBottom(100)
+          scrolledToBottom = true
+        }
+      }
+      isStream.current = false
+
+      const prFailed = currentPrValidationStatuses.some(
+        (status: PrValidationStatus) =>
+          status.status == 'failure' && status.stdout.length > 0
+      )
+      console.log(prFailed) // TODO: make this automatically run the fix
+      if (prFailed) {
+        fixPrValidationErrors(currentPrValidationStatuses)
+      }
+    } catch (e) {
+      console.log(e)
+      toast({
+        title: 'Error validating PR',
+        description: 'Please try again later.',
+        variant: 'destructive',
+      })
+    } finally {
+      isStream.current = false
+      setIsValidatingPR(false)
+    }
+  }
+
+  const fixPrValidationErrors = async (
+    prValidationStatuses: PrValidationStatus[]
+  ) => {
+    const failedPrValidationStatuses = prValidationStatuses?.find(
+      (status) => status.status === 'failure' && status.stdout.length > 0
+    )
+    // sometimes theres no stdout for some reason, will look into this
+    if (!failedPrValidationStatuses) {
+      toast({
+        title: 'No failed PR checks.',
+        description: 'Please try again later.',
+        variant: 'destructive',
+      })
+      return
+    }
+    const content = `Help me fix the following CI/CD pipeline errors:\n\`\`\`\n${failedPrValidationStatuses?.stdout}\n\`\`\``
+
+    setMessages((currentMessages) => {
+      const newMessages: Message[] = [
+        ...currentMessages,
+        {
+          role: 'user',
+          content: content,
+        },
+      ]
+      startStream(content, newMessages, snippets)
+      return newMessages
+    })
+  }
+
   return (
     <>
       <main className="flex h-screen flex-col items-center justify-between p-12 pt-20">
-        <NavigationMenu className="fixed top-0 left-0 w-[100vw]">
-          <div className="flex items-center justify-between w-[100vw] p-4 px-4 mb-2 align-center">
+        <NavigationMenu className="fixed top-0 left-0 w-[100vw] px-4">
+          <div className="flex items-center justify-between w-[100vw] mb-2 align-center">
             <div className="flex items-center gap-4">
               <img
                 src="/banner.svg"
-                width={200}
+                width={140}
                 height={200}
                 alt="Sweep AI Logo"
-                className="h-20 rounded-lg hover:cursor-pointer box-shadow-md"
+                className="h-20 rounded-lg hover:cursor-pointer box-shadow-md -z-10"
                 onClick={() => {
                   window.location.href = '/'
+                }}
+                style={{
+                  marginTop: 2,
                 }}
               />
               <DropdownMenu>
@@ -1626,29 +1969,40 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                   </p>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center" className="mt-2">
-                  {previousChats.length > 0 ? previousChats.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 10).map((chat) => (
-                    <DropdownMenuItem
-                      key={chat.messagesId}
-                      className="hover:cursor-pointer"
-                      onClick={() => {
-                        setMessagesId(chat.messagesId)
-                        window.location.href = `/c/${chat.messagesId}`
-                      }}
-                      disabled={chat.messagesId === messagesId}
-                    >
-                      <b>{truncate(chat.initialMessage, 80)}</b>&nbsp;created {formatDistanceToNow(new Date(chat.createdAt), { addSuffix: true })}
-                    </DropdownMenuItem>
-                  )) : (
-                      <DropdownMenuItem>No history</DropdownMenuItem>
+                  {previousChats.length > 0 ? (
+                    previousChats
+                      .sort(
+                        (a, b) =>
+                          new Date(b.createdAt).getTime() -
+                          new Date(a.createdAt).getTime()
+                      )
+                      .slice(0, 10)
+                      .map((chat) => (
+                        <DropdownMenuItem
+                          key={chat.messagesId}
+                          className="hover:cursor-pointer"
+                          onClick={() => {
+                            setMessagesId(chat.messagesId)
+                            window.location.href = `/c/${chat.messagesId}`
+                          }}
+                          disabled={chat.messagesId === messagesId}
+                        >
+                          <b>{truncate(chat.initialMessage, 80)}</b>
+                          &nbsp;created{' '}
+                          {formatDistanceToNow(new Date(chat.createdAt), {
+                            addSuffix: true,
+                          })}
+                        </DropdownMenuItem>
+                      ))
+                  ) : (
+                    <DropdownMenuItem>No history</DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
                 {/* Warning: these message IDs are stored in local storage.
                   If you want to delete them, you will need to clear your browser cache. */}
               </DropdownMenu>
-
-            
             </div>
-            <NavigationMenuList className='w-full flex justify-between'>
+            <NavigationMenuList className="w-full flex justify-between">
               <Dialog>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="ml-4">
@@ -1657,7 +2011,9 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="w-120 p-16">
-                  <h2 className="text-2xl font-bold mb-4 text-center">Settings</h2>
+                  <h2 className="text-2xl font-bold mb-4 text-center">
+                    Settings
+                  </h2>
                   <Label>Model</Label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -1772,7 +2128,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         <div
           className={`mb-4 w-full flex items-center ${
             repoNameValid || messagesId ? '' : 'grow'
-          }`}
+          } grow`}
         >
           <AutoComplete
             options={repos.map((repo) => ({
@@ -1853,640 +2209,722 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           />
           <Input
             placeholder="Branch"
-            className="w-[400px] ml-4"
+            className="ml-4 w-fit"
             value={baseBranch}
             onChange={(e) => setBaseBranch(e.target.value)}
           />
         </div>
-        {snippets.length && repoName ? (
-          <ContextSideBar
-            snippets={snippets}
-            setSnippets={setSnippets}
-            repoName={repoName}
-            branch={branch}
-            k={k}
-          />
-        ) : (
-          <></>
-        )}
-        <div
-          ref={messagesContainerRef}
-          className="w-full border flex-grow mb-4 p-4 max-h-[90%] overflow-y-auto rounded-xl"
-          hidden={!repoNameValid && !messagesId}
-        >
-          {messages.length > 0
-            ? messages.map((message, index) => (
-                <MessageDisplay
-                  key={index}
-                  index={index}
-                  message={message}
-                  repoName={repoName}
-                  branch={branch}
-                  className={
-                    index == lastAssistantMessageIndex ? 'bg-slate-700' : ''
-                  }
-                  onEdit={async (content) => {
-                    isStream.current = false
-                    setIsLoading(false)
 
-                    const pulls = await parsePullRequests(
-                      repoName,
-                      content,
-                      octokit!
-                    )
-                    if (pulls.length) {
-                      setUserMentionedPullRequest(pulls[pulls.length - 1])
-                      setCommitToPR(true)
-                    }
-                    let newPulls = userMentionedPullRequests
-                      ? [...userMentionedPullRequests]
-                      : []
+        {(repoNameValid || messagesId) && (
+          <ResizablePanelGroup direction="horizontal">
+            <ResizablePanel defaultSize={25} className="pr-4">
+              <ContextSideBar
+                snippets={snippets}
+                setSnippets={setSnippets}
+                repoName={repoName}
+                branch={branch}
+                k={k}
+                searchMessage={searchMessage}
+              />
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={75} className="pl-4 flex flex-col">
+              <div
+                ref={messagesContainerRef}
+                className="h-full w-full border flex-grow mb-4 p-4 overflow-y-auto rounded-xl"
+                hidden={!repoNameValid && !messagesId}
+              >
+                {messages.length > 0
+                  ? messages.map((message, index) => (
+                      <MessageDisplay
+                        key={index}
+                        index={index}
+                        message={message}
+                        repoName={repoName}
+                        branch={branch}
+                        className={
+                          index == lastAssistantMessageIndex
+                            ? 'bg-slate-700'
+                            : ''
+                        }
+                        onEdit={async (content) => {
+                          isStream.current = false
+                          setIsLoading(false)
 
-                    pulls.forEach((pull1) => {
-                      if (
-                        !newPulls.some((pull2) =>
-                          isPullRequestEqual(pull1, pull2)
-                        )
-                      ) {
-                        newPulls.push(pull1)
-                      }
-                    })
+                          const pulls = await parsePullRequests(
+                            repoName,
+                            content,
+                            octokit!
+                          )
+                          if (pulls.length) {
+                            setUserMentionedPullRequest(pulls[pulls.length - 1])
+                            setCommitToPR(true)
+                          }
+                          let newPulls =
+                            userMentionedPullRequests && index > 0
+                              ? [...userMentionedPullRequests]
+                              : []
 
-                    setUserMentionedPullRequests(newPulls)
-
-                    const newMessages: Message[] = [
-                      ...messages.slice(0, index),
-                      { ...message, content, annotations: { pulls } },
-                    ]
-                    setMessages(newMessages)
-                    setIsCreatingPullRequest(false)
-                    if (index == 0) {
-                      window.history.pushState({}, "", "/")
-                      setMessagesId("")
-                      setOriginalSuggestedChanges([])
-                      setSuggestedChanges([])
-                      setIsProcessingSuggestedChanges(false)
-                      setPullRequestTitle(null)
-                      setPullRequestBody(null)
-                      startStream(content, newMessages, snippets, { pulls })
-                    } else {
-                      startStream(content, newMessages, snippets, { pulls })
-                    }
-                  }}
-                  commitToPR={commitToPR}
-                  setSuggestedChanges={(suggestedChanges) => {
-                    setOriginalSuggestedChanges(suggestedChanges)
-                    setSuggestedChanges(suggestedChanges)
-                  }}
-                />
-              ))
-            : messagesId.length > 0 && (
-                <div className="space-y-4">
-                  <Skeleton className="h-12 ml-32 rounded-md" />
-                  <Skeleton className="h-12 mr-32 rounded-md" />
-                  <Skeleton className="h-12 ml-64 rounded-md" />
-                  <Skeleton className="h-12 mr-64 rounded-md" />
-                </div>
-              )}
-          {isLoading && (
-            <div className="flex justify-around w-full py-2">
-              <PulsingLoader size={1.5} />
-            </div>
-          )}
-          {suggestedChanges.length > 0 && (
-            <div className="bg-zinc-900 rounded-xl p-4 mt-8">
-              <div className="flex justify-between mb-4 align-start">
-                <div className="flex items-center align-middle">
-                  <NavigationMenu>
-                    <NavigationMenuList>
-                      <NavigationMenuItem>
-                        <NavigationMenuTrigger className="bg-secondary hover:bg-secondary mr-2">
-                          {userMentionedPullRequest && commitToPR ? (
-                            <span className="text-sm w-full p-2">
-                              <FaCodeCommit style={{ display: "inline" }} />
-                              &nbsp;&nbsp;Commit to PR #
-                              {userMentionedPullRequest.number}
-                            </span>
-                          ) : (
-                            <span className="text-sm w-full p-2">
-                              <FaCodeBranch style={{ display: "inline" }} />
-                              &nbsp;&nbsp;Create New PR
-                            </span>
-                          )}
-                        </NavigationMenuTrigger>
-                        <NavigationMenuContent className="w-full">
-                          {commitToPR && (
-                            <Button
-                              className="w-full p-2 px-4"
-                              variant="secondary"
-                              disabled={isLoading}
-                              onClick={() => {
-                                setCommitToPR(false)
-                                setCommitToPRIsOpen(false)
-                              }}
-                            >
-                              <FaCodeBranch style={{ display: "inline" }} />
-                              &nbsp;&nbsp;Create New PR
-                            </Button>
-                          )}
-                          {// loop through all pull requests
-                          userMentionedPullRequests?.map((pr, index) => {
-                            // dont show current selected pr, unless we are creating a pr rn
+                          pulls.forEach((pull1) => {
                             if (
-                              pr.number !== userMentionedPullRequest?.number ||
-                              !commitToPR
-                            ) {
-                              return (
-                                <Button
-                                  className="w-full p-2 px-4"
-                                  variant="secondary"
-                                  disabled={isLoading}
-                                  onClick={() => {
-                                    setCommitToPR(true)
-                                    setUserMentionedPullRequest(pr)
-                                    setCommitToPRIsOpen(false)
-                                  }}
-                                  key={index}
-                                >
-                                  <FaCodeCommit style={{ display: "inline" }} />
-                                  &nbsp;&nbsp;Commit to PR #{pr.number}
-                                </Button>
+                              !newPulls.some((pull2) =>
+                                isPullRequestEqual(pull1, pull2)
                               )
+                            ) {
+                              newPulls.push(pull1)
                             }
-                          })}
-                        </NavigationMenuContent>
-                      </NavigationMenuItem>
-                    </NavigationMenuList>
-                  </NavigationMenu>
-                  <Button
-                    className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full px-2 mt-0"
-                    onClick={() =>
-                      applySuggestions(originalSuggestedChanges, commitToPR)
-                    }
-                    aria-label="Retry applying changes"
-                    disabled={isStream.current}
-                  >
-                    <FaArrowsRotate />
-                    &nbsp;&nbsp;Reapply changes
-                  </Button>
-                  <Button
-                    className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full px-2 mt-0"
-                    onClick={() => {
-                      isStream.current = false
-                    }}
-                    aria-label="Stop"
-                    disabled={!isStream.current}
-                  >
-                    <FaStop />
-                    &nbsp;&nbsp;Stop
-                  </Button>
-                </div>
-                <Button
-                  className="text-red-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-red-500 rounded-full px-2 mt-0"
-                  onClick={() => {
-                    setSuggestedChanges([])
-                    setOriginalSuggestedChanges([])
-                  }}
-                  aria-label="Unstage Changes"
-                >
-                  <FaTimes />
-                  &nbsp;&nbsp;Unstage Changes
-                </Button>
-              </div>
-              {codeSuggestionsState == 'staging' && (
-                <div className="flex justify-around w-full pb-2 mb-4">
-                  <p className='font-bold'>Staged Changes</p>
-                </div>
-              )}
-              {!suggestedChanges.every(
-                (suggestion) => suggestion.state == 'done'
-              ) &&
-                codeSuggestionsState == 'validating' &&
-                !isProcessingSuggestedChanges && (
-                  <div className="flex justify-around w-full pb-2 mb-4">
-                    Some patches failed to validate, so you may get some
-                    unexpected changes. You can try to manually create a PR with
-                    the proposed changes. If you think this is an error, feel
-                    free to report this to us.
+                          })
+
+                          setUserMentionedPullRequests(
+                            newPulls.length > 0 ? newPulls : null
+                          )
+
+                          if (newPulls.length > 0) {
+                            setUserMentionedPullRequest(
+                              newPulls[newPulls.length - 1]
+                            )
+                          } else {
+                            setUserMentionedPullRequest(null)
+                            setCommitToPR(false)
+                          }
+
+                          const newMessages: Message[] = [
+                            ...messages.slice(0, index),
+                            { ...message, content, annotations: { pulls } },
+                          ]
+                          setMessages(newMessages)
+                          setIsCreatingPullRequest(false)
+                          if (index == 0) {
+                            window.history.pushState({}, '', '/')
+                            setMessagesId('')
+                            setOriginalSuggestedChanges([])
+                            setSuggestedChanges([])
+                            setIsProcessingSuggestedChanges(false)
+                            setPullRequestTitle(null)
+                            setPullRequestBody(null)
+                            startStream(content, newMessages, snippets, {
+                              pulls,
+                            })
+                            setPrValidationStatuses([])
+                          } else {
+                            startStream(content, newMessages, snippets, {
+                              pulls,
+                            })
+                          }
+                        }}
+                        commitToPR={commitToPR}
+                        setSuggestedChanges={(suggestedChanges) => {
+                          setOriginalSuggestedChanges(suggestedChanges)
+                          setSuggestedChanges(suggestedChanges)
+                        }}
+                        onValidatePR={(pr) => validatePr(pr, index)}
+                        fixPrValidationErrors={() => {
+                          const currentPrValidationStatuses =
+                            messages[index]!.annotations!.prValidationStatuses
+                          if (currentPrValidationStatuses) {
+                            fixPrValidationErrors(currentPrValidationStatuses)
+                          }
+                        }}
+                      />
+                    ))
+                  : messagesId.length > 0 && (
+                      <div className="space-y-4">
+                        <Skeleton className="h-12 ml-32 rounded-md" />
+                        <Skeleton className="h-12 mr-32 rounded-md" />
+                        <Skeleton className="h-12 ml-64 rounded-md" />
+                        <Skeleton className="h-12 mr-64 rounded-md" />
+                      </div>
+                    )}
+                {isLoading && (
+                  <div className="flex justify-around w-full py-2">
+                    <PulsingLoader size={1.5} />
                   </div>
                 )}
-              {isProcessingSuggestedChanges && (
-                <div className="flex justify-around w-full pb-2 mb-4">
-                  <p>
-                    I&apos;m currently processing and applying these patches,
-                    and fixing any errors along the way. This may take a few
-                    minutes.
-                  </p>
-                </div>
-              )}
-              {isCreatingPullRequest && (
-                <div className="flex justify-around w-full pb-2 mb-4">
-                  <p>
-                    {commitToPR && userMentionedPullRequest
-                      ? `Committing to ${userMentionedPullRequest.branch}`
-                      : 'Creating pull request...'}
-                  </p>
-                </div>
-              )}
-              <div
-                style={{
-                  opacity: isCreatingPullRequest ? 0.5 : 1,
-                  pointerEvents: isCreatingPullRequest ? 'none' : 'auto',
-                }}
-              >
-                {suggestedChanges.map((suggestion, index) => (
-                  <div className="fit-content mb-6" key={index}>
-                    <div
-                      className={`flex justify-between items-center w-full text-sm p-2 px-4 rounded-t-md ${
-                        suggestion.state === 'done'
-                          ? 'bg-green-900'
-                          : suggestion.state === 'error'
-                            ? 'bg-red-900'
-                            : suggestion.state === 'pending'
-                              ? 'bg-zinc-800'
-                              : 'bg-yellow-800'
-                      }`}
-                    >
-                      <code>
-                        {suggestion.filePath}{' '}
-                        {suggestion.state == 'pending' ? (
-                          '(pending)'
-                        ) : suggestion.state == 'processing' ? (
-                          '(processing)'
-                        ) : suggestion.state == 'error' ? (
-                          '(error)'
-                        ) : (
-                          <FaCheck
-                            style={{ display: 'inline', marginTop: -2 }}
-                          />
-                        )}
-                      </code>
-                      <div className="flex justify-end items-center">
-                        {suggestion.error && (
-                          <HoverCard openDelay={300} closeDelay={200}>
-                            <HoverCardTrigger>
-                              <FaExclamationTriangle
-                                className="hover:cursor-pointer mr-4 text-yellow-500"
-                                style={{ marginTop: 2 }}
-                              />
-                            </HoverCardTrigger>
-                            <HoverCardContent className="w-[800px] max-h-[500px] overflow-y-auto">
-                              <MarkdownRenderer
-                                content={`**This patch could not be directly applied. We're sending the LLM the following message to resolve the error:**\n\n${suggestion.error}`}
-                              />
-                            </HoverCardContent>
-                          </HoverCard>
-                        )}
+                {suggestedChanges.length > 0 && (
+                  <div className="bg-zinc-900 rounded-xl p-4 mt-8">
+                    <div className="flex justify-between mb-4 align-start">
+                      <div className="flex items-center align-middle">
+                        <NavigationMenu>
+                          <NavigationMenuList>
+                            <NavigationMenuItem>
+                              <NavigationMenuTrigger className="bg-secondary hover:bg-secondary mr-2">
+                                {userMentionedPullRequest && commitToPR ? (
+                                  <span className="text-sm w-full p-2">
+                                    <FaCodeCommit
+                                      style={{ display: 'inline' }}
+                                    />
+                                    &nbsp;&nbsp;Commit to PR #
+                                    {userMentionedPullRequest.number}
+                                  </span>
+                                ) : (
+                                  <span className="text-sm w-full p-2">
+                                    <FaCodeBranch
+                                      style={{ display: 'inline' }}
+                                    />
+                                    &nbsp;&nbsp;Create New PR
+                                  </span>
+                                )}
+                              </NavigationMenuTrigger>
+                              <NavigationMenuContent className="w-full">
+                                {commitToPR && (
+                                  <Button
+                                    className="w-full p-2 px-4"
+                                    variant="secondary"
+                                    disabled={isLoading}
+                                    onClick={() => {
+                                      setCommitToPR(false)
+                                      setCommitToPRIsOpen(false)
+                                    }}
+                                  >
+                                    <FaCodeBranch
+                                      style={{ display: 'inline' }}
+                                    />
+                                    &nbsp;&nbsp;Create New PR
+                                  </Button>
+                                )}
+                                {// loop through all pull requests
+                                userMentionedPullRequests?.map((pr, index) => {
+                                  // dont show current selected pr, unless we are creating a pr rn
+                                  if (
+                                    pr.number !==
+                                      userMentionedPullRequest?.number ||
+                                    !commitToPR
+                                  ) {
+                                    return (
+                                      <Button
+                                        className="w-full p-2 px-4"
+                                        variant="secondary"
+                                        disabled={isLoading}
+                                        onClick={() => {
+                                          setCommitToPR(true)
+                                          setUserMentionedPullRequest(pr)
+                                          setCommitToPRIsOpen(false)
+                                        }}
+                                        key={index}
+                                      >
+                                        <FaCodeCommit
+                                          style={{ display: 'inline' }}
+                                        />
+                                        &nbsp;&nbsp;Commit to PR #{pr.number}
+                                      </Button>
+                                    )
+                                  }
+                                })}
+                              </NavigationMenuContent>
+                            </NavigationMenuItem>
+                          </NavigationMenuList>
+                        </NavigationMenu>
                         <Button
-                          className="bg-red-800 hover:bg-red-700 text-white"
-                          size="sm"
+                          className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full px-2 mt-0"
                           onClick={() =>
-                            setSuggestedChanges(
-                              (suggestedChanges: StatefulCodeSuggestion[]) =>
-                                suggestedChanges.filter((s) => s !== suggestion)
+                            applySuggestions(
+                              originalSuggestedChanges,
+                              commitToPR
                             )
                           }
+                          aria-label="Retry applying changes"
+                          disabled={isStream.current}
                         >
-                          <FaTrash />
-                          &nbsp;Remove
+                          <FaArrowsRotate />
+                          &nbsp;&nbsp;Reapply changes
+                        </Button>
+                        <Button
+                          className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full px-2 mt-0"
+                          onClick={() => {
+                            isStream.current = false
+                          }}
+                          aria-label="Stop"
+                          disabled={!isStream.current}
+                        >
+                          <FaStop />
+                          &nbsp;&nbsp;Stop
                         </Button>
                       </div>
+                      <Button
+                        className="text-red-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-red-500 rounded-full px-2 mt-0"
+                        onClick={() => {
+                          setSuggestedChanges([])
+                          setOriginalSuggestedChanges([])
+                        }}
+                        aria-label="Unstage Changes"
+                      >
+                        <FaTimes />
+                        &nbsp;&nbsp;Unstage Changes
+                      </Button>
                     </div>
-                    {reactCodeMirrors[index]}
-                  </div>
-                ))}
-                {codeSuggestionsState == 'staging' && (
-                  <Button
-                    className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
-                    onClick={() => {
-                      setCodeSuggestionsState('validating')
-                      applySuggestions(suggestedChanges, commitToPR)
-                    }}
-                  >
-                    <FaCheck />
-                    &nbsp;&nbsp;Apply Changes
-                  </Button>
-                )}
-                {(codeSuggestionsState == 'validating' ||
-                  codeSuggestionsState == 'creating') && (
-                  <>
-                    {commitToPR && userMentionedPullRequest ? (
-                      <></>
-                    ) : (
-                      <>
-                        <Input
-                          value={pullRequestTitle || ''}
-                          onChange={(e) => setPullRequestTitle(e.target.value)}
-                          placeholder="Pull Request Title"
-                          className="w-full mb-4 text-zinc-300"
-                          disabled={
-                            pullRequestTitle == null ||
-                            isProcessingSuggestedChanges
-                          }
-                        />
-                        <Textarea
-                          value={pullRequestBody || ''}
-                          onChange={(e) => setPullRequestBody(e.target.value)}
-                          placeholder="Pull Request Body"
-                          className="w-full mb-4 text-zinc-300"
-                          disabled={
-                            pullRequestTitle == null ||
-                            isProcessingSuggestedChanges
-                          }
-                          rows={8}
-                        />
-                      </>
-                    )}
-
-                    {commitToPR && userMentionedPullRequest ? (
-                      <div className="flex grow items-center mb-4">
-                        {`You are commiting to ${userMentionedPullRequest.branch} with the following commit message:`}
+                    {codeSuggestionsState == 'staging' && (
+                      <div className="flex justify-around w-full pb-2 mb-4">
+                        <p className="font-bold">Staged Changes</p>
                       </div>
-                    ) : (
-                      <div className="flex grow items-center mb-4">
-                        <Input
-                          className="flex items-center w-[600px]"
-                          value={baseBranch || ''}
-                          onChange={(e) => setBaseBranch(e.target.value)}
-                          placeholder="Base Branch"
-                          style={{
-                            opacity: isProcessingSuggestedChanges ? 0.5 : 1,
-                          }}
-                        />
-                        <FaArrowLeft className="mx-4" />
-                        <Input
-                          className="flex items-center w-[600px]"
-                          value={featureBranch || ''}
-                          onChange={(e) => setFeatureBranch(e.target.value)}
-                          placeholder="Feature Branch"
-                          style={{
-                            opacity: isProcessingSuggestedChanges ? 0.5 : 1,
-                          }}
-                        />
-                      </div>
-                    )}
-                    {commitToPR && userMentionedPullRequest ? (
-                      <div className="flex grow items-center mb-4">
-                        <Input
-                          className="flex items-center w-[600px]"
-                          value={pullRequestTitle || ''}
-                          onChange={(e) => setPullRequestTitle(e.target.value)}
-                          placeholder="Commit message"
-                          style={{
-                            opacity: isProcessingSuggestedChanges ? 0.5 : 1,
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <></>
                     )}
                     {!suggestedChanges.every(
                       (suggestion) => suggestion.state == 'done'
                     ) &&
+                      codeSuggestionsState == 'validating' &&
                       !isProcessingSuggestedChanges && (
-                        <Alert className="mb-4 bg-yellow-900">
-                          <FaExclamationTriangle className="h-4 w-4" />
-                          <AlertTitle>Warning</AlertTitle>
-                          <AlertDescription>
-                            Some patches failed to validate, so you may get some
-                            unexpected changes. You can try to manually create a
-                            PR with the proposed changes. If you think this is
-                            an error, please to report this to us.
-                          </AlertDescription>
-                        </Alert>
+                        <div className="flex justify-around w-full pb-2 mb-4">
+                          Some patches failed to validate, so you may get some
+                          unexpected changes. You can try to manually create a
+                          PR with the proposed changes. If you think this is an
+                          error, feel free to report this to us.
+                        </div>
                       )}
-                    <Button
-                      className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
-                      onClick={async () => {
-                        setIsCreatingPullRequest(true)
-                        setCodeSuggestionsState('creating')
-                        const file_changes = suggestedChanges.reduce(
-                          (
-                            acc: Record<string, string>,
-                            suggestion: CodeSuggestion
-                          ) => {
-                            acc[suggestion.filePath] = suggestion.newCode
-                            return acc
-                          },
-                          {}
-                        )
-                        try {
-                          let response: Response | undefined = undefined
-                          console.log('commit topr', commitToPR)
-                          if (commitToPR && userMentionedPullRequest) {
-                            response = await authorizedFetch(
-                              `/backend/commit_to_pull`,
-                              {
-                                body: JSON.stringify({
-                                  repo_name: repoName,
-                                  file_changes: file_changes,
-                                  pr_number: String(
-                                    userMentionedPullRequest?.number
-                                  ),
-                                  base_branch: baseBranch,
-                                  commit_message: commitMessage,
-                                }),
-                              }
-                            )
-                          } else {
-                            response = await authorizedFetch(
-                              `/backend/create_pull`,
-                              {
-                                body: JSON.stringify({
-                                  repo_name: repoName,
-                                  file_changes: file_changes,
-                                  branch:
-                                    'sweep-chat-patch-' +
-                                    new Date().toISOString().split('T')[0], // use ai for better branch name, title, and body later
-                                  base_branch: baseBranch,
-                                  title: pullRequestTitle,
-                                  body:
-                                    pullRequestBody +
-                                    `\n\nSuggested changes from Sweep Chat by @${session?.user?.username}. Continue chatting at ${window.location.origin}/c/${messagesId}.`,
-                                }),
-                              }
-                            )
-                          }
-
-                          const data = await response.json()
-                          const { pull_request: pullRequest, new_branch: branch } = data
-                          pullRequest.branch = branch
-                          console.log("pullrequest", pullRequest)
-                          setPullRequest(pullRequest)
-                          setUserMentionedPullRequest(pullRequest)
-                          let newPulls = userMentionedPullRequests
-                            ? [...userMentionedPullRequests]
-                            : []
-
-                          newPulls.forEach((pull) => {
-                            if (!isPullRequestEqual(pull, pullRequest)) {
-                              newPulls.push(pullRequest)
-                            }
-                          })
-
-                          setUserMentionedPullRequests(newPulls)
-
-                          setMessages([
-                            ...messages,
-                            {
-                              content: `Pull request created: [https://github.com/${repoName}/pull/${pullRequest.number}](https://github.com/${repoName}/pull/${pullRequest.number})`,
-                              role: 'assistant',
-                              annotations: {
-                                pulls: [pullRequest],
-                              },
-                            },
-                          ])
-                          setIsCreatingPullRequest(false)
-                          setOriginalSuggestedChanges([])
-                          setSuggestedChanges([])
-                        } catch (e) {
-                          setIsCreatingPullRequest(false)
-                          toast({
-                            title: 'Error',
-                            description: `An error occurred while creating the pull request: ${e}`,
-                            variant: 'destructive',
-                            duration: Infinity,
-                          })
-                        }
+                    {isProcessingSuggestedChanges && (
+                      <div className="flex justify-around w-full pb-2 mb-4">
+                        <p>
+                          I&apos;m currently processing and applying these
+                          patches, and fixing any errors along the way. This may
+                          take a few minutes.
+                        </p>
+                      </div>
+                    )}
+                    {isCreatingPullRequest && (
+                      <div className="flex justify-around w-full pb-2 mb-4">
+                        <p>
+                          {commitToPR && userMentionedPullRequest
+                            ? `Committing to ${userMentionedPullRequest.branch}`
+                            : 'Creating pull request...'}
+                        </p>
+                      </div>
+                    )}
+                    <div
+                      style={{
+                        opacity: isCreatingPullRequest ? 0.5 : 1,
+                        pointerEvents: isCreatingPullRequest ? 'none' : 'auto',
                       }}
-                      disabled={
-                        isCreatingPullRequest || isProcessingSuggestedChanges
-                      }
                     >
-                      {commitToPR && userMentionedPullRequest
-                        ? `Commit to Pull Request #${userMentionedPullRequest?.number}`
-                        : 'Create Pull Request'}
-                    </Button>
+                      {suggestedChanges.map((suggestion, index) => (
+                        <div className="fit-content mb-6" key={index}>
+                          <div
+                            className={`flex justify-between items-center w-full text-sm p-2 px-4 rounded-t-md ${
+                              suggestion.state === 'done'
+                                ? 'bg-green-900'
+                                : suggestion.state === 'error'
+                                  ? 'bg-red-900'
+                                  : suggestion.state === 'pending'
+                                    ? 'bg-zinc-800'
+                                    : 'bg-yellow-800'
+                            }`}
+                          >
+                            <code>
+                              {suggestion.filePath}{' '}
+                              {suggestion.state == 'pending' ? (
+                                '(pending)'
+                              ) : suggestion.state == 'processing' ? (
+                                '(processing)'
+                              ) : suggestion.state == 'error' ? (
+                                '(error)'
+                              ) : (
+                                <FaCheck
+                                  style={{ display: 'inline', marginTop: -2 }}
+                                />
+                              )}
+                            </code>
+                            <div className="flex justify-end items-center">
+                              {suggestion.error && (
+                                <HoverCard openDelay={300} closeDelay={200}>
+                                  <HoverCardTrigger>
+                                    <FaExclamationTriangle
+                                      className="hover:cursor-pointer mr-4 text-yellow-500"
+                                      style={{ marginTop: 2 }}
+                                    />
+                                  </HoverCardTrigger>
+                                  <HoverCardContent className="w-[800px] max-h-[500px] overflow-y-auto">
+                                    <MarkdownRenderer
+                                      content={`**This patch could not be directly applied. We're sending the LLM the following message to resolve the error:**\n\n${suggestion.error}`}
+                                    />
+                                  </HoverCardContent>
+                                </HoverCard>
+                              )}
+                              <Button
+                                className="bg-red-800 hover:bg-red-700 text-white"
+                                size="sm"
+                                onClick={() =>
+                                  setSuggestedChanges(
+                                    (
+                                      suggestedChanges: StatefulCodeSuggestion[]
+                                    ) =>
+                                      suggestedChanges.filter(
+                                        (s) => s !== suggestion
+                                      )
+                                  )
+                                }
+                              >
+                                <FaTrash />
+                                &nbsp;Remove
+                              </Button>
+                            </div>
+                          </div>
+                          {reactCodeMirrors[index]}
+                        </div>
+                      ))}
+                      {codeSuggestionsState == 'staging' && (
+                        <Button
+                          className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
+                          onClick={() => {
+                            setCodeSuggestionsState('validating')
+                            applySuggestions(suggestedChanges, commitToPR)
+                          }}
+                        >
+                          <FaCheck />
+                          &nbsp;&nbsp;Apply Changes
+                        </Button>
+                      )}
+                      {(codeSuggestionsState == 'validating' ||
+                        codeSuggestionsState == 'creating') && (
+                        <>
+                          {commitToPR && userMentionedPullRequest ? (
+                            <></>
+                          ) : (
+                            <>
+                              <Input
+                                value={pullRequestTitle || ''}
+                                onChange={(e) =>
+                                  setPullRequestTitle(e.target.value)
+                                }
+                                placeholder="Pull Request Title"
+                                className="w-full mb-4 text-zinc-300"
+                                disabled={
+                                  pullRequestTitle == null ||
+                                  isProcessingSuggestedChanges
+                                }
+                              />
+                              <Textarea
+                                value={pullRequestBody || ''}
+                                onChange={(e) =>
+                                  setPullRequestBody(e.target.value)
+                                }
+                                placeholder="Pull Request Body"
+                                className="w-full mb-4 text-zinc-300"
+                                disabled={
+                                  pullRequestTitle == null ||
+                                  isProcessingSuggestedChanges
+                                }
+                                rows={8}
+                              />
+                            </>
+                          )}
 
-                  </>
+                          {commitToPR && userMentionedPullRequest ? (
+                            <div className="flex grow items-center mb-4">
+                              {`You are commiting to ${userMentionedPullRequest.branch} with the following commit message:`}
+                            </div>
+                          ) : (
+                            <div className="flex grow items-center mb-4">
+                              <Input
+                                className="flex items-center w-[600px]"
+                                value={baseBranch || ''}
+                                onChange={(e) => setBaseBranch(e.target.value)}
+                                placeholder="Base Branch"
+                                style={{
+                                  opacity: isProcessingSuggestedChanges
+                                    ? 0.5
+                                    : 1,
+                                }}
+                              />
+                              <FaArrowLeft className="mx-4" />
+                              <Input
+                                className="flex items-center w-[600px]"
+                                value={featureBranch || ''}
+                                onChange={(e) =>
+                                  setFeatureBranch(e.target.value)
+                                }
+                                placeholder="Feature Branch"
+                                style={{
+                                  opacity: isProcessingSuggestedChanges
+                                    ? 0.5
+                                    : 1,
+                                }}
+                              />
+                            </div>
+                          )}
+                          {commitToPR && userMentionedPullRequest ? (
+                            <div className="flex grow items-center mb-4">
+                              <Input
+                                className="flex items-center w-[600px]"
+                                value={pullRequestTitle || ''}
+                                onChange={(e) =>
+                                  setPullRequestTitle(e.target.value)
+                                }
+                                placeholder="Commit message"
+                                style={{
+                                  opacity: isProcessingSuggestedChanges
+                                    ? 0.5
+                                    : 1,
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <></>
+                          )}
+                          {!suggestedChanges.every(
+                            (suggestion) => suggestion.state == 'done'
+                          ) &&
+                            !isProcessingSuggestedChanges && (
+                              <Alert className="mb-4 bg-yellow-900">
+                                <FaExclamationTriangle className="h-4 w-4" />
+                                <AlertTitle>Warning</AlertTitle>
+                                <AlertDescription>
+                                  Some patches failed to validate, so you may
+                                  get some unexpected changes. You can try to
+                                  manually create a PR with the proposed
+                                  changes. If you think this is an error, please
+                                  to report this to us.
+                                </AlertDescription>
+                              </Alert>
+                            )}
+                          <Button
+                            className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
+                            onClick={async () => {
+                              setIsCreatingPullRequest(true)
+                              setCodeSuggestionsState('creating')
+                              const file_changes = suggestedChanges.reduce(
+                                (
+                                  acc: Record<string, string>,
+                                  suggestion: CodeSuggestion
+                                ) => {
+                                  acc[suggestion.filePath] = suggestion.newCode
+                                  return acc
+                                },
+                                {}
+                              )
+                              try {
+                                let response: Response | undefined = undefined
+                                console.log('commit topr', commitToPR)
+                                if (commitToPR && userMentionedPullRequest) {
+                                  response = await authorizedFetch(
+                                    `/backend/commit_to_pull`,
+                                    {
+                                      body: JSON.stringify({
+                                        repo_name: repoName,
+                                        file_changes: file_changes,
+                                        pr_number: String(
+                                          userMentionedPullRequest?.number
+                                        ),
+                                        base_branch: baseBranch,
+                                        commit_message: pullRequestTitle,
+                                      }),
+                                    }
+                                  )
+                                } else {
+                                  response = await authorizedFetch(
+                                    `/backend/create_pull`,
+                                    {
+                                      body: JSON.stringify({
+                                        repo_name: repoName,
+                                        file_changes: file_changes,
+                                        branch:
+                                          'sweep-chat-patch-' +
+                                          new Date()
+                                            .toISOString()
+                                            .split('T')[0], // use ai for better branch name, title, and body later
+                                        base_branch: baseBranch,
+                                        title: pullRequestTitle,
+                                        body:
+                                          pullRequestBody +
+                                          `\n\nSuggested changes from Sweep Chat by @${session?.user?.username}. Continue chatting at ${window.location.origin}/c/${messagesId}.`,
+                                      }),
+                                    }
+                                  )
+                                }
+
+                                const data = await response.json()
+                                const {
+                                  pull_request: pullRequest,
+                                  new_branch: branch,
+                                } = data
+                                pullRequest.branch = branch
+                                console.log('pullrequest', pullRequest)
+                                setPullRequest(pullRequest)
+                                setUserMentionedPullRequest(pullRequest)
+                                let newPulls = userMentionedPullRequests
+                                  ? [...userMentionedPullRequests]
+                                  : []
+
+                                newPulls.forEach((pull) => {
+                                  if (!isPullRequestEqual(pull, pullRequest)) {
+                                    newPulls.push(pullRequest)
+                                  }
+                                })
+
+                                setUserMentionedPullRequests(newPulls)
+
+                                // for commits, show a different message
+                                const newMessages: Message[] = [
+                                  ...messages,
+                                  {
+                                    content: `Pull request created: [https://github.com/${repoName}/pull/${pullRequest.number}](https://github.com/${repoName}/pull/${pullRequest.number})`,
+                                    role: 'assistant',
+                                    annotations: {
+                                      pulls: [pullRequest],
+                                    },
+                                  },
+                                ]
+                                console.log(pullRequest)
+                                setPullRequest(pullRequest)
+                                setMessages(newMessages)
+                                setIsCreatingPullRequest(false)
+                                setOriginalSuggestedChanges([])
+                                setSuggestedChanges([])
+
+                                validatePr(pullRequest, newMessages.length - 1)
+                              } catch (e) {
+                                setIsCreatingPullRequest(false)
+                                toast({
+                                  title: 'Error',
+                                  description: `An error occurred while creating the pull request: ${e}`,
+                                  variant: 'destructive',
+                                  duration: Infinity,
+                                })
+                              }
+                            }}
+                            disabled={
+                              isCreatingPullRequest ||
+                              isProcessingSuggestedChanges ||
+                              !pullRequestTitle ||
+                              !pullRequestBody
+                            }
+                          >
+                            {commitToPR && userMentionedPullRequest
+                              ? `Commit to Pull Request #${userMentionedPullRequest?.number}`
+                              : 'Create Pull Request'}
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
-            </div>
-          )}
-        </div>
-        {(repoNameValid || messagesId) && (
-          <div className={`flex w-full`}>
-            {isStream.current ? (
-              <Button
-                className="mr-2"
-                variant="destructive"
-                onClick={async () => {
-                  setIsLoading(false)
-                  isStream.current = false
-                }}
-              >
-                <FaStop />
-                &nbsp;&nbsp;Stop
-              </Button>
-            ) : (
-              <Button
-                className="mr-2"
-                variant="secondary"
-                onClick={async () => {
-                  setMessages([])
-                  setCurrentMessage('')
-                  setIsLoading(false)
-                  setSnippets([])
-                  setMessagesId('')
-                  window.history.pushState({}, '', '/')
-                  setSuggestedChanges([])
-                  setPullRequest(null)
-                  setFeatureBranch(null)
-                  setPullRequestTitle(null)
-                  setPullRequestBody(null)
-                  setUserMentionedPullRequest(null)
-                  setUserMentionedPullRequests(null)
-                  setCommitToPR(false)
-                  setCommitToPRIsOpen(false)
-                }}
-                disabled={isLoading}
-              >
-                <FaArrowsRotate />
-                &nbsp;&nbsp;Reset
-              </Button>
-            )}
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button className="mr-2" variant="secondary">
-                  <FaShareAlt />
-                  &nbsp;&nbsp;Share
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="w-[800px] p-16">
-                <h2 className="text-2xl font-bold mb-4 text-center">
-                  Share the Conversation
-                </h2>
-                <p className="text-center">
-                  Share your chat session with a team member.
-                </p>
-                <Input
-                  value={`${
-                    typeof window !== 'undefined' ? window.location.origin : ''
-                  }/c/${messagesId}`}
-                  onClick={() => {
-                    navigator.clipboard.writeText(
-                      `${window.location.origin}/c/${messagesId}`
-                    )
-                    toast({
-                      title: 'Link copied',
-                      description:
-                        'The link to your current session has been copied to your clipboard.',
-                    })
+              <div className={`flex w-full`}>
+                {isStream.current ? (
+                  <Button
+                    className="mr-2"
+                    variant="destructive"
+                    onClick={async () => {
+                      setIsLoading(false)
+                      isStream.current = false
+                    }}
+                  >
+                    <FaStop />
+                    &nbsp;&nbsp;Stop
+                  </Button>
+                ) : (
+                  <Button
+                    className="mr-2"
+                    variant="secondary"
+                    onClick={async () => {
+                      window.history.pushState({}, '', '/')
+                      setMessages([])
+                      setCurrentMessage('')
+                      setIsLoading(false)
+                      setSnippets([])
+                      setMessagesId('')
+                      setSuggestedChanges([])
+                      setPullRequest(null)
+                      setFeatureBranch(null)
+                      setPullRequestTitle(null)
+                      setPullRequestBody(null)
+                      setUserMentionedPullRequest(null)
+                      setUserMentionedPullRequests(null)
+                      setCommitToPR(false)
+                      setCommitToPRIsOpen(false)
+                    }}
+                    disabled={isLoading}
+                  >
+                    <FaPlus />
+                    &nbsp;&nbsp;New Chat
+                  </Button>
+                )}
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button className="mr-2" variant="secondary">
+                      <FaShareAlt />
+                      &nbsp;&nbsp;Share
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="w-[800px] p-16">
+                    <h2 className="text-2xl font-bold mb-4 text-center">
+                      Share the Conversation
+                    </h2>
+                    <p className="text-center">
+                      Share your chat session with a team member.
+                    </p>
+                    <Input
+                      value={`${
+                        typeof window !== 'undefined'
+                          ? window.location.origin
+                          : ''
+                      }/c/${messagesId}`}
+                      onClick={() => {
+                        navigator.clipboard.writeText(
+                          `${window.location.origin}/c/${messagesId}`
+                        )
+                        toast({
+                          title: 'Link copied',
+                          description:
+                            'The link to your current session has been copied to your clipboard.',
+                        })
+                      }}
+                      disabled
+                    />
+                    <Button
+                      className="mt-2"
+                      variant="secondary"
+                      onClick={() => {
+                        navigator.clipboard.writeText(
+                          `${window.location.origin}/c/${messagesId}`
+                        )
+                        toast({
+                          title: 'Link copied',
+                          description:
+                            'The link to your current session has been copied to your clipboard.',
+                        })
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </DialogContent>
+                </Dialog>
+                <Textarea
+                  data-ph-capture-attribute-current-message={currentMessage}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && e.shiftKey) {
+                      e.currentTarget.style.height = `${e.currentTarget.scrollHeight / 2}px`
+                    }
+                    if (
+                      e.key === 'Enter' &&
+                      !e.shiftKey &&
+                      currentMessage.trim().length > 0
+                    ) {
+                      sendMessage()
+                      // @ts-ignore
+                      e.target.style!.height = 'auto'
+                      // @ts-ignore
+                      e.target.style!.height = `42px`
+                    }
                   }}
-                  disabled
+                  onChange={(e) => {
+                    setCurrentMessage(e.target.value)
+                    e.target.style.height = `${e.target.scrollHeight}px`
+                  }}
+                  className="p-2 overflow-y-hidden"
+                  style={{ minHeight: 24, height: 42 }}
+                  value={currentMessage}
+                  placeholder="Type a message..."
+                  disabled={isLoading || !repoNameValid || isStream.current}
                 />
                 <Button
-                  className="mt-2"
+                  className="ml-2 bg-blue-900 text-white hover:bg-blue-800"
                   variant="secondary"
-                  onClick={() => {
-                    navigator.clipboard.writeText(
-                      `${window.location.origin}/c/${messagesId}`
-                    )
-                    toast({
-                      title: 'Link copied',
-                      description:
-                        'The link to your current session has been copied to your clipboard.',
-                    })
-                  }}
+                  onClick={sendMessage}
+                  disabled={isLoading}
                 >
-                  Copy
+                  <FaPaperPlane />
+                  &nbsp;&nbsp;Send
                 </Button>
-              </DialogContent>
-            </Dialog>
-            <Textarea
-              data-ph-capture-attribute-current-message={currentMessage}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && e.shiftKey) {
-                  e.currentTarget.style.height = `${e.currentTarget.scrollHeight / 2}px`;
-                }
-                if (e.key === 'Enter' && !e.shiftKey && currentMessage.trim().length > 0) {
-                  sendMessage()
-                  // @ts-ignore
-                  e.target.style!.height = 'auto';
-                  // @ts-ignore
-                  e.target.style!.height = `42px`;
-                }
-              }}
-              onChange={(e) => {
-                setCurrentMessage(e.target.value);
-                e.target.style.height = `${e.target.scrollHeight}px`;
-              }}
-              className="p-2 overflow-y-hidden"
-              style={{ minHeight: 24, height: 42 }}
-              value={currentMessage}
-              placeholder="Type a message..."
-              disabled={isLoading || !repoNameValid || isStream.current}
-            />
-            <Button
-              className="ml-2 bg-blue-900 text-white hover:bg-blue-800"
-              variant="secondary"
-              onClick={sendMessage}
-              disabled={isLoading}
-            >
-              <FaPaperPlane />
-              &nbsp;&nbsp;Send
-            </Button>
-          </div>
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
         )}
       </main>
     </>
