@@ -77,7 +77,7 @@ const RenderPath = ({
         )}
         {options.includes('add') ? (
           <FaPlus
-            className="ml-3 hover:drop-shadow-md hover:text-gray-300"
+            className="mr-2 hover:drop-shadow-md hover:text-gray-300"
             onClick={() => {
               let tempSnippets = [...snippets]
               // if we are adding a snippet that means the score should be 1

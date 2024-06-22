@@ -2122,7 +2122,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         <div
           className={`mb-4 w-full flex items-center ${
             repoNameValid || messagesId ? '' : 'grow'
-          }`}
+          } grow`}
         >
           <AutoComplete
             options={repos.map((repo) => ({
@@ -2203,7 +2203,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           />
           <Input
             placeholder="Branch"
-            className="w-[400px] ml-4"
+            className="ml-4 w-fit"
             value={baseBranch}
             onChange={(e) => setBaseBranch(e.target.value)}
           />

@@ -16,6 +16,8 @@ import { PullRequest, Snippet } from '@/lib/types'
 import { Dispatch, SetStateAction, useState } from 'react'
 import { ScrollArea } from '../ui/scroll-area'
 import { SnippetSearch } from './SnippetSearch'
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '../ui/hover-card'
+import { FaInfoCircle } from 'react-icons/fa'
 
 const ContextSideBar = ({
   snippets,
@@ -32,12 +34,21 @@ const ContextSideBar = ({
 }) => {
   return (
     <div className="h-full w-full flex flex-col">
-      <div className='p-4'>
-        <h2 className='text-lg font-bold mb-2'>Current Context</h2>
-        <p className="text-sm text-gray-300">
-          List of current snippets in context. Run a custom search query
-          to find new snippets.
-        </p>
+      <div className='pb-2 pl-2'>
+        <h2 className='text-lg font-bold mb-2 flex items-center'>
+          Context
+          <HoverCard>
+            <HoverCardTrigger>
+              <FaInfoCircle className='text-gray-400 hover:text-gray-200 hover:cursor-pointer ml-2' />
+            </HoverCardTrigger>
+            <HoverCardContent>
+              <p className="text-sm text-gray-300">
+              List of current snippets in context. Run a custom search query
+              to find new snippets.
+              </p>
+            </HoverCardContent>
+          </HoverCard>
+        </h2>
       </div>
       <ScrollArea className="w-full rounded-md border p-4 grow mb-4">
         {snippets.map((snippet, index) => (

@@ -22,6 +22,7 @@ import { streamMessages } from '@/lib/streamingUtils'
 import { useSession } from 'next-auth/react'
 import { Session } from 'next-auth'
 import PulsingLoader from './PulsingLoader'
+import { FaSearchPlus } from 'react-icons/fa'
 
 const SnippetSearch = ({
   snippets,
@@ -105,7 +106,10 @@ const SnippetSearch = ({
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline">Add Snippets</Button>
+        <Button variant="outline">
+          <FaSearchPlus className='mr-2' />
+          Add Snippets
+        </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-9/10 p-8">
         <DialogHeader>
@@ -116,30 +120,32 @@ const SnippetSearch = ({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="username" className="text-right">
-              Search Query
-            </Label>
+          <div className="items-center gap-4 flex flex-row">
             <Input
               id="username"
               placeholder="Custom Search Query"
-              className="col-span-3"
+              className="grow"
               onInput={(event: React.ChangeEvent<HTMLInputElement>) => {
                 setSearchQuery(event.target.value)
               }}
               onKeyDown={handleKeyDown}
             />
+            <Button
+              className="text-white bg-blue-900 hover:bg-blue-800 w-fit"
+              disabled={searchQuery.length == 0 || searchIsLoading}
+              onClick={searchForSnippets}
+            >
+              {searchIsLoading ? 'Searching...' : 'Search'}
+            </Button>
           </div>
         </div>
-        {searchIsLoading ? (
+        {searchIsLoading && (
           <div className="flex flex-col justify-center items-center">
             <p className="text-gray-500 center mb-4">{progressMessage}</p>
             <div>
-              <PulsingLoader size={2} />
+              <PulsingLoader size={1} />
             </div>
           </div>
-        ) : (
-          <></>
         )}
         {newSnippets.length > 0 && (
           <ScrollArea className="h-full w-full rounded-md border mb-6 p-4">
@@ -159,13 +165,6 @@ const SnippetSearch = ({
           </ScrollArea>
         )}
         <DialogFooter>
-          <Button
-            className="text-white bg-blue-900 hover:bg-blue-800"
-            disabled={searchQuery.length == 0 || searchIsLoading}
-            onClick={searchForSnippets}
-          >
-            {searchIsLoading ? 'Searching...' : 'Search'}
-          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
