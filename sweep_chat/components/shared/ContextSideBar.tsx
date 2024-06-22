@@ -18,6 +18,7 @@ import { ScrollArea } from '../ui/scroll-area'
 import { SnippetSearch } from './SnippetSearch'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '../ui/hover-card'
 import { FaInfoCircle } from 'react-icons/fa'
+import PulsingLoader from './PulsingLoader'
 
 const ContextSideBar = ({
   snippets,
@@ -25,12 +26,14 @@ const ContextSideBar = ({
   repoName,
   branch,
   k,
+  searchMessage,
 }: {
   snippets: Snippet[]
   setSnippets: Dispatch<SetStateAction<Snippet[]>>
   repoName: string
   branch: string
   k: number
+  searchMessage: string
 }) => {
   return (
     <div className="h-full w-full flex flex-col">
@@ -51,6 +54,14 @@ const ContextSideBar = ({
         </h2>
       </div>
       <ScrollArea className="w-full rounded-md border p-4 grow mb-4 overflow-x-auto">
+        {searchMessage && (
+          <div className="flex flex-col justify-center items-center">
+            <p className="text-gray-500 center mb-4">{searchMessage}</p>
+            <div>
+              <PulsingLoader size={1} />
+            </div>
+          </div>
+        )}
         {snippets.map((snippet, index) => (
           <>
             <SnippetBadge
