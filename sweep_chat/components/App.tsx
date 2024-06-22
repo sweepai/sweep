@@ -3,34 +3,26 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react'
 import { Input } from '../components/ui/input'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import {
   FaArrowLeft,
   FaCheck,
   FaChevronDown,
-  FaChevronUp,
   FaCog,
   FaComments,
   FaExclamationTriangle,
   FaGithub,
   FaPaperPlane,
-  FaPencilAlt,
   FaPlus,
   FaShareAlt,
   FaSignOutAlt,
   FaStop,
-  FaThumbsDown,
-  FaThumbsUp,
   FaTimes,
   FaTrash,
   FaCodeBranch,
-  FaCircle,
-  FaTimesCircle,
 } from 'react-icons/fa'
 import { FaArrowsRotate, FaCodeCommit } from 'react-icons/fa6'
 import { Button } from '@/components/ui/button'
@@ -40,12 +32,6 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card'
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion'
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -77,11 +63,8 @@ import {
 import { Label } from './ui/label'
 import PulsingLoader from './shared/PulsingLoader'
 import {
-  codeStyle,
   DEFAULT_K,
   modelMap,
-  roleToColor,
-  languageMapping,
 } from '@/lib/constants'
 import {
   Repository,
@@ -97,17 +80,12 @@ import {
 
 import { Octokit } from 'octokit'
 import {
-  renderPRDiffs,
-  getFunctionCallHeaderString,
-  sum,
   truncate,
   toCamelCaseKeys,
 } from '@/lib/str_utils'
 import {
-  CODE_CHANGE_PATTERN,
   MarkdownRenderer,
 } from './shared/MarkdownRenderer'
-import { SnippetBadge } from './shared/SnippetBadge'
 import { ContextSideBar } from './shared/ContextSideBar'
 import parsePullRequests from '@/lib/parsePullRequest'
 
@@ -119,18 +97,11 @@ import { Skeleton } from './ui/skeleton'
 import { isPullRequestEqual } from '@/lib/pullUtils'
 import CodeMirrorEditor from './CodeMirrorSuggestionEditor'
 // @ts-ignore
-import * as Diff from 'diff'
-import AutoScrollArea from './ui/autoscroll'
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from './ui/resizable'
-
-import PrValidationStatusesDisplay from './PrValidationStatusesDisplay'
-import FeedbackBlock from './FeedbackBlock'
-import PullRequestDisplay from './PullRequestDisplay'
-
 import MessageDisplay from './MessageDisplay'
 
 
