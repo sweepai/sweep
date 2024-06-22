@@ -107,7 +107,7 @@ const SnippetSearch = ({
     <Dialog>
       <DialogTrigger asChild>
         <Button variant="outline">
-          <FaSearchPlus className='mr-2' />
+          <FaSearchPlus className="mr-2" />
           Add Snippets
         </Button>
       </DialogTrigger>
@@ -164,8 +164,7 @@ const SnippetSearch = ({
             ))}
           </ScrollArea>
         )}
-        <DialogFooter>
-        </DialogFooter>
+        <DialogFooter></DialogFooter>
       </DialogContent>
     </Dialog>
   )

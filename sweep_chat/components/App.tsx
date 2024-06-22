@@ -128,7 +128,11 @@ import Image from 'next/image'
 // @ts-ignore
 import * as Diff from 'diff'
 import { ScrollArea } from './ui/scroll-area'
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from './ui/resizable'
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from './ui/resizable'
 
 const Original = CodeMirrorMerge.Original
 const Modified = CodeMirrorMerge.Modified
@@ -1290,7 +1294,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   useEffect(() => {
     if (messages.length > 0 && userMentionedPullRequests?.length == 0) {
       for (const message of messages) {
-        if (message.role == "assistant" && message.annotations?.pulls) {
+        if (message.role == 'assistant' && message.annotations?.pulls) {
           setUserMentionedPullRequests(message.annotations.pulls)
           setBranch(message.annotations.pulls[0].branch)
           setBaseBranch(message.annotations.pulls[0].branch)
@@ -1654,7 +1658,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           setSearchMessage(streamedMessage)
           setMessages(streamedMessages)
         }
-        setSearchMessage("")
+        setSearchMessage('')
         streamedMessages = [
           ...streamedMessages.slice(0, streamedMessages.length - 1),
           {
@@ -1925,7 +1929,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     }
     const content = `Help me fix the following CI/CD pipeline errors:\n\`\`\`\n${failedPrValidationStatuses?.stdout}\n\`\`\``
 
-    setMessages(currentMessages => {
+    setMessages((currentMessages) => {
       const newMessages: Message[] = [
         ...currentMessages,
         {
@@ -2209,10 +2213,10 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
             onChange={(e) => setBaseBranch(e.target.value)}
           />
         </div>
-        
+
         {(repoNameValid || messagesId) && (
           <ResizablePanelGroup direction="horizontal">
-            <ResizablePanel defaultSize={25} className='pr-4'>
+            <ResizablePanel defaultSize={25} className="pr-4">
               <ContextSideBar
                 snippets={snippets}
                 setSnippets={setSnippets}
@@ -2222,8 +2226,8 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                 searchMessage={searchMessage}
               />
             </ResizablePanel>
-            <ResizableHandle withHandle/>
-            <ResizablePanel defaultSize={75} className='pl-4 flex flex-col'>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={75} className="pl-4 flex flex-col">
               <div
                 ref={messagesContainerRef}
                 className="h-full w-full border flex-grow mb-4 p-4 overflow-y-auto rounded-xl"
@@ -2238,7 +2242,9 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                         repoName={repoName}
                         branch={branch}
                         className={
-                          index == lastAssistantMessageIndex ? 'bg-slate-700' : ''
+                          index == lastAssistantMessageIndex
+                            ? 'bg-slate-700'
+                            : ''
                         }
                         onEdit={async (content) => {
                           isStream.current = false
@@ -2273,7 +2279,9 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                           )
 
                           if (newPulls.length > 0) {
-                            setUserMentionedPullRequest(newPulls[newPulls.length - 1])
+                            setUserMentionedPullRequest(
+                              newPulls[newPulls.length - 1]
+                            )
                           } else {
                             setUserMentionedPullRequest(null)
                             setCommitToPR(false)
@@ -2293,10 +2301,14 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                             setIsProcessingSuggestedChanges(false)
                             setPullRequestTitle(null)
                             setPullRequestBody(null)
-                            startStream(content, newMessages, snippets, { pulls })
+                            startStream(content, newMessages, snippets, {
+                              pulls,
+                            })
                             setPrValidationStatuses([])
                           } else {
-                            startStream(content, newMessages, snippets, { pulls })
+                            startStream(content, newMessages, snippets, {
+                              pulls,
+                            })
                           }
                         }}
                         commitToPR={commitToPR}
@@ -2337,13 +2349,17 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                               <NavigationMenuTrigger className="bg-secondary hover:bg-secondary mr-2">
                                 {userMentionedPullRequest && commitToPR ? (
                                   <span className="text-sm w-full p-2">
-                                    <FaCodeCommit style={{ display: 'inline' }} />
+                                    <FaCodeCommit
+                                      style={{ display: 'inline' }}
+                                    />
                                     &nbsp;&nbsp;Commit to PR #
                                     {userMentionedPullRequest.number}
                                   </span>
                                 ) : (
                                   <span className="text-sm w-full p-2">
-                                    <FaCodeBranch style={{ display: 'inline' }} />
+                                    <FaCodeBranch
+                                      style={{ display: 'inline' }}
+                                    />
                                     &nbsp;&nbsp;Create New PR
                                   </span>
                                 )}
@@ -2359,7 +2375,9 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                                       setCommitToPRIsOpen(false)
                                     }}
                                   >
-                                    <FaCodeBranch style={{ display: 'inline' }} />
+                                    <FaCodeBranch
+                                      style={{ display: 'inline' }}
+                                    />
                                     &nbsp;&nbsp;Create New PR
                                   </Button>
                                 )}
@@ -2367,7 +2385,8 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                                 userMentionedPullRequests?.map((pr, index) => {
                                   // dont show current selected pr, unless we are creating a pr rn
                                   if (
-                                    pr.number !== userMentionedPullRequest?.number ||
+                                    pr.number !==
+                                      userMentionedPullRequest?.number ||
                                     !commitToPR
                                   ) {
                                     return (
@@ -2382,7 +2401,9 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                                         }}
                                         key={index}
                                       >
-                                        <FaCodeCommit style={{ display: 'inline' }} />
+                                        <FaCodeCommit
+                                          style={{ display: 'inline' }}
+                                        />
                                         &nbsp;&nbsp;Commit to PR #{pr.number}
                                       </Button>
                                     )
@@ -2395,7 +2416,10 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                         <Button
                           className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full px-2 mt-0"
                           onClick={() =>
-                            applySuggestions(originalSuggestedChanges, commitToPR)
+                            applySuggestions(
+                              originalSuggestedChanges,
+                              commitToPR
+                            )
                           }
                           aria-label="Retry applying changes"
                           disabled={isStream.current}
@@ -2439,17 +2463,17 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                       !isProcessingSuggestedChanges && (
                         <div className="flex justify-around w-full pb-2 mb-4">
                           Some patches failed to validate, so you may get some
-                          unexpected changes. You can try to manually create a PR with
-                          the proposed changes. If you think this is an error, feel
-                          free to report this to us.
+                          unexpected changes. You can try to manually create a
+                          PR with the proposed changes. If you think this is an
+                          error, feel free to report this to us.
                         </div>
                       )}
                     {isProcessingSuggestedChanges && (
                       <div className="flex justify-around w-full pb-2 mb-4">
                         <p>
-                          I&apos;m currently processing and applying these patches,
-                          and fixing any errors along the way. This may take a few
-                          minutes.
+                          I&apos;m currently processing and applying these
+                          patches, and fixing any errors along the way. This may
+                          take a few minutes.
                         </p>
                       </div>
                     )}
@@ -2516,8 +2540,12 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                                 size="sm"
                                 onClick={() =>
                                   setSuggestedChanges(
-                                    (suggestedChanges: StatefulCodeSuggestion[]) =>
-                                      suggestedChanges.filter((s) => s !== suggestion)
+                                    (
+                                      suggestedChanges: StatefulCodeSuggestion[]
+                                    ) =>
+                                      suggestedChanges.filter(
+                                        (s) => s !== suggestion
+                                      )
                                   )
                                 }
                               >
@@ -2550,7 +2578,9 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                             <>
                               <Input
                                 value={pullRequestTitle || ''}
-                                onChange={(e) => setPullRequestTitle(e.target.value)}
+                                onChange={(e) =>
+                                  setPullRequestTitle(e.target.value)
+                                }
                                 placeholder="Pull Request Title"
                                 className="w-full mb-4 text-zinc-300"
                                 disabled={
@@ -2560,7 +2590,9 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                               />
                               <Textarea
                                 value={pullRequestBody || ''}
-                                onChange={(e) => setPullRequestBody(e.target.value)}
+                                onChange={(e) =>
+                                  setPullRequestBody(e.target.value)
+                                }
                                 placeholder="Pull Request Body"
                                 className="w-full mb-4 text-zinc-300"
                                 disabled={
@@ -2584,17 +2616,23 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                                 onChange={(e) => setBaseBranch(e.target.value)}
                                 placeholder="Base Branch"
                                 style={{
-                                  opacity: isProcessingSuggestedChanges ? 0.5 : 1,
+                                  opacity: isProcessingSuggestedChanges
+                                    ? 0.5
+                                    : 1,
                                 }}
                               />
                               <FaArrowLeft className="mx-4" />
                               <Input
                                 className="flex items-center w-[600px]"
                                 value={featureBranch || ''}
-                                onChange={(e) => setFeatureBranch(e.target.value)}
+                                onChange={(e) =>
+                                  setFeatureBranch(e.target.value)
+                                }
                                 placeholder="Feature Branch"
                                 style={{
-                                  opacity: isProcessingSuggestedChanges ? 0.5 : 1,
+                                  opacity: isProcessingSuggestedChanges
+                                    ? 0.5
+                                    : 1,
                                 }}
                               />
                             </div>
@@ -2604,10 +2642,14 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                               <Input
                                 className="flex items-center w-[600px]"
                                 value={pullRequestTitle || ''}
-                                onChange={(e) => setPullRequestTitle(e.target.value)}
+                                onChange={(e) =>
+                                  setPullRequestTitle(e.target.value)
+                                }
                                 placeholder="Commit message"
                                 style={{
-                                  opacity: isProcessingSuggestedChanges ? 0.5 : 1,
+                                  opacity: isProcessingSuggestedChanges
+                                    ? 0.5
+                                    : 1,
                                 }}
                               />
                             </div>
@@ -2622,10 +2664,11 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                                 <FaExclamationTriangle className="h-4 w-4" />
                                 <AlertTitle>Warning</AlertTitle>
                                 <AlertDescription>
-                                  Some patches failed to validate, so you may get some
-                                  unexpected changes. You can try to manually create a
-                                  PR with the proposed changes. If you think this is
-                                  an error, please to report this to us.
+                                  Some patches failed to validate, so you may
+                                  get some unexpected changes. You can try to
+                                  manually create a PR with the proposed
+                                  changes. If you think this is an error, please
+                                  to report this to us.
                                 </AlertDescription>
                               </Alert>
                             )}
@@ -2671,7 +2714,9 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                                         file_changes: file_changes,
                                         branch:
                                           'sweep-chat-patch-' +
-                                          new Date().toISOString().split('T')[0], // use ai for better branch name, title, and body later
+                                          new Date()
+                                            .toISOString()
+                                            .split('T')[0], // use ai for better branch name, title, and body later
                                         base_branch: baseBranch,
                                         title: pullRequestTitle,
                                         body:
@@ -2751,129 +2796,131 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
               </div>
               <div className={`flex w-full`}>
                 {isStream.current ? (
-                    <Button
-                      className="mr-2"
-                      variant="destructive"
-                      onClick={async () => {
-                        setIsLoading(false)
-                        isStream.current = false
-                      }}
-                    >
-                      <FaStop />
-                      &nbsp;&nbsp;Stop
-                    </Button>
-                  ) : (
-                    <Button
-                      className="mr-2"
-                      variant="secondary"
-                      onClick={async () => {
-                        window.history.pushState({}, '', '/')
-                        setMessages([])
-                        setCurrentMessage('')
-                        setIsLoading(false)
-                        setSnippets([])
-                        setMessagesId('')
-                        setSuggestedChanges([])
-                        setPullRequest(null)
-                        setFeatureBranch(null)
-                        setPullRequestTitle(null)
-                        setPullRequestBody(null)
-                        setUserMentionedPullRequest(null)
-                        setUserMentionedPullRequests(null)
-                        setCommitToPR(false)
-                        setCommitToPRIsOpen(false)
-                      }}
-                      disabled={isLoading}
-                    >
-                      <FaPlus />
-                      &nbsp;&nbsp;New Chat
-                    </Button>
-                  )}
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button className="mr-2" variant="secondary">
-                        <FaShareAlt />
-                        &nbsp;&nbsp;Share
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="w-[800px] p-16">
-                      <h2 className="text-2xl font-bold mb-4 text-center">
-                        Share the Conversation
-                      </h2>
-                      <p className="text-center">
-                        Share your chat session with a team member.
-                      </p>
-                      <Input
-                        value={`${
-                          typeof window !== 'undefined' ? window.location.origin : ''
-                        }/c/${messagesId}`}
-                        onClick={() => {
-                          navigator.clipboard.writeText(
-                            `${window.location.origin}/c/${messagesId}`
-                          )
-                          toast({
-                            title: 'Link copied',
-                            description:
-                              'The link to your current session has been copied to your clipboard.',
-                          })
-                        }}
-                        disabled
-                      />
-                      <Button
-                        className="mt-2"
-                        variant="secondary"
-                        onClick={() => {
-                          navigator.clipboard.writeText(
-                            `${window.location.origin}/c/${messagesId}`
-                          )
-                          toast({
-                            title: 'Link copied',
-                            description:
-                              'The link to your current session has been copied to your clipboard.',
-                          })
-                        }}
-                      >
-                        Copy
-                      </Button>
-                    </DialogContent>
-                  </Dialog>
-                  <Textarea
-                    data-ph-capture-attribute-current-message={currentMessage}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && e.shiftKey) {
-                        e.currentTarget.style.height = `${e.currentTarget.scrollHeight / 2}px`
-                      }
-                      if (
-                        e.key === 'Enter' &&
-                        !e.shiftKey &&
-                        currentMessage.trim().length > 0
-                      ) {
-                        sendMessage()
-                        // @ts-ignore
-                        e.target.style!.height = 'auto'
-                        // @ts-ignore
-                        e.target.style!.height = `42px`
-                      }
-                    }}
-                    onChange={(e) => {
-                      setCurrentMessage(e.target.value)
-                      e.target.style.height = `${e.target.scrollHeight}px`
-                    }}
-                    className="p-2 overflow-y-hidden"
-                    style={{ minHeight: 24, height: 42 }}
-                    value={currentMessage}
-                    placeholder="Type a message..."
-                    disabled={isLoading || !repoNameValid || isStream.current}
-                  />
                   <Button
-                    className="ml-2 bg-blue-900 text-white hover:bg-blue-800"
+                    className="mr-2"
+                    variant="destructive"
+                    onClick={async () => {
+                      setIsLoading(false)
+                      isStream.current = false
+                    }}
+                  >
+                    <FaStop />
+                    &nbsp;&nbsp;Stop
+                  </Button>
+                ) : (
+                  <Button
+                    className="mr-2"
                     variant="secondary"
-                    onClick={sendMessage}
+                    onClick={async () => {
+                      window.history.pushState({}, '', '/')
+                      setMessages([])
+                      setCurrentMessage('')
+                      setIsLoading(false)
+                      setSnippets([])
+                      setMessagesId('')
+                      setSuggestedChanges([])
+                      setPullRequest(null)
+                      setFeatureBranch(null)
+                      setPullRequestTitle(null)
+                      setPullRequestBody(null)
+                      setUserMentionedPullRequest(null)
+                      setUserMentionedPullRequests(null)
+                      setCommitToPR(false)
+                      setCommitToPRIsOpen(false)
+                    }}
                     disabled={isLoading}
                   >
-                    <FaPaperPlane />
-                    &nbsp;&nbsp;Send
+                    <FaPlus />
+                    &nbsp;&nbsp;New Chat
                   </Button>
+                )}
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button className="mr-2" variant="secondary">
+                      <FaShareAlt />
+                      &nbsp;&nbsp;Share
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="w-[800px] p-16">
+                    <h2 className="text-2xl font-bold mb-4 text-center">
+                      Share the Conversation
+                    </h2>
+                    <p className="text-center">
+                      Share your chat session with a team member.
+                    </p>
+                    <Input
+                      value={`${
+                        typeof window !== 'undefined'
+                          ? window.location.origin
+                          : ''
+                      }/c/${messagesId}`}
+                      onClick={() => {
+                        navigator.clipboard.writeText(
+                          `${window.location.origin}/c/${messagesId}`
+                        )
+                        toast({
+                          title: 'Link copied',
+                          description:
+                            'The link to your current session has been copied to your clipboard.',
+                        })
+                      }}
+                      disabled
+                    />
+                    <Button
+                      className="mt-2"
+                      variant="secondary"
+                      onClick={() => {
+                        navigator.clipboard.writeText(
+                          `${window.location.origin}/c/${messagesId}`
+                        )
+                        toast({
+                          title: 'Link copied',
+                          description:
+                            'The link to your current session has been copied to your clipboard.',
+                        })
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </DialogContent>
+                </Dialog>
+                <Textarea
+                  data-ph-capture-attribute-current-message={currentMessage}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && e.shiftKey) {
+                      e.currentTarget.style.height = `${e.currentTarget.scrollHeight / 2}px`
+                    }
+                    if (
+                      e.key === 'Enter' &&
+                      !e.shiftKey &&
+                      currentMessage.trim().length > 0
+                    ) {
+                      sendMessage()
+                      // @ts-ignore
+                      e.target.style!.height = 'auto'
+                      // @ts-ignore
+                      e.target.style!.height = `42px`
+                    }
+                  }}
+                  onChange={(e) => {
+                    setCurrentMessage(e.target.value)
+                    e.target.style.height = `${e.target.scrollHeight}px`
+                  }}
+                  className="p-2 overflow-y-hidden"
+                  style={{ minHeight: 24, height: 42 }}
+                  value={currentMessage}
+                  placeholder="Type a message..."
+                  disabled={isLoading || !repoNameValid || isStream.current}
+                />
+                <Button
+                  className="ml-2 bg-blue-900 text-white hover:bg-blue-800"
+                  variant="secondary"
+                  onClick={sendMessage}
+                  disabled={isLoading}
+                >
+                  <FaPaperPlane />
+                  &nbsp;&nbsp;Send
+                </Button>
               </div>
             </ResizablePanel>
           </ResizablePanelGroup>

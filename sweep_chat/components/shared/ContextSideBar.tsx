@@ -37,17 +37,17 @@ const ContextSideBar = ({
 }) => {
   return (
     <div className="h-full w-full flex flex-col">
-      <div className='pb-2 pl-2'>
-        <h2 className='text-lg font-bold mb-2 flex items-center'>
+      <div className="pb-2 pl-2">
+        <h2 className="text-lg font-bold mb-2 flex items-center">
           Context
           <HoverCard>
             <HoverCardTrigger>
-              <FaInfoCircle className='text-gray-400 hover:text-gray-200 hover:cursor-pointer ml-2' />
+              <FaInfoCircle className="text-gray-400 hover:text-gray-200 hover:cursor-pointer ml-2" />
             </HoverCardTrigger>
             <HoverCardContent>
               <p className="text-sm text-gray-300">
-              List of current snippets in context. Run a custom search query
-              to find new snippets.
+                List of current snippets in context. Run a custom search query
+                to find new snippets.
               </p>
             </HoverCardContent>
           </HoverCard>
