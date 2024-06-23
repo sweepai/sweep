@@ -427,6 +427,20 @@ class Snippet(BaseModel):
             **kwargs,
         )
 
+def fuse_snippets(snippets: list[Snippet]) -> list[Snippet]:
+    new_snippets = []
+    for snippet in snippets:
+        for new_snippet in new_snippets:
+            if new_snippet.file_path == snippet.file_path:
+                if new_snippet.end + 1 == snippet.start:
+                    new_snippet.end = snippet.end
+                    break
+                elif new_snippet.start - 1 == snippet.end:
+                    new_snippet.start = snippet.start
+                    break
+        else:
+            new_snippets.append(snippet)
+    return new_snippets
 
 class NoFilesException(Exception):
     def __init__(self, message="Sweep could not find any files to modify"):
