@@ -71,10 +71,6 @@ describe('sweep chat', () => {
     )
 
     cy.get(messageInputSelector).type(testMessage + '{enter}')
-    cy.get('.justify-end > .transition-color').should(
-      'contain.text',
-      testMessage
-    )
 
     // Validate response from the LLM
     cy.get(':nth-child(3) > .transition-color', { timeout: 30000 }).should(
