@@ -22,6 +22,7 @@ import PullRequestDisplay from './PullRequestDisplay'
 import PulsingLoader from './shared/PulsingLoader'
 import { SnippetBadge } from './shared/SnippetBadge'
 
+// @ts-ignore
 import * as Diff from 'diff'
 
 const UserMessageDisplay = ({
