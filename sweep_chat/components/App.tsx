@@ -208,6 +208,12 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   }, [messagesId, messages.length])
 
   useEffect(() => {
+    if (messagesId) {
+      window.history.pushState({}, '', `/c/${messagesId}`)
+    }
+  }, [messagesId])
+
+  useEffect(() => {
     console.log('loading message', messagesId)
     if (messagesId) {
       ;(async () => {
@@ -234,10 +240,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
             commit_to_pr,
           } = data.data
           console.log(
-            repo_name,
-            messages,
-            snippets,
-            user_mentioned_pull_requests
+            `Loaded ${messages.length} messages from ${messagesId}`
           )
           setRepoName(repo_name)
           setRepoNameValid(true)
@@ -353,7 +356,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     repoName: string,
     messages: Message[],
     snippets: Snippet[],
-    currentMessagesId: string,
+    messagesId: string,
     userMentionedPullRequest: PullRequest | null = null,
     userMentionedPullRequests: PullRequest[] | null = null,
     commitToPR: boolean = false,
@@ -368,7 +371,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       repoName,
       messages,
       snippets,
-      messagesId: currentMessagesId,
+      messageId: messagesId,
       originalCodeSuggestions: originalSuggestedChanges,
       codeSuggestions: suggestedChanges,
       pullRequest,
@@ -379,12 +382,12 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       commitToPRString,
     }))
     const saveData = await saveResponse.json()
+    console.log(`Saving ${messages.length} messages to ${messagesId}`)
     if (saveData.status == 'success') {
       const { message_id } = saveData
-      if (!currentMessagesId && message_id) {
+      if (!messagesId && message_id) {
         setMessagesId(message_id)
         const updatedUrl = `/c/${message_id}`
-        window.history.pushState({}, '', updatedUrl)
       }
     } else {
       console.warn('Failed to save message', saveData)
@@ -393,7 +396,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
 
   const debouncedSave = useCallback(
     debounce((...args: Parameters<typeof save>) => {
-      console.log('saving...')
       save(
         ...args
       )
@@ -653,7 +655,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     let streamedMessages: Message[] = []
     let respondedMessages: Message[] = [
       ...newMessages,
-      { content: '...', role: 'assistant' } as Message,
+      { content: 'Loading...', role: 'assistant' } as Message,
     ]
     setMessages(respondedMessages)
 
@@ -851,7 +853,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   }
 
   const reset = () => {
-    window.history.pushState({}, '', '/')
     setMessages([])
     setCurrentMessage('')
     setIsLoading(false)
@@ -1132,7 +1133,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           />
           <Input
             placeholder="Branch"
-            className="ml-4 w-fit"
+            className="ml-4 w-[500px]"
             value={baseBranch}
             onChange={(e) => setBaseBranch(e.target.value)}
           />
@@ -1218,7 +1219,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                           setMessages(newMessages)
                           setIsCreatingPullRequest(false)
                           if (index == 0) {
-                            window.history.pushState({}, '', '/')
                             setMessagesId('')
                             setOriginalSuggestedChanges([])
                             setSuggestedChanges([])
@@ -1800,6 +1800,8 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                       e.target.style!.height = 'auto'
                       // @ts-ignore
                       e.target.style!.height = `42px`
+                      e.stopPropagation()
+                      e.preventDefault()
                     }
                   }}
                   onChange={(e) => {
