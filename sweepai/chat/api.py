@@ -392,6 +392,20 @@ def search_codebase(
                 yield f"{message} (optimized query: {query})", snippets
             else:
                 yield message, snippets
+    new_snippets = []
+    for snippet in snippets:
+        for new_snippet in new_snippets:
+            if new_snippet.file_path == snippet.file_path:
+                if new_snippet.end + 1 == snippet.start:
+                    new_snippet.end = snippet.end
+                    break
+                elif new_snippet.start - 1 == snippet.end:
+                    new_snippet.start = snippet.start
+                    break
+        else:
+            new_snippets.append(snippet)
+    snippets = new_snippets
+    yield "Fused snippets.", snippets
     logger.debug(f"Preparing snippets took {timer.time_elapsed} seconds")
     return snippets
 
@@ -562,18 +576,7 @@ def chat_codebase_stream(
         user_message = initial_user_message
 
         fetched_snippets = snippets
-        new_messages = [
-            Message(
-                content=snippets_message,
-                role="function",
-                function_call={
-                    "function_name": "search_codebase",
-                    "function_parameters": {},
-                    "is_complete": True,
-                    "snippets": deepcopy(snippets)
-                }
-            )
-        ] if len(messages) <= 2 else []
+        new_messages = []
 
         yield new_messages
 
