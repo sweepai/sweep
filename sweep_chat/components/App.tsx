@@ -64,6 +64,7 @@ import { Label } from './ui/label'
 import PulsingLoader from './shared/PulsingLoader'
 import {
   DEFAULT_K,
+  DEFAULT_MODEL,
   modelMap,
 } from '@/lib/constants'
 import {
@@ -116,7 +117,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   const [k, setK] = useLocalStorage<number>('k', DEFAULT_K)
   const [model, setModel] = useLocalStorage<keyof typeof modelMap>(
     'model',
-    'gpt-4o'
+    DEFAULT_MODEL
   )
   const [snippets, setSnippets] = useState<Snippet[]>([])
   const [searchMessage, setSearchMessage] = useState<string>('')

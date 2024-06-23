@@ -63,10 +63,20 @@ Then, make each a function call like so:
 [the function call goes here, using the valid XML format for function calls]
 </function_call>""" + example_tool_calls
 
-anthropic_format_message = """You MUST follow the following XML-based format, including <analysis> and <user_response> XML blocks:
+anthropic_format_message = """### Guidelines
+
+<examples>
+If the user asks you to "Review this PR" or "Explain this PR", your organized response should contain the following sections:
+Overview of the PR
+Changes in file_1
+Changes in file_2
+Impact and purpose of the changes
+</examples>
+
+You MUST follow the following XML-based format, including <analysis> and <user_response> XML blocks:
 
 ### Format
-
+<format>
 You must respond with the following two distinct sections:
 
 # 1. Summary and analysis
@@ -87,7 +97,8 @@ Write a complete helpful response to the user's question in full detail, address
 When showing relevant examples of code, only show MINIMAL excerpts of code that address the user's question. Do NOT copy the whole file, but only the lines that are relevant to the user's question.
 
 To suggest code changes, first list each section of each file that you would like to change. Then for each section, write a <code_change> block for that change. These changes should be atomic -- to change multiple parts of the file, you MUST write multiple separate <code_change> blocks.
-</user_response>"""
+</user_response>
+</format>"""
 
 openai_format_message = """You MUST follow the following XML-based format, including <user_response> and </user_respose> tags:
 

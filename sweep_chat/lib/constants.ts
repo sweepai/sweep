@@ -38,11 +38,13 @@ const languageMapping: Record<string, Extension> = {
 }
 
 const DEFAULT_K: number = 8
+const DEFAULT_MODEL = 'claude-3-5-sonnet-20240620'
 
 export {
   codeStyle,
   modelMap,
   DEFAULT_K,
+  DEFAULT_MODEL,
   roleToColor,
   typeNameToColor,
   languageMapping,
