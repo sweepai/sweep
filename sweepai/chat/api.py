@@ -1191,6 +1191,7 @@ async def write_message_to_disk(
         }
         with open(f"{CACHE_DIRECTORY}/messages/{message_id}.json", "w") as file:
             json.dump(data, file)
+        logger.info(f"Saved {len(messages)} messages to {message_id}.json")
         return {"status": "success", "message": "Message written to disk successfully.", "message_id": message_id}
     except Exception as e:
         logger.error(f"Failed to write message to disk: {str(e)}")
@@ -1203,6 +1204,7 @@ async def read_message_from_disk(
     try:
         with open(f"{CACHE_DIRECTORY}/messages/{message_id}.json", "r") as file:
             message_data = json.load(file)
+        logger.info(f"Loaded {len(message_data['messages'])} messages from {message_id}.json")
         return {
             "status": "success",
             "message": "Message read from disk successfully.",
