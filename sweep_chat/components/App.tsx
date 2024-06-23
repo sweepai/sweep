@@ -239,11 +239,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
             commit_to_pr,
           } = data.data
           console.log(
-            "loaded",
-            repo_name,
-            messages,
-            snippets,
-            user_mentioned_pull_requests
+            `Loaded ${messages.length} messages from ${messagesId}`
           )
           setRepoName(repo_name)
           setRepoNameValid(true)
@@ -359,7 +355,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     repoName: string,
     messages: Message[],
     snippets: Snippet[],
-    currentMessagesId: string,
+    messagesId: string,
     userMentionedPullRequest: PullRequest | null = null,
     userMentionedPullRequests: PullRequest[] | null = null,
     commitToPR: boolean = false,
@@ -374,7 +370,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       repoName,
       messages,
       snippets,
-      messagesId: currentMessagesId,
+      messageId: messagesId,
       originalCodeSuggestions: originalSuggestedChanges,
       codeSuggestions: suggestedChanges,
       pullRequest,
@@ -385,13 +381,12 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       commitToPRString,
     }))
     const saveData = await saveResponse.json()
-    console.log("saving", messages)
+    console.log(`Saving ${messages.length} messages to ${messagesId}`)
     if (saveData.status == 'success') {
       const { message_id } = saveData
-      if (!currentMessagesId && message_id) {
+      if (!messagesId && message_id) {
         setMessagesId(message_id)
         const updatedUrl = `/c/${message_id}`
-        window.history.pushState({}, '', updatedUrl)
       }
     } else {
       console.warn('Failed to save message', saveData)
@@ -400,7 +395,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
 
   const debouncedSave = useCallback(
     debounce((...args: Parameters<typeof save>) => {
-      console.log('saving...')
       save(
         ...args
       )
@@ -858,7 +852,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   }
 
   const reset = () => {
-    window.history.pushState({}, '', '/')
     setMessages([])
     setCurrentMessage('')
     setIsLoading(false)
@@ -1225,7 +1218,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                           setMessages(newMessages)
                           setIsCreatingPullRequest(false)
                           if (index == 0) {
-                            window.history.pushState({}, '', '/')
                             setMessagesId('')
                             setOriginalSuggestedChanges([])
                             setSuggestedChanges([])
