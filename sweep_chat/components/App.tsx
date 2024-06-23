@@ -606,7 +606,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     }, timeout)
   }
 
-  const startStream = async (
+  const startChatStream = async (
     message: string,
     newMessages: Message[],
     snippets: Snippet[],
@@ -652,7 +652,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     let streamedMessages: Message[] = []
     let respondedMessages: Message[] = [
       ...newMessages,
-      { content: '', role: 'assistant' } as Message,
+      { content: '...', role: 'assistant' } as Message,
     ]
     setMessages(respondedMessages)
 
@@ -755,7 +755,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     ]
     setMessages(newMessages)
     setCurrentMessage('')
-    startStream(currentMessage, newMessages, snippets, { pulls })
+    startChatStream(currentMessage, newMessages, snippets, { pulls })
   }
 
   const validatePr = async (pr: PullRequest, index: number) => {
@@ -844,7 +844,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           content: content,
         },
       ]
-      startStream(content, newMessages, snippets)
+      startChatStream(content, newMessages, snippets)
       return newMessages
     })
   }
@@ -1224,12 +1224,12 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                             setIsProcessingSuggestedChanges(false)
                             setPullRequestTitle(null)
                             setPullRequestBody(null)
-                            startStream(content, newMessages, snippets, {
+                            startChatStream(content, newMessages, snippets, {
                               pulls,
                             })
                             setPrValidationStatuses([])
                           } else {
-                            startStream(content, newMessages, snippets, {
+                            startChatStream(content, newMessages, snippets, {
                               pulls,
                             })
                           }
@@ -1495,9 +1495,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                       {(codeSuggestionsState == 'validating' ||
                         codeSuggestionsState == 'creating') && (
                         <>
-                          {commitToPR && userMentionedPullRequest ? (
-                            <></>
-                          ) : (
+                          {!(commitToPR && userMentionedPullRequest) && (
                             <>
                               <Input
                                 value={pullRequestTitle || ''}
