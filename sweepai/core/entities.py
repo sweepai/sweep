@@ -50,6 +50,11 @@ class Message(BaseModel):
             obj["name"] = self.name
         return obj
 
+    def __repr__(self):
+        # take the first 100 and last 100 characters of the message if it's too long
+        truncated_message_content = self.content[:100] + "..." + self.content[-100:] if len(self.content) > 200 else self.content
+        return f"\nSTART OF MESSAGE\n\n{truncated_message_content}\n\nROLE: {self.role} FUNCTION_CALL: {self.function_call} NAME: {self.name} ANNOTATIONS: {self.annotations if self.annotations else ''} KEY: {self.key}\n\nEND OF MESSAGE\n\n"
+
 
 class Function(BaseModel):
     class Parameters(BaseModel):
@@ -422,6 +427,20 @@ class Snippet(BaseModel):
             **kwargs,
         )
 
+def fuse_snippets(snippets: list[Snippet]) -> list[Snippet]:
+    new_snippets = []
+    for snippet in snippets:
+        for new_snippet in new_snippets:
+            if new_snippet.file_path == snippet.file_path:
+                if new_snippet.end + 1 == snippet.start:
+                    new_snippet.end = snippet.end
+                    break
+                elif new_snippet.start - 1 == snippet.end:
+                    new_snippet.start = snippet.start
+                    break
+        else:
+            new_snippets.append(snippet)
+    return new_snippets
 
 class NoFilesException(Exception):
     def __init__(self, message="Sweep could not find any files to modify"):
