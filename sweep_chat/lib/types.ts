@@ -1,3 +1,5 @@
+type Tail<T extends any[]> = T extends [any, ...infer U] ? U : never;
+
 type SnakeCase<S extends string> = S extends `${infer T}${infer U}`
   ? U extends Uncapitalize<U>
     ? `${Lowercase<T>}${SnakeCase<U>}`
@@ -97,6 +99,7 @@ interface PrValidationStatus {
 }
 
 export type {
+  Tail,
   SnakeCase,
   SnakeCaseKeys,
   Repository,
