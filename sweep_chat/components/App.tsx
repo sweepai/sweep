@@ -81,6 +81,7 @@ import PulsingLoader from './shared/PulsingLoader'
 import {
   codeStyle,
   DEFAULT_K,
+  DEFAULT_MODEL,
   modelMap,
   roleToColor,
   typeNameToColor,
@@ -1077,7 +1078,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   const [k, setK] = useLocalStorage<number>('k', DEFAULT_K)
   const [model, setModel] = useLocalStorage<keyof typeof modelMap>(
     'model',
-    'gpt-4o'
+    DEFAULT_MODEL
   )
   const [snippets, setSnippets] = useState<Snippet[]>([])
   const [searchMessage, setSearchMessage] = useState<string>('')
