@@ -1378,8 +1378,9 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   ) => {
     setIsLoading(true)
     isStream.current = true
+    var existingSnippets = snippets
     var currentSnippets = snippets
-    if (currentSnippets.length == 0) {
+    if (true) {
       try {
         const snippetsResponse = await fetch(`/backend/search`, {
           method: 'POST',
@@ -1392,6 +1393,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
             repo_name: repoName,
             query: message,
             annotations: annotations,
+            existing_context: currentSnippets,
             branch: baseBranch,
           }),
         })
@@ -1416,6 +1418,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
               },
             } as Message,
           ]
+          console.log("recived snippets", currentSnippets)
           if (currentSnippets) {
             setSnippets(currentSnippets)
           }
@@ -1433,6 +1436,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
             },
           },
         ]
+        console.log("streamed messages is", streamedMessages)
         setMessages(streamedMessages)
         if (!currentSnippets.length) {
           throw new Error('No snippets found')
@@ -1457,7 +1461,8 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         throw e
       }
     }
-
+    console.log("calling chat with the following messages", newMessages)
+    console.log("calling chat with the following snippets", currentSnippets)
     const chatResponse = await fetch('/backend/chat', {
       method: 'POST',
       headers: {
@@ -1699,7 +1704,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                       </DropdownMenuRadioGroup>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <Label className="mt-4">Number of snippets</Label>
+                  <Label className="mt-4">Max number of snippets</Label>
                   <div className="flex items-center">
                     <span className="mr-4 whitespace-nowrap">{k}</span>
                     <Slider

@@ -61,6 +61,7 @@ const SnippetSearch = ({
           repo_name: repoName,
           query: searchQuery,
           annotations: annotations,
+          existing_context: snippets
         }),
       })
       let currentSnippets: Snippet[] = []
