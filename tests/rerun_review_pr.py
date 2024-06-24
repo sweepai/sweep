@@ -35,7 +35,7 @@ def fetch_review_pr_request(issue_url: str, __version__: str = "0"):
     pr = repo.get_pull(int(pr_number))
 
     review_pr_request = {
-        "action": "labeled",
+        "action": "opened",
         "number": int(pr_number),
         "pull_request": pr.raw_data,
         "repository": repo.raw_data,
