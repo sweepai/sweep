@@ -1,3 +1,17 @@
+type Tail<T extends any[]> = T extends [any, ...infer U] ? U : never;
+
+type SnakeCase<S extends string> = S extends `${infer T}${infer U}`
+  ? U extends Uncapitalize<U>
+    ? `${Lowercase<T>}${SnakeCase<U>}`
+    : `${Lowercase<T>}_${SnakeCase<U>}`
+  : S
+
+type SnakeCaseKeys<T> = {
+  [K in keyof T as SnakeCase<string & K>]: T[K] extends object
+    ? SnakeCaseKeys<T[K]>
+    : T[K]
+}
+
 type Repository = any
 
 interface Snippet {
@@ -65,6 +79,7 @@ interface Message {
   annotations?: {
     pulls?: PullRequest[]
     codeSuggestions?: StatefulCodeSuggestion[]
+    prValidationStatuses?: PrValidationStatus[]
   }
 }
 
@@ -74,7 +89,19 @@ interface ChatSummary {
   initialMessage: string
 }
 
+interface PrValidationStatus {
+  message: string
+  stdout: string
+  succeeded: boolean | null
+  status: 'pending' | 'running' | 'success' | 'failure' | 'cancelled'
+  llmMessage: string
+  containerName: string
+}
+
 export type {
+  Tail,
+  SnakeCase,
+  SnakeCaseKeys,
   Repository,
   Snippet,
   FileDiff,
@@ -82,5 +109,6 @@ export type {
   Message,
   CodeSuggestion,
   StatefulCodeSuggestion,
-  ChatSummary
+  ChatSummary,
+  PrValidationStatus,
 }

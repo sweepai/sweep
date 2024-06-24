@@ -106,7 +106,6 @@ const RenderPath = ({
         )}
       </span>
       <span
-        className="text-gray-400 inline-block align-middle"
         onClick={() => {
           window.open(
             `https://github.com/${repoName}/blob/${branch}/${snippet.file_path}`,
@@ -114,23 +113,17 @@ const RenderPath = ({
           )
         }}
       >
-        {truncatedPath.substring(0, truncatedPath.lastIndexOf('/') + 1)}
+        <div className="text-white inline-block align-middle mr-2">
+          {truncatedPath.substring(truncatedPath.lastIndexOf('/') + 1)}
+        </div>
+        <div className="text-gray-400 inline-block align-middle">
+          {truncatedPath}
+        </div>
       </span>
-      <span
-        className="text-white inline-block align-middle"
-        onClick={() => {
-          window.open(
-            `https://github.com/${repoName}/blob/${branch}/${snippet.file_path}`,
-            '_blank'
-          )
-        }}
-      >
-        {truncatedPath.substring(truncatedPath.lastIndexOf('/') + 1)}
-      </span>
-      {snippet.end > snippet.content.split('\n').length - 3 &&
-      snippet.start == 0 ? (
-        <></>
-      ) : (
+      {!(
+        snippet.end > snippet.content.split('\n').length - 3 &&
+        snippet.start == 0
+      ) && (
         <span className="text-gray-400 inline-block align-middle">
           :{snippet.start}-{snippet.end}
         </span>
@@ -140,7 +133,6 @@ const RenderPath = ({
           {snippet.type_name}
         </code>
       )}
-      
     </span>
   )
 }

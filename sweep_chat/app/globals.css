@@ -94,15 +94,14 @@
   h1 {
     font-size: 2rem;
     /* margin-bottom: 1.5rem; */
+    margin-top: 1rem;
+    line-height: 1.5;
   }
   
-  h1:not(:first-child) {
-    margin-top: 2rem;
-  }
-
   h2 {
     font-size: 1.5rem;
     /* margin-bottom: 1.5rem; */
+    line-height: 1.5;
   }
 
   h2:not(:first-child) {

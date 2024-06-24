@@ -3,7 +3,7 @@ const testMessage =
 const testPullRequestMessage =
   'Help me review this PR: https://github.com/sweepai/sweep/pull/3978'
 
-const messageInputSelector = ':nth-child(5) > .flex'
+const messageInputSelector = '.pl-4 > div.flex > .flex'
 
 describe('sweep chat', () => {
   beforeEach(() => {
@@ -71,13 +71,9 @@ describe('sweep chat', () => {
     )
 
     cy.get(messageInputSelector).type(testMessage + '{enter}')
-    cy.get('.justify-end > .transition-color').should(
-      'contain.text',
-      testMessage
-    )
 
     // Validate response from the LLM
-    cy.get(':nth-child(3) > .transition-color', { timeout: 30000 }).should(
+    cy.get(':nth-child(2) > .transition-color', { timeout: 30000 }).should(
       'contain.text',
       'Analysis'
     )

@@ -17,6 +17,8 @@ from sweepai.core.review_annotations import get_diff_annotations
 from sweepai.core.vector_db import cosine_similarity, embed_text_array
 from sweepai.core.review_prompts import (
     system_prompt,
+    system_prompt_edge_case_question_creation,
+    system_prompt_edge_case_answer,
     system_prompt_pr_summary,
     system_prompt_review,
     system_prompt_special_rules,
@@ -31,6 +33,8 @@ from sweepai.core.review_prompts import (
     user_prompt_review_decisions,
     user_prompt_identify_new_functions,
     user_prompt_identify_repeats,
+    user_prompt_edge_case_question_creation_format,
+    user_prompt_edge_case_question_answer_format,
     patch_format,
     patch_format_without_annotations,
     patches_for_file_format,
@@ -392,7 +396,7 @@ def format_all_pr_changes_by_groups(
                 formatted_pr_changes_by_groups[group.group_name] = group
     return formatted_pr_changes_by_groups
 
-CLAUDE_MODEL = "claude-3-opus-20240229"
+CLAUDE_MODEL = "claude-3-5-sonnet-20240620"
 
 class PRReviewBot(ChatGPT):
     # check if there are special .md rules to see if there are additional rules to check for
@@ -533,6 +537,52 @@ class PRReviewBot(ChatGPT):
                             seed=seed,
                         )
                         code_review_response += special_rules_response
+            # add a final check for edge cases
+            self.messages = [
+                Message(
+                    role="system",
+                    content=system_prompt_edge_case_question_creation,
+                )
+            ]
+
+            formatted_user_prompt_edge_case_question_creation = user_prompt_edge_case_question_creation_format.format(
+                diff=rendered_changes
+            )
+
+            edge_case_questions_response = self.chat_anthropic(
+                content=formatted_user_prompt_edge_case_question_creation,
+                temperature=0.1,
+                model=CLAUDE_MODEL,
+                use_openai=True,
+                seed=seed
+            )
+
+            created_questions_dict, failed, _ = extract_object_fields_from_string(
+                edge_case_questions_response, ["created_questions"]
+            )
+            if not failed:
+                created_questions = created_questions_dict["created_questions"]
+                # now get llm to answer the questions it created
+                self.messages = [
+                    Message(
+                        role="system",
+                        content=system_prompt_edge_case_answer,
+                    )
+                ]
+                formatted_user_prompt_edge_case_answer = user_prompt_edge_case_question_answer_format.format(
+                    diff=rendered_changes,
+                    questions=created_questions
+                )
+                formatted_user_prompt_edge_case_answer += user_prompt_issue_output_format
+                edge_case_answer_response = self.chat_anthropic(
+                    content=formatted_user_prompt_edge_case_answer,
+                    temperature=0.1,
+                    model=CLAUDE_MODEL,
+                    use_openai=True,
+                    seed=seed
+                )
+                code_review_response += edge_case_answer_response
+
             diff_summary = ""
             diff_summary_pattern = r"<diff_summary>(.*?)</diff_summary>"
             diff_summary_matches = re.findall(diff_summary_pattern, code_review_response, re.DOTALL)
@@ -1076,7 +1126,7 @@ def group_vote_review_pr(
         # note DBSCAN expects a shape with less than or equal to 2 dimensions
         try:
             if all_flattened_embeddings.size:
-                db = DBSCAN(eps=0.253, min_samples=2).fit(all_flattened_embeddings)
+                db = DBSCAN(eps=0.375, min_samples=2).fit(all_flattened_embeddings)
                 groups_to_labels[group_name] = db.labels_
             else:
                 groups_to_labels[group_name] = []

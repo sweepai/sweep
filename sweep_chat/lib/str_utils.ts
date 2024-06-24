@@ -1,4 +1,4 @@
-import { Message, PullRequest } from './types'
+import { Message, PullRequest, SnakeCaseKeys } from './types'
 // @ts-ignore
 import * as Diff from 'diff'
 
@@ -114,3 +114,38 @@ export const getDiff = (originalCode: string, newCode: string) => {
     .trim()
   return formattedChange
 }
+
+export const truncate = (str: string, maxLength: number) =>
+  str.length > maxLength ? str.slice(0, maxLength) + '...' : str
+
+export const snakeCaseToCamelCase = (str: string) => {
+  return str.replace(/([_]+)([a-z])/g, (match, p1, p2) => p2.toUpperCase())
+}
+
+export function toCamelCaseKeys<A extends string, B>(
+  obj: SnakeCaseKeys<Record<A, B>>
+): Record<A, B> {
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => [
+      snakeCaseToCamelCase(key),
+      value,
+    ])
+  ) as Record<A, B>
+}
+
+export const camelCaseToSnakeCase = (str: string) => {
+  return str.replace(/([A-Z])/g, '_$1').toLowerCase()
+}
+
+export function toSnakeCaseKeys<A extends string, B>(
+  obj: Record<A, B>
+): SnakeCaseKeys<Record<A, B>> {
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => [
+      camelCaseToSnakeCase(key),
+      value,
+    ])
+  ) as SnakeCaseKeys<Record<A, B>>
+}
+
+export const sum = (arr: number[]) => arr.reduce((acc, cur) => acc + cur, 0)
