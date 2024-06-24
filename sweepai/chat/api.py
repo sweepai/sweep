@@ -825,6 +825,7 @@ def handle_function_call(function_call: AnthropicFunctionCall, repo_name: str, s
 async def autofix(
     repo_name: str = Body(...),
     code_suggestions: list[CodeSuggestion] = Body(...),
+    modify_files_dict: dict = Body({}),
     branch: str = Body(None),
     access_token: str = Depends(get_token_header)
 ):# -> dict[str, Any] | StreamingResponse:
@@ -867,13 +868,17 @@ async def autofix(
 
     def stream():
         try:
-            for stateful_code_suggestions in modify.stream(
+            for applied_code_suggestions, queued_code_suggestions in modify.stream(
                 fcrs=file_change_requests,
                 request="",
                 cloned_repo=cloned_repo,
                 relevant_filepaths=[code_suggestion.file_path for code_suggestion in code_suggestions],
+                previous_modify_files_dict=modify_files_dict
             ):
-                yield json.dumps([stateful_code_suggestion.__dict__ for stateful_code_suggestion in stateful_code_suggestions])
+                yield json.dumps({
+                    "applied_code_suggestions": [stateful_code_suggestion.__dict__ for stateful_code_suggestion in applied_code_suggestions],
+                    "queued_code_suggestions": [stateful_code_suggestion.__dict__ for stateful_code_suggestion in queued_code_suggestions]
+                })
         except Exception as e:
             yield json.dumps({"error": str(e)})
             raise e
@@ -1163,7 +1168,6 @@ async def write_message_to_disk(
     repo_name: str = Body(...),
     messages: list[Message] = Body(...),
     snippets: list[Snippet] = Body(...),
-    original_code_suggestions: list = Body([]),
     code_suggestions: list = Body([]),
     pull_request: dict | None = Body(None),
     pull_request_title: str = Body(""),
@@ -1180,7 +1184,6 @@ async def write_message_to_disk(
             "repo_name": repo_name,
             "messages": [message.model_dump() for message in messages],
             "snippets": [snippet.model_dump() for snippet in snippets],
-            "original_code_suggestions": [code_suggestion.__dict__ if isinstance(code_suggestion, CodeSuggestion) else code_suggestion for code_suggestion in original_code_suggestions],
             "code_suggestions": [code_suggestion.__dict__ if isinstance(code_suggestion, CodeSuggestion) else code_suggestion for code_suggestion in code_suggestions],
             "pull_request": pull_request,
             "user_mentioned_pull_request": user_mentioned_pull_request,
