@@ -834,17 +834,4 @@ if __name__ == "__main__":
     #     question="What version of django is used in this codebase?",
     #     cloned_repo=cloned_repo,
     # )
-    # cloned_repo = MockClonedRepo(
-    #     _repo_dir = "/root/sweep/benchmark/data/repos/snowball",
-    #     repo_full_name="ProlificLabs/snowball",
-    # )
-    cloned_repo = MockClonedRepo(
-        _repo_dir = "/root/sweep/benchmark/data/repos/komorebi",
-        repo_full_name="shogun-hearth/komorebi",
-    )
-    result = file_searcher(
-        question="""what does shownextstep do in apps/katana/src/modules/RequestFlow/Footer.tsx
-""",
-        cloned_repo=cloned_repo,
-    )
     breakpoint() #noqa
