@@ -1273,7 +1273,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                   />
                   </TabsContent>
                 <TabsContent value="changes">
-                  <div className="flex justify-around w-full pb-2 mb-4">
+                  <div className="flex justify-start w-full pb-2 mb-4">
                     <p className="font-bold">Staged Changes</p>
                   </div>
                   <div className="bg-zinc-900 rounded-xl p-4 overflow-y-auto">
