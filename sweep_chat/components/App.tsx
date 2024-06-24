@@ -1,6 +1,8 @@
 'use client'
 
 import {
+  Dispatch,
+  SetStateAction,
   useCallback,
   useEffect,
   useRef,
@@ -97,7 +99,6 @@ import { streamResponseMessages } from '@/lib/streamingUtils'
 import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 import { Skeleton } from './ui/skeleton'
 import { isPullRequestEqual } from '@/lib/pullUtils'
-import CodeMirrorEditor from './CodeMirrorSuggestionEditor'
 // @ts-ignore
 import {
   ResizableHandle,
@@ -106,7 +107,121 @@ import {
 } from './ui/resizable'
 import MessageDisplay from './MessageDisplay'
 import { withLoading } from '@/lib/contextManagers'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
+import CodeMirrorSuggestionEditor from './CodeMirrorSuggestionEditor'
+import { Switch } from './ui/switch'
 
+const hashCode = (str: string): number => {
+  const p = 31; // A prime number
+  const m = 1e9 + 9; // A large prime number to prevent overflow
+  let hash = 0;
+  let pPow = 1;
+
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash + (str.charCodeAt(i) - 'a'.charCodeAt(0) + 1) * pPow) % m;
+    pPow = (pPow * p) % m;
+  }
+
+  return hash;
+}
+const SuggestedChangeDisplay = (
+{
+  suggestion,
+  index,
+  setSuggestedChanges
+}: {
+  suggestion: StatefulCodeSuggestion,
+  index: number,
+  setSuggestedChanges: Dispatch<SetStateAction<StatefulCodeSuggestion[]>>
+}) => {
+  const [showOriginal, setShowOriginal] = useState(
+    suggestion.originalCode.length > 0 ? (suggestion.newCode.length / suggestion.originalCode.length > 10) : false
+  )
+  return (
+    <div className="fit-content mb-6" key={index}>
+      <div
+        className={`flex justify-between items-center w-full text-sm p-2 px-4 rounded-t-md ${
+          suggestion.state === 'done'
+            ? 'bg-green-900'
+            : suggestion.state === 'error'
+              ? 'bg-red-900'
+              : suggestion.state === 'pending'
+                ? 'bg-zinc-800'
+                : 'bg-yellow-800'
+        }`}
+      >
+        <code>
+          {suggestion.filePath}{' '}
+          {suggestion.state == 'pending' ? (
+            '(pending)'
+          ) : suggestion.state == 'processing' ? (
+            '(processing)'
+          ) : suggestion.state == 'error' ? (
+            '(error)'
+          ) : (
+            <FaCheck
+              style={{ display: 'inline', marginTop: -2 }}
+            />
+          )}
+        </code>
+        <div className="flex justify-end items-center">
+          {suggestion.error && (
+            <HoverCard openDelay={300} closeDelay={200}>
+              <HoverCardTrigger>
+                <FaExclamationTriangle
+                  className="hover:cursor-pointer mr-4 text-yellow-500"
+                  style={{ marginTop: 2 }}
+                />
+              </HoverCardTrigger>
+              <HoverCardContent className="w-[800px] max-h-[500px] overflow-y-auto">
+                <MarkdownRenderer
+                  content={`**This patch could not be directly applied. We're sending the LLM the following message to resolve the error:**\n\n${suggestion.error}`}
+                />
+              </HoverCardContent>
+            </HoverCard>
+          )}
+          <div className="flex items-center justify-center mr-4">
+            <Label
+              className="hover:cursor-pointer"
+              htmlFor={`switch-${hashCode(suggestion.filePath + suggestion.originalCode + suggestion.newCode)}-${index}`}
+            >
+                Show Original
+            </Label>
+            <Switch
+              checked={showOriginal}
+              onCheckedChange={(checked) => setShowOriginal(checked)}
+              className="ml-4 mr-4"
+              id={`switch-${hashCode(suggestion.filePath + suggestion.originalCode + suggestion.newCode)}-${index}`}
+            />
+          </div>
+          <Button
+            className="bg-red-800 hover:bg-red-700 text-white"
+            size="sm"
+            onClick={() =>
+              setSuggestedChanges(
+                (
+                  suggestedChanges: StatefulCodeSuggestion[]
+                ) =>
+                  suggestedChanges.filter(
+                    (s) => s !== suggestion
+                  )
+              )
+            }
+          >
+            <FaTrash />
+            &nbsp;Remove
+          </Button>
+        </div>
+      </div>
+      <CodeMirrorSuggestionEditor
+        suggestion={suggestion}
+        index={index}
+        setSuggestedChanges={setSuggestedChanges}
+        showOriginal={showOriginal}
+      />
+    </div>
+  )
+}
 
 function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   const [repoName, setRepoName] = useState<string>('')
@@ -447,14 +562,14 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     })
   }, [repoName, messages, snippets, messagesId])
 
-  const reactCodeMirrors = suggestedChanges.map((suggestion, index) => (
-    <CodeMirrorEditor
-      suggestion={suggestion}
-      index={index}
-      setSuggestedChanges={setSuggestedChanges}
-      key={index}
-    />
-  ))
+  // const reactCodeMirrors = suggestedChanges.map((suggestion, index) => (
+  //   <CodeMirrorEditor
+  //     suggestion={suggestion}
+  //     index={index}
+  //     setSuggestedChanges={setSuggestedChanges}
+  //     key={index}
+  //   />
+  // ))
 
   if (session) {
     posthog.identify(session.user!.email!, {
@@ -1141,18 +1256,415 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
 
         {(repoNameValid || messagesId) && (
           <ResizablePanelGroup direction="horizontal">
-            <ResizablePanel defaultSize={25} className="pr-4">
-              <ContextSideBar
-                snippets={snippets}
-                setSnippets={setSnippets}
-                repoName={repoName}
-                branch={branch}
-                k={k}
-                searchMessage={searchMessage}
-              />
+            <ResizablePanel defaultSize={33} className="pr-4">
+              <Tabs defaultValue={suggestedChanges.length > 0 ? "changes" : "context"} className="h-full flex flex-col">
+                <TabsList className='w-fit mb-4'>
+                  <TabsTrigger value="context">Context</TabsTrigger>
+                  <TabsTrigger value="changes" disabled={suggestedChanges.length == 0}>Changes</TabsTrigger>
+                </TabsList>
+                <TabsContent value="context" className='grow'>
+                  <ContextSideBar
+                    snippets={snippets}
+                    setSnippets={setSnippets}
+                    repoName={repoName}
+                    branch={branch}
+                    k={k}
+                    searchMessage={searchMessage}
+                  />
+                  </TabsContent>
+                <TabsContent value="changes">
+                  <div className="bg-zinc-900 rounded-xl p-4 overflow-y-auto">
+                    <div className="flex justify-between mb-4 align-start">
+                      <div className="flex items-center align-middle">
+                        <NavigationMenu>
+                          <NavigationMenuList>
+                            <NavigationMenuItem>
+                              <NavigationMenuTrigger className="bg-secondary hover:bg-secondary mr-2">
+                                {userMentionedPullRequest && commitToPR ? (
+                                  <span className="text-sm w-full p-2">
+                                    <FaCodeCommit
+                                      style={{ display: 'inline' }}
+                                    />
+                                    &nbsp;&nbsp;Commit to PR #
+                                    {userMentionedPullRequest.number}
+                                  </span>
+                                ) : (
+                                  <span className="text-sm w-full p-2">
+                                    <FaCodeBranch
+                                      style={{ display: 'inline' }}
+                                    />
+                                    &nbsp;&nbsp;Create New PR
+                                  </span>
+                                )}
+                              </NavigationMenuTrigger>
+                              <NavigationMenuContent className="w-full">
+                                {commitToPR && (
+                                  <Button
+                                    className="w-full p-2 px-4"
+                                    variant="secondary"
+                                    disabled={isLoading}
+                                    onClick={() => {
+                                      setCommitToPR(false)
+                                      setCommitToPRIsOpen(false)
+                                    }}
+                                  >
+                                    <FaCodeBranch
+                                      style={{ display: 'inline' }}
+                                    />
+                                    &nbsp;&nbsp;Create New PR
+                                  </Button>
+                                )}
+                                {// loop through all pull requests
+                                userMentionedPullRequests?.map((pr, index) => {
+                                  // dont show current selected pr, unless we are creating a pr rn
+                                  if (
+                                    pr.number !==
+                                      userMentionedPullRequest?.number ||
+                                    !commitToPR
+                                  ) {
+                                    return (
+                                      <Button
+                                        className="w-full p-2 px-4"
+                                        variant="secondary"
+                                        disabled={isLoading}
+                                        onClick={() => {
+                                          setCommitToPR(true)
+                                          setUserMentionedPullRequest(pr)
+                                          setCommitToPRIsOpen(false)
+                                        }}
+                                        key={index}
+                                      >
+                                        <FaCodeCommit
+                                          style={{ display: 'inline' }}
+                                        />
+                                        &nbsp;&nbsp;Commit to PR #{pr.number}
+                                      </Button>
+                                    )
+                                  }
+                                })}
+                              </NavigationMenuContent>
+                            </NavigationMenuItem>
+                          </NavigationMenuList>
+                        </NavigationMenu>
+                        <Button
+                          className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full px-2 mt-0"
+                          onClick={() =>
+                            applySuggestions(
+                              originalSuggestedChanges,
+                              commitToPR
+                            )
+                          }
+                          aria-label="Retry applying changes"
+                          disabled={isStream.current}
+                        >
+                          <FaArrowsRotate />
+                          &nbsp;&nbsp;Reapply changes
+                        </Button>
+                        <Button
+                          className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full px-2 mt-0"
+                          onClick={() => {
+                            isStream.current = false
+                          }}
+                          aria-label="Stop"
+                          disabled={!isStream.current}
+                        >
+                          <FaStop />
+                          &nbsp;&nbsp;Stop
+                        </Button>
+                      </div>
+                      <Button
+                        className="text-red-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-red-500 rounded-full px-2 mt-0"
+                        onClick={() => {
+                          setSuggestedChanges([])
+                          setOriginalSuggestedChanges([])
+                        }}
+                        aria-label="Unstage Changes"
+                      >
+                        <FaTimes />
+                        &nbsp;&nbsp;Unstage Changes
+                      </Button>
+                    </div>
+                    {codeSuggestionsState == 'staging' && (
+                      <div className="flex justify-around w-full pb-2 mb-4">
+                        <p className="font-bold">Staged Changes</p>
+                      </div>
+                    )}
+                    {!suggestedChanges.every(
+                      (suggestion) => suggestion.state == 'done'
+                    ) &&
+                      codeSuggestionsState == 'validating' &&
+                      !isProcessingSuggestedChanges && (
+                        <div className="flex justify-around w-full pb-2 mb-4">
+                          Some patches failed to validate, so you may get some
+                          unexpected changes. You can try to manually create a
+                          PR with the proposed changes. If you think this is an
+                          error, feel free to report this to us.
+                        </div>
+                      )}
+                    {isProcessingSuggestedChanges && (
+                      <div className="flex justify-around w-full pb-2 mb-4">
+                        <p>
+                          I&apos;m currently processing and applying these
+                          patches, and fixing any errors along the way. This may
+                          take a few minutes.
+                        </p>
+                      </div>
+                    )}
+                    {isCreatingPullRequest && (
+                      <div className="flex justify-around w-full pb-2 mb-4">
+                        <p>
+                          {commitToPR && userMentionedPullRequest
+                            ? `Committing to ${userMentionedPullRequest.branch}`
+                            : 'Creating pull request...'}
+                        </p>
+                      </div>
+                    )}
+                    <div
+                      style={{
+                        opacity: isCreatingPullRequest ? 0.5 : 1,
+                        pointerEvents: isCreatingPullRequest ? 'none' : 'auto',
+                      }}
+                    >
+                      {suggestedChanges.map((suggestion, index) => (
+                        <SuggestedChangeDisplay
+                          suggestion={suggestion}
+                          index={index}
+                          setSuggestedChanges={setSuggestedChanges}
+                          key={index}
+                        />
+                      ))}
+                      {codeSuggestionsState == 'staging' && (
+                        <Button
+                          className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
+                          onClick={() => {
+                            setCodeSuggestionsState('validating')
+                            applySuggestions(suggestedChanges, commitToPR)
+                          }}
+                        >
+                          <FaCheck />
+                          &nbsp;&nbsp;Apply Changes
+                        </Button>
+                      )}
+                      {(codeSuggestionsState == 'validating' ||
+                        codeSuggestionsState == 'creating') && (
+                        <>
+                          {!(commitToPR && userMentionedPullRequest) && (
+                            <>
+                              <Input
+                                value={pullRequestTitle || ''}
+                                onChange={(e) =>
+                                  setPullRequestTitle(e.target.value)
+                                }
+                                placeholder="Pull Request Title"
+                                className="w-full mb-4 text-zinc-300"
+                                disabled={
+                                  pullRequestTitle == null ||
+                                  isProcessingSuggestedChanges
+                                }
+                              />
+                              <Textarea
+                                value={pullRequestBody || ''}
+                                onChange={(e) =>
+                                  setPullRequestBody(e.target.value)
+                                }
+                                placeholder="Pull Request Body"
+                                className="w-full mb-4 text-zinc-300"
+                                disabled={
+                                  pullRequestTitle == null ||
+                                  isProcessingSuggestedChanges
+                                }
+                                rows={8}
+                              />
+                            </>
+                          )}
+
+                          {commitToPR && userMentionedPullRequest ? (
+                            <div className="flex grow items-center mb-4">
+                              {`You are commiting to ${userMentionedPullRequest.branch} with the following commit message:`}
+                            </div>
+                          ) : (
+                            <div className="flex grow items-center mb-4">
+                              <Input
+                                className="flex items-center w-[600px]"
+                                value={baseBranch || ''}
+                                onChange={(e) => setBaseBranch(e.target.value)}
+                                placeholder="Base Branch"
+                                style={{
+                                  opacity: isProcessingSuggestedChanges
+                                    ? 0.5
+                                    : 1,
+                                }}
+                              />
+                              <FaArrowLeft className="mx-4" />
+                              <Input
+                                className="flex items-center w-[600px]"
+                                value={featureBranch || ''}
+                                onChange={(e) =>
+                                  setFeatureBranch(e.target.value)
+                                }
+                                placeholder="Feature Branch"
+                                style={{
+                                  opacity: isProcessingSuggestedChanges
+                                    ? 0.5
+                                    : 1,
+                                }}
+                              />
+                            </div>
+                          )}
+                          {commitToPR && userMentionedPullRequest ? (
+                            <div className="flex grow items-center mb-4">
+                              <Input
+                                className="flex items-center w-[600px]"
+                                value={pullRequestTitle || ''}
+                                onChange={(e) =>
+                                  setPullRequestTitle(e.target.value)
+                                }
+                                placeholder="Commit message"
+                                style={{
+                                  opacity: isProcessingSuggestedChanges
+                                    ? 0.5
+                                    : 1,
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <></>
+                          )}
+                          {!suggestedChanges.every(
+                            (suggestion) => suggestion.state == 'done'
+                          ) &&
+                            !isProcessingSuggestedChanges && (
+                              <Alert className="mb-4 bg-yellow-900">
+                                <FaExclamationTriangle className="h-4 w-4" />
+                                <AlertTitle>Warning</AlertTitle>
+                                <AlertDescription>
+                                  Some patches failed to validate, so you may
+                                  get some unexpected changes. You can try to
+                                  manually create a PR with the proposed
+                                  changes. If you think this is an error, please
+                                  to report this to us.
+                                </AlertDescription>
+                              </Alert>
+                            )}
+                          <Button
+                            className="mt-0 bg-blue-900 text-white hover:bg-blue-800"
+                            onClick={async () => {
+                              setIsCreatingPullRequest(true)
+                              setCodeSuggestionsState('creating')
+                              const file_changes = suggestedChanges.reduce(
+                                (
+                                  acc: Record<string, string>,
+                                  suggestion: CodeSuggestion
+                                ) => {
+                                  acc[suggestion.filePath] = suggestion.newCode
+                                  return acc
+                                },
+                                {}
+                              )
+                              try {
+                                let response: Response | undefined = undefined
+                                console.log('commit topr', commitToPR)
+                                if (commitToPR && userMentionedPullRequest) {
+                                  response = await authorizedFetch(
+                                    `/commit_to_pull`,
+                                    {
+                                      file_changes: file_changes,
+                                      pr_number: String(
+                                        userMentionedPullRequest?.number
+                                      ),
+                                      base_branch: baseBranch,
+                                      commit_message: pullRequestTitle,
+                                    }
+                                  )
+                                } else {
+                                  response = await authorizedFetch(
+                                    `/backend/create_pull`,
+                                    {
+                                      file_changes: file_changes,
+                                      branch:
+                                        'sweep-chat-patch-' +
+                                        new Date()
+                                          .toISOString()
+                                          .split('T')[0], // use ai for better branch name, title, and body later
+                                      base_branch: baseBranch,
+                                      title: pullRequestTitle,
+                                      body:
+                                        pullRequestBody +
+                                        `\n\nSuggested changes from Sweep Chat by @${session?.user?.username}. Continue chatting at ${window.location.origin}/c/${messagesId}.`,
+                                    }
+                                  )
+                                }
+
+                                const data = await response.json()
+                                const {
+                                  pull_request: pullRequest,
+                                  new_branch: branch,
+                                } = data
+                                pullRequest.branch = branch
+                                console.log('pullrequest', pullRequest)
+                                setPullRequest(pullRequest)
+                                setUserMentionedPullRequest(pullRequest)
+                                let newPulls = userMentionedPullRequests
+                                  ? [...userMentionedPullRequests]
+                                  : []
+
+                                newPulls.forEach((pull) => {
+                                  if (!isPullRequestEqual(pull, pullRequest)) {
+                                    newPulls.push(pullRequest)
+                                  }
+                                })
+
+                                setUserMentionedPullRequests(newPulls)
+
+                                // for commits, show a different message
+                                const newMessages: Message[] = [
+                                  ...messages,
+                                  {
+                                    content: `Pull request created: [https://github.com/${repoName}/pull/${pullRequest.number}](https://github.com/${repoName}/pull/${pullRequest.number})`,
+                                    role: 'assistant',
+                                    annotations: {
+                                      pulls: [pullRequest],
+                                    },
+                                  },
+                                ]
+                                console.log(pullRequest)
+                                setPullRequest(pullRequest)
+                                setMessages(newMessages)
+                                setIsCreatingPullRequest(false)
+                                setOriginalSuggestedChanges([])
+                                setSuggestedChanges([])
+
+                                validatePr(pullRequest, newMessages.length - 1)
+                              } catch (e) {
+                                setIsCreatingPullRequest(false)
+                                toast({
+                                  title: 'Error',
+                                  description: `An error occurred while creating the pull request: ${e}`,
+                                  variant: 'destructive',
+                                  duration: Infinity,
+                                })
+                              }
+                            }}
+                            disabled={
+                              isCreatingPullRequest ||
+                              isProcessingSuggestedChanges ||
+                              !pullRequestTitle ||
+                              !pullRequestBody
+                            }
+                          >
+                            {commitToPR && userMentionedPullRequest
+                              ? `Commit to Pull Request #${userMentionedPullRequest?.number}`
+                              : 'Create Pull Request'}
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </ResizablePanel>
             <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={75} className="pl-4 flex flex-col">
+            <ResizablePanel defaultSize={67} className="pl-4 flex flex-col">
               <div
                 ref={messagesContainerRef}
                 className="h-full w-full border flex-grow mb-4 p-4 overflow-y-auto rounded-xl"
@@ -1417,69 +1929,12 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                       }}
                     >
                       {suggestedChanges.map((suggestion, index) => (
-                        <div className="fit-content mb-6" key={index}>
-                          <div
-                            className={`flex justify-between items-center w-full text-sm p-2 px-4 rounded-t-md ${
-                              suggestion.state === 'done'
-                                ? 'bg-green-900'
-                                : suggestion.state === 'error'
-                                  ? 'bg-red-900'
-                                  : suggestion.state === 'pending'
-                                    ? 'bg-zinc-800'
-                                    : 'bg-yellow-800'
-                            }`}
-                          >
-                            <code>
-                              {suggestion.filePath}{' '}
-                              {suggestion.state == 'pending' ? (
-                                '(pending)'
-                              ) : suggestion.state == 'processing' ? (
-                                '(processing)'
-                              ) : suggestion.state == 'error' ? (
-                                '(error)'
-                              ) : (
-                                <FaCheck
-                                  style={{ display: 'inline', marginTop: -2 }}
-                                />
-                              )}
-                            </code>
-                            <div className="flex justify-end items-center">
-                              {suggestion.error && (
-                                <HoverCard openDelay={300} closeDelay={200}>
-                                  <HoverCardTrigger>
-                                    <FaExclamationTriangle
-                                      className="hover:cursor-pointer mr-4 text-yellow-500"
-                                      style={{ marginTop: 2 }}
-                                    />
-                                  </HoverCardTrigger>
-                                  <HoverCardContent className="w-[800px] max-h-[500px] overflow-y-auto">
-                                    <MarkdownRenderer
-                                      content={`**This patch could not be directly applied. We're sending the LLM the following message to resolve the error:**\n\n${suggestion.error}`}
-                                    />
-                                  </HoverCardContent>
-                                </HoverCard>
-                              )}
-                              <Button
-                                className="bg-red-800 hover:bg-red-700 text-white"
-                                size="sm"
-                                onClick={() =>
-                                  setSuggestedChanges(
-                                    (
-                                      suggestedChanges: StatefulCodeSuggestion[]
-                                    ) =>
-                                      suggestedChanges.filter(
-                                        (s) => s !== suggestion
-                                      )
-                                  )
-                                }
-                              >
-                                <FaTrash />
-                                &nbsp;Remove
-                              </Button>
-                            </div>
-                          </div>
-                          {reactCodeMirrors[index]}
-                        </div>
+                        <SuggestedChangeDisplay
+                          suggestion={suggestion}
+                          index={index}
+                          setSuggestedChanges={setSuggestedChanges}
+                          key={index}
+                        />
                       ))}
                       {codeSuggestionsState == 'staging' && (
                         <Button

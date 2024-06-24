@@ -182,3 +182,8 @@
   transform-origin: left top 0;
   white-space: nowrap;
 }
+
+.hideOriginal .cm-mergeViewEditors > .cm-mergeViewEditor:first-child {
+  display: none;
+}
+

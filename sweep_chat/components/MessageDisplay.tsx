@@ -14,7 +14,7 @@ import { codeStyle, languageMapping, roleToColor } from '@/lib/constants'
 import { getFunctionCallHeaderString, truncate } from '@/lib/str_utils'
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@radix-ui/react-accordion'
 import SyntaxHighlighter from 'react-syntax-highlighter'
-import CodeMirrorEditor from './CodeMirrorSuggestionEditor'
+import CodeMirrorSuggestionEditor from './CodeMirrorSuggestionEditor'
 import FeedbackBlock from './FeedbackBlock'
 import PrValidationStatusesDisplay from './PrValidationStatusesDisplay'
 import PullRequestDisplay from './PullRequestDisplay'
@@ -157,7 +157,7 @@ export default function MessageDisplay({
   const codeMirrors = useMemo(() => {
     return (
       message.annotations?.codeSuggestions?.map((suggestion) => (
-        <CodeMirrorEditor
+        <CodeMirrorSuggestionEditor
           suggestion={suggestion}
           index={index}
           setSuggestedChanges={setSuggestedChanges}
