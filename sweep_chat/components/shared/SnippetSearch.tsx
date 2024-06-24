@@ -142,7 +142,7 @@ const SnippetSearch = ({
         {searchIsLoading && (
           <div className="flex flex-col justify-center items-center mb-4">
             <p className="text-gray-500 center mb-4">{progressMessage}</p>
-            <div>
+            <div className='mb-4'>
               <PulsingLoader size={1} />
             </div>
           </div>

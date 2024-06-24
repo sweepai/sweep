@@ -105,7 +105,7 @@
   }
 
   h2:not(:first-child) {
-    margin-top: 2rem;
+    margin-top: 1rem;
   }
 
   h3 {
