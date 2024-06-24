@@ -18,8 +18,12 @@ def generate_code_suggestions(
     modify_files_dict: dict[str, dict[str, str]],
     fcrs: list[FileChangeRequest],
     error_messages_dict: dict[int, str],
+    cloned_repo: ClonedRepo,
 ) -> list[StatefulCodeSuggestion]:
-    modify_order = [fcr.filename for fcr in fcrs]
+    modify_order = []
+    for fcr in fcrs:
+        if fcr.filename not in modify_order:
+            modify_order.append(fcr.filename)
 
     code_suggestions = []
     for file_path in modify_order:
@@ -30,6 +34,7 @@ def generate_code_suggestions(
                     file_path=file_path,
                     original_code=file_data["original_contents"],
                     new_code=file_data["contents"],
+                    file_contents=file_data["original_contents"],
                     state="done"
                 ))
     
@@ -40,11 +45,16 @@ def generate_code_suggestions(
                 continue
             else:
                 parsed_fcr = parse_fcr(fcr)
+                try:
+                    file_contents = cloned_repo.get_file_contents(fcr.filename)
+                except FileNotFoundError:
+                    file_contents = ""
                 code_suggestions.append(StatefulCodeSuggestion(
                     file_path=fcr.filename,
                     original_code=parsed_fcr["original_code"][0] if parsed_fcr["original_code"] else "",
                     new_code=parsed_fcr["new_code"][0] if parsed_fcr["new_code"] else "",
-                    state=("processing" if i == current_fcr_index else "pending") if i not in error_messages_dict else "error",
+                    file_contents=file_contents,
+                    state=("processing" if i == current_fcr_index else "pending"),
                     error=error_messages_dict.get(i, None)
                 ))
     return code_suggestions
@@ -59,12 +69,10 @@ def modify(
     use_openai: bool = False,
     previous_modify_files_dict: dict[str, dict[str, str]] = {},
     renames_dict: dict[str, str] = {},
-    fast: bool = False,
     raise_on_max_iterations: bool = False,
 ) -> dict[str, dict[str, str]]:
     # join fcr in case of duplicates
-    use_openai = True
-
+    use_openai = False
     # handles renames in cloned_repo
     # TODO: handle deletions here - it can cause crashes
     for file_path, new_file_path in renames_dict.items():
@@ -146,7 +154,7 @@ def modify(
     error_messages_dict = get_error_message_dict(fcrs, cloned_repo, modify_files_dict, renames_dict)
     previous_modify_files_dict = copy.deepcopy(modify_files_dict)
     for i in range(len(fcrs) * 15):
-        yield generate_code_suggestions(modify_files_dict, fcrs, error_messages_dict)
+        yield generate_code_suggestions(modify_files_dict, fcrs, error_messages_dict, cloned_repo)
         function_call = validate_and_parse_function_call(function_calls_string, chat_gpt)
         if function_call:
             num_of_tasks_done = tasks_completed(fcrs)
@@ -158,7 +166,6 @@ def modify(
                 llm_state,
                 chat_logger_messages=detailed_chat_logger_messages,
                 use_openai=use_openai,
-                fast=fast
             )
             print(function_output)
             fcrs = llm_state["fcrs"]
@@ -312,7 +319,7 @@ def modify(
         ):
             diff_string += f"\nChanges made to {file_name}:\n{diff}"
     logger.info("\n".join(generate_diff(file_data["original_contents"], file_data["contents"]) for file_data in modify_files_dict.values())) # adding this as a useful way to render the diffs
-    yield generate_code_suggestions(modify_files_dict, fcrs, error_messages_dict)
+    yield generate_code_suggestions(modify_files_dict, fcrs, error_messages_dict, cloned_repo)
     return modify_files_dict
 
 

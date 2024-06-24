@@ -1,155 +1,180 @@
 @tailwind base;
-  @tailwind components;
-  @tailwind utilities;
+@tailwind components;
+@tailwind utilities;
 
-  @layer base {
-    :root {
-      --background: 0 0% 100%;
-      --foreground: 240 10% 3.9%;
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
 
-      --card: 0 0% 100%;
-      --card-foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
 
-      --popover: 0 0% 100%;
-      --popover-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
 
-      --primary: 240 5.9% 10%;
-      --primary-foreground: 0 0% 98%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
 
-      --secondary: 240 4.8% 95.9%;
-      --secondary-foreground: 240 5.9% 10%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
 
-      --muted: 240 4.8% 95.9%;
-      --muted-foreground: 240 3.8% 46.1%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
 
-      --accent: 240 4.8% 95.9%;
-      --accent-foreground: 240 5.9% 10%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
 
-      --destructive: 0 84.2% 60.2%;
-      --destructive-foreground: 0 0% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
 
-      --border: 240 5.9% 90%;
-      --input: 240 5.9% 90%;
-      --ring: 240 10% 3.9%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 10% 3.9%;
 
-      --radius: 0.5rem;
-    }
+    --radius: 0.5rem;
+  }
 
-    .dark {
-      --background: 240 10% 3.9%;
-      --foreground: 0 0% 98%;
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
 
-      --card: 240 10% 3.9%;
-      --card-foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
 
-      --popover: 240 10% 3.9%;
-      --popover-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
 
-      --primary: 0 0% 98%;
-      --primary-foreground: 240 5.9% 10%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
 
-      --secondary: 240 3.7% 15.9%;
-      --secondary-foreground: 0 0% 98%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
 
-      --muted: 240 3.7% 15.9%;
-      --muted-foreground: 240 5% 64.9%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
 
-      --accent: 240 3.7% 15.9%;
-      --accent-foreground: 0 0% 98%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
 
-      --destructive: 0 62.8% 30.6%;
-      --destructive-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
 
-      --border: 240 3.7% 15.9%;
-      --input: 240 3.7% 15.9%;
-      --ring: 240 4.9% 83.9%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.reactMarkdown {
+
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+
+  pre {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    /* margin-top: 0.5rem; */
+    /* margin-bottom: 0.5rem; */
+    color: salmon;
+    > code {
+      padding: 1rem;
     }
   }
 
-  @layer base {
-    * {
-      @apply border-border;
-    }
-    body {
-      @apply bg-background text-foreground;
-    }
+  h1 {
+    font-size: 2rem;
+    /* margin-bottom: 1.5rem; */
+    margin-top: 1rem;
+    line-height: 1.5;
+  }
+  
+  h2 {
+    font-size: 1.5rem;
+    /* margin-bottom: 1.5rem; */
+    line-height: 1.5;
   }
 
-  .reactMarkdown {
-    pre {
-      padding-top: 0.5rem;
-      padding-bottom: 0.5rem;
-      /* margin-top: 0.5rem; */
-      /* margin-bottom: 0.5rem; */
-      color: salmon;
-      > code {
-        padding: 1rem
-      }
-    }
+  h2:not(:first-child) {
+    margin-top: 2rem;
+  }
 
-    h2 {
-      font-size: 1.5rem;
-      margin-top: 1rem;
-      /* margin-bottom: 1.5rem; */
-    }
+  h3 {
+    font-size: 1.25rem;
+    /* margin-bottom: 0.75rem; */
+  }
 
-    h3 {
-      font-size: 1.25rem;
-      margin-top: 1rem;
-      /* margin-bottom: 0.75rem; */
-    }
+  h3:not(:first-child) {
+    margin-top: 2rem;
+  }
 
-    code {
-        color: #00C8C8;
-        font-weight: bold;
-        font-size: 1em;
-        font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
-    }
+  code {
+    color: #50fa7b;
+    font-weight: bold;
+    font-size: 1em;
+    font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  }
 
-    ol {
-      list-style-type: decimal;
-    }
+  ol {
+    list-style-type: decimal;
+  }
 
+  ul {
+    list-style-type: disc;
+  }
+
+  ol,
+  ul {
+    margin-top: 1rem;
+    /* margin-bottom: 1rem; */
+    margin-left: 1.5rem;
+
+    ol,
     ul {
-      list-style-type: disc;
+      margin-top: 0.5rem;
+      /* margin-bottom: 0.5rem; */
     }
 
-    ol,ul {
-      margin-top: 1rem;
-      /* margin-bottom: 1rem; */
-      margin-left: 1.5rem;
-
-      ol,ul {
-        margin-top: 0.5rem;
-        /* margin-bottom: 0.5rem; */
-      }
-      
-      li {
-        margin-top: 0.25rem;
-      }
+    li {
+      margin-top: 0.25rem;
     }
+  }
 
-    a {
-      color: lightblue;
-      text-decoration: underline;
-    }
+  a {
+    color: lightblue;
+    text-decoration: underline;
+  }
 
-    p:not(:first-child) {
-      margin-top: 0.75rem;
-    }
-    
-    /* p:not(:last-child) {
+  p:not(:first-child) {
+    margin-top: 0.75rem;
+  }
+
+  /* p:not(:last-child) {
       margin-bottom: 0.75rem;
     } */
-  }
+}
 
-  .hljs-addition {
-    color: #1ae073;
-  }
+.reactMarkdown.userMessage {
+  padding-top: 0;
+  padding-bottom: 0;
+}
 
-  .hljs-deletion {
-    color: #ff3333;
-  }
+.hljs-addition {
+  color: #1ae073;
+}
+
+.hljs-deletion {
+  color: #ff3333;
+}
 
 .vertical-text {
   display: inline-block;
@@ -157,4 +182,3 @@
   transform-origin: left top 0;
   white-space: nowrap;
 }
-  

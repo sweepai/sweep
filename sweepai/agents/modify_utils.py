@@ -361,7 +361,7 @@ ORIGINAL_CODE_NOT_FOUND_PROMPT = """The original_code provided does not appear t
 {original_code}
 ```
 
-Let's fix this error by responding in the following format:
+Let's fix this error by responding in the following format. Fill everything in square brackets with the actual contents.
 
 # Thinking
 <thinking>
@@ -370,17 +370,12 @@ Let's fix this error by responding in the following format:
     [additional functions]
 Based on these options, deterimine the most similar function header to the original_code you provided.
 
-2. Copy the most similar section of code from the ACTUAL contents of {file_path}. Follow this format:
+2. Now, copy JUST THE FIRST OR LAST TEN LINES of the ACTUAL contents of {file_path} to the previous <original_code>. This will go into the <original_code> parameter of the new function call. Follow this format:
 ```
-ACTUAL contents of {file_path} that are most similar to original_code
-```
-
-3. Copy the most similar section of the ACTUAL contents of {file_path} to the previous <original_code>. This will go into the <original_code> parameter of the new function call. Follow this format:
-```
-The most similar section of the ACTUAL contents of {file_path}
+[JUST FIRST OR LAST TEN LINES of the ACTUAL contents of {file_path}]
 ```
 
-4. Write the updated code, applying the changes from your previously provided <new_code> section into the new <original_code> parameter. This will go into the new <new_code> parameter.
+3. Write the updated code, applying the changes from your previously provided <new_code> section into the new <original_code> parameter. This will go into the new <new_code> parameter.
 </thinking>
 
 # Function call
@@ -624,8 +619,8 @@ def contains_ignoring_whitespace(needle: str, haystack: str):
             return start_line, end_line
     return False
 
-MODEL = "claude-3-haiku-20240307"
-SLOW_MODEL = "claude-3-opus-20240229" # try haiku
+MODEL = "claude-3-5-sonnet-20240620"
+SLOW_MODEL = "claude-3-5-sonnet-20240620"
 
 def validate_and_parse_function_call(
     function_calls_string: str, chat_gpt: ChatGPT
@@ -839,9 +834,9 @@ def create_tool_call_response(tool_name: str, tool_call_response_contents: str) 
 def get_latest_contents(file_name: str, cloned_repo: ClonedRepo, modify_files_dict: dict) -> str:
     if file_name in modify_files_dict and "contents" in modify_files_dict[file_name]:
         return modify_files_dict[file_name]["contents"]
-    elif file_name in cloned_repo.get_file_list():
+    try:
         return cloned_repo.get_file_contents(file_name)
-    else:
+    except FileNotFoundError:
         return ""
     
 def get_surrounding_lines(file_contents: str, best_match: str) -> tuple[str, str]:
@@ -989,7 +984,6 @@ def handle_function_call(
     llm_state: dict,
     chat_logger_messages: list[dict[str, str]] | None = None,
     use_openai: bool = False,
-    fast: bool = False,
 ):
     llm_response = ""
     tool_name = function_call.function_name
@@ -1153,13 +1147,9 @@ def handle_function_call(
                 # Check if the changes are valid
                 if not error_message:
                     is_last_fcr_for_file = False # TODO: check if this is the last fcr for this file
-                    if fast:
-                        check_results_message = ""
-                        failing_parse = ""
-                    else:
-                        check_results = get_check_results(file_name, new_file_contents, last_fcr_for_file=is_last_fcr_for_file)
-                        check_results_message = check_results.is_worse_than_message(llm_state['initial_check_results'][file_name])
-                        failing_parse = check_results.parse_error_message if not llm_state['initial_check_results'][file_name].parse_error_message else ""
+                    check_results = get_check_results(file_name, new_file_contents, last_fcr_for_file=is_last_fcr_for_file)
+                    check_results_message = check_results.is_worse_than_message(llm_state['initial_check_results'][file_name])
+                    failing_parse = check_results.parse_error_message if not llm_state['initial_check_results'][file_name].parse_error_message else ""
                     current_diff = generate_diff(
                         file_contents, new_file_contents, n=10
                     )
@@ -1204,7 +1194,7 @@ def handle_function_call(
                     llm_response = "DONE"
                 llm_state["attempt_lazy_change"] = True # successful application with no warning message means we can attempt lazy change again
         if not error_message:
-            diff_string = generate_diff(file_contents, new_file_contents)
+            _diff_string = generate_diff(file_contents, new_file_contents)
             current_fcr_index = get_current_task_index(llm_state["fcrs"])
             # set contents
             if file_name not in modify_files_dict:
@@ -1226,15 +1216,11 @@ def handle_function_call(
                 # Incomplete changes, should use a different prompt realistically
                 llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
                 modify_files_dict[file_name]['contents'] = new_file_contents
-                llm_state["attempt_lazy_change"] = True
+                llm_state["attempt_lazy_change"] = False
 
                 llm_state["completed_changes_per_fcr"][current_fcr_index] += 1
-            elif diff_string.count("\n+") + diff_string.count("\n-") > 20:
-                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\n\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
-                modify_files_dict[file_name]['contents'] = new_file_contents
-                llm_state["attempt_lazy_change"] = False # no longer attempt lazy change
             else:
-                llm_response = f"SUCCESS\n\nThe following changes have been applied:\n\n```diff\n{generate_diff(file_contents, new_file_contents, n=25)}\n```\n{self_review_prompt.format(current_task=llm_state['current_task'])}"
+                # automatically continue case
                 modify_files_dict[file_name]['contents'] = new_file_contents
                 llm_response, llm_state = finish_applying_changes(modify_files_dict, llm_state, current_fcr_index)
     elif tool_name == "create_file":
@@ -1381,6 +1367,7 @@ def get_error_message_formatted(
 
                     if not best_match.strip():
                         error_messages.append(f"<original_code> does not exist in `{file_change_request.filename}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nBut the code is no where to be found in the file. There are also no similar code snippets in this file.{too_long_message}{ellipses_message}")
+                        error_indices.append(i)
                         continue
                     if best_score != 100:
                         if not check_valid_parentheses(best_match):
