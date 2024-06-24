@@ -1065,7 +1065,9 @@ async def create_pull_metadata(
 @app.post("/backend/validate_pull")
 async def validate_pull(
     repo_name: str = Body(...),
+    # branch: str = Body(...),
     pull_request_number: int = Body(...),
+    modify_files_dict: dict = Body({}),
     access_token: str = Depends(get_token_header)
 ):
     with Timer() as timer:
