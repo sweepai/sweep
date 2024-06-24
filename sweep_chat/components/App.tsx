@@ -1502,6 +1502,14 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                       {(codeSuggestionsState == 'validating' ||
                         codeSuggestionsState == 'creating') && (
                         <>
+                          {/* <Button
+                            className="mt-0 bg-blue-900 text-white hover:bg-blue-800 mb-4"
+                            onClick={() => {
+                              console.log(appliedChanges)
+                            }}
+                          >
+                            Validate Changes
+                          </Button> */}
                           {!(commitToPR && userMentionedPullRequest) && (
                             <>
                               <Input
