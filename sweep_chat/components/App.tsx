@@ -255,9 +255,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
   const [showSurvey, setShowSurvey] = useState<boolean>(false)
   const [currentTab, setCurrentTab] = useState<'changes' | 'context'>('context')
 
-  const [originalSuggestedChanges, setOriginalSuggestedChanges] = useState<
-    StatefulCodeSuggestion[]
-  >([])
   const [suggestedChanges, setSuggestedChanges] = useState<
     StatefulCodeSuggestion[]
   >([])
@@ -383,7 +380,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           setRepoNameValid(true)
           setMessages(messages)
           setSnippets(snippets)
-          setOriginalSuggestedChanges(original_code_suggestions)
           setSuggestedChanges(code_suggestions)
           setPullRequest(pull_request)
           setPullRequestTitle(pull_request_title)
@@ -501,7 +497,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     userMentionedPullRequest: PullRequest | null = null,
     userMentionedPullRequests: PullRequest[] | null = null,
     commitToPR: boolean = false,
-    originalSuggestedChanges: StatefulCodeSuggestion[],
     suggestedChanges: StatefulCodeSuggestion[],
     pullRequest: PullRequest | null = null,
     pullRequestTitle: string | null = null,
@@ -513,7 +508,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
       messages,
       snippets,
       messageId: messagesId,
-      originalCodeSuggestions: originalSuggestedChanges,
       codeSuggestions: suggestedChanges,
       pullRequest,
       pullRequestTitle,
@@ -556,7 +550,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         userMentionedPullRequest,
         userMentionedPullRequests,
         commitToPR,
-        originalSuggestedChanges,
         suggestedChanges,
         pullRequest,
         pullRequestTitle,
@@ -571,7 +564,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
     userMentionedPullRequest,
     userMentionedPullRequests,
     commitToPR,
-    originalSuggestedChanges,
     suggestedChanges,
     pullRequest,
     pullRequestTitle,
@@ -644,7 +636,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
 
   const applySuggestions = async (
     codeSuggestions: CodeSuggestion[],
-    index: number,
     commitToPR: boolean
   ) => {
     let currentCodeSuggestions: StatefulCodeSuggestion[] = codeSuggestions.map(
@@ -653,10 +644,12 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
         state: 'pending',
       })
     )
+    let currentAppliedChanges: StatefulCodeSuggestion[] = []
     setSuggestedChanges(currentCodeSuggestions)
     setIsProcessingSuggestedChanges(true)
     ;(async () => {
       console.log(userMentionedPullRequest)
+      setAppliedChanges(currentAppliedChanges)
       const streamedResponse = await authorizedFetch(`/autofix`, {
         code_suggestions: codeSuggestions.map(toSnakeCaseKeys),
         branch: commitToPR ? userMentionedPullRequest?.branch : baseBranch,
@@ -673,22 +666,13 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           if (currentState.error) {
             throw new Error(currentState.error)
           }
-          currentCodeSuggestions = currentState.map(toCamelCaseKeys)
-          setAppliedChanges(currentCodeSuggestions)
-        }
-        if (!isStream.current) {
-          currentCodeSuggestions = currentCodeSuggestions.map((suggestion) =>
-            suggestion.state == 'done'
-              ? suggestion
-              : {
-                  ...suggestion,
-                  originalCode:
-                    suggestion.fileContents || suggestion.originalCode,
-                  state: 'error',
-                }
-          )
+          currentAppliedChanges = currentState.applied_code_suggestions.map(toCamelCaseKeys)
+          setAppliedChanges(currentAppliedChanges)
+          currentCodeSuggestions = currentState.queued_code_suggestions.map(toCamelCaseKeys)
           setSuggestedChanges(currentCodeSuggestions)
         }
+        setSuggestedChangesCollapsedArray(suggestedChangesCollapsedArray.map((_) => true))
+        setCodeSuggestionsState('validating')
       } catch (e: any) {
         console.error(e)
         toast({
@@ -1412,7 +1396,7 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                             className="text-zinc-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-zinc-300 rounded-full px-2 mt-0"
                             onClick={() => 
                               applySuggestions(
-                                originalSuggestedChanges,
+                                suggestedChanges,
                                 commitToPR
                               )
                             }
@@ -1428,7 +1412,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                         className="text-red-400 bg-transparent hover:drop-shadow-md hover:bg-initial hover:text-red-500 rounded-full px-2 mt-0"
                         onClick={() => {
                           setSuggestedChanges([])
-                          setOriginalSuggestedChanges([])
                         }}
                         aria-label="Unstage Changes"
                       >
@@ -1700,7 +1683,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                                 setPullRequest(pullRequest)
                                 setMessages(newMessages)
                                 setIsCreatingPullRequest(false)
-                                setOriginalSuggestedChanges([])
                                 setSuggestedChanges([])
 
                                 validatePr(pullRequest, newMessages.length - 1)
@@ -1801,7 +1783,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                           setIsCreatingPullRequest(false)
                           if (index == 0) {
                             setMessagesId('')
-                            setOriginalSuggestedChanges([])
                             setSuggestedChanges([])
                             setIsProcessingSuggestedChanges(false)
                             setPullRequestTitle(null)
@@ -1818,7 +1799,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                         }}
                         commitToPR={commitToPR}
                         setSuggestedChanges={(suggestedChanges) => {
-                          setOriginalSuggestedChanges(suggestedChanges)
                           setSuggestedChanges(suggestedChanges)
                         }}
                         onValidatePR={(pr) => validatePr(pr, index)}
