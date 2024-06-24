@@ -396,7 +396,7 @@ def format_all_pr_changes_by_groups(
                 formatted_pr_changes_by_groups[group.group_name] = group
     return formatted_pr_changes_by_groups
 
-CLAUDE_MODEL = "claude-3-opus-20240229"
+CLAUDE_MODEL = "claude-3-5-sonnet-20240620"
 
 class PRReviewBot(ChatGPT):
     # check if there are special .md rules to see if there are additional rules to check for

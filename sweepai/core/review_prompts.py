@@ -74,6 +74,7 @@ Added a new categorization system for snippets in `multi_prep_snippets` and upda
     2d. Do not make assumptions about existing functions or code. Assume all existing code and system configurations are correct and functioning as intended.
     2e. Do not raise issues over functions being called without error handling. You do not have enough context to determine if the functions are being called correctly.
     2f. You must take into account the intentions of the pull request when identifying issues. Are the the code changes in line with the intentions of the pull request? If the answer is yes then this is not an issue.
+    2g. Do not raise issues related to system configuration/resources. For example, do not mention anything about potential resource exhaustion.
 
 Answer each of the above questions in step 2 in the following format:
 <issue_identification>
@@ -138,12 +139,10 @@ You will be given following Cases in which you much generate a series of questio
 <case_1>
 Case 1 - Create questions related to concurrency changes. If there are changes related to concurrency in the pull request you are to generate questions related to concurrency changes.  If not, you may skip this part and go to the next Case. The questions you generate should be an exhaustive list of questions meant to help identify issues with the code changes.
 <guidelines_for_case_1>
-1. Ask questions about whether or not the code changes introduce race conditions.
-2. Ask questions about whether or not the variables are modified in a thread safe manner.
-3. Create questions asking if the variables are mutated unintentionally in any way.
-4. If there are variables such as arrays where the order of the internals matter, ask questions about whether or not the order of these variables are mutated.
-5. Be strict with how you ask your questions. Do not use words like "potentially" or "possibly". If you are asking if an issue exists, ask in a direct manner. Example: Instead of asking "Is there any chance that there is a deadlock" instead ask "Is there a deadlock".
-6. Phrase the questions to make sure that if the answer is "Yes" then that means there is an issue with the pull request. Basically you are asking if an issue exists or not.
+1. Create questions asking if the variables are mutated unintentionally in any way.
+2. When there are variables such as arrays where the order of the data matters, ask questions about whether or not the order of these variables are mutated.
+3. Be strict with how you ask your questions. Do not use words like "potentially" or "possibly". If you are asking if an issue exists, ask in a direct manner. Example: Instead of asking "Is there any chance that there is a deadlock" instead ask "Is there a deadlock".
+4. Phrase the questions to make sure that if the answer is "Yes" then that means there is an issue with the pull request. Basically you are asking if an issue exists or not.
 </guidelines_for_case_1>
 </case_1>
 </cases>
@@ -255,7 +254,7 @@ The issues that have already been identified should not be raised again.
 {comment_threads}
 
 # Instructions
-1. Analyze each identified potential issue for the file(s) backend/src/queues/queues.go
+1. Analyze each identified potential issue for the file(s) {file_names}
 Review each identified issue individually, formulate 3 questions to answer in order to determine the severity of the issue.
     1a. First formulated question and answer. In order to accomplish this examine the referenced lines of code in the provided code files above.
     1b. Second formulated question and answer. In order to accomplish this examine the referenced lines of code in the provided code files above.
@@ -264,7 +263,7 @@ Review each identified issue individually, formulate 3 questions to answer in or
     1e. Is there accidentally removed or commented out lines of code that has functional utility. In this case double check if this change was intentional or accidental.
     1f. Take into account the intentions of the pull request when identifying issues. Are the code changes in line with the intentions of the pull request? If the answer is yes then this is not an issue.
     1g. Is this issue related to potential security vulnerabilities? If yes, then this issue is NOT severe and should not be included.
-    1h. Is this issue related to system configurations/resources such as amount of memory needed or system configurations? Does the issue make mention anything along the lines of resource exhaustion? If the answer is yes then this issue is NOT severe and should not be included.
+    1h. Does this issue have the potential to cause a production crash or introduce a logical error? If yes, then this issue is severe and should be included in the final list of issues.
     1i. Finally was this issue already raised in a comment thread? If yes, then this issue has already been identified and you should not raise it again. You must also provide proof by referencing the exact comment where this issue was raised.
     1j. Is this issue severe enough based on the questions and answers above to prevent the pull request from being merged? Any issue that will cause production to crash or introduce a logical error is considered severe.
 """
@@ -296,7 +295,7 @@ Answer in this format:
 
 user_prompt_review_decisions = """
 2. Decide which issues to keep
-    2a. Based on your analysis in step 1, now decide which issues to keep and drop. Only include severe issues.
+    2a. Based on your analysis in step 1, now decide which issues to keep and drop. Only include severe issues. To determine if an issue is severe examine the questions and answers you provided above.
     2b. After choosing to keep an issue you are to respond in the following format:
 <severe_issues>
 <issue>
