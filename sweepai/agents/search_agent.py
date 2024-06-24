@@ -319,8 +319,8 @@ if __name__ == "__main__":
             cloned_repo,
             snippets=snippets
         )
-        breakpoint()
+        breakpoint() # noqa
     except Exception as e:
-        import pdb
+        import pdb # noqa
         pdb.post_mortem()
         raise e

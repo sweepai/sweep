@@ -23,8 +23,9 @@ from github.Auth import Token
 
 # get default_base_url from github
 from github.Requester import Requester
+from github.Repository import Repository
 from github.GithubException import BadCredentialsException, UnknownObjectException
-from github import PullRequest, Repository, InputGitTreeElement, GithubException
+from github import PullRequest, InputGitTreeElement, GithubException
 from jwt import encode
 from loguru import logger
 from urllib3 import Retry
@@ -308,7 +309,7 @@ def commit_multi_file_changes(
     renames_dict: dict[str, str] = {},
 ):
     assert file_changes or renames_dict
-    repo = cloned_repo.repo
+    repo: Repository = cloned_repo.repo
     if renames_dict:
         blobs_to_commit = []
         # make a separate commit with just the renames
@@ -500,12 +501,15 @@ class ClonedRepo:
         else:
             # Pulling with pat doesn't work, have to reclone
             try:
+                # Try to open existing repo
                 repo = git.Repo(self.cached_dir)
                 repo.git.remote("set-url", "origin", self.clone_url)
+                repo.git.clean('-fd')
                 repo.git.pull()
                 logger.info("Pull repo succeeded")
             except Exception as e:
                 logger.warning(f"Could not pull repo, cloning instead: {str(e)}")
+                logger.info("Consider rm -rf /mnt/caches/repos/ if this continues")
                 shutil.rmtree(self.cached_dir, ignore_errors=True)
                 if self.branch:
                     repo = git.Repo.clone_from(
@@ -530,12 +534,36 @@ class ClonedRepo:
             else self.repo
         )
         self.commit_hash = self.repo.get_commits()[0].sha
-        self.git_repo = self.clone()
         self.branch = self.branch or SweepConfig.get_branch(self.repo)
-        # branch may have been deleted or not exist
+        self.git_repo = self.clone()
         if self.branch not in self.git_repo.heads:
             raise Exception(f"Branch '{self.branch}' does not exist.")
-        self.git_repo.git.checkout(self.branch)
+        # branch may have been deleted or not exist
+        try:
+            self.git_repo.git.checkout(self.branch)
+        except Exception as e:
+            self.handle_checkout_failures()
+            os.environ['GIT_LFS_SKIP_SMUDGE'] = '1'
+            self.git_repo.git.checkout(self.branch)
+
+    def handle_checkout_failures(self):
+        untracked_files = self.git_repo.untracked_files
+        if untracked_files:
+            logger.info(f"Untracked files found: {', '.join(untracked_files)}")
+            for file in untracked_files:
+                file_path = os.path.join(self.git_repo.working_dir, file)
+                if os.path.isfile(file_path):
+                    logger.info(f"Removing untracked file: {file}")
+                    os.remove(file_path)
+                elif os.path.isdir(file_path):
+                    logger.info(f"Removing untracked directory: {file}")
+                    os.removedirs(file_path)
+        else:
+            logger.info("No untracked files found")
+
+        logger.info("Cleaning untracked files")
+        self.git_repo.git.clean('-fd')
+
 
     def __del__(self):
         try:
@@ -661,11 +689,7 @@ class ClonedRepo:
         return files
 
     def get_file_contents(self, file_path, ref=None):
-        local_path = (
-            f"{self.repo_dir}{file_path}"
-            if file_path.startswith("/")
-            else f"{self.repo_dir}/{file_path}"
-        )
+        local_path = os.path.join(self.repo_dir, file_path.lstrip("/"))
         if os.path.exists(local_path) and os.path.isfile(local_path):
             with open(local_path, "r", encoding="utf-8", errors="replace") as f:
                 contents = f.read()

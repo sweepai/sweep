@@ -58,6 +58,7 @@ OpenAIModel = (
 AnthropicModel = (
     Literal["claude-3-haiku-20240307"]
     | Literal["claude-3-sonnet-20240229"]
+    | Literal["claude-3-5-sonnet-20240620"]
     | Literal["claude-3-opus-20240229"]
 )
 
@@ -77,6 +78,7 @@ model_to_max_tokens = {
     "anthropic.claude-3-sonnet-20240229-v1:0": 200000,
     "claude-3-opus-20240229": 200000,
     "claude-3-sonnet-20240229": 200000,
+    "claude-3-5-sonnet-20240620": 200000,
     "claude-3-haiku-20240307": 200000,
     "gpt-3.5-turbo-16k-0613": 16000,
 }
@@ -395,6 +397,7 @@ class ChatGPT(MessageList):
         if stream:
             def llm_stream():
                 model = self.model
+                streamed_text = ""
                 if use_openai:
                     client = OpenAI()
                     response = client.chat.completions.create(
@@ -415,7 +418,16 @@ class ChatGPT(MessageList):
                             break
                         for stop_sequence in stop_sequences:
                             if stop_sequence in streamed_text:
-                                return truncate_text_based_on_stop_sequence(streamed_text, stop_sequences)
+                                response = truncate_text_based_on_stop_sequence(streamed_text, stop_sequences)
+                                try:
+                                    save_messages_for_visualization(
+                                        self.messages + [Message(role="assistant", content=response)],
+                                        use_openai=use_openai,
+                                        model_name=model
+                                    )
+                                except Exception as e:
+                                    logger.warning(f"Error saving messages for visualization: {e}")
+                                return
                 else:
                     if ANTHROPIC_AVAILABLE and use_aws:
                         if "anthropic" not in model:
@@ -464,9 +476,16 @@ class ChatGPT(MessageList):
                             case _:
                                 print(event)
                     print(f"Streamed {len(streamed_text)} characters in {time.time() - start_time:.2f}s")
-                    response = streamed_text
-                    return response
-                return
+                response = streamed_text
+                try:
+                    save_messages_for_visualization(
+                        self.messages + [Message(role="assistant", content=response)],
+                        use_openai=use_openai,
+                        model_name=model
+                    )
+                except Exception as e:
+                    logger.warning(f"Error saving messages for visualization: {e}")
+                return response
             return llm_stream()
         for i in range(NUM_ANTHROPIC_RETRIES):
             try:
@@ -604,7 +623,7 @@ class ChatGPT(MessageList):
         if verbose:
             logger.debug(f'{"Openai" if use_openai else "Anthropic"} response: {self.messages[-1].content}')
         try:
-            save_messages_for_visualization(messages=self.messages, use_openai=use_openai)
+            save_messages_for_visualization(messages=self.messages, use_openai=use_openai, model_name=model)
         except Exception as e:
             logger.exception(f"Failed to save messages for visualization due to {e}")
         self.prev_message_states.append(self.messages)
@@ -657,7 +676,6 @@ def continuous_llm_calls(
     )
     next_response = response
     num_calls = 0
-    # pylint: disable=E1101
     while not any(token in response for token in stop_sequences) \
         and len(next_response) > 3.5 * 4096 * 0.8 \
         and num_calls < MAX_CALLS: # 80% of max tokens

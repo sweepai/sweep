@@ -1,6 +1,6 @@
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Sheet,
   SheetClose,
@@ -10,71 +10,81 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet"
-import { SnippetBadge } from "../shared/SnippetBadge";
-import { PullRequest, Snippet } from "@/lib/types";
-import { Dispatch, SetStateAction, useState } from "react";
-import { ScrollArea } from "../ui/scroll-area";
-import { SnippetSearch } from "./SnippetSearch";
+} from '@/components/ui/sheet'
+import { SnippetBadge } from '../shared/SnippetBadge'
+import { PullRequest, Snippet } from '@/lib/types'
+import { Dispatch, SetStateAction, useState } from 'react'
+import { ScrollArea } from '../ui/scroll-area'
+import { SnippetSearch } from './SnippetSearch'
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '../ui/hover-card'
+import { FaInfoCircle } from 'react-icons/fa'
+import PulsingLoader from './PulsingLoader'
 
 const ContextSideBar = ({
   snippets,
   setSnippets,
   repoName,
   branch,
-  pulls,
   k,
+  searchMessage,
 }: {
-  snippets: Snippet[];
-  setSnippets: Dispatch<SetStateAction<Snippet[]>>;
-  repoName: string;
-  branch: string;
-  pulls: PullRequest[];
-  k: number;
+  snippets: Snippet[]
+  setSnippets: Dispatch<SetStateAction<Snippet[]>>
+  repoName: string
+  branch: string
+  k: number
+  searchMessage: string
 }) => {
-  const side = "left"
-  const [isOpen, setIsOpen] = useState<boolean>(false)
   return (
-    <>
-    <div className="grid grid-cols-4 gap-2">
-      <Sheet key={side}>
-        <SheetTrigger asChild>
-          <Button variant="outline" className="fixed left-10 top-1/2 bg-gray-800 text-white vertical-text">Context</Button>
-        </SheetTrigger>
-        <SheetContent side={side}>
-          <SheetHeader className="mb-2">
-            <SheetTitle>Current Context</SheetTitle>
-            <span>
-              <SheetDescription className="w-3/4 inline-block align-middle">
-                List of current snippets in context. Run a custom search query to find new snippets.
-              </SheetDescription>
-              <SnippetSearch  
-                snippets={snippets}
-                setSnippets={setSnippets} 
-                repoName={repoName} 
-                branch={branch}  
-                pulls={pulls}    
-                k={k}        
-              />
-            </span>
-          </SheetHeader>
-          <ScrollArea className="h-3/4 w-full rounded-md border">
-            {snippets.map((snippet, index) => (
-              <SnippetBadge
-                key={index}
-                snippet={snippet}
-                repoName={repoName}
-                branch={branch}
-                snippets={snippets}
-                setSnippets={setSnippets}
-                options={["remove"]}
-              />
-            ))}
-          </ScrollArea>
-        </SheetContent>
-      </Sheet>
+    <div className="h-full w-full flex flex-col">
+      <div className="pb-2 pl-2">
+        <h2 className="text-lg font-bold mb-2 flex items-center">
+          Context
+          <HoverCard>
+            <HoverCardTrigger>
+              <FaInfoCircle className="text-gray-400 hover:text-gray-200 hover:cursor-pointer ml-2" />
+            </HoverCardTrigger>
+            <HoverCardContent>
+              <p className="text-sm text-gray-300">
+                List of current snippets in context. Run a custom search query
+                to find new snippets.
+              </p>
+            </HoverCardContent>
+          </HoverCard>
+        </h2>
+      </div>
+      <ScrollArea className="w-full rounded-md border p-4 grow mb-4 overflow-x-auto">
+        {searchMessage && (
+          <div className="flex flex-col justify-center items-center">
+            <p className="text-gray-500 center mb-4">{searchMessage}</p>
+            <div>
+              <PulsingLoader size={1} />
+            </div>
+          </div>
+        )}
+        {snippets.map((snippet, index) => (
+          <>
+            <SnippetBadge
+              key={index}
+              snippet={snippet}
+              repoName={repoName}
+              branch={branch}
+              snippets={snippets}
+              setSnippets={setSnippets}
+              options={['remove']}
+            />
+            <br />
+          </>
+        ))}
+      </ScrollArea>
+      <SnippetSearch
+        snippets={snippets}
+        setSnippets={setSnippets}
+        repoName={repoName}
+        branch={branch}
+        k={k}
+      />
     </div>
-    </>
   )
 }
 

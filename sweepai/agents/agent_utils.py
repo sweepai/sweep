@@ -35,7 +35,7 @@ class Tool:
 {parameters_xml}
 </{self.name}>"""
         if include_function_call_tags:
-            function_xml += f"<function_call>\n{function_xml}\n</function_call>"
+            function_xml = f"<function_call>\n{function_xml}\n</function_call>"
         if include_description and self.description:
             function_xml = f"{self.name} - {self.description}\n\n{function_xml}"
         return function_xml
