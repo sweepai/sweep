@@ -17,12 +17,12 @@ export default function CodeMirrorSuggestionEditor({
   suggestion,
   index,
   setSuggestedChanges,
-  showOriginal = true,
+  splitDiff = false,
 }: {
   suggestion: StatefulCodeSuggestion
   index: number
   setSuggestedChanges: Dispatch<SetStateAction<StatefulCodeSuggestion[]>>
-  showOriginal?: boolean
+  splitDiff?: boolean
 }) {
   const fileExtension = suggestion.filePath.split('.').pop()
   // default to javascript
@@ -35,14 +35,15 @@ export default function CodeMirrorSuggestionEditor({
     <>
       <CodeMirrorMerge
         theme={dracula}
-        revertControls={showOriginal ? 'a-to-b' : undefined}
+        revertControls={splitDiff ? 'a-to-b': undefined}
         collapseUnchanged={{
           margin: 3,
           minSize: 4,
         }}
         autoFocus={false}
         key={JSON.stringify(suggestion)}
-        className={showOriginal ? "" : "hideOriginal"}
+        className={splitDiff ? "": "hideOriginal"}
+        highlightChanges={splitDiff}
       >
         <Original
           value={suggestion.originalCode}

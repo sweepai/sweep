@@ -134,8 +134,8 @@ const SuggestedChangeDisplay = (
   index: number,
   setSuggestedChanges: Dispatch<SetStateAction<StatefulCodeSuggestion[]>>
 }) => {
-  const [showOriginal, setShowOriginal] = useState(
-    suggestion.originalCode.length > 0 ? (suggestion.newCode.length / suggestion.originalCode.length > 10) : false
+  const [splitDiff, setSplitDiff] = useState(
+    suggestion.originalCode.length > 0 ? (suggestion.newCode.length / suggestion.originalCode.length < 2) : false
   )
   return (
     <div className="fit-content mb-6" key={index}>
@@ -185,11 +185,11 @@ const SuggestedChangeDisplay = (
               className="hover:cursor-pointer"
               htmlFor={`switch-${hashCode(suggestion.filePath + suggestion.originalCode + suggestion.newCode)}-${index}`}
             >
-                Show Original
+              Split
             </Label>
             <Switch
-              checked={showOriginal}
-              onCheckedChange={(checked) => setShowOriginal(checked)}
+              checked={splitDiff}
+              onCheckedChange={(checked) => setSplitDiff(checked)}
               className="ml-4 mr-4"
               id={`switch-${hashCode(suggestion.filePath + suggestion.originalCode + suggestion.newCode)}-${index}`}
             />
@@ -217,7 +217,7 @@ const SuggestedChangeDisplay = (
         suggestion={suggestion}
         index={index}
         setSuggestedChanges={setSuggestedChanges}
-        showOriginal={showOriginal}
+        splitDiff={splitDiff}
       />
     </div>
   )
@@ -1273,6 +1273,9 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                   />
                   </TabsContent>
                 <TabsContent value="changes">
+                  <div className="flex justify-around w-full pb-2 mb-4">
+                    <p className="font-bold">Staged Changes</p>
+                  </div>
                   <div className="bg-zinc-900 rounded-xl p-4 overflow-y-auto">
                     <div className="flex justify-between mb-4 align-start">
                       <div className="flex items-center align-middle">
@@ -1384,11 +1387,6 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
                         &nbsp;&nbsp;Unstage Changes
                       </Button>
                     </div>
-                    {codeSuggestionsState == 'staging' && (
-                      <div className="flex justify-around w-full pb-2 mb-4">
-                        <p className="font-bold">Staged Changes</p>
-                      </div>
-                    )}
                     {!suggestedChanges.every(
                       (suggestion) => suggestion.state == 'done'
                     ) &&

@@ -61,7 +61,7 @@ const UserMessageDisplay = ({
         )}
         &nbsp;
         <div
-          className="bg-zinc-800 transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] hover:bg-zinc-700 hover:cursor-pointer text-left"
+          className="bg-zinc-800 transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[90%] hover:bg-zinc-700 hover:cursor-pointer text-left"
           onClick={handleClick}
         >
           <div className={`text-sm text-white`}>
@@ -179,7 +179,7 @@ export default function MessageDisplay({
         {(!message.annotations?.pulls ||
           message.annotations!.pulls?.length == 0) && (
           <div
-            className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] text-left w-[80%]
+            className={`transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[90%] text-left w-[90%]
               ${message.role === 'assistant' ? 'py-1' : ''} ${
                 className || roleToColor[message.role]
               }`}
@@ -297,7 +297,7 @@ export default function MessageDisplay({
         )}
       {message.annotations?.codeSuggestions &&
         message.annotations?.codeSuggestions.length > 0 && (
-          <div className="text-sm max-w-[80%] p-4 rounded bg-zinc-700 space-y-4 mb-4">
+          <div className="text-sm max-w-[90%] p-4 rounded bg-zinc-700 space-y-4 mb-4">
             <div className="flex justify-between items-center">
               <h2 className="font-bold">Suggested Changes</h2>
               {message.annotations?.codeSuggestions?.length > 1 && (
@@ -435,7 +435,7 @@ export default function MessageDisplay({
                           }}
                         >
                           <FaPlus />
-                          &nbsp;Stage Change
+                          &nbsp;Apply
                         </Button>
                       </div>
                     </div>
