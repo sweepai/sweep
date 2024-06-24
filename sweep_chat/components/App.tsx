@@ -672,7 +672,9 @@ function App({ defaultMessageId = '' }: { defaultMessageId?: string }) {
           setSuggestedChanges(currentCodeSuggestions)
         }
         setSuggestedChangesCollapsedArray(suggestedChangesCollapsedArray.map((_) => true))
-        setCodeSuggestionsState('validating')
+        if (currentAppliedChanges.length != 0) {
+          setCodeSuggestionsState('validating')
+        }
       } catch (e: any) {
         console.error(e)
         toast({
