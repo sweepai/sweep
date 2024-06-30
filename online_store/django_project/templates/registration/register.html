@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register</title>
+    <!-- Include Vue.js -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+</head>
+<body>
+    <div id="app">
+        <form @submit.prevent="submitForm">
+            <label for="username">Username:</label>
+            <input id="username" v-model="username" type="text" required>
+
+            <label for="email">Email:</label>
+            <input id="email" v-model="email" type="email" required>
+
+            <label for="password">Password:</label>
+            <input id="password" v-model="password" type="password" required>
+
+            <button type="submit">Register</button>
+        </form>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                username: '',
+                email: '',
+                password: ''
+            },
+            methods: {
+                submitForm() {
+                    // Create an instance of FormData
+                    let formData = new FormData();
+                    // Append the username, email, and password to formData
+                    formData.append('username', this.username);
+                    formData.append('email', this.email);
+                    formData.append('password', this.password);
+                    // Send a POST request to the server with formData
+                    fetch('/register/', {
+                        method: 'POST',
+                        body: formData
+                    }).then(response => {
+                        if (response.ok) {
+                            // Redirect to the home page if the registration is successful
+                            window.location.href = '/';
+                        } else {
+                            // Display an error message if the registration is unsuccessful
+                            alert('Registration failed');
+                        }
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html>
