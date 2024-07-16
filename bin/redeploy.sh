@@ -4,14 +4,20 @@
 # Docker images also need to finish processing their requests before they can be removed.
 
 docker pull sweepai/sweep:latest
+docker pull sweepai/sweep-chat:latest
 
 echo `docker ps`
-containers_to_remove=$(docker ps -q | awk 'NR>2')
+containers_to_remove=$(docker ps -q --filter "ancestor=sweepai/sweep" | awk 'NR>2')
+containers_to_remove+=" $(docker ps -q --filter "ancestor=sweepai/sweep-chat" | awk 'NR>2')"
 
 if [ ! -z "$containers_to_remove" ]; then
     echo "Removing old docker runs"
-    docker kill -f $containers_to_remove
-    docker rm -f $containers_to_remove
+    echo "$containers_to_remove" | while read -r container; do
+        if [ ! -z "$container" ]; then
+            docker kill "$container"
+            docker rm "$container"
+        fi
+    done
 else
     echo "No old docker runs to remove"
 fi
@@ -26,14 +32,34 @@ is_port_free() {
     fi
 }
 
-while is_port_free $PORT; do
+FRONTEND_PORT=$(($PORT - 8000))
+
+while is_port_free $PORT || is_port_free $FRONTEND_PORT; do
     ((PORT++))
+    FRONTEND_PORT=$(($PORT - 8000))
 done
 
 echo "Found open port: $PORT"
 
-# Start new docker container on the next available port
-docker run --env-file .env -p $PORT:8080 -v ./caches:/mnt/caches -d sweepai/sweep:latest
+NETWORK_NAME="sweep_network_${PORT}_${TIMESTAMP}"
+
+if [ ! -f .env ]; then
+    echo "Error: .env file not found" >&2
+    exit 1
+fi
+
+if ! docker network inspect $NETWORK_NAME >/dev/null 2>&1; then
+    docker network create $NETWORK_NAME || { echo "Failed to create network"; exit 1; }
+fi
+
+BACKEND_CONTAINER_NAME="sweep_backend_${PORT}"
+docker run --name $BACKEND_CONTAINER_NAME --env-file .env -p $PORT:8080 -v $PWD/caches:/mnt/caches --network $NETWORK_NAME -d sweepai/sweep:latest
+
+BACKEND_URL="http://${BACKEND_CONTAINER_NAME}:8080"
+docker run --env-file .env -e BACKEND_URL=$BACKEND_URL -p $FRONTEND_PORT:3000 -v $PWD/caches:/mnt/caches --network $NETWORK_NAME -d sweepai/sweep-chat:latest
+
+echo "Backend accessible at: http://localhost:$PORT"
+echo "Frontend accessible at: http://localhost:$FRONTEND_PORT"
 
 # Wait until webhook is available before rerouting traffic to it
 echo "Waiting for server to start..."
@@ -51,10 +77,28 @@ done
 
 # Reroute traffic to new docker container
 sudo iptables -t nat -L PREROUTING --line-numbers | grep 'REDIRECT' | tail -n1 | awk '{print $1}' | xargs -I {} sudo iptables -t nat -D PREROUTING {}
+sudo iptables -t nat -L PREROUTING --line-numbers | grep 'REDIRECT' | tail -n1 | awk '{print $1}' | xargs -I {} sudo iptables -t nat -D PREROUTING {}
+
 sudo iptables -t nat -A PREROUTING -p tcp --dport ${SWEEP_PORT:-8080} -j REDIRECT --to-port $PORT
+sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port $FRONTEND_PORT
+
+containers_to_remove=$(docker ps -q --filter "ancestor=sweepai/sweep" | awk 'NR>1')
+containers_to_remove+=" $(docker ps -q --filter "ancestor=sweepai/sweep-chat" | awk 'NR>1')"
 
 # kill previous docker image after 20 min
-(sleep 1200 && docker kill $(docker ps -q | awk 'NR>1')) &
+if [ ! -z "$containers_to_remove" ]; then
+    (
+        sleep 1200
+        echo "$containers_to_remove" | while read -r container; do
+            if [ ! -z "$container" ]; then
+                docker kill "$container"
+            fi
+        done
+    ) &
+    echo "Scheduled removal of old containers after 20 minutes"
+else
+    echo "No old containers to remove after 20 minutes"
+fi
 
 echo "Command sent to screen session on port: $PORT"
 echo "Success!"
