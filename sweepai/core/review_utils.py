@@ -404,13 +404,30 @@ class PRReviewBot(ChatGPT):
         return code_reviews_by_file
     
 # adds line numbers to a string
-def add_line_numbers_to_text(content: str):
+def add_line_numbers_to_text(content: str) -> str:
+    """
+    Add line numbers to the given text content.
+
+    Args:
+        content (str): The text content to add line numbers to.
+
+    Returns:
+        str: The text content with line numbers added, or an empty string if input is empty.
+    """
+    if not content:
+        return ""
     content_lines = content.split("\n")
-    new_content = [f"{i} {line}" for i, line in enumerate(content_lines)]
+    new_content = [f"{i+1}: {line}" for i, line in enumerate(content_lines)]
     return "\n".join(new_content)
 
 if __name__ == "__main__":
     test_text = """hello
     this is some test text to
     be numbered"""
+    print("Test with non-empty string:")
     print(add_line_numbers_to_text(test_text))
+
+    # New test case for empty string
+    empty_text = ""
+    print("\nTest with empty string:")
+    print(add_line_numbers_to_text(empty_text))
