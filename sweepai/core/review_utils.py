@@ -9,6 +9,13 @@ import re
 import git
 import numpy as np
 from sklearn.cluster import DBSCAN
+
+def add_line_numbers_to_text(content: str):
+    if not content:
+        return ""
+    content_lines = content.split("\n")
+    new_content = [f"{i} {line}" for i, line in enumerate(content_lines, start=1)]
+    return "\n".join(new_content)
 from tqdm import tqdm
 from sweepai.config.client import SweepConfig
 from sweepai.core.chat import ChatGPT
@@ -1297,6 +1304,12 @@ def decompose_code_review_by_group(
             )
             code_review_by_file[file_name] = code_review
     return code_review_by_file
+
+if __name__ == "__main__":
+    test_text = """hello
+this is some test text to
+be numbered"""
+    print(add_line_numbers_to_text(test_text))
 
 def get_all_comments_for_review(
     repo_full_name: str,
