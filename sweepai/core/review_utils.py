@@ -413,4 +413,10 @@ if __name__ == "__main__":
     test_text = """hello
     this is some test text to
     be numbered"""
+    print("Test with non-empty string:")
     print(add_line_numbers_to_text(test_text))
+
+    # New test case for empty string
+    empty_text = ""
+    print("\nTest with empty string:")
+    print(add_line_numbers_to_text(empty_text))
