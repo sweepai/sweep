@@ -67,6 +67,7 @@ We want to stably hash objects, and this is [not natively supported in python](h
 
 ```python
 import hashlib
+from hashlib import sha1
 from cache import recursive_hash
 
 
@@ -77,22 +78,22 @@ class Obj:
 obj = Obj("test")
 print(recursive_hash(obj)) # -> this works fine
 try:
-    hashlib.md5(obj).hexdigest()
+    hashlib.sha1(obj).hexdigest()
 except Exception as e:
     print(e) # -> this doesn't work
 ```
 
-hashlib.md5 alone doesn't work for objects, giving us the error: `TypeError: object supporting the buffer API required`. 
+hashlib.sha1 alone doesn't work for objects, giving us the error: `TypeError: object supporting the buffer API required`. 
 We use recursive_hash, which works for arbitrary python objects.
 
 ```python /recursive_hash(item, depth + 1, ignore_params)/ /recursive_hash(key, depth + 1, ignore_params)/ /+ recursive_hash(val, depth + 1, ignore_params)/ /recursive_hash(value.__dict__, depth + 1, ignore_params)/
 def recursive_hash(value, depth=0, ignore_params=[]):
     """Hash primitives recursively with maximum depth."""
     if depth > MAX_DEPTH:
-        return hashlib.md5("max_depth_reached".encode()).hexdigest()
+        return sha1("max_depth_reached".encode()).hexdigest()
 
     if isinstance(value, (int, float, str, bool, bytes)):
-        return hashlib.md5(str(value).encode()).hexdigest()
+        return sha1(str(value).encode()).hexdigest()
     elif isinstance(value, (list, tuple)):
         return hashlib.md5(
             "".join(
@@ -100,7 +101,7 @@ def recursive_hash(value, depth=0, ignore_params=[]):
             ).encode()
         ).hexdigest()
     elif isinstance(value, dict):
-        return hashlib.md5(
+        return sha1(
             "".join(
                 [
                     recursive_hash(key, depth + 1, ignore_params)
@@ -113,7 +114,7 @@ def recursive_hash(value, depth=0, ignore_params=[]):
     elif hasattr(value, "__dict__") and value.__class__.__name__ not in ignore_params:
         return recursive_hash(value.__dict__, depth + 1, ignore_params)
     else:
-        return hashlib.md5("unknown".encode()).hexdigest()
+        return sha1("unknown".encode()).hexdigest()
 ``` 
 
 ### file_cache
