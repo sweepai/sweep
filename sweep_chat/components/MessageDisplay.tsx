@@ -61,28 +61,30 @@ const UserMessageDisplay = ({
         )}
         &nbsp;
         <div
-          className="bg-zinc-800 transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] hover:bg-zinc-700 hover:cursor-pointer text-left"
+          className="bg-zinc-800 transition-color text-sm p-3 rounded-xl mb-4 inline-block max-w-[80%] hover:bg-zinc-700 hover:cursor-pointer text-left max-h-[600px] overflow-y-auto"
           onClick={handleClick}
         >
           <div className={`text-sm text-white`}>
             {isEditing ? (
               <Textarea
-                className="w-full mb-4 bg-transparent text-white max-w-[800px] w-[800px] hover:bg-initial"
+                className="w-full mb-4 bg-transparent text-white max-w-[800px] w-[800px] hover:bg-initial max-h-[500px] overflow-y-auto"
                 ref={textareaRef}
                 value={editedContent}
                 onChange={(e) => {
                   setEditedContent(e.target.value)
                   e.target.style.height = 'auto'
-                  e.target.style.height = `${e.target.scrollHeight}px`
+                  e.target.style.height = `${Math.min(e.target.scrollHeight, 500)}px`
                 }}
-                style={{ height: (editedContent.split('\n').length + 1) * 16 }}
+                style={{ height: Math.min((editedContent.split('\n').length + 1) * 16, 500) }}
                 autoFocus
               />
             ) : (
-              <MarkdownRenderer
-                content={message.content.trim()}
-                className="userMessage"
-              />
+              <div className="max-h-[500px] overflow-y-auto">
+                <MarkdownRenderer
+                  content={message.content.trim()}
+                  className="userMessage"
+                />
+              </div>
             )}
           </div>
           {isEditing && (
