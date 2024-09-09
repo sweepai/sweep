@@ -25,8 +25,6 @@ def search_xml(content: str, tag: str, **kwargs) -> str:
 
 
 if __name__ == "__main__":
-    import re
-
     pattern = xml_pattern("additional_changes", required="additional_changes_required")
     print(pattern)
     example_template = """\

@@ -1,5 +1,3 @@
-import hashlib
-import time
 
 from github.Repository import Repository
 from loguru import logger
@@ -13,14 +11,13 @@ from sweepai.config.client import (
 )
 from sweepai.config.server import MONGODB_URI
 from sweepai.core.post_merge import PostMerge
-from sweepai.events import IssueCommentRequest
 from sweepai.handlers.on_merge import comparison_to_diff
-from sweepai.handlers.stack_pr import stack_pr
 from sweepai.utils.buttons import ButtonList, check_button_title_match
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.str_utils import BOT_SUFFIX
+from sweepai.web.events import IssueCommentRequest
 
 
 def handle_button_click(request_dict):
@@ -40,7 +37,11 @@ def handle_button_click(request_dict):
         revert_files = []
         for button_text in selected_buttons:
             revert_files.append(button_text.split(f"{RESET_FILE} ")[-1].strip())
-        handle_revert(file_paths=revert_files, pr_number=request_dict["issue"]["number"], repo=repo)
+        handle_revert(
+            file_paths=revert_files,
+            pr_number=request_dict["issue"]["number"],
+            repo=repo,
+        )
         comment.edit(
             ButtonList(
                 buttons=[
@@ -56,9 +57,15 @@ def handle_button_click(request_dict):
         rules = []
         for button_text in selected_buttons:
             rules.append(button_text.split(f"{RULES_LABEL} ")[-1].strip())
-        handle_rules(request_dict=request_dict, rules=rules, user_token=user_token, repo=repo, gh_client=gh_client)
+        handle_rules(
+            request_dict=request_dict,
+            rules=rules,
+            user_token=user_token,
+            repo=repo,
+            gh_client=gh_client,
+        )
         comment.edit(
-    ButtonList(
+            ButtonList(
                 buttons=[
                     button
                     for button in button_list.buttons
@@ -130,16 +137,15 @@ def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
         changes_required, issue_title, issue_description = PostMerge(
             chat_logger=chat_logger
         ).check_for_issues(rule=rule, diff=commits_diff)
-        tracking_id = hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
         if changes_required:
-            new_pr = stack_pr(
-                request=issue_description
-                + "\n\nThis issue was created to address the following rule:\n"
-                + rule,
-                pr_number=request_dict["issue"]["number"],
-                username=request_dict["sender"]["login"],
-                repo_full_name=request_dict["repository"]["full_name"],
-                installation_id=request_dict["installation"]["id"],
-                tracking_id=tracking_id,
-            )
+            # stack_pr(
+            #     request=issue_description
+            #     + "\n\nThis issue was created to address the following rule:\n"
+            #     + rule,
+            #     pr_number=request_dict["issue"]["number"],
+            #     username=request_dict["sender"]["login"],
+            #     repo_full_name=request_dict["repository"]["full_name"],
+            #     installation_id=request_dict["installation"]["id"],
+            #     tracking_id=tracking_id,
+            # )
             posthog.capture(request_dict["sender"]["login"], "rule_pr_created")

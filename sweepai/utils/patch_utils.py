@@ -20,7 +20,7 @@ def apply_patch(s, patch, revert=False):
         if not m:
             raise Exception("Cannot process diff")
         i += 1
-        l = int(m.group(midx)) - 1 + (m.group(midx + 1) == "0")
+        l = int(m.group(midx)) - 1 + (m.group(midx + 1) == "0")  # noqa: E741
         t += "".join(s[sl:l])
         sl = l
         while i < len(p) and p[i][0] != "@":

@@ -4,15 +4,14 @@ import time
 from enum import Enum
 from threading import Thread
 
+from loguru import logger
 from openai import OpenAI
-from openai.types.beta.threads.runs.code_tool_call import CodeToolCall
-from openai.types.beta.threads.runs.function_tool_call import FunctionToolCall
-from openai.types.beta.threads.thread_message import ThreadMessage
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from sweepai.config.server import MONGODB_URI, OPENAI_API_KEY
 from sweepai.core.entities import FileChangeRequest, Snippet
-from sweepai.utils.chat_logger import discord_log_error, global_mongo_client
+from sweepai.global_threads import global_threads
+from sweepai.utils.chat_logger import global_mongo_client
 
 
 class AssistantAPIMessageRole(Enum):
@@ -26,9 +25,7 @@ class AssistantAPIMessageRole(Enum):
 
 
 class AssistantAPIMessage(BaseModel):
-    class Config:
-        use_enum_values = True
-
+    model_config = ConfigDict(use_enum_values=True, validate_default=True)
     role: AssistantAPIMessageRole
     content: str = ""
 
@@ -45,15 +42,13 @@ class AssistantStatus(Enum):
 
 
 class AssistantConversation(BaseModel):
+    model_config = ConfigDict(use_enum_values=True, validate_default=True)
     messages: list[AssistantAPIMessage] = []
     is_active: bool = True
     status: AssistantStatus = "in_progress"
     assistant_id: str = ""
     run_id: str = ""
     thread_id: str = ""
-
-    class Config:
-        use_enum_values = True
 
     @classmethod
     def from_ids(
@@ -70,13 +65,7 @@ class AssistantConversation(BaseModel):
             run = client.beta.threads.runs.retrieve(
                 run_id=run_id, thread_id=thread_id, timeout=1.5
             )
-            step_objects = client.beta.threads.runs.steps.list(
-                run_id=run_id, thread_id=thread_id, timeout=1.5
-            ).data
-            thread_messages = client.beta.threads.messages.list(
-                thread_id=thread_id, timeout=1.5
-            ).data
-        except:
+        except Exception:
             return None
         messages: list[AssistantAPIMessage] = [
             AssistantAPIMessage(
@@ -84,76 +73,6 @@ class AssistantConversation(BaseModel):
                 content=assistant.instructions,
             )
         ]
-        all_messages = sorted(
-            list(thread_messages + step_objects),
-            key=lambda x: x.created_at,
-            reverse=True,
-        )
-        for message_obj in list(all_messages)[::-1]:
-            if isinstance(message_obj, ThreadMessage):
-                text = message_obj.content[0].text.value
-                if text.strip():
-                    messages.append(
-                        AssistantAPIMessage(
-                            role=message_obj.role,
-                            content=message_obj.content[0].text.value,
-                        )
-                    )
-            else:
-                if message_obj.type == "message_creation":
-                    message_id = message_obj.step_details.message_creation.message_id
-                    try:
-                        message_content = (
-                            client.beta.threads.messages.retrieve(
-                                message_id=message_id, thread_id=thread_id, timeout=1.5
-                            )
-                            .content[0]
-                            .text.value
-                        )
-                    except:
-                        return None
-                    messages.append(
-                        AssistantAPIMessage(
-                            role=AssistantAPIMessageRole.ASSISTANT,
-                            content=message_content,
-                        )
-                    )
-                    # TODO: handle annotations
-                elif message_obj.type == "tool_calls":
-                    for tool_call in message_obj.step_details.tool_calls:
-                        if isinstance(tool_call, CodeToolCall):
-                            code_interpreter = tool_call.code_interpreter
-                            input_ = code_interpreter.input
-                            if not input_:
-                                continue
-                            messages.append(
-                                AssistantAPIMessage(
-                                    role=AssistantAPIMessageRole.CODE_INTERPRETER_INPUT,
-                                    content=input_,
-                                )
-                            )
-                            outputs = code_interpreter.outputs
-                            output = outputs[0].logs if outputs else "__No output__"
-                            messages.append(
-                                AssistantAPIMessage(
-                                    role=AssistantAPIMessageRole.CODE_INTERPRETER_OUTPUT,
-                                    content=output,
-                                )
-                            )
-                        elif isinstance(tool_call, FunctionToolCall):
-                            messages.append(
-                                AssistantAPIMessage(
-                                    role=AssistantAPIMessageRole.FUNCTION_CALL_INPUT,
-                                    content=tool_call.function.arguments,
-                                )
-                            )
-                            messages.append(
-                                AssistantAPIMessage(
-                                    role=AssistantAPIMessageRole.FUNCTION_CALL_OUTPUT,
-                                    content=tool_call.function.output
-                                    or "__No output__",
-                                )
-                            )
         return cls(
             messages=messages,
             status=run.status,
@@ -189,8 +108,7 @@ class TicketProgressStatus(Enum):
 
 
 class SearchProgress(BaseModel):
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True, validate_default=True)
 
     indexing_progress: int = 0
     indexing_total: int = 0
@@ -239,14 +157,13 @@ class TicketUserStateTypes(Enum):
 
 
 class TicketUserState(BaseModel):
+    model_config = ConfigDict(use_enum_values=True, validate_default=True)
     state_type: TicketUserStateTypes = TicketUserStateTypes.RUNNING
     waiting_deadline: int = 0
 
-    class Config:
-        use_enum_values = True
-
 
 class TicketProgress(BaseModel):
+    model_config = ConfigDict(use_enum_values=True, validate_default=True)
     tracking_id: str
     username: str = ""
     context: TicketContext = TicketContext()
@@ -257,9 +174,6 @@ class TicketProgress(BaseModel):
     prev_dict: dict = Field(default_factory=dict)
     error_message: str = ""
     user_state: TicketUserState = TicketUserState()
-
-    class Config:
-        use_enum_values = True
 
     @classmethod
     def load(cls, tracking_id: str) -> TicketProgress:
@@ -281,9 +195,12 @@ class TicketProgress(BaseModel):
         try:
             if MONGODB_URI is None:
                 return None
-            if self.dict() == self.prev_dict:
+            # cannot encode enum object
+            if isinstance(self.status, Enum):
+                self.status = self.status.value  # Convert enum member to its value
+            if self.model_dump() == self.prev_dict:
                 return
-            current_dict = self.dict()
+            current_dict = self.model_dump()
             del current_dict["prev_dict"]
             self.prev_dict = current_dict
             db = global_mongo_client["progress"]
@@ -291,13 +208,16 @@ class TicketProgress(BaseModel):
             collection.update_one(
                 {"tracking_id": self.tracking_id}, {"$set": current_dict}, upsert=True
             )
+            # convert status back to enum object
+            self.status = TicketProgressStatus(self.status)
         except Exception as e:
-            discord_log_error(str(e) + "\n\n" + str(self.tracking_id))
+            logger.error(str(e) + "\n\n" + str(self.tracking_id))
 
     def save(self, do_async: bool = True):
         if do_async:
             thread = Thread(target=self._save)
             thread.start()
+            global_threads.append(thread)
         else:
             self._save()
 
@@ -334,7 +254,7 @@ class TicketProgress(BaseModel):
             #         logger.info(f"Waiting for user for {self.tracking_id}...")
             # raise Exception("Timeout")
         except Exception as e:
-            discord_log_error(
+            logger.error(
                 "wait() method crashed with:\n\n"
                 + str(e)
                 + "\n\n"
@@ -358,8 +278,8 @@ if __name__ == "__main__":
     #     + " https://discord.gg/sweep."
     # )
     # ticket_progress.status = TicketProgressStatus.ERROR
-    # ticket_progress.save()
+    ticket_progress.save()
     ticket_progress.wait()
-    # new_ticket_progress = TicketProgress.load("test")
-    # print(new_ticket_progress)
+    new_ticket_progress = TicketProgress.load("test")
+    print(new_ticket_progress)
     # assert new_ticket_progress == ticket_progress

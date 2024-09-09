@@ -1,5 +1,6 @@
 import traceback
 
+from loguru import logger
 import resend
 from github import Github
 from github.AppAuthentication import AppAuthentication
@@ -9,9 +10,10 @@ from sweepai.config.server import (
     GITHUB_APP_ID,
     GITHUB_APP_PEM,
     IS_SELF_HOSTED,
+    PROGRESS_BASE_URL,
     RESEND_API_KEY,
 )
-from sweepai.utils.chat_logger import discord_log_error, global_mongo_client
+from sweepai.utils.chat_logger import global_mongo_client
 from sweepai.utils.github_utils import get_installation_id
 
 resend.api_key = RESEND_API_KEY
@@ -23,7 +25,9 @@ class UserSettings(BaseModel):
     do_email: bool = True
 
     @classmethod
-    def from_username(cls, username: str, installation_id: int = None) -> 'UserSettings':
+    def from_username(
+        cls, username: str, installation_id: int = None
+    ) -> "UserSettings":
         if IS_SELF_HOSTED:
             return cls(username=username, email="", do_email=False)
 
@@ -47,7 +51,7 @@ class UserSettings(BaseModel):
                     g.get_user(username).email or ""
                 )  # Some user's have private emails
             except Exception as e:
-                discord_log_error(
+                logger.error(
                     str(e)
                     + "\n\n"
                     + traceback.format_exc()
@@ -58,15 +62,15 @@ class UserSettings(BaseModel):
 
         return cls(**doc)
 
-    def get_message(self, completed: bool = False):
+    def get_message(self, completed: bool = False) -> str:
         # This is a message displayed to the user in the ticket
         if self.email and self.do_email:
             return f"> [!TIP]\n> I'll email you at {self.email} when I complete this pull request!"
         elif not self.email:
             if not completed:
-                return f"> [!TIP]\n> I can email you when I complete this pull request if you set up your email [here](https://progress.sweep.dev/profile)!"
+                return f"> [!TIP]\n> I can email you when I complete this pull request if you set up your email [here]({PROGRESS_BASE_URL}/profile)!"
             else:
-                return f"> [!TIP]\n> I can email you next time I complete a pull request if you set up your email [here](https://progress.sweep.dev/profile)!"
+                return f"> [!TIP]\n> I can email you next time I complete a pull request if you set up your email [here]({PROGRESS_BASE_URL}/profile)!"
 
     def send_email(
         self,

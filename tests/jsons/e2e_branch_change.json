@@ -1,0 +1,39 @@
+{
+    "action": "labeled",
+    "issue": {
+        "title": "Sweep: Change the install app button colour to pink",
+        "number": 32,
+        "html_url": "https://github.com/sweepai/e2e/issues/32",
+        "user": {
+            "login": "MartinYe1234",
+            "type": "User"
+        },
+        "body": "Branch: dev",
+        "labels": [
+            {
+                "name": "sweep"
+            }
+        ],
+        "assignees": null,
+        "pull_request": null
+    },
+    "repository": {
+        "full_name": "sweepai/e2e",
+        "description": null
+    },
+    "assignee": {
+        "login": "MartinYe1234"
+    },
+    "installation": {
+        "id": 36855882,
+        "account": {
+            "id": 52641447,
+            "login": "MartinYe1234",
+            "type": "User"
+        }
+    },
+    "sender": {
+        "login": "MartinYe1234",
+        "type": "User"
+    }
+}

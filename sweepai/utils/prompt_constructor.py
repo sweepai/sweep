@@ -5,20 +5,25 @@ from sweepai.core.prompts import (
     final_review_prompt,
     human_message_prompt,
     human_message_prompt_comment,
-    human_message_review_prompt,
 )
 
+def get_issue_request(
+    title: str,
+    summary: str
+):
+    summary = (
+        summary if not summary.strip().endswith("_No response_") else ""
+    )
+    return f"""Issue Title: {title}"""
 
 class HumanMessagePrompt(BaseModel):
     repo_name: str
-    issue_url: str | None
-    username: str
     title: str
     summary: str
     snippets: list
     tree: str
     repo_description: str = ""
-    snippet_text = ""
+    snippet_text: str = ""
     commit_history: list = []
 
     def delete_file(self, file_path):
@@ -71,7 +76,9 @@ class HumanMessagePrompt(BaseModel):
 
     @staticmethod
     def render_snippet_array(snippets, snippet_tag=None):
-        joined_snippets = "\n".join([snippet.xml for snippet in snippets])
+        joined_snippets = "\n".join(
+            [snippet.get_xml(add_lines=False) for snippet in snippets]
+        )
         start_snippet_tag = (
             "<relevant_snippets_in_repo>" if not snippet_tag else f"<{snippet_tag}>"
         )
@@ -105,9 +112,11 @@ class HumanMessagePrompt(BaseModel):
                     repo_description=self.repo_description,
                     tree=self.tree.strip("\n"),
                     title=self.title,
-                    description=f"Issue Description: {self.summary}"
-                    if self.summary.strip()
-                    else "",
+                    description=(
+                        f"Issue Description: {self.summary}"
+                        if self.summary.strip()
+                        else ""
+                    ),
                     relevant_snippets=relevant_snippets,
                     relevant_directories=relevant_directories,
                     relevant_commit_history=relevant_commit_history,
@@ -129,6 +138,16 @@ class HumanMessagePrompt(BaseModel):
 Repo: {self.repo_name}: {self.repo_description}
 Issue Title: {self.title}
 {issue_description}"""
+    
+    def get_issue_request(self):
+        self.summary = (
+            self.summary if not self.summary.strip().endswith("_No response_") else ""
+        )
+        issue_description = (
+            f"\nIssue Description: {self.summary}" if self.summary else ""
+        )
+        return f"""Issue Title: {self.title}
+{issue_description}"""
 
 
 def render_snippets(snippets):
@@ -139,49 +158,6 @@ def render_snippets(snippets):
         )
         res += snippet_text
     return res
-
-
-class HumanMessagePromptReview(HumanMessagePrompt):
-    pr_title: str
-    pr_message: str = ""
-    diffs: list
-    plan: str
-
-    def format_diffs(self):
-        formatted_diffs = []
-        for file_name, file_patch in self.diffs:
-            if not file_name and not file_patch:
-                continue
-            format_diff = diff_section_prompt.format(
-                diff_file_path=file_name, diffs=file_patch
-            )
-            formatted_diffs.append(format_diff)
-        return "\n".join(formatted_diffs)
-
-    def construct_prompt(self):
-        human_messages = [
-            {
-                "role": msg["role"],
-                "content": msg["content"].format(
-                    repo_name=self.repo_name,
-                    repo_description=self.repo_description,
-                    tree=self.tree,
-                    title=self.title,
-                    description=self.summary,
-                    relevant_snippets=self.render_snippets(),
-                    relevant_directories=self.get_relevant_directories(),
-                    relevant_commit_history=self.get_commit_history(),
-                    diffs=self.format_diffs(),
-                    pr_title=self.pr_title,
-                    pr_message=self.pr_message,
-                    plan=self.plan,
-                ),
-            }
-            for msg in human_message_review_prompt
-        ]
-
-        return human_messages
-
 
 class HumanMessageCommentPrompt(HumanMessagePrompt):
     comment: str
@@ -211,9 +187,9 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
                         else self.comment
                     ),
                     repo_name=self.repo_name,
-                    repo_description=self.repo_description
-                    if self.repo_description
-                    else "",
+                    repo_description=(
+                        self.repo_description if self.repo_description else ""
+                    ),
                     diff=self.format_diffs(),
                     title=self.title,
                     tree=self.tree,
@@ -221,9 +197,9 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
                     relevant_directories=self.get_relevant_directories(),
                     relevant_snippets=self.render_snippets(),
                     relevant_commit_history=self.get_commit_history(),
-                    relevant_docs=f"\n{self.relevant_docs}"
-                    if self.relevant_docs
-                    else "",  # conditionally add newline
+                    relevant_docs=(
+                        f"\n{self.relevant_docs}" if self.relevant_docs else ""
+                    ),  # conditionally add newline
                 ),
             }
             for msg in human_message_prompt_comment

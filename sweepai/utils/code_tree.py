@@ -1,9 +1,12 @@
 import ast
 import re
+import warnings
 
 import tree_sitter_languages
 from pydantic import BaseModel
 from tree_sitter import Node, Parser, Tree
+
+warnings.simplefilter("ignore", category=FutureWarning)
 
 
 class CodeTree(BaseModel):
@@ -115,10 +118,10 @@ class CodeTree(BaseModel):
                     spacing = " " * (len(str(start_line)) + 2)
                     middle_lines = spacing.join(
                         [
-                            spacing + indentation + f"     ...\n",
+                            spacing + indentation + "     ...\n",
                             indentation
                             + f"     (lines {start_line + 1}-{end_line - 1} contains terms: {first_n_terms}\n",
-                            indentation + f"     ...\n",
+                            indentation + "     ...\n",
                         ]
                     )
                     second_last_line = node_lines[-2]

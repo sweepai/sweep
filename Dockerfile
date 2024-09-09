@@ -8,65 +8,42 @@ ENV PORT=${PORT:-8080}
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git build-essential autoconf automake pkg-config libjansson-dev docker.io libffi-dev \
+    && apt-get install -y --no-install-recommends git curl redis-server npm build-essential pkg-config libssl-dev \
+       cmake pkg-config libicu-dev zlib1g-dev libcurl4-openssl-dev libssl-dev ruby-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN git clone https://github.com/universal-ctags/ctags.git && \
-    cd ctags && \
-    ./autogen.sh && \
-    ./configure && \
-    make && make install
+RUN gem install github-linguist
 
-COPY pyproject.toml ./
+RUN curl -LO https://github.com/BurntSushi/ripgrep/releases/download/13.0.0/ripgrep_13.0.0_amd64.deb && \
+    dpkg -i ripgrep_13.0.0_amd64.deb && \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y 
+ENV PATH="/root/.cargo/bin:${PATH}"
+RUN git clone https://github.com/BurntSushi/ripgrep
+RUN cd ripgrep && \
+    cargo build --release && \
+    ./target/release/rg --version
 
-RUN pip install --no-cache-dir poetry \
-    && poetry export -f requirements.txt --without-hashes -o requirements.txt \
-    && pip install --no-cache-dir -r requirements.txt
+ENV VIRTUAL_ENV=/usr/local
+RUN curl -sSL https://astral.sh/uv/install.sh -o /install.sh && chmod 755 /install.sh && /install.sh && rm /install.sh
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libglib2.0-0 \
-    libnss3 \
-    libatk1.0-0 \
-    libcups2 \
-    libdbus-1-3 \
-    libxkbcommon0 \
-    libx11-6 \
-    libxcb1 \
-    libasound2 \
-    libatspi2.0-0 \
-    graphviz \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt ./
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libatk-bridge2.0-0 \
-    libdrm2 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libpango-1.0-0 \
-    libcairo2 \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache -r requirements.txt
 
-RUN apt-get update && apt-get install -y screen redis-server npm
-RUN npm install -g prettier @types/react @types/react-dom typescript
-
-FROM base as final
+RUN npm install -g prettier@2.0.4 @types/react @types/react-dom typescript eslint@8.57.0 
+RUN npm install react react-dom
+RUN npm install @typescript-eslint/parser @typescript-eslint/eslint-plugin eslint-plugin-import eslint-plugin-react --save-dev
 
 COPY sweepai /app/sweepai
-COPY sdk /app/sdk
 COPY tests /app/tests
 ENV PYTHONPATH=.
-COPY bin/startup.sh /app/startup.sh
 COPY redis.conf /app/redis.conf
-RUN chmod u+x /app/startup.sh
+COPY bin /app/bin
+RUN chmod a+x /app/bin/startup.sh
 
-EXPOSE $PORT
-CMD ["/app/startup.sh"]
+EXPOSE 8080
+CMD ["bash", "-c", "chmod a+x /app/bin/startup.sh && /app/bin/startup.sh"]
 
 LABEL org.opencontainers.image.description="Backend for Sweep, an AI-powered junior developer"
 LABEL org.opencontainers.image.source="https://github.com/sweepai/sweep"

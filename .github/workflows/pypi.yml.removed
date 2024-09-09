@@ -1,0 +1,94 @@
+name: Pypi Test Deploy
+
+concurrency: 
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'sweepai/**'
+      - 'tests/**'
+      - pyproject.toml
+      - requirements.txt
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'sweepai/**'
+      - 'tests/**'
+      - pyproject.toml
+      - requirements.txt
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10"]
+        # python-version: ["3.10", "3.11"]
+        os: [ubuntu-latest]
+    outputs:
+      cache-key: ${{ steps.cache-dependencies.outputs.cache-key }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.67.0
+          override: true
+      - uses: Swatinem/rust-cache@v1
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
+      - run: |
+          pip install uv
+          uv venv
+          source .venv/bin/activate
+          echo ".venv/bin" >> $GITHUB_PATH
+      - run: uv pip install -r requirements.txt
+      - run: uv pip install twine build
+      - run: |
+          commit_hash=$(git rev-parse --short HEAD)
+          commit_hash_mod=$(printf "%d" 0x${commit_hash: -4})
+          sed -i "s/version = \"\([^\"]*\)\"/version = \"\1.dev$commit_hash_mod\"/" pyproject.toml
+          python -m build
+      - run: |
+          export TWINE_USERNAME=__token__
+          export TWINE_PASSWORD=${{ secrets.TEST_PYPI_TOKEN }}
+          python -m twine upload dist/* --repository testpypi --non-interactive 
+
+  install:
+    runs-on: ubuntu-latest
+    needs: upload
+    strategy:
+      matrix:
+        python-version: ["3.10"]
+        # python-version: ["3.10", "3.11"]
+        os: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          sleep 15
+          export version=$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml)
+          export commit_hash=$(git rev-parse --short HEAD)
+          export commit_hash_mod=$(printf "%d" 0x${commit_hash: -4})
+          python -m pip install --upgrade pip
+          pip install sweepai --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --pre
+      # Temporarily disabled until we fix the cache issue
+      # - name: Test installation
+      #   env:
+      #     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      #     COHERE_API_KEY: test
+      #     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      #   run: sweep test

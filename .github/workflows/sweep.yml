@@ -1,0 +1,41 @@
+# name: Sweep Run Code
+
+# concurrency: 
+#   group: ${{ github.workflow }}-${{ github.ref }}
+#   cancel-in-progress: true
+
+# on:
+#   push:
+
+# jobs:
+#   code-quality:
+#     runs-on: ubuntu-latest
+#     strategy:
+#       matrix:
+#         python-version: ["3.10"]
+#         # python-version: ["3.10", "3.11"]
+#         os: [ubuntu-latest]
+#     outputs:
+#       cache-key: ${{ steps.cache-dependencies.outputs.cache-key }}
+#     steps:
+#       - uses: actions/checkout@v3
+#       - uses: actions-rs/toolchain@v1
+#         with:
+#           profile: minimal
+#           toolchain: 1.67.0
+#           override: true
+#       - uses: Swatinem/rust-cache@v1
+#       - uses: actions/setup-python@v4
+#         with:
+#           python-version: ${{ matrix.python-version }}
+#       - run: echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
+#         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
+#       - run: pip install uv
+#         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
+#       - run: uv pip install -r requirements.txt
+#         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
+#       - run: uv pip install ruff pylint pytest pytest-xdist black
+#         # if: steps.restore-dependencies.outputs.cache-hit != 'true'
+#       - name: Run arbitrary code
+#         run: |
+#             echo "Placeholder"

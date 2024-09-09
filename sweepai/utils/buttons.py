@@ -1,7 +1,7 @@
 import re
 from typing import List
 
-from sweepai.events import Changes
+from sweepai.web.events import Changes
 
 
 def create_button(label: str, selected: bool = False) -> str:
@@ -9,7 +9,7 @@ def create_button(label: str, selected: bool = False) -> str:
     return f"- [{'x' if selected else ' '}] {label}"
 
 
-def create_action_buttons(labels: List[str], header="## Actions (click)\n") -> str:
+def create_action_buttons(labels: List[str], header="## Actions\n") -> str:
     """Create a list of buttons for the issue body."""
     buttons = "\n".join(create_button(label) for label in labels)
     return header + buttons

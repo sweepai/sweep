@@ -1,20 +1,5 @@
 # Frequently Asked Questions
 
-<details>
-<summary>Does Sweep write tests?</summary>
-
-Yep! The easiest way to have Sweep write tests is by modifying the `description` parameter in your `sweep.yaml`. You can add something like:
-“In [your repository], the tests are written in [your format]. If you modify business logic, modify the tests as well using this format.” You can add anything you’d like to the description parameter, including formatting rules (like PEP8), code style, etc!
-
-</details>
-
-<details>
-<summary>Can we trust the code written by Sweep?</summary>
-
-You should always review the PR. However, we also perform testing to make sure the PR works using your existing GitHub actions.
-To get the best performance, add GitHub actions that lint, test, and validate your code.
-
-</details>
 
 <details>
 <summary>Can I host Sweep myself?</summary>
@@ -23,21 +8,37 @@ Yes! Check out https://docs.sweep.dev/deployment.
 
 </details>
 
-<details>
+<details id="does-sweep-write-tests">
+<summary>Does Sweep write tests?</summary>
+
+Yep! The easiest way to have Sweep write tests is by modifying the `description` parameter in your `sweep.yaml`. You can add something like:
+“In [your repository], the tests are written in [your format]. If you modify business logic, modify the tests as well using this format.” You can add anything you’d like to the description parameter, including formatting rules (like PEP8), code style, etc!
+
+</details>
+
+<details id="can-we-trust-code-written-by-sweep">
+<summary>Can we trust the code written by Sweep?</summary>
+
+You should always review the PR. However, we also perform testing to make sure the PR works using your existing GitHub actions.
+To get the best performance, add GitHub actions that lint, test, and validate your code.
+
+</details>
+
+<details id="work-off-another-branch">
 <summary>Can I have Sweep work off of another branch besides main?</summary>
 
 Yes! In the `sweep.yaml`, you can set the `branch` parameter to something besides your default branch, and Sweep will use that as a reference.
 
 </details>
 
-<details>
+<details id="retry-issue-with-sweep">
 <summary>How do I retry an issue with Sweep?</summary>
 
 To retry an issue, prefix your issue reply with 'Sweep: '. This will trigger Sweep to retry the issue.
 
 </details>
 
-<details>
+<details id="give-documentation-to-sweep">
 <summary>Can I give documentation to Sweep?</summary>
 
 Yes! In the `sweep.yaml`, you can specify docs. Be sure to pick the prefix of the site, which will allow us to only fetch the docs you need.
@@ -45,7 +46,7 @@ Check out the example here: https://github.com/sweepai/sweep/blob/main/sweep.yam
 
 </details>
 
-<details>
+<details id="comment-on-sweeps-prs">
 <summary>Can I comment on Sweep’s PRs?</summary>
 
 Yep! You have three options depending on the degree of the change:
@@ -56,77 +57,98 @@ Yep! You have three options depending on the degree of the change:
 
 </details>
 
-<details>
+<details id="why-open-source">
 <summary>Why are you open source?</summary>
 
 We’re open source so that our users can see exactly how their data is processed, as well as learn from how Sweep works! We’re really excited about building a community of Sweep users(like you!).
 
 </details>
 
-<details>
+<details id="difference-from-copilot">
 <summary>What’s the difference from CoPilot?</summary>
 
 Copilot lives in your IDE and writes small chunks of code at a time. This takes ~3-5 seconds, and you need to watch it the entire time. Sweep runs completely asynchronously, and handles the task end to end. This might take 10-15 minutes, but you’re able to walk away and come back to a finished pull request. Copilot also doesn’t have access to the latest documentation.
 
 </details>
 
-<details>
+<details id="difference-from-chatgpt">
 <summary>What’s the difference from ChatGPT?</summary>
 
 ChatGPT can’t write the actual PR, and you’d have to paste the generated code into your codebase and create a PR yourself. ChatGPT doesn’t have access to your codebase and the latest documentation, so it’s limited with large software projects.
 
 </details>
 
-<details>
+<details id="difference-from-autogpt">
 <summary>What’s the difference from AutoGPT?</summary>
 
 AutoGPT (and similar tools) doesn’t work, and Sweep works. We don’t allow the language model to perform open domain tool execution (which doesn’t work well). We perform a fixed flow of search → plan → write code → validate code, repeating the last two steps. This lets us reliably generate PRs corresponding to the user description.
 
 </details>
 
-<details>
+<details id="difference-from-gpt-engineer-smol-developer-autogpt">
 <summary>What’s the difference from GPT-Engineer, Smol Developer and AutoGPT?</summary>
 
 Sweep is built to improve on an existing codebase, which is a more frequent and higher need, than generating boilerplate, which is mostly a solved problem since you can just fork existing boilerplates.
 
 </details>
 
-<details>
+<details id="difference-from-cody-bloop">
 <summary>What’s the difference from Cody and Bloop?</summary>
 
 We do more than just chat-with-your-code by actually creating pull requests.
 
 </details>
 
-<details>
+<details id="difference-from-autopr">
 <summary>What’s the difference from AutoPR?</summary>
 
 We're shipping new features at Sweep everyday and unfortunately it looks like AutoPR hasn't received any updates in months.
 
 </details>
 
-<details>
+<details id="support-gitlab-gitea-bitbucket-forgejo">
+<summary>Do you guys support GitLab / Gitea / BitBucket / Forgejo?</summary>
+
+We only support GitHub at the moment. We're currently focused on delivering more value and making Sweep more reliable and capable as opposed to supporting more services.
+</details>
+
+<details id="support-other-models">
+<summary>Do you guys support other models, such as GPT-3.5, Claude and Gemini as well as open-source models like Deepseek and CodeLlama?</summary>
+
+We currently only support GPT-4 but are actively testing on Claude v3 which is looking promising -- it's faster, less expensive and smarter with using the tool calls. Gemini also looks promising with long-context multi-file reasoning but we have tested on it less. We just moved off function calls for our code modification agent so this is now possible.
+
+All our prompts are currently tuned for GPT-4 so exploring a new model involves re-tuning all the prompts and re-benchmarking each component -- from code search / reranking to planning to code editing. This is why reason you can't just plug LiteLLM. The majority of models out there, including even GPT-3.5, struggle to respond in the right format given or current prompts. Migrating the clients over is the trivial part. 
+
+This is also why we stopped supporting GPT-3.5: it's simply too unreliable and can't respond with our format consistently. It's not a matter of generating buggy or incorrect code but more of a matter of making any valid code edits at all.
+
+We currently don't support or plan on supporting any open-source models. The only model that is viable is Deepseek but we have found that it's very hard to prompt-tune to use our diff format (or any viable diff format).
+
+We're currently focused on building the most capable coding agent with the models available today, rather than building the most accessible or least expensive agent, or the one that runs on the lowest possible hardware requirements.
+
+</details>
+
+<details id="do-you-store-our-code">
 <summary>Do you store our code?</summary>
 
 We access your GitHub repository at runtime. At the end of execution, your code is deleted from the server. To perform search over your codebase, we use the hashed contents along with the embeddings. This allows us to avoid storing any code as plaintext. Read more about it here: [https://docs.sweep.dev/blogs/search-infra](https://docs.sweep.dev/blogs/search-infra).
 
 </details>
 
-<details>
+<details id="example-sweep-prs">
 <summary>Do you have example Sweep PRs?</summary>
 
 Yes! Check out [https://docs.sweep.dev/about/examples](https://docs.sweep.dev/about/examples).
 
 </details>
 
-<details>
+<details id="support-integration-linear-jira-zendesk">
 <summary>Do you support integration with Linear, Jira, Zendesk etc.?</summary>
 
 We don't directly support it but we recommend setting up a Zapier plugin that syncs GitHub issues from Linear/Jira. This will automatically create the GitHub issues when you make a Linear/Jira issue which will trigger Sweep if prefixed with "Sweep: ".
 
 </details>
 
-<details>
+<details id="empty-repository-error">
 <summary>What does the 'Empty repository' error mean?</summary>
 
 The 'Empty repository' error occurs when the repository was just created and Sweep will not work. This is because Sweep needs some existing code in the repository to work with. If the repository is empty, Sweep does not have any code to analyze or modify. To fix this error, you can add some initial code to your repository before using Sweep. Once there is some code in the repository, Sweep should be able to work as expected.

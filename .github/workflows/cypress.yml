@@ -1,0 +1,80 @@
+name: Cypress E2E Tests
+
+concurrency: 
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # Runs every 30 minutes
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - '.github/**'
+      - 'sweepai/**'
+      - 'sweep_chat/**'
+      - pyproject.toml
+      - requirements.txt
+
+jobs:
+  cypress:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Cache node modules
+      id: cache-node-modules
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          ~/.npm
+          ~/.cache/Cypress
+          sweep_chat/node_modules
+        key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}
+    
+    - name: Install npm dependencies
+      if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+      working-directory: sweep_chat
+      run: npm ci
+
+    - name: Cache save node modules
+      if: ${{ steps.cache-node-modules.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          ~/.npm
+          ~/.cache/Cypress
+          sweep_chat/node_modules
+        key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}
+
+    - name: Cache build
+      id: cache-build
+      uses: actions/cache/restore@v4
+      with:
+        path: sweep_chat/.next
+        key: ${{ runner.os }}-${{ hashFiles('sweep_chat/components/*.tsx', 'sweep_chat/app/*.tsx', 'sweep_chat/app/*.ts', 'sweep_chat/lib/*.ts') }}
+
+    - name: Build next.js
+      if: ${{ steps.cache-build.outputs.cache-hit != 'true' }}
+      working-directory: sweep_chat
+      run: |
+        export BACKEND_URL=${{ secrets.BACKEND_URL }}
+        npm run build
+
+    - name: Cache build
+      if: ${{ steps.cache-build.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v4
+      with:
+        path: sweep_chat/.next
+        key: ${{ runner.os }}-${{ hashFiles('sweep_chat/components/*.tsx', 'sweep_chat/app/*.tsx', 'sweep_chat/app/*.ts', 'sweep_chat/lib/*.ts') }}
+
+    - name: Run Cypress tests
+      working-directory: sweep_chat
+      run: |
+        echo "${{ secrets.CYPRESS_ENV_LOCAL }}" > .env.local
+        echo "\nBACKEND_URL=${{ secrets.BACKEND_URL }}" >> env.local
+        export CYPRESS_LOGIN_SESSION_COOKIE=${{ secrets.CYPRESS_LOGIN_SESSION_COOKIE }}
+        npm run e2e:ci

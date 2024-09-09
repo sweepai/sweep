@@ -1,95 +1,175 @@
-# Deploying your own Sweep instance via Docker
+import { Callout, Tabs, Steps } from 'nextra/components'
+import { FaInfoCircle, FaExclamationCircle } from 'react-icons/fa'
+import YouTube from 'react-youtube';
 
-We use the&nbsp;[Elastic License V2](https://www.elastic.co/licensing/elastic-license) which allows commercial usage for Sweep.
-This is a guide for self-hosting Sweep. If you would like to use our hosted version, please visit https://github.com/apps/sweep-ai.
+# Self-Hosting Sweep via Docker
 
-## 1. Downloading Sweep
+<Callout type="info">This is a guide for self-hosting Sweep. If you are interested in our hosted version please visit https://github.com/apps/sweep-ai.</Callout>
 
-Open [Docker Desktop](https://www.docker.com/products/docker-desktop/) and run the following code in your terminal (hover over code for copy button):
+Sweep GitHub App is an **air-gapped**, **self-hostable** version of Sweep which serves many repositories at once.<br/>
+
+Setting up the Sweep GitHub App involves:
+1. Creating the GitHub App and getting a trial license key.
+2. Hosting the Sweep backend on a cloud provider like DigitalOcean.
+
+**The trial license key is valid for 14 days.** To upgrade to an enterprise license key, contact us at team@sweep.dev. Feel free to reach out to us for any help or questions.
+
+<Steps>
+### Create GitHub App
+
+Create a [GitHub App here](https://deploy.sweep.dev/) (1 minute). This tool will guide you through the process of creating a GitHub App, create a license key, and provide you with the necessary `.env` file.
+
+It will be named `.env.txt` and you will need to rename it to `.env` (browser security reasons). It should look something like this.
+
+```sh filename=".env"
+GITHUB_APP_ID=123456
+GITHUB_APP_PEM=-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n
+GITHUB_BOT_USER=sweepai-self-hosted
+LICENSE_KEY=ABCDE-FGHIJ-KLMNO-PQRST-UVWXY
+WEBHOOK_SECRET=abc123
+```
+
+---
+
+### Anthropic and OpenAI API keys
+
+Create an [OpenAI API key](https://platform.openai.com/account/api-keys) and an [Anthropic API key](https://console.anthropic.com/settings/keys) add it to your `.env`:
+```sh filename=".env"
+...
+ANTHROPIC_API_KEY=sk-ant-api03-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+---
+
+### Hosting Sweep
+
+To host Sweep you need to run the Sweep webhook on a publicly accessible server. We recommend using a cloud provider (DigitalOcean, AWS, or Azure) but you can also run it locally and use a reverse proxy like Ngrok.
+
+*If you encounter issues please reach out to us at team@sweep.dev.*
+
+<Tabs items={["Cloud (recommended)", "Local"]}>
+<Tabs.Tab>
+We recommend deploying on the cloud for most users as the networking setup is easier. For this guide, we will use DigitalOcean.
+
+##### 1. Create Instance
+Recommended specs:
+- OS: Ubuntu
+- RAM: 32 GB
+- CPU: 4 vCPUs
+- Storage: 200 GB
+
+The cheapest instance with these specs is `t3.xlarge` on AWS.
+
+<details>
+<summary>If you do not have Docker/Docker Compose setup</summary>
 
 ```sh filename="terminal"
-git clone --depth 1 --single-branch https://github.com/sweepai/sweep
+sudo apt install -y apt-transport-https ca-certificates curl software-properties-common -y
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo add-apt-repository -y "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+sudo apt update -y
+sudo apt install docker-ce -y
+sudo systemctl enable docker
+sudo systemctl start docker
+sudo usermod -aG docker ${USER}
+```
+</details>
+Start the docker client if you are on Mac/Windows.
+
+##### 2. Configure `.env` and pull Sweep
+```sh filename="terminal"
+git clone https://github.com/sweepai/sweep
 cd sweep
-touch .env
-docker compose pull
+vim .env
 ```
 
-1. Clone the [sweepai/sweep](https://github.com/sweepai/sweep) repository
-2. Create a `.env` file in the root directory
-3. Pull the docker image.
+Then, copy the contents from your local `.env` to your remote `.env`.
 
-In the `.env`, configure the repository that Sweep should work on.
-
-```sh filename=".env"
-REPO=your-username/your-repo
+##### 3. Deploy the Sweep backend
+```sh filename="terminal"
+docker compose up --build hosted
+# To run in background: docker compose up --build -d hosted
 ```
 
-We're halfway done! Pulling the image will take a few minutes, so let's complete the next steps for now.
+##### 4. Update the GitHub Webhook URL
 
-## 2. GitHub PAT
-To allow Sweep to access your repo, create a new [GitHub Personal Access Token (PAT) here](https://github.com/settings/tokens/new?description=Sweep%20Self-hosted&scopes=repo,workflow). Sweep will run entirely locally, and no code will be shared outside of OpenAI's API.
-
-Add this to your `.env` which should now look like this:
-
-```sh filename=".env"
-REPO=your-username/your-repo
-GITHUB_PAT=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
-
-<details>
-<summary>
-Link not working?
-</summary>
-If the link doesn't work, you can go [here](https://github.com/settings/tokens/new) and manually set your preferred token name (e.g. Sweep Self-Hosted), and select the following permissions:
-* repo (ALL)
-* workflow
-</details>
-
-## 3. OpenAI API Token
-
-Please create an OpenAI API token at https://platform.openai.com/account/api-keys.
+Get the IP address of your instance and add the port Sweep is deployed to (in this case, 8080):
 ```sh
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+http://YOUR_IP:8080
 ```
 
-After following the above sections, your `.env` should look like this:
-```sh filename=".env"
-REPO=your-username/your-repo
-GITHUB_PAT=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Go to your GitHub app and update `Webhook URL` to the link above. You can find the GitHub App settings page in your `.env` file.
+
+{/* For user accounts:
+```txt /GITHUB_BOT_USERNAME/
+https://github.com/settings/apps/GITHUB_BOT_USERNAME
 ```
 
-<details>
-<summary>
-(Optional) Disabling Telemetry
-</summary>
-We log user events(not user code) to improve the product, such as the # of pull requests created and merged. To disable telemetry, you can add the following line to your `.env`:
-```sh filename=".env"
-POSTHOG_API_KEY=none
-```
-</details>
+For organizations:
+```txt /GITHUB_BOT_USERNAME/, /YOUR_ORGANIZATION/
+https://github.com/YOUR_ORGANIZATION/sweepai/settings/apps/GITHUB_BOT_USERNAME
+``` */}
 
----
+<Callout type="info">
+Sweep has several long-running processes, so naive redeployment may kill these processes. For a script to redeploy gracefully without downtime, see https://github.com/sweepai/sweep/blob/main/bin/redeploy.sh.
+</Callout>
 
-## 4. Deploying Sweep Locally
+</Tabs.Tab>
 
-Once `docker compose pull` from Step 1 is complete, you can run Sweep locally with the following command:
+<Tabs.Tab>
+If prefer to deploy on your local machine, you can do so by following the steps below.
+
+#### Prerequisites
+
+You need to install [Docker](https://docs.docker.com/engine/install/) to host Sweep.
+
+#### 1. Download the Docker Image
+
+Pull our image from Docker Hub:
 
 ```sh filename="terminal"
-docker compose up # Add -d to run in background
+git clone https://github.com/sweepai/sweep
+cd sweep
+docker compose pull hosted
 ```
 
-## 5. Creating a Pull Request with Sweep
+It may take 5-10 minutes to download the image and you can move on to the next step while it's downloading.
 
-Finally, you can use Sweep by creating a new issue on the repository with a title prefixed with `Sweep:`, like `Sweep: add type hints to BaseIndex.tsx`!
+#### 2. Set up the environment
 
-For more details on using Sweep see [how to use Sweep](https://docs.sweep.dev/#-how-to-use-sweep).
+Create a `.env` file with the contents from steps 1 and 2.
 
-**You have successfully deployed Sweep! 🚀**
+#### 3. Run the Docker Image
+
+Then in the same directory, run:
+
+```bash filename="terminal"
+docker compose up hosted # Add -d to run in background
+```
+
+#### 4. Set up the Reverse Proxy
+
+We're going to use [Ngrok](https://ngrok.com/) for a reverse proxy.
+
+Sign up for an Ngrok account and install the CLI from https://dashboard.ngrok.com/signup. Your terminal must be in the same directory as your ngrok installation. Start the reverse proxy with `ngrok http 8080`. The second last line should say something like
+
+```sh filename="terminal"
+Forwarding  https://4d8d8bf053be.ngrok.app -> http://localhost:8080
+```
+
+Then proceed with step 4.
+</Tabs.Tab>
+</Tabs>
+</Steps>
 
 ---
 
-### Alternative Deployment via GitHub App:
-If you successfully deployed Sweep, you can skip this section.
+### You have successfully deployed Sweep!
+*For enterprise support such as fine-tuning (20% performance gain), search index caching, usage tracking, and progress dashboards please contact team@sweep.dev.*
 
-You can self-deploy Sweep as a GitHub App to serve many repos at once. This is a more complicated process, but it is more scalable and is what we use for our hosted version. You can find the instructions [here](https://docs.sweep.dev/usage/self-hosting) or contact us at team@sweep.dev if you need help getting set up.
+**Creating a Pull Request with Sweep**
+
+Use Sweep by creating a new issue on the repository with a title prefixed with `Sweep:` like `Sweep: add type hints to BaseIndex.tsx`.
+For more details see [how to use Sweep](https://docs.sweep.dev/#-how-to-use-sweep).
+	

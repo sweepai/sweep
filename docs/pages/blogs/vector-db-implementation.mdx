@@ -1,0 +1,122 @@
+# Our simple vector database implementation
+**William Zeng** - March 12th, 2024
+
+---
+<div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+    <img src="/covers/vector-db-implementation.png" alt="Colorful image of a vector database" style={{ width: "800px" }} />
+</div>
+
+Standard vector databases worked great for Sweep when we had a single index, but they became a pain as we started managing multiple indices, frequent updates, and self-hosting. Our backend now consists of a single docker image that handles vector search over hundreds of repositories, each with a few thousand files. <br/>
+We use a simple Redis-based vector database that we can run on our own infrastructure, and we'd like to share it with the community!
+
+## Code Walkthrough
+Here’s our implementation: https://github.com/sweepai/sweep/blob/main/docs/public/redis_vector_db.py.<br/>
+To use it you can copy and paste our code into your project and then start Redis with `docker run -p 6379:6379 -d redis`.<br/>
+You'll need to install the following packages:<br/>
+```requirements.txt
+numpy
+redis
+loguru
+tiktoken
+openai
+```
+
+Here's a usage example:<br/>
+```python
+from redis_vector_db import get_most_similar_texts
+
+query = "example_query"
+document = "example_document"
+texts = [document for _ in range(n)]
+most_similar_texts = get_most_similar_texts(query, texts)
+# most_similar_texts is a sorted list of the most similar texts to the query
+```
+
+We also added a couple of configuration options:
+| Config             | Value                                            | Description                                                                                             |
+|-----------------------|--------------------------------------------------|---------------------------------------------------------------------------------------------------------|
+| `BATCH_SIZE`          | `512`                                            | The number of texts that will be fetched from redis/embedded at once. |
+| `REDIS_URL`           | `os.environ.get("REDIS_URL", "redis://0.0.0.0:6379/0")` | You can point to a remote Redis instance for greater performance. |
+| `CACHE_VERSION`       | `"v0.0.1"`                                       | If you change the format/model for the embeddings, you should change this to avoid incorrect cache hits. |
+| `DIMENSIONS_TO_KEEP`  | `512`                                            | The number of dimensions to keep from the OpenAI embeddings. 512 dimensions worked best in this case.  |
+
+This is our main loop. It turns a batch of texts into embeddings, handling cache reads and writes.
+```python
+# 0. If we don't have a redis client, just call openai
+if not redis_client:
+    return openai_call_embedding(batch)
+
+# 1. Get embeddings from redis, using the hash of the text as the key
+embeddings: list[np.ndarray] = [None] * len(batch)
+cache_keys = [hash_text(text) + CACHE_VERSION for text in batch]
+try:
+    for i, cache_value in enumerate(redis_client.mget(cache_keys)):
+        if cache_value:
+            embeddings[i] = np.array(json.loads(cache_value))
+except Exception as e:
+    logger.exception(e)
+
+# 2. If we have all the embeddings, return them
+batch = [text for idx, text in enumerate(batch) if isinstance(embeddings[idx], type(None))]
+if len(batch) == 0:
+    embeddings = np.array(embeddings)
+    return embeddings
+
+# 3. If we don't have all the embeddings, call openai for the missing ones
+try:
+    new_embeddings = openai_call_embedding(batch)
+except requests.exceptions.Timeout as e:
+    logger.exception(f"Timeout error occured while embedding: {e}")
+except BadRequestError as e:
+    try:
+        # 4. If we get a BadRequestError, truncate the text and try again
+        batch = [truncate_string_tiktoken(text) for text in batch] # truncation is slow, so we only do it if we have to
+        new_embeddings = openai_call_embedding(batch)
+    except Exception as e:
+        logger.exception(e)
+
+# 5. Place the new embeddings in the correct position
+indices = [i for i, emb in enumerate(embeddings) if emb is None]
+for i, index in enumerate(indices):
+    embeddings[index] = new_embeddings[i]
+
+# 6. Store the new embeddings in redis
+redis_client.mset(
+    {
+        cache_key: json.dumps(embedding.tolist())
+        for cache_key, embedding in zip(cache_keys, embeddings)
+    }
+)
+return np.array(embeddings)
+```
+
+## Implementation Details
+1. The first nuance is that we only truncate the text if we get a BadRequestError. This is because truncation is slow, and we only want to do it if we have to. This is optional, and you can truncate beforehand if you prefer.
+2. It's important to prune empty strings. Otherwise openai will throw an error without telling you why. We added this line to handle it. 
+    `texts = [text if text else " " for text in texts]`
+
+## Design Choices
+We designed our vector database in this way because it’s simple and reliable. We don’t have to worry about managing separate infrastructure, and we can handle a lot of reads/writes.
+
+#### Requirements 
+
+- We need to handle hundreds of codebases with frequent updates
+    - This architecture does not require any indices. Typically in Pinecone you’d have separate repositories under different namespaces (https://docs.pinecone.io/reference/fetch).
+    - This makes a lot of sense for a small amount of indices, but becomes cumbersome with a large amount of indices. We’d also have to manage the reindexing as each user pushes code to their repos (multiple times an hour).
+
+- Reliability and developer experience
+    - Using an external store introduces another dependency for us. We’d have to handle when Pinecone fails, and it’s not as easily self-hostable.
+    - Learning how to use a new API and manage new infrastructure was not worth it in this case.
+
+#### Non-requirements
+- This approach is relatively slow (~1 second per query). We don’t need sub-second latency for our generating pull requests because our GPT4 calls are much slower. 
+    - This is because we process/cache the entire index at runtime. We key our cache on the actual content’s SHA256 hash.
+    - A codebase doesn’t tend to change a substantial percentage of it’s files day-to-day. So if we use the actual contents as a hash, we only have to re-embed the diffs. This lets us completely skip offline indexing, simplifying our vector db implementation.
+
+- 1M+ embeddings in a single index
+    - This approach doesn’t scale well for indices with 1M+ embeddings. Fortunately for us that hasn’t been a problem yet because the codebases we work with do not usually exceed 30k files.
+    - We recently began embedding larger chunks, giving us a chunks:doc ratio of about 1.5 or ~45k files. This takes about 1 second to serve, and we own all of the infrastructure!
+
+## Conclusion
+I don't think everyone needs a separate dependency for their vector database. Depending on how you value development speed, reliability, and latency, you might be better off with a simple self-hosted solution like ours.
+If you want to see more of Sweep, check out our GitHub repository at https://github.com/sweepai/sweep.

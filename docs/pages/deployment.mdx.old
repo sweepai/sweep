@@ -20,7 +20,7 @@ Alternatively, we have written instructions below.
 
 ## 1. Create GitHub App
 
-We created an app using `npm` to make it easier to set up the GitHub App. If you do not have it installed, install it [here](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm). If you would like ot set it up yourself, scroll down to the **Manual GitHub App Setup** section.
+We created an app using `npm` to make it easier to set up the GitHub App. If you do not have it installed, install it [here](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm). If you would like to set it up yourself, scroll down to the **Manual GitHub App Setup** section.
 
 > Run this GitHub App locally! This tool is only used for creating the GitHub App, not hosting Sweep.
 >
@@ -29,7 +29,7 @@ First, open a terminal and run the following commands (RUN LOCALLY):
 
 ```sh
 git clone https://github.com/sweepai/sweep
-cd sweep/self_deploy
+cd sweep/probot
 npm install
 npm start
 ```

@@ -1,7 +1,13 @@
 {
-	"dependencies": {
-		"@codemirror/lang-html": "^6.4.8",
-		"@codemirror/lang-java": "^6.0.1",
-		"@codemirror/lang-markdown": "^6.2.4"
-	}
+  "dependencies": {
+    "next-auth": "^4.24.7",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.7.1",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-react": "^7.34.1",
+    "prettier": "^2.0.4"
+  }
 }

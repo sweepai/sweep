@@ -1,5 +1,5 @@
 services:
-  webhook:
+  hosted:
     env_file:
       - .env
     build:
@@ -11,8 +11,11 @@ services:
     # network_mode: "host"
     volumes:
       - .:/app
+      - /mnt/caches:/mnt/caches
     command: >
       sh -c ". bin/startup.sh"
     stdin_open: true
     tty: true
+    ports:
+      - "${PORT:-8080}:8080"
     restart: unless-stopped

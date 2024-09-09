@@ -1,66 +1,71 @@
-import copy
-import hashlib
+import os
 import re
-import time
-import traceback
-import uuid
-from collections import OrderedDict
-from typing import Dict, Generator
+from typing import Iterator
 
-from github.ContentFile import ContentFile
-from github.GithubException import GithubException, UnknownObjectException
-from github.Repository import Repository
 from loguru import logger
-from pydantic import BaseModel
+from networkx import Graph
 
-from sweepai.agents.complete_code import ExtractLeftoverComments
-from sweepai.agents.modify_bot import ModifyBot
-from sweepai.agents.move_bot import MoveBot
-from sweepai.agents.refactor_bot import RefactorBot
-from sweepai.agents.test_bot import TestBot
-from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
-from sweepai.config.server import DEBUG, DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
-from sweepai.core.chat import ChatGPT
+
+from tqdm import tqdm
+from rapidfuzz import fuzz
+
+from sweepai.agents.modify_utils import check_valid_parentheses, contains_ignoring_whitespace, english_join, find_best_match, find_best_matches, find_max_indentation, find_smallest_valid_superspan, get_error_message, indent, set_fcr_change_type
+from sweepai.core.annotate_code_openai import get_annotated_source_code
+from sweepai.core.chat import ChatGPT, continuous_llm_calls
 from sweepai.core.entities import (
-    AssistantRaisedException,
-    ExtractionRequest,
     FileChangeRequest,
-    FileCreation,
-    MaxTokensExceeded,
     Message,
-    NoFilesException,
-    ProposedIssue,
-    PullRequest,
     RegexMatchError,
-    SandboxResponse,
     Snippet,
-    UnneededEditError,
 )
 from sweepai.core.prompts import (
-    create_file_prompt,
-    extract_files_to_change_prompt,
-    files_to_change_prompt,
-    pull_request_prompt,
-    sandbox_files_to_change_prompt,
-    snippet_replacement,
-    snippet_replacement_system_message,
-    subissues_prompt,
+    context_files_to_change_prompt,
+    context_files_to_change_system_prompt,
+    gha_files_to_change_system_prompt,
+    gha_files_to_change_system_prompt_2,
+    gha_files_to_change_prompt,
+    gha_files_to_change_prompt_2,
+    test_files_to_change_system_prompt,
+    test_files_to_change_prompt,
+    fix_files_to_change_prompt,
+    fix_files_to_change_system_prompt,
 )
-from sweepai.utils.autoimport import add_auto_imports
-from sweepai.utils.chat_logger import discord_log_error
-from sweepai.utils.diff import format_contents, generate_diff, is_markdown
-from sweepai.utils.event_logger import posthog
+from sweepai.core.planning_prompts import (
+    proposed_plan_prompt,
+    plan_generation_steps_system_prompt,
+    plan_generation_steps_prompt,
+    proposed_plan_system_prompt,
+    issue_sub_request_prompt,
+    issue_sub_request_system_prompt,
+    anthropic_rename_prompt,
+)
+from sweepai.core.on_comment_prompts import (
+    issue_sub_request_on_comment_system_prompt,
+    on_comment_pr_diffs_format,
+    rename_on_comment_prompt,
+    rename_on_comment_system_prompt,
+    issue_sub_request_on_comment_prompt,
+    proposed_plan_on_comment_system_prompt,
+    proposed_plan_on_comment_prompt,
+    plan_generation_steps_on_comment_system_prompt,
+    plan_generation_steps_on_comment_prompt
+)
+from sweepai.dataclasses.code_suggestions import CodeSuggestion
+from sweepai.utils.chat_logger import ChatLogger
+# from sweepai.utils.previous_diff_utils import get_relevant_commits
+from sweepai.utils.diff import generate_diff
 from sweepai.utils.github_utils import ClonedRepo
-from sweepai.utils.progress import (
-    AssistantAPIMessage,
-    AssistantConversation,
-    TicketProgress,
-)
-from sweepai.utils.str_utils import get_hash
-from sweepai.utils.utils import check_syntax, chunk_code
+from sweepai.utils.str_utils import extract_object_fields_from_string
+from sweepai.utils.streamable_functions import streamable
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
-to_raw_string = lambda s: repr(s).lstrip("u")[1:-1]
+SNIPPET_TOKEN_BUDGET = int(150_000 * 3.5)  # 140k tokens
+MAX_SNIPPETS = 15
+RELEVANCE_THRESHOLD = 0.125
+
+def to_raw_string(s):
+    return repr(s).lstrip("u")[1:-1]
+
 
 sandbox_error_prompt = """The following error logs were returned from `{command}`. Make changes to the current file so that it passes this CI/CD command.
 
@@ -81,6 +86,86 @@ Edit old_code to pass the CI/CD.
 2a. If the business logic is correct fix the test to return the expected output.
 2b. If the business logic has a bug or you are unsure, skip the failing tests with an explanation."""
 
+GHA_PROMPT = """You're working on resolving a GitHub issue but the code changes fail the GitHub Actions.
+
+You are trying to resolve the following GitHub issue:
+<original_github_issue>
+{problem_statement}
+</original_github_issue>
+
+You made some changes, but GitHub Actions failed with the following logs:
+<github_actions_logs>
+{github_actions_logs}
+</github_actions_logs>
+
+You have previously made the following changes. The diffs represent the current state of the file/project:
+<changes_made>
+{changes_made}
+</changes_made>
+
+Fix the above GitHub Actions."""
+
+GHA_PROMPT_WITH_HISTORY = """You're working on resolving a GitHub issue but the code changes fail the GitHub Actions.
+
+You are trying to resolve the following GitHub issue:
+<original_github_issue>
+{problem_statement}
+</original_github_issue>
+
+Previously the Githu Actions were failing with these logs:
+<previous_github_actions_logs>
+{previous_github_actions_logs}
+</previous_github_actions_logs>
+
+You made some changes to address the previous Github Action failures, but GitHub Actions are now failing with the following logs:
+<current_github_actions_logs>
+{current_github_actions_logs}
+</current_github_actions_logs>
+
+You have previously made the following changes. The diffs represent the current state of the file/project:
+<changes_made>
+{changes_made}
+</changes_made>
+
+Fix the above GitHub Actions."""
+
+def cleanup_fcrs(fcrs_string: str):
+    fcrs_string = re.sub(r"<original_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>", "<original_code>", fcrs_string)
+    fcrs_string = re.sub(r"<new_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>", "<new_code>", fcrs_string)
+    return fcrs_string
+
+def parse_patch_fcrs(fcr_patch_string: str):
+    pattern = re.compile(r"""<(?P<change_type>[a-z_]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- @\{\}]*?)\"\s+index=\"(?P<index>\d+)\">(?P<instructions>.*?)\s*<\/\1>""", re.DOTALL)
+    drop_pattern = re.compile("<drop>(\d+?)</drop>", re.DOTALL)
+    matches = []
+    for match in pattern.finditer(fcr_patch_string):
+        matches.append((
+            int(match.group("index")),
+            FileChangeRequest(
+                change_type=match.group("change_type"),
+                filename=match.group("filename"),
+                instructions=match.group("instructions"),
+            )
+        ))
+    drops = [int(drop.group(1).strip()) for drop in drop_pattern.finditer(fcr_patch_string)]
+    matches.sort(key=lambda x: x[0])
+    return drops, [match for match in matches]
+
+def parse_renames(renames_string: str):
+    pattern = re.compile(r"<rename>(.*?)</rename>", re.DOTALL)
+    old_name_pattern = re.compile(r"<old_name>(.*?)</old_name>", re.DOTALL)
+    new_name_pattern = re.compile(r"<new_name>(.*?)</new_name>", re.DOTALL)
+    rename_dict = {}
+    for match in pattern.finditer(renames_string):
+        rename_match = match.group(1)
+        old_name = old_name_pattern.search(rename_match).group(1)
+        if not old_name:
+            continue
+        new_name = new_name_pattern.search(rename_match).group(1)
+        if old_name.strip() == new_name.strip():
+            continue
+        rename_dict[old_name.strip()] = new_name.strip()
+    return rename_dict
 
 def remove_line_numbers(s: str) -> str:
     # Check if more than 50% of lines have line numbers
@@ -93,6 +178,17 @@ def remove_line_numbers(s: str) -> str:
         return re.sub(r"\d+?:", "", s, flags=re.MULTILINE)
     return s
 
+def parse_filenames(text):
+    file_names = []
+    possible_files = text.split("\n")
+    # Regular expression pattern to match file names
+    pattern = r'^[^\/.]+(\/[^\/.]+)*\.[^\/.]+$'
+    for possible_file in possible_files:
+        file_name = possible_file.strip()
+        if re.match(pattern, file_name):
+            file_names.append(file_name)
+    # Find all occurrences of file names in the text
+    return file_names
 
 def is_blocked(file_path: str, blocked_dirs: list[str]):
     for blocked_dir in blocked_dirs:
@@ -100,1735 +196,1359 @@ def is_blocked(file_path: str, blocked_dirs: list[str]):
             return {"success": True, "path": blocked_dir}
     return {"success": False}
 
-
-class CodeGenBot(ChatGPT):
-    def summarize_snippets(self):
-        # Custom system message for snippet replacement
-        old_msg = self.messages[0].content
-        self.messages[0].content = snippet_replacement_system_message
-
-        snippet_summarization = self.chat(
-            snippet_replacement,
-            message_key="snippet_summarization",
-        )  # maybe add relevant info
-
-        self.messages[0].content = old_msg
-
-        contextual_thought_match = re.search(
-            "<contextual_thoughts>(?P<thoughts>.*)</contextual_thoughts>",
-            snippet_summarization,
-            re.DOTALL,
-        )
-        contextual_thought: str = (
-            contextual_thought_match.group("thoughts").strip()
-            if contextual_thought_match
-            else ""
-        )
-        relevant_snippets_match = re.search(
-            "<relevant_snippets>(?P<snippets>.*)</relevant_snippets>",
-            snippet_summarization,
-            re.DOTALL,
-        )
-        relevant_snippets: str = (
-            relevant_snippets_match.group("snippets").strip()
-            if relevant_snippets_match
-            else ""
-        )
-
-        try:
-            snippets: Snippet = []
-            for raw_snippet in relevant_snippets.split("\n"):
-                if ":" not in raw_snippet:
-                    logger.warning(
-                        f"Error in summarize_snippets: {raw_snippet}. Likely failed to parse"
-                    )
-                file_path, lines = raw_snippet.split(":", 1)
-                if "-" not in lines:
-                    logger.warning(
-                        f"Error in summarize_snippets: {raw_snippet}. Likely failed to"
-                        " parse"
-                    )
-                start, end = lines.split("-", 1)
-                start = int(start)
-                end = int(end) - 1
-                end = min(end, start + 200)
-
-                snippet = Snippet(file_path=file_path, start=start, end=end, content="")
-                snippets.append(snippet)
-
-            self.populate_snippets(snippets)
-            snippets = [snippet.expand() for snippet in snippets]
-            snippets_text = "\n".join([snippet.xml for snippet in snippets])
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.warning(f"Error in summarize_snippets: {e}. Likely failed to parse")
-            snippets_text = self.get_message_content_from_message_key(
-                "relevant_snippets"
-            )
-
-        # Remove line numbers (1:line) from snippets
-        snippets_text = re.sub(r"^\d+?:", "", snippets_text, flags=re.MULTILINE)
-
-        msg_content = (
-            "Contextual thoughts: \n"
-            + contextual_thought
-            + "\n\nRelevant snippets:\n\n"
-            + snippets_text
-            + "\n\n"
-        )
-
-        self.delete_messages_from_chat("relevant_snippets")
-        self.delete_messages_from_chat("relevant_directories")
-        self.delete_messages_from_chat("relevant_tree")
-        self.delete_messages_from_chat("files_to_change", delete_assistant=False)
-        self.delete_messages_from_chat("snippet_summarization")
-
-        msg = Message(content=msg_content, role="assistant", key=BOT_ANALYSIS_SUMMARY)
-        self.messages.insert(-2, msg)
-
-    def generate_subissues(self, retries: int = 3):
-        subissues: list[ProposedIssue] = []
-        for count in range(retries):
-            try:
-                logger.info(f"Generating for the {count}th time...")
-                files_to_change_response = self.chat(
-                    subissues_prompt, message_key="subissues"
-                )  # Dedup files to change here
-                subissues = []
-                for re_match in re.finditer(
-                    ProposedIssue._regex, files_to_change_response, re.DOTALL
-                ):
-                    subissues.append(ProposedIssue.from_string(re_match.group(0)))
-                if subissues:
-                    return subissues
-            except RegexMatchError:
-                logger.warning("Failed to parse! Retrying...")
-                self.delete_messages_from_chat("files_to_change")
-                continue
-        raise NoFilesException()
-
-    def get_files_to_change(
-        self, is_python_issue: bool, retries=1, pr_diffs: str | None = None
-    ) -> tuple[list[FileChangeRequest], str]:
-        # first_user_message = Message(
-        #     content = self.human_message.render_snippets() + "\n" + self.human_message.tree,
-        #     role="user",
-        # )
-        # fcrs = new_planning(
-        #     "## Title: " + self.human_message.title + "\n" + self.human_message.summary,
-        #     self.cloned_repo.zip_path,
-        #     additional_messages=[first_user_message],
-        #     chat_logger=self.chat_logger,
-        #     ticket_progress=self.ticket_progress,
-        # )
-        # if fcrs:
-        #     plan_str = "\n".join([fcr.instructions_display for fcr in fcrs])
-        #     return fcrs, plan_str
-        file_change_requests: list[FileChangeRequest] = []
-        try:
-            python_issue_worked = True
-            if False:  # is_python_issue:
-                if any(
-                    keyword in self.human_message.title.lower()
-                    for keyword in ("refactor", "extract", "replace", "test")
-                ):
-                    if self.chat_logger is not None:
-                        posthog.capture(
-                            self.chat_logger.data.get("username"),
-                            "python_refactor",
-                        )
-                    # regenerate issue metadata
-                    self.update_message_content_from_message_key(
-                        "metadata", self.human_message.get_issue_metadata()
-                    )
-                    self.ticket_progress: TicketProgress = self.ticket_progress
-                    self.ticket_progress.planning_progress.assistant_conversation.messages = (
-                        []
-                    )
-                    for message in self.messages:
-                        self.ticket_progress.planning_progress.assistant_conversation.messages.append(
-                            AssistantAPIMessage(
-                                content=message.content,
-                                role=message.role,
-                            )
-                        )
-                    self.ticket_progress.planning_progress.assistant_conversation.messages.append(
-                        AssistantAPIMessage(
-                            content=extract_files_to_change_prompt,
-                            role="user",
-                        )
-                    )
-                    extract_response = self.chat(
-                        extract_files_to_change_prompt, message_key="extract_prompt"
-                    )
-                    self.ticket_progress.planning_progress.assistant_conversation.messages.append(
-                        AssistantAPIMessage(content=extract_response, role="assistant")
-                    )
-                    extraction_request = ExtractionRequest.from_string(extract_response)
-                    file_change_requests = []
-                    plan_str = ""
-                    if extraction_request.use_tools:
-                        for re_match in re.finditer(
-                            FileChangeRequest._regex, extract_response, re.DOTALL
-                        ):
-                            file_change_request = FileChangeRequest.from_string(
-                                re_match.group(0)
-                            )
-                            file_change_requests.append(file_change_request)
-                            if file_change_request.change_type != "refactor":
-                                new_file_change_request = copy.deepcopy(
-                                    file_change_request
-                                )
-                                new_file_change_request.instructions = ""
-                                new_file_change_request.parent = file_change_request
-                                new_file_change_request.id_ = str(uuid.uuid4())
-                                file_change_requests.append(new_file_change_request)
-                            elif file_change_request.change_type == "refactor":
-                                new_file_change_request = copy.deepcopy(
-                                    file_change_request
-                                )
-                                new_file_change_request.change_type = "modify"
-                                new_file_change_request.parent = file_change_request
-                                new_file_change_request.instructions = "Add detailed, sphinx-style docstrings to all of the new functions."
-                                new_file_change_request.id_ = str(uuid.uuid4())
-                                file_change_requests.append(new_file_change_request)
-                            if file_change_requests:
-                                plan_str = "\n".join(
-                                    [
-                                        fcr.instructions_display
-                                        for fcr in file_change_requests
-                                    ]
-                                )
-                        return file_change_requests, plan_str
-                    else:
-                        self.delete_messages_from_chat("extract_prompt")
-            if pr_diffs is not None:
-                self.delete_messages_from_chat("pr_diffs")
-                self.messages.insert(
-                    1, Message(role="user", content=pr_diffs, key="pr_diffs")
-                )
-
-            if self.ticket_progress is not None:
-                self.ticket_progress: TicketProgress = self.ticket_progress
-                self.ticket_progress.planning_progress.assistant_conversation.messages = (
-                    []
-                )
-                for message in self.messages:
-                    self.ticket_progress.planning_progress.assistant_conversation.messages.append(
-                        AssistantAPIMessage(
-                            content=message.content,
-                            role=message.role,
-                        )
-                    )
-                self.ticket_progress.planning_progress.assistant_conversation.messages.append(
-                    AssistantAPIMessage(
-                        content=files_to_change_prompt,
-                        role="user",
-                    )
-                )
-                self.ticket_progress.save()
-            files_to_change_response = self.chat(
-                files_to_change_prompt, message_key="files_to_change"
-            )
-            if self.ticket_progress is not None:
-                self.ticket_progress.planning_progress.assistant_conversation.messages.append(
-                    AssistantAPIMessage(
-                        content=files_to_change_response, role="assistant"
-                    )
-                )
-                self.ticket_progress.save()
-            file_change_requests = []
-            for re_match in re.finditer(
-                FileChangeRequest._regex, files_to_change_response, re.DOTALL
-            ):
-                file_change_request = FileChangeRequest.from_string(re_match.group(0))
-                file_change_requests.append(file_change_request)
-                if file_change_request.change_type in ("modify", "create"):
-                    new_file_change_request = copy.deepcopy(file_change_request)
-                    new_file_change_request.change_type = "check"
-                    new_file_change_request.instructions = ""
-                    new_file_change_request.parent = file_change_request
-                    new_file_change_request.id_ = str(uuid.uuid4())
-                    file_change_requests.append(new_file_change_request)
-
-            if file_change_requests:
-                plan_str = "\n".join(
-                    [fcr.instructions_display for fcr in file_change_requests]
-                )
-                return file_change_requests, plan_str
-        except RegexMatchError as e:
-            logger.info(f"{e}")
-            logger.warning("Failed to parse! Retrying...")
-            self.delete_messages_from_chat("files_to_change")
-            self.delete_messages_from_chat("pr_diffs")
-
-        raise NoFilesException()
-
-    def generate_pull_request(self, retries=2) -> PullRequest:
-        for count in range(retries):
-            too_long = False
-            try:
-                logger.info(f"Generating for the {count}th time...")
-                if (
-                    too_long or count >= retries - 1
-                ):  # if on last try, use gpt4-32k (improved context window)
-                    pr_text_response = self.chat(
-                        pull_request_prompt,
-                        message_key="pull_request",
-                        model=DEFAULT_GPT35_MODEL,
-                    )
-                else:
-                    pr_text_response = self.chat(
-                        pull_request_prompt,
-                        message_key="pull_request",
-                        model=DEFAULT_GPT4_32K_MODEL,
-                    )
-
-                # Add triple quotes if not present
-                if not pr_text_response.strip().endswith('"""'):
-                    pr_text_response += '"""'
-
-                self.messages = self.messages[:-2]
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                e_str = str(e)
-                if "too long" in e_str:
-                    too_long = True
-                logger.warning(f"Exception {e_str}. Failed to parse! Retrying...")
-                self.messages = self.messages[:-1]
-                continue
-            pull_request = PullRequest.from_string(pr_text_response)
-
-            final_branch = pull_request.branch_name[:240]
-            final_branch = final_branch.split("/", 1)[-1]
-
-            use_underscores = get_branch_name_config(self.repo)
-            if use_underscores:
-                final_branch = final_branch.replace("/", "_")
-
-            pull_request.branch_name = (
-                "sweep/" if not use_underscores else "sweep_"
-            ) + final_branch
-            return pull_request
-        raise Exception("Could not generate PR text")
-
-
-class GithubBot(BaseModel):
-    class Config:
-        arbitrary_types_allowed = True  # for repo: Repository
-
-    repo: Repository
-
-    def get_contents(self, path: str, branch: str = ""):
-        if not branch:
-            branch = SweepConfig.get_branch(self.repo)
-        try:
-            return self.repo.get_contents(path, ref=branch)
-        except Exception as e:
-            logger.warning(path)
-            raise e
-
-    def get_file(self, file_path: str, branch: str = "") -> ContentFile:
-        content = self.get_contents(file_path, branch)
-        assert not isinstance(content, list)
-        return content
-
-    def check_path_exists(self, path: str, branch: str = ""):
-        try:
-            self.get_contents(path, branch)
-            return True
-        except SystemExit:
-            raise SystemExit
-        except Exception:
-            return False
-
-    def clean_branch_name(self, branch: str) -> str:
-        branch = re.sub(r"[^a-zA-Z0-9_\-/]", "_", branch)
-        branch = re.sub(r"_+", "_", branch)
-        branch = branch.strip("_")
-
-        return branch
-
-    def create_branch(self, branch: str, base_branch: str = None, retry=True) -> str:
-        # Generate PR if nothing is supplied maybe
-        branch = self.clean_branch_name(branch)
-        base_branch = self.repo.get_branch(
-            base_branch if base_branch else SweepConfig.get_branch(self.repo)
-        )
-        try:
-            try:
-                test = self.repo.get_branch("sweep")
-                assert test is not None
-                # If it does exist, fix
-                branch = branch.replace(
-                    "/", "_"
-                )  # Replace sweep/ with sweep_ (temp fix)
-            except Exception:
-                pass
-
-            self.repo.create_git_ref(f"refs/heads/{branch}", base_branch.commit.sha)
-            return branch
-        except GithubException as e:
-            logger.error(f"Error: {e}, trying with other branch names...")
-            logger.warning(
-                f"{branch}\n{base_branch}, {base_branch.name}\n{base_branch.commit.sha}"
-            )
-            if retry:
-                for i in range(1, 10):
-                    try:
-                        logger.warning(f"Retrying {branch}_{i}...")
-                        _hash = get_hash()[:5]
-                        self.repo.create_git_ref(
-                            f"refs/heads/{branch}_{_hash}", base_branch.commit.sha
-                        )
-                        return f"{branch}_{_hash}"
-                    except GithubException:
-                        pass
-            else:
-                new_branch = self.repo.get_branch(branch)
-                if new_branch:
-                    return new_branch.name
-            discord_log_error(
-                f"Error: {e}, could not create branch name {branch} on {self.repo.full_name}"
-            )
-            raise e
-
-    def populate_snippets(self, snippets: list[Snippet]):
-        for snippet in snippets:
-            try:
-                snippet.content = self.repo.get_contents(
-                    snippet.file_path, SweepConfig.get_branch(self.repo)
-                ).decoded_content.decode("utf-8")
-                snippet.start = max(1, snippet.start)
-                snippet.end = min(len(snippet.content.split("\n")), snippet.end)
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.error(snippet)
-
-    def validate_file_change_requests(
-        self, file_change_requests: list[FileChangeRequest], branch: str = ""
-    ):
-        blocked_dirs = get_blocked_dirs(self.repo)
-        created_files = []
-        for file_change_request in file_change_requests:
-            try:
-                contents = None
-                try:
-                    contents = self.repo.get_contents(
-                        file_change_request.filename,
-                        branch or SweepConfig.get_branch(self.repo),
-                    )
-                except UnknownObjectException:
-                    for prefix in [
-                        self.repo.full_name,
-                        self.repo.owner.login,
-                        self.repo.name,
-                    ]:
-                        try:
-                            new_filename = file_change_request.filename.replace(
-                                prefix + "/", "", 1
-                            )
-                            contents = self.repo.get_contents(
-                                new_filename,
-                                branch or SweepConfig.get_branch(self.repo),
-                            )
-                            file_change_request.filename = new_filename
-                            break
-                        except UnknownObjectException:
-                            pass
-                    else:
-                        contents = None
-                except SystemExit:
-                    raise SystemExit
-                except Exception as e:
-                    logger.error(f"FileChange Validation Error: {e}")
-
-                if (
-                    contents or file_change_request.filename in created_files
-                ) and file_change_request.change_type == "create":
-                    file_change_request.change_type = "modify"
-                elif (
-                    not (contents or file_change_request.filename in created_files)
-                    and file_change_request.change_type == "modify"
-                ):
-                    file_change_request.change_type = "create"
-
-                if contents is not None and contents.decoded_content is not None:
-                    file_change_request.old_content = contents.decoded_content.decode(
-                        "utf-8"
-                    )
-                created_files.append(file_change_request.filename)
-
-                block_status = is_blocked(file_change_request.filename, blocked_dirs)
-                if block_status["success"]:
-                    # red X emoji
-                    file_change_request.instructions = (
-                        f'❌ Unable to modify files in `{block_status["path"]}`\nEdit'
-                        " `sweep.yaml` to configure."
-                    )
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.info(traceback.format_exc())
-                raise e
-        file_change_requests = [
-            file_change_request for file_change_request in file_change_requests
-        ]
-        return file_change_requests
-
-
-ASSET_BRANCH_NAME = "sweep/assets"
-
-
-class SweepBot(CodeGenBot, GithubBot):
-    comment_pr_diff_str: str | None = None
-    comment_pr_files_modified: Dict[str, str] | None = None
-    ticket_progress: TicketProgress | None = None
-
-    def validate_sandbox(self, file_change_requests: list[FileChangeRequest]):
-        # if all are successful return the first one, otherwise return dummy one
-        fcr_file_paths = [
-            fcr.filename for fcr in file_change_requests if fcr.change_type == "modify"
-        ]
-        sandbox_responses: list[SandboxResponse] = []
-        for fcr_file_path in fcr_file_paths:
-            try:
-                contents = self.get_contents(fcr_file_path).decoded_content.decode(
-                    "utf-8"
-                )
-                _, sandbox_response = self.check_sandbox(fcr_file_path, contents)
-                sandbox_responses.append(sandbox_response)
-            except Exception as e:
-                logger.error(f"Error: {e}")
-        if sandbox_responses and all(
-            sandbox_response.success for sandbox_response in sandbox_responses
-        ):
-            return sandbox_responses[0], fcr_file_paths[0]
-        return None, None
-
-    def validate_file_change_requests(
-        self,
-        file_change_requests: list[FileChangeRequest],
-        branch: str = "",
-        initial_sandbox_response: SandboxResponse | None = None,
-    ):
-        file_change_requests = super().validate_file_change_requests(
-            file_change_requests, branch
-        )
-        if initial_sandbox_response is None:
-            initial_sandbox_response, _ = self.validate_sandbox(file_change_requests)
-        if initial_sandbox_response is None or (
-            initial_sandbox_response.outputs and not initial_sandbox_response.success
-        ):
-            return [
-                file_change_request
-                for file_change_request in file_change_requests
-                if file_change_request.change_type != "check"
-            ]
-        return file_change_requests
-
-    def init_asset_branch(
-        self,
-        branch: str = ASSET_BRANCH_NAME,
-    ):
-        try:
-            self.repo.get_branch(branch)
-            return
-        except GithubException:
-            self.repo.create_git_ref(
-                f"refs/heads/{branch}",
-                self.repo.get_branch(self.repo.default_branch).commit.sha,
-            )
-
-    def update_asset(
-        self,
-        file_path: str,
-        content: str,
-    ):
-        hash_ = hashlib.sha256(content.encode("utf-8")).hexdigest()
-        file_path = f"{hash_}_{file_path}"
-        try:
-            try:
-                # response = requests.post(
-                #     MINIS3_URL, json={"filename": file_path, "content": content}
-                # )
-                # response.raise_for_status()
-                # return MINIS3_URL.rstrip("/") + response.json()["url"]
-                return ""
-            except Exception as e:
-                logger.error(e)
-                self.init_asset_branch()
-                try:
-                    fetched_content = self.repo.get_contents(
-                        file_path, ASSET_BRANCH_NAME
-                    )
-                    self.repo.update_file(
-                        file_path,
-                        "Update " + file_path,
-                        content,
-                        fetched_content.sha,
-                        branch=ASSET_BRANCH_NAME,
-                    )
-                except UnknownObjectException:
-                    self.repo.create_file(
-                        file_path,
-                        "Add " + file_path,
-                        content,
-                        branch=ASSET_BRANCH_NAME,
-                    )
-                return f"https://raw.githubusercontent.com/{self.repo.full_name}/{ASSET_BRANCH_NAME}/{file_path}"
-        except:
-            return ""
-
-    @staticmethod
-    # @file_cache(ignore_params=["token"])
-    def run_sandbox(
-        repo_url: str,
-        file_path: str,
-        content: str | None,
-        token: str,
-        changed_files: list[tuple[str, str]],
-        only_lint: bool = False,
-        check: list[str] = [],
-    ) -> dict:
-        return {"success": False}
-
-    def check_completion(self, file_name: str, new_content: str) -> bool:
-        return True
-
-    def check_sandbox(
-        self,
-        file_path: str,
-        content: str,
-        changed_files: list[tuple[str, str]] = [],
-        check: list[str] = [],
-    ):
-        sandbox_execution: SandboxResponse | None = None
-        is_valid_syntax, error_message = check_syntax(file_path, content)
-        output_message = f"Checking {file_path} for syntax errors...\n" + (
-            f"✅ {file_path} has no syntax errors!"
-            if is_valid_syntax
-            else f"❌ {file_path} has syntax errors:\n{error_message}"
-        )
-        sandbox_execution = {
-            "success": is_valid_syntax,
-            "error_messages": [error_message],
-            "outputs": [output_message],
-            "updated_content": content,
-        }
-        sandbox_execution = SandboxResponse(**sandbox_execution)
-        return content, sandbox_execution
-
-    def create_file(
-        self,
-        file_change_request: FileChangeRequest,
-        changed_files: list[tuple[str, str]] = [],
-    ):
-        file_change: FileCreation | None = None
-        key = f"file_change_created_{file_change_request.filename}"
-        old_messages = self.messages
-        if changed_files:
-            file_path_to_contents = OrderedDict()
-            for file_path, (old_contents, new_contents) in changed_files:
-                if not new_contents.strip():
-                    continue
-                diffs = generate_diff(old_contents, new_contents)
-                if file_path in file_path_to_contents:
-                    file_path_to_contents[file_path] += diffs
-                else:
-                    file_path_to_contents[file_path] = diffs
-            changed_files_summary = "Changed files in this PR:\n\n" + "\n".join(
-                [
-                    f'<changed_file file_path="{file_path}">\n{diffs}\n</changed_file>'
-                    for file_path, diffs in file_path_to_contents.items()
-                ]
-            )
-            self.messages.append(
-                Message(
-                    content=changed_files_summary,
-                    role="user",
-                    key="changed_files_summary",
-                )
-            )
-        self.delete_messages_from_chat(key_to_delete="files_to_change")
-        blocked_dirs = get_blocked_dirs(self.repo)
-        if file_change_request.relevant_files:
-            relevant_files_contents = []
-            for file_path in file_change_request.relevant_files:
-                if is_blocked(file_path, blocked_dirs)["success"]:
-                    continue
-                try:
-                    relevant_files_contents.append(
-                        self.get_contents(
-                            file_path, branch=self.cloned_repo.branch
-                        ).decoded_content.decode("utf-8")
-                    )
-                except Exception as e:
-                    for file_path, (old_contents, new_contents) in changed_files:
-                        if file_path == file_path:
-                            relevant_files_contents.append(new_contents)
-                            break
-                    else:
-                        relevant_files_contents.append("File not found")
-            if relevant_files_contents:
-                relevant_files_summary = "Relevant files in this PR:\n\n" + "\n".join(
-                    [
-                        f'<relevant_file file_path="{file_path}">\n{file_contents}\n</relevant_file>'
-                        for file_path, file_contents in zip(
-                            file_change_request.relevant_files, relevant_files_contents
-                        )
-                    ]
-                )
-                self.messages.append(
-                    Message(
-                        content=relevant_files_summary,
-                        role="user",
-                        key="relevant_files_summary",
-                    )
-                )
-        create_file_response = self.chat(
-            create_file_prompt.format(
-                filename=file_change_request.filename,
-                instructions=file_change_request.instructions,
-            ),
-            message_key=key,
-        )
-        if changed_files:
-            self.delete_messages_from_chat(key_to_delete="changed_files_summary")
-        # Add file to list of changed_files
-        self.file_change_paths.append(file_change_request.filename)
-        file_change = FileCreation.from_string(create_file_response)
-        extract_leftover_comments_bot = ExtractLeftoverComments(
-            chat_logger=self.chat_logger
-        )
-        extract_leftover_comments_bot.messages = copy.deepcopy(
-            self.messages[:-2]
-        )  # deletes the request
-        leftover_comments = (
-            extract_leftover_comments_bot.extract_leftover_comments(
-                file_change.code,
-                file_change_request.filename,
-                file_change_request.instructions,
-            )
-            if not DEBUG
-            else []
-        )
-        if leftover_comments and not DEBUG:
-            file_contents = file_change.code
-            new_fcr = copy.deepcopy(file_change_request)
-            joined_comments = "\n".join(leftover_comments)
-            new_fcr.instructions = (
-                f"Address all of the unfinished code changes here: \n{joined_comments}"
-            )
-            (
-                file_contents,
-                _,
-                _,
-                _,  # Don't use changed_files here
-            ) = self.modify_file(
-                new_fcr,
-                contents=file_contents,
-                changed_files=changed_files,
-            )
-            file_change.code = file_contents
-        commit_message_match = re.search(
-            'Commit message: "(?P<commit_message>.*)"', create_file_response
-        )
-        if commit_message_match:
-            file_change.commit_message = commit_message_match.group("commit_message")
+def validate_change(
+    code_suggestion: CodeSuggestion,
+    cloned_repo: ClonedRepo,
+    updated_files: dict[str, dict[str, str]] = {},
+    renames_dict: dict[str, str] = {},
+    index: int = 0,
+    raw_string: str = "",
+):
+    if not raw_string:
+        raw_string = f"<code_changes>\n<original_code>\n{code_suggestion.original_code}\n</original_code>\n<new_code>\n{code_suggestion.new_code}\n</new_code>\n</code_changes>"
+    def get_file_contents(file_path):
+        if file_path in renames_dict.values():
+            file_path = [k for k, v in renames_dict.items() if v == file_path][0]
+        if file_path in updated_files:
+            return updated_files[file_path]["contents"]
+        return cloned_repo.get_file_contents(file_path)
+    try:
+        file_contents = get_file_contents(code_suggestion.file_path)
+    except FileNotFoundError as e:
+        for file_path in cloned_repo.get_file_list():
+            if file_path.endswith(code_suggestion.file_path):
+                logger.info(f"Found similar file {code_suggestion.file_path} at {file_path}")
+                file_contents = get_file_contents(file_path)
+                code_suggestion.file_path = file_path
         else:
-            file_change.commit_message = f"Create {file_change_request.filename}"
-        assert file_change is not None
-        file_change.commit_message = file_change.commit_message[
-            : min(len(file_change.commit_message), 50)
-        ]
+            if code_suggestion.original_code:
+                logger.warning(f"Failed to get file contents for {code_suggestion.file_path} due to {e}")
+                return f"The file `{code_suggestion.file_path}` does not exist. Double-check your spelling."
+    if not code_suggestion.original_code:
+        return f"You forgot to provide an <original_code> block. Here is what you provided in the instructions:\n```\n{raw_string}\n```\nIf you would like to drop this task, respond with <drop>{index}</drop>."
+    if not code_suggestion.new_code:
+        return f"You forgot to a <new_code> block. Here is what you provided in the instructions:\n```\n{raw_string}\n```\nIf you would like to drop this task, respond with <drop>{index}</drop>."
+    original_code = code_suggestion.original_code.strip("\n")
+    new_code = code_suggestion.new_code.strip("\n")
+    if original_code == new_code:
+        return f"<original_code> and <new_code> are the same. You must provide a different code snippet in <new_code>. Here is what you provided in the instructions:\n```\n{raw_string}\n```\nIf you would like to drop this task, respond with <drop>{index}</drop>."
+    if not original_code:
+        return f"The <original_code> can not be empty. If you would like to append code, copy the code you want to append the new code after into the <original_code>, then copy the same code into <new_code>, then finally append the new code after <new_code>. Here is what you provided in the instructions:\n```\n{raw_string}\n```\nIf you would like to drop this task, respond with <drop>{index}</drop>."
+    else:
+        # if it's present in a previous fcr's new_code, we're not concerned about it
+        original_code_in_previous_fcr = False # any(contains_ignoring_whitespace(original_code, fcr["new_code"][0]) for fcr in previous_parsed_fcrs)
+        
+        # checking previous fcr in original code can lead to false positives if the previous fcr is VERY small and occurs
+        # but in practice it doesn't seem likely
+        # so we check if the previous fcr comprises > 50% of the original code
+        previous_fcr_in_original_code = False
+        previous_fcr_occurrences = [] # [contains_ignoring_whitespace(fcr["new_code"][0], original_code) for fcr in previous_parsed_fcrs]
 
-        self.delete_messages_from_chat(key_to_delete=key)
+        # check if the previous fcr comprises > 50% of the original code's lines
+        # this means that it has a high chance to be valid once the previous diffs are applied
+        all_previous_occurrences = [x[1] - x[0] if x else 0 for x in previous_fcr_occurrences]
+        if all_previous_occurrences and max(all_previous_occurrences) > len(original_code.splitlines()) // 2:
+            previous_fcr_in_original_code = True
+        if not contains_ignoring_whitespace(original_code, file_contents) and not original_code_in_previous_fcr and not previous_fcr_in_original_code:
+            threshold = 50
+            best_match, current_best_score = find_best_match(original_code, file_contents, threshold=threshold, tokenized=True)
+            max_indentation = find_max_indentation(file_contents)
 
-        try:
-            implemented = self.check_completion(  # use async
-                file_change_request.filename, file_change.code
-            )
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.error(f"Error: {e}")
+            best_score = 0
+            best_indent = 0
+            for indent_count in range(0, max_indentation, 2):
+                match_score = fuzz.ratio(indent(original_code, indent_count), best_match)
+                if match_score > best_score:
+                    best_score = match_score
+                    best_indent = indent_count
+            
+            too_long_message = f"\nAlso, the <original_code> block you provided is quite long, with {len(original_code.splitlines())} lines of code. Consider isolating <original_code> and <updated_code> to only the section you want to edit to avoid errors copying the code." if len(original_code.splitlines()) > 50 else ""
+            ellipses_message = "\nYou must copy code out in full and may not use ellipses, abbreviations, or any short-hand notation in your code." if "# ..." in original_code or "// ..." in original_code else ""
 
-        sandbox_execution = None
+            if not best_match.strip():
+                return f"<original_code> does not exist in `{code_suggestion.file_path}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nBut the code is no where to be found in the file. There are also no similar code snippets in this file.{too_long_message}{ellipses_message}"
+            if best_score != 100:
+                if not check_valid_parentheses(best_match):
+                    extended_match = find_smallest_valid_superspan(best_match, file_contents)
+                    if extended_match and extended_match.count("\n") - best_match.count('\n') < 20:
+                        best_match = extended_match
+                if best_score > 80:
+                    return f"<original_code> does not exist in `{code_suggestion.file_path}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}"
+                else:
+                    best_matches = find_best_matches(original_code, file_contents, threshold=threshold, tokenized=True)
+                    if len(best_matches) > 1:
+                        best_matches_string = "\n\n".join([f"Code match {i}:\n```\n{match_}\n```" for i, (match_, score) in enumerate(best_matches)])
+                        return f"<original_code> does not exist in `{code_suggestion.file_path}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify one of the following pieces of code instead?\n{best_matches_string}{too_long_message}{ellipses_message}"
+                    else:
+                        # Same as case > 80
+                        return f"<original_code> does not exist in `{code_suggestion.file_path}`. Your proposed <original_code> contains:\n```\n{indent(original_code, best_indent)}\n```\nDid you mean to modify the following code instead?\n```\n{best_match}\n```\nHere is the diff between your proposed <original_code> and the most similar code in the file:\n```diff\n{generate_diff(indent(original_code, best_indent), best_match, n=10)}\n```{too_long_message}{ellipses_message}"
+        else:
+            # Check for parentheses mismatch, helps catch downstream syntax errors
+            file_path, ext = os.path.splitext(code_suggestion.file_path)
+            if ext.removeprefix(".") in ["java", "c", "cpp", "h", "hpp", "js", "ts", "jsx", "tsx", "go", "rs"]:
+                for parentheses in ["()", "{}", "[]"]:
+                    left, right = parentheses
+                    old_parentheses_diff = original_code.count(left) - original_code.count(right)
+                    new_parentheses_diff = new_code.count(left) - new_code.count(right)
+                    if old_parentheses_diff != new_parentheses_diff:
+                        # check for smallest surrounding span with corrected parentheses
+                        best_superspan = ""
+                        if new_parentheses_diff == 0:
+                            best_superspan = find_smallest_valid_superspan(original_code, file_contents)
+                            if best_superspan:
+                                return f"You have a mismatch in parentheses in <original_code>. Your <original_code> has {original_code.count(left)} opening and {original_code.count(right)} closing parentheses:\n```\n{original_code}\n```\nYou can correct this by extending the code to the following:\n```\n{best_superspan}\n```"
+                        if not best_superspan:
+                            # use naive error message otherwise
+                            error_message = ""
+                            if old_parentheses_diff != 0:
+                                error_message += f" Your <original_code> has {original_code.count(left)} opening and {original_code.count(right)} closing parentheses:\n```\n{original_code}\n```\n"
+                            if new_parentheses_diff != 0:
+                                error_message += f" Your <new_code> has {new_code.count(left)} opening and {new_code.count(right)} closing parentheses:\n```\n{new_code}\n```\n"
+                            return error_message + "Make sure the number of opening and closing parentheses match in both <original_code> and <new_code>, otherwise the changes will cause a syntax error."
 
-        self.messages = old_messages
+def sort_and_fuse_snippets(
+    snippets: list[Snippet],
+    fuse_distance: int = 600,
+) -> list[Snippet]:
+    if len(snippets) <= 1:
+        return snippets
+    new_snippets = []
+    snippets.sort(key=lambda x: x.start)
+    current_snippet = snippets[0]
+    for snippet in snippets[1:]:
+        if current_snippet.end + fuse_distance >= snippet.start:
+            current_snippet.end = max(current_snippet.end, snippet.end)
+            current_snippet.score = max(current_snippet.score, snippet.score)
+        else:
+            new_snippets.append(current_snippet)
+            current_snippet = snippet
+    new_snippets.append(current_snippet)
+    return new_snippets
+    
+def organize_snippets(snippets: list[Snippet], fuse_distance: int=600) -> list[Snippet]:
+    """
+    Fuse and dedup snippets that are contiguous. Combine ones of same file.
+    """
+    fused_snippets = []
+    added_file_paths = set()
+    for i, snippet in enumerate(snippets):
+        if snippet.file_path in added_file_paths:
+            continue
+        added_file_paths.add(snippet.file_path)
+        current_snippets = [snippet]
+        for current_snippet in snippets[i + 1:]:
+            if snippet.file_path == current_snippet.file_path:
+                current_snippets.append(current_snippet)
+        current_snippets = sort_and_fuse_snippets(current_snippets, fuse_distance=fuse_distance)
+        fused_snippets.extend(current_snippets)
+    return fused_snippets
 
-        file_change.code = add_auto_imports(
-            file_change_request.filename,
-            self.cloned_repo.repo_dir,
-            file_change.code,
+def get_max_snippets(
+    snippets: list[Snippet],
+    budget: int = SNIPPET_TOKEN_BUDGET,
+    expand: int = 300,
+):
+    """
+    Start with max number of snippets and then remove then until the budget is met.
+    Return the resulting organized snippets.
+    """
+    if not snippets:
+        return []
+    START_INDEX = min(len(snippets), MAX_SNIPPETS)
+    for i in range(START_INDEX, 0, -1):
+        expanded_snippets = [snippet.expand(expand * 2) if snippet.type_name == "source" else snippet for snippet in snippets[:i]]
+        proposed_snippets = organize_snippets(expanded_snippets[:i])
+        cost = sum([len(snippet.get_snippet(False, False)) for snippet in proposed_snippets])
+        if cost <= budget:
+            return proposed_snippets
+    raise Exception("Budget number of chars too low!")
+
+def partition_snippets_if_test(snippets: list[Snippet], include_tests=False):
+    if include_tests:
+        return [snippet for snippet in snippets if "test" in snippet.file_path]
+    return [snippet for snippet in snippets if "test" not in snippet.file_path]
+
+def format_snippets(
+    relevant_snippets: list[Snippet],
+    read_only_snippets: list[Snippet],
+    problem_statement: str,
+):
+    relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
+    formatted_relevant_snippets = []
+    for i, snippet in enumerate(tqdm(relevant_snippets + read_only_snippets)):
+        annotated_source_code, code_summaries = get_annotated_source_code(
+            source_code=snippet.get_snippet(add_lines=False),
+            issue_text=problem_statement,
+            file_path=snippet.file_path,
         )
-
-        return file_change, sandbox_execution
-
-    def modify_file(
-        self,
-        file_change_request: FileChangeRequest,
-        contents: str = "",
-        chunking: bool = False,
-        branch: str = None,
-        changed_files: list[tuple[str, str]] = [],
-        temperature: float = 0.1,
-        assistant_conversation: AssistantConversation | None = None,
-    ):
-        key = f"file_change_modified_{file_change_request.filename}"
-        new_file = None
-        sandbox_execution = None
-        try:
-            additional_messages = [
-                Message(
-                    role="user",
-                    content=self.human_message.get_issue_metadata(),
-                    key="issue_metadata",
-                )
-            ]
-            if self.comment_pr_diff_str and self.comment_pr_diff_str.strip():
-                additional_messages = [
-                    Message(
-                        role="user",
-                        content="These changes have already been made:\n"
-                        + self.comment_pr_diff_str,
-                        key="pr_diffs",
-                    )
-                ]
-            file_path_to_contents = OrderedDict()
-            # use only the latest change for each file
-            # go forward to find the earliest version of each file in the array
-            earliest_version_per_file = {}
-            for file_path, (old_contents, new_contents) in changed_files:
-                if file_path not in earliest_version_per_file:
-                    earliest_version_per_file[file_path] = old_contents
-            latest_version_per_file = {}
-            for file_path, (old_contents, new_contents) in reversed(changed_files):
-                if file_path not in latest_version_per_file:
-                    latest_version_per_file[file_path] = new_contents
-            for file_path, _ in changed_files:
-                if not latest_version_per_file[file_path].strip():
-                    continue
-                earliest_file_version = earliest_version_per_file[file_path]
-                latest_file_version = latest_version_per_file[file_path]
-                diffs = generate_diff(earliest_file_version, latest_file_version)
-                if file_path not in file_path_to_contents:
-                    file_path_to_contents[file_path] = diffs
-            changed_files_summary = "You have previously changed these files:\n" + "\n".join(
-                [
-                    f'<changed_file file_path="{file_path}">\n{diffs}\n</changed_file>'
-                    for file_path, diffs in file_path_to_contents.items()
-                ]
-            )
-            if changed_files:
-                additional_messages += [
-                    Message(
-                        content=changed_files_summary,
-                        role="user",
-                        key="changed_files_summary",
-                    )
-                ]
-            if file_change_request.relevant_files:
-                relevant_files_contents = []
-                blocked_dirs = get_blocked_dirs(self.repo)
-                for file_path in file_change_request.relevant_files:
-                    if is_blocked(file_path, blocked_dirs)["success"]:
-                        continue
-                    try:
-                        relevant_files_contents.append(
-                            self.get_contents(file_path).decoded_content.decode("utf-8")
-                        )
-                    except Exception as e:
-                        for file_path, (old_contents, new_contents) in changed_files:
-                            if file_path == file_path:
-                                relevant_files_contents.append(new_contents)
-                                break
-                        else:
-                            relevant_files_contents.append("File not found")
-                if relevant_files_contents:
-                    relevant_files_summary = "Relevant files in this PR:\n\n" + "\n".join(
-                        [
-                            f'<relevant_file file_path="{file_path}">\n{file_contents}\n</relevant_file>'
-                            for file_path, file_contents in zip(
-                                file_change_request.relevant_files,
-                                relevant_files_contents,
-                            )
-                        ]
-                    )
-                    additional_messages.append(
-                        Message(
-                            content=relevant_files_summary,
-                            role="user",
-                            key="relevant_files_summary",
-                        )
-                    )
-            current_file_diff = ""
-            if changed_files:
-                for file_path, (old_contents, new_contents) in changed_files:
-                    if file_path == file_change_request.filename:
-                        current_file_diff += (
-                            generate_diff(old_contents, new_contents) + "\n"
-                        )
-            modify_file_bot = ModifyBot(
-                additional_messages,
-                parent_bot=self,
-                chat_logger=self.chat_logger,
-                old_file_contents=contents,
-                current_file_diff=current_file_diff,
-                is_pr=bool(self.comment_pr_diff_str),
-                temperature=temperature,
-                ticket_progress=self.ticket_progress,
-            )
-            try:
-                new_file = modify_file_bot.try_update_file(
-                    file_path=file_change_request.filename,
-                    file_contents=contents,
-                    file_change_request=file_change_request,
-                    chunking=chunking,
-                    cloned_repo=self.cloned_repo,
-                    assistant_conversation=assistant_conversation,
-                )
-            except UnneededEditError as e:
-                if chunking:
-                    return (
-                        contents,
-                        f"feat: Updated {file_change_request.filename}",
-                        None,
-                        changed_files,
-                    )
-                raise e
-            except Exception as e:
-                raise e
-        except Exception as e:  # Check for max tokens error
-            if "max tokens" in str(e).lower():
-                logger.error(f"Max tokens exceeded for {file_change_request.filename}")
-                raise MaxTokensExceeded(file_change_request.filename)
-            else:
-                logger.error(f"Error: {e}")
-                logger.error(traceback.format_exc())
-                self.delete_messages_from_chat(key)
-                raise e
-        try:
-            commit_message = f"feat: Updated {file_change_request.filename}"
-            commit_message = commit_message[: min(len(commit_message), 50)]
-            changed_files.append(
-                (
-                    file_change_request.filename,
-                    (
-                        contents,
-                        new_file,
-                    ),
-                )
-            )
-            return new_file, commit_message, sandbox_execution, changed_files
-        except Exception as e:
-            tb = traceback.format_exc()
-            logger.warning(f"Failed to parse." f" {e}\n{tb}")
-            self.delete_messages_from_chat(key)
-        raise Exception(f"Failed to parse response after 1 attempt.")
-
-    def get_files_to_change_from_sandbox(
-        self,
-        file_path: str,
-        file_contents: str,
-        sandbox_response: SandboxResponse,
-        changed_files: list[tuple[str, tuple[str, str]]],
-        parent_fcr: FileChangeRequest | None = None,
-    ) -> list[FileChangeRequest]:
-        new_self = ChatGPT(chat_logger=self.chat_logger)
-        new_self.messages = copy.deepcopy(self.messages)
-        new_self.delete_messages_from_chat("files_to_change")
-        new_self.delete_messages_from_chat("changed_files_summary")
-        new_self.delete_messages_from_chat("issue_metadata")
-        new_self.delete_messages_from_chat("metadata")
-        new_self.delete_messages_from_chat("extract_prompt")
-        new_self.delete_messages_from_chat("files_to_change")
-
-        file_path_to_contents = OrderedDict()
-        # use only the latest change for each file
-        # go forward to find the earliest version of each file in the array
-        earliest_version_per_file = {}
-        for file_path, (old_contents, new_contents) in changed_files:
-            if file_path not in earliest_version_per_file:
-                earliest_version_per_file[file_path] = old_contents
-        latest_version_per_file = {}
-        for file_path, (old_contents, new_contents) in reversed(changed_files):
-            if file_path not in latest_version_per_file:
-                latest_version_per_file[file_path] = new_contents
-        for file_path, _ in changed_files:
-            if not latest_version_per_file[file_path].strip():
-                continue
-            earliest_file_version = earliest_version_per_file[file_path]
-            latest_file_version = latest_version_per_file[file_path]
-            diffs = generate_diff(earliest_file_version, latest_file_version)
-            if file_path not in file_path_to_contents:
-                file_path_to_contents[file_path] = diffs
-        changed_files_summary = (
-            "You have previously changed these files:\n"
-            + "\n".join(
-                [
-                    f'<changed_file file_path="{file_path}">\n{diffs}\n</changed_file>'
-                    for file_path, diffs in file_path_to_contents.items()
-                ]
+        formatted_relevant_snippets.append(
+            relevant_snippet_template.format(
+                i=i,
+                file_path=snippet.file_path,
+                content=annotated_source_code,
             )
         )
-        if changed_files:
-            new_self.messages.append(
-                Message(
-                    content=changed_files_summary,
-                    role="user",
-                    key="changed_files_summary",
-                )
-            )
+    joined_relevant_snippets = "\n".join(
+        formatted_relevant_snippets
+    )
+    relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
+    return relevant_snippets_message
 
-        new_self.messages.append(
+@streamable
+def get_files_to_change(
+    relevant_snippets: list[Snippet],
+    read_only_snippets: list[Snippet],
+    problem_statement: str,
+    repo_name: str,
+    cloned_repo: ClonedRepo,
+    additional_context: str = "",
+    import_graph: Graph | None = None,
+    pr_diffs: str = "",
+    chat_logger: ChatLogger = None,
+    seed: int = 0,
+    images: list[tuple[str, str, str]] | None = None
+) -> Iterator[tuple[dict[str, str], list[FileChangeRequest], str]]:
+    use_openai = False
+    problem_statement = problem_statement.strip("\n")
+    file_change_requests: list[FileChangeRequest] = []
+    messages: list[Message] = []
+    user_facing_message = ""
+    messages.append(
+        Message(role="system", content=issue_sub_request_system_prompt, key="system")
+    )
+
+    new_relevant_snippets = []
+    new_read_only_snippets = []
+    
+    for snippet in relevant_snippets:
+        if snippet in new_relevant_snippets or snippet in new_read_only_snippets:
+            continue
+        if "test" in snippet.file_path:
+            new_read_only_snippets.append(snippet)
+        else:
+            new_relevant_snippets.append(snippet)
+    
+    relevant_snippets = new_relevant_snippets
+    read_only_snippets = new_read_only_snippets + read_only_snippets
+
+    interleaved_snippets = []
+    for i in range(max(len(relevant_snippets), len(read_only_snippets))):
+        if i < len(relevant_snippets):
+            interleaved_snippets.append(relevant_snippets[i])
+        if i < len(read_only_snippets):
+            interleaved_snippets.append(read_only_snippets[i])
+
+    interleaved_snippets = partition_snippets_if_test(interleaved_snippets, include_tests=False)
+    max_snippets = get_max_snippets(interleaved_snippets)
+    relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
+    read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
+
+    messages.append(
+        Message(
+            role="user",
+            content=format_snippets(
+                relevant_snippets,
+                read_only_snippets,
+                problem_statement,
+            ),
+            key="relevant_snippets",
+        )
+    )
+    if additional_context:
+        messages.append(
             Message(
-                content=f'<code file_path="{file_path}">\n{file_contents}\n</code>\n\n'
-                + sandbox_error_prompt.format(
-                    command=sandbox_response.outputs[-1],
-                    error_logs=sandbox_response.error_messages[-1],
-                ),
                 role="user",
+                content=additional_context,
             )
         )
+    messages.append(
+        Message(
+            role="user",
+            content=f"# GitHub Issue\n<issue>\n{problem_statement}\n</issue>",
+        )
+    )
+    if pr_diffs:
+        messages.append(
+            Message(role="user", content=pr_diffs, key="pr_diffs")
+        )
+    print("messages")
+    for message in messages:
+        print(message.content + "\n\n")
+    joint_message = "\n\n".join(message.content for message in messages[1:])
+    print("messages", joint_message)
+    issue_sub_request_chat_gpt = ChatGPT(
+        messages=[
+            Message(
+                role="system",
+                content=issue_sub_request_system_prompt,
+            ),
+        ],
+    )
+    renames_chat_gpt = ChatGPT(
+        messages=[
+            Message(
+                role="system",
+                content=proposed_plan_system_prompt,
+            ),
+        ],
+    )
+    MODEL = "claude-3-opus-20240229"
 
-        files_to_change_response = new_self.chat(sandbox_files_to_change_prompt)
-        file_change_requests: list[FileChangeRequest] = []
+    renames_response = renames_chat_gpt.chat_anthropic(
+        content=joint_message + "\n\n" + anthropic_rename_prompt,
+        temperature=0.1,
+        images=images,
+        use_openai=use_openai,
+        seed=seed + 1,
+        stop_sequences=["</renames>"],
+        model=MODEL # haiku can troll this reponse
+    )
+    renames_dict = parse_renames(renames_response)
+    # need better validation
+    if renames_dict:
+        relevant_snippets = [Snippet(
+            file_path=renames_dict.get(snippet.file_path, snippet.file_path),
+            start=snippet.start,
+            end=snippet.end,
+            content=snippet.content,
+            score=snippet.score,
+            type_name=snippet.type_name,
+        ) for snippet in relevant_snippets]
+        read_only_snippets = [Snippet(
+            file_path=renames_dict.get(snippet.file_path, snippet.file_path),
+            start=snippet.start,
+            end=snippet.end,
+            content=snippet.content,
+            score=snippet.score,
+            type_name=snippet.type_name,
+        ) for snippet in read_only_snippets]
+        messages = [
+            message if message.key != "relevant_snippets" else Message(
+                role="user",
+                content=format_snippets(
+                    relevant_snippets,
+                    read_only_snippets,
+                    problem_statement,
+                ),
+                key="relevant_snippets",
+            ) for message in messages
+        ]
+        renames_string = "# Warning\n<warnings>\nIMPORTANT:" + "\n".join(
+            f"`{old_name}` has already been renamed to `{new_name}`" for old_name, new_name in renames_dict.items()
+        ) + "\nDo NOT include any renaming steps in your plan.\n</warnings>"
+        messages.append(
+            Message(
+                role="user",
+                content=renames_string,
+                key="renames"
+            )
+        )
+        joint_message = "\n\n".join(message.content for message in messages[1:])
+        user_facing_message += "We decided to make the following renames to help you solve the GitHub issue:\n"  +"\n".join(
+            f"Rename `{old_name}` to `{new_name}`" for old_name, new_name in renames_dict.items()
+        ) + "\n\n"
+        yield renames_dict, user_facing_message, []
+
+    issue_sub_requests = ""
+    if not use_openai:
+        issue_sub_request_response = continuous_llm_calls(
+            issue_sub_request_chat_gpt,
+            content=joint_message + "\n\n" + issue_sub_request_prompt,
+            model=MODEL,
+            temperature=0.1,
+            images=images,
+            use_openai=use_openai,
+            seed=seed,
+            stop_sequences=["</issue_sub_requests>"],
+            response_cleanup=cleanup_fcrs,
+            MAX_CALLS=10
+        )
+        issue_sub_request_pattern = re.compile(r"<issue_sub_requests>(.*?)</issue_sub_requests>", re.DOTALL)
+        issue_sub_request_match = issue_sub_request_pattern.search(issue_sub_request_response)
+        if not issue_sub_request_match:
+            raise Exception("Failed to match issue excerpts")
+        issue_sub_requests = issue_sub_request_match.group(1)
+        issue_sub_requests = issue_sub_requests.strip("\n")
+        issue_sub_requests = re.sub(r"<justification>\n(.*?)\n</justification>\n*", "\n", issue_sub_requests, flags=re.DOTALL).strip("\n")
+
+        user_facing_message += "I'm going to follow the following steps to help you solve the GitHub issue:\n" 
+        single_issue_sub_request_pattern = re.compile(r"<issue_sub_request>(.*?)</issue_sub_request>", re.DOTALL)
+        for i, single_issue_sub_request_match in enumerate(single_issue_sub_request_pattern.finditer(issue_sub_requests)):
+            user_facing_message += f"{i + 1}. {single_issue_sub_request_match.group(1).strip()}\n"
+        user_facing_message += "\n\n"
+        yield renames_dict, user_facing_message, []
+
+    open("msg.txt", "w").write(joint_message + "\n\n" + proposed_plan_prompt.format(issue_sub_requests=issue_sub_requests))
+    
+    chat_gpt = ChatGPT(
+        messages=[
+            Message(
+                role="system",
+                content=proposed_plan_system_prompt,
+            ),
+        ],
+    )
+    # handle stop sequences better for multiple chained calls
+    proposed_plan_response: str = continuous_llm_calls(
+        chat_gpt,
+        content=joint_message + "\n\n" + proposed_plan_prompt.format(issue_sub_requests=issue_sub_requests),
+        model=MODEL,
+        temperature=0.1,
+        images=images,
+        use_openai=use_openai,
+        seed=seed,
+        stop_sequences=["</issue_analysis>"],
+        response_cleanup=cleanup_fcrs,
+        MAX_CALLS=10
+    )
+    # get the issue analysis from the proposed plan response
+    issue_analysis_and_proposed_changes, failed , _ = extract_object_fields_from_string(proposed_plan_response, ["issue_analysis"])
+
+    # TODO: add error case for no issue_analysis
+
+    chat_gpt.messages= [
+        Message(
+            role="system",
+            content=plan_generation_steps_system_prompt,
+        ),
+    ]
+    # handle stop sequences better for multiple chained calls
+    files_to_change_response: str = continuous_llm_calls(
+        chat_gpt,
+        content=joint_message + "\n\n" + plan_generation_steps_prompt.format(
+            issue_analysis_and_proposed_changes=issue_analysis_and_proposed_changes
+        ),
+        model=MODEL,
+        temperature=0.1,
+        images=images,
+        use_openai=use_openai,
+        seed=seed,
+        stop_sequences=["</plan>"],
+        response_cleanup=cleanup_fcrs,
+        MAX_CALLS=10
+    )
+    relevant_modules = []
+    pattern = re.compile(r"<relevant_modules>(.*?)</relevant_modules>", re.DOTALL)
+    relevant_modules_match = pattern.search(files_to_change_response)
+    if relevant_modules_match:
+        relevant_modules = [relevant_module.strip() for relevant_module in relevant_modules_match.group(1).split("\n") if relevant_module.strip()]
+    file_change_requests = []
+    try:
         for re_match in re.finditer(
             FileChangeRequest._regex, files_to_change_response, re.DOTALL
         ):
-            file_change_request = FileChangeRequest.from_string(
-                re_match.group(0), parent=parent_fcr
-            )
+            file_change_request = FileChangeRequest.from_string(re_match.group(0))
+            file_change_request.raw_relevant_files = " ".join(relevant_modules)
+            file_change_request.filename = renames_dict.get(file_change_request.filename, file_change_request.filename)
             file_change_requests.append(file_change_request)
-            if file_change_request.change_type in ("modify", "create"):
-                new_file_change_request = copy.deepcopy(file_change_request)
-                new_file_change_request.change_type = "check"
-                new_file_change_request.instructions = ""
-                new_file_change_request.id_ = str(uuid.uuid4())
-                new_file_change_request.parent = file_change_request
-                file_change_requests.append(new_file_change_request)
+        
+        yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm currently just making some edits:\n", file_change_requests
+        error_message, error_indices = get_error_message(
+            file_change_requests,
+            cloned_repo,
+            renames_dict=renames_dict,
+        )
+        # breakpoint()
 
-        return file_change_requests
-
-    def change_files_in_github_iterator(
-        self,
-        file_change_requests: list[FileChangeRequest],
-        branch: str,
-        blocked_dirs: list[str],
-    ) -> Generator[tuple[FileChangeRequest, bool], None, None]:
-        completed = 0
-        sandbox_response = None
-        changed_files: list[tuple[str, str]] = []
-        commit_messages = {
-            "create": "Created new file",
-            "modify": "Modified existing file",
-            "rewrite": "Rewrote existing file",
-            "check": "Checked file",
-            "delete": "Deleted file",
-            "rename": "Renamed file",
-        }
-
-        i = 0
-
-        file_change_requests[i].status = "running"
-        error_messages = []
-
-        while i < min(len(file_change_requests), 20):
-            file_change_request = file_change_requests[i]
-            logger.print(file_change_request.change_type, file_change_request.filename)
-            changed_file = False
-
-            if self.ticket_progress:
-                self.ticket_progress.coding_progress.file_change_requests = (
-                    file_change_requests
-                )
-                self.ticket_progress.save()
-
-            try:
-                commit = commit_messages.get(
-                    file_change_request.change_type, "No commit message provided"
-                )
-                if is_blocked(file_change_request.filename, blocked_dirs)["success"]:
-                    logger.print(
-                        f"Skipping {file_change_request.filename} because it is blocked."
-                    )
-                    i += 1
+        for error_resolution_count in range(3):
+            if not error_message:
+                break
+            # todo: segment these into smaller calls to handle different edge cases
+            # delete the error messages
+            chat_gpt.messages = [message if message.role != "system" else Message(
+                content=fix_files_to_change_system_prompt,
+                role="system"
+            ) for message in chat_gpt.messages]
+            fix_attempt = continuous_llm_calls(
+                chat_gpt,
+                content=fix_files_to_change_prompt.format(
+                    error_message=error_message,
+                    allowed_indices=english_join([str(index) for index in range(len(error_indices))]),
+                ),
+                model=MODEL,
+                temperature=0.1,
+                images=images,
+                seed=seed,
+                stop_sequences=["</error_resolutions"],
+                response_cleanup=cleanup_fcrs,
+                use_openai=error_resolution_count < 2,
+            )
+            drops, matches = parse_patch_fcrs(fix_attempt)
+            for index, new_fcr in matches:
+                if index >= len(error_indices):
+                    logger.warning(f"Index {index} not in error indices")
                     continue
+                if "COPIED_FROM_PREVIOUS_MODIFY" in new_fcr.instructions:
+                    # if COPIED_FROM_PREVIOUS_CREATE, we just need to override the filename
+                    file_change_requests[error_indices[index]].filename = renames_dict.get(new_fcr.filename, new_fcr.filename)
+                    continue
+                file_change_requests[error_indices[index]] = new_fcr
+            for drop in sorted(drops, reverse=True):
+                if drop >= len(error_indices):
+                    logger.warning(f"Index {drop} not in error indices")
+                    continue
+                file_change_requests.pop(error_indices[drop])
+            logger.debug("Old indices", error_indices)
+            error_message, error_indices = get_error_message(file_change_requests, cloned_repo, renames_dict=renames_dict)
+            logger.debug("New indices", error_indices)
+            yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm currently just making some edits:\n", file_change_requests
 
-                logger.print(
-                    f"Processing {file_change_request.filename} for change type"
-                    f" {file_change_request.change_type}..."
-                )
+        set_fcr_change_type(file_change_requests, cloned_repo, renames_dict=renames_dict)
+        yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm done making edits and now I'm just validating the changes using a linter to catch any mistakes like syntax errors or undefined variables:\n", file_change_requests
+        return renames_dict, file_change_requests, files_to_change_response
+    except RegexMatchError as e:
+        print("RegexMatchError", e)
 
-                first_chars_in_instructions = file_change_request.instructions.lower()
-                first_chars_in_instructions = first_chars_in_instructions[
-                    : min(60, len(first_chars_in_instructions))
-                ]
+    return [], ""
 
-                if file_change_request.change_type == "move":  # TODO(add this)
-                    move_bot = MoveBot(chat_logger=self.chat_logger)
-                    additional_messages = copy.deepcopy(self.messages)
-                    file_ = self.repo.get_contents(
-                        file_change_request.filename, ref=branch
-                    )
-                    file_contents = file_.decoded_content.decode()
-                    new_changes, change_sets = move_bot.move_entity(
-                        additional_messages=additional_messages,
-                        file_path=file_change_request.filename,
-                        contents=file_contents,
-                        request=file_change_request.instructions,
-                        changes_made="",
-                        cloned_repo=self.cloned_repo,
-                    )
-                    file_change_request.status = "succeeded"
-                    response = None
-                    commit = None
-                    for change_set in change_sets:
-                        for change in change_set.changes:
-                            file_ = self.repo.get_contents(
-                                change.resource.path, ref=branch
-                            )
-                            response = self.repo.update_file(
-                                path=change.resource.path,
-                                message=f"Moved entity out of {change.resource.path}",
-                                sha=file_.sha,
-                                branch=branch,
-                                content=change.new_contents,
-                            )
-                            changed_files.append(
-                                (
-                                    change.resource.path,
-                                    (
-                                        change.old_contents,
-                                        change.new_contents,
-                                    ),
-                                )
-                            )
-                    if response is None:
-                        file_change_request.status = "failed"
-                    else:
-                        commit = response["commit"]
-                        file_change_request.commit_hash_url = commit.html_url
-                        file_change_request.status = "succeeded"
-                        changed_file = True
-                    yield (
-                        file_change_request,
-                        changed_file,
-                        sandbox_response,
-                        commit,
-                        file_change_requests,
-                    )
-                else:
-                    match file_change_request.change_type:
-                        case "create":
-                            (
-                                changed_file,
-                                sandbox_response,
-                                commit,
-                                changed_files,
-                            ) = self.handle_create_file_main(
-                                file_change_request,
-                                branch,
-                                changed_files=changed_files,
-                            )
-                            file_change_requests[i].status = "succeeded"
-                            file_change_requests[i].commit_hash_url = commit.html_url
-                            if i + 1 < len(file_change_requests):
-                                file_change_requests[i + 1].status = "running"
-                            yield (
-                                file_change_request,
-                                changed_file,
-                                sandbox_response,
-                                commit,
-                                file_change_requests,
-                            )
-                        case "modify" | "rewrite":
-                            # Remove snippets from this file if they exist
-                            snippet_msgs = [
-                                m
-                                for m in self.messages
-                                if m.key == BOT_ANALYSIS_SUMMARY
-                            ]
-                            if len(snippet_msgs) > 0:  # Should always be true
-                                snippet_msg = snippet_msgs[0]
-                                file = re.escape(file_change_request.filename)
-                                regex = (
-                                    rf'<snippet source="{file}:\d*-?\d*.*?<\/snippet>'
-                                )
-                                snippet_msg.content = re.sub(
-                                    regex,
-                                    "",
-                                    snippet_msg.content,
-                                    flags=re.DOTALL,
-                                )
-                            if self.ticket_progress is not None:
-                                for _ in range(
-                                    len(
-                                        self.ticket_progress.coding_progress.assistant_conversations
-                                    ),
-                                    i + 1,
-                                ):
-                                    self.ticket_progress.coding_progress.assistant_conversations.append(
-                                        AssistantConversation()
-                                    )
-                            (
-                                changed_file,
-                                sandbox_response,
-                                commit,
-                                changed_files,
-                            ) = self.handle_modify_file_main(
-                                file_change_request=file_change_request,
-                                branch=branch,
-                                changed_files=changed_files,
-                                assistant_conversation=self.ticket_progress.coding_progress.assistant_conversations[
-                                    i
-                                ]
-                                if self.ticket_progress
-                                else None,
-                            )
-                            file_change_requests[i].status = (
-                                "succeeded" if changed_file else "failed"
-                            )
-                            file_change_requests[i].commit_hash_url = (
-                                commit.html_url
-                                if commit and not isinstance(commit, str)
-                                else None  # fix later
-                            )
-                            if i + 1 < len(file_change_requests):
-                                file_change_requests[i + 1].status = "running"
-                            yield (
-                                file_change_request,
-                                changed_file,
-                                sandbox_response,
-                                commit,
-                                file_change_requests,
-                            )
-                        case "refactor":
-                            file_contents_obj = self.repo.get_contents(
-                                file_change_request.filename, ref=branch
-                            )
-                            file_contents = file_contents_obj.decoded_content.decode()
+@streamable
+def get_files_to_change_for_on_comment(
+    relevant_snippets: list[Snippet],
+    read_only_snippets: list[Snippet],
+    problem_statement: str,
+    repo_name: str,
+    cloned_repo: ClonedRepo,
+    additional_context: str = "",
+    import_graph: Graph | None = None,
+    pr_info: str = "",
+    pr_diffs: str = "",
+    chat_logger: ChatLogger = None,
+    seed: int = 0,
+    images: list[tuple[str, str, str]] | None = None
+) -> Iterator[tuple[dict[str, str], list[FileChangeRequest], str]]:
+    use_openai = False
+    problem_statement = problem_statement.strip("\n")
+    file_change_requests: list[FileChangeRequest] = []
+    messages: list[Message] = []
+    user_facing_message = ""
+    messages.append(
+        Message(role="system", content=issue_sub_request_on_comment_system_prompt, key="system")
+    )
 
-                            refactor_bot = RefactorBot(chat_logger=self.chat_logger)
-                            additional_messages = [
-                                Message(
-                                    role="user",
-                                    content=self.human_message.get_issue_metadata(),
-                                    key="issue_metadata",
-                                )
-                            ]
-                            # empty string
-                            cloned_repo = ClonedRepo(
-                                self.cloned_repo.repo_full_name,
-                                self.cloned_repo.installation_id,
-                                branch,
-                                self.cloned_repo.token,
-                            )
-                            try:
-                                new_file_contents = refactor_bot.refactor_snippets(
-                                    additional_messages=additional_messages,
-                                    snippets_str=file_contents,
-                                    file_path=file_change_request.filename,
-                                    update_snippets_code=file_contents,
-                                    request=file_change_request.instructions,
-                                    changes_made="",
-                                    cloned_repo=cloned_repo,
-                                )
-                            except Exception as e:
-                                logger.exception(e)
-                                new_file_contents = None
-                            changed_file = False
-                            if new_file_contents is None:
-                                new_file_contents = file_contents  # no changes made
-                                commit = None
-                                file_change_request.status = "failed"
-                            else:
-                                changed_file = True
-                                changed_files.append(
-                                    (
-                                        file_change_request.filename,
-                                        (file_contents, new_file_contents),
-                                    )
-                                )
-                                commit_message = (
-                                    f"feat: Refactored {file_change_request.filename}"
-                                )
-                                response = self.repo.update_file(
-                                    file_change_request.filename,
-                                    commit_message,
-                                    new_file_contents,
-                                    sha=file_contents_obj.sha,
-                                    branch=branch,
-                                )
-                                commit = response["commit"]
-                                file_change_request.commit_hash_url = commit.html_url
-                                file_change_request.status = "succeeded"
-                            yield (
-                                file_change_request,
-                                changed_file,
-                                None,
-                                commit,
-                                file_change_requests,
-                            )
-                        case "test":
-                            # Only test creation for now, not updates
-                            test_bot = TestBot(chat_logger=self.chat_logger)
-                            additional_messages = [
-                                Message(
-                                    role="user",
-                                    content=self.human_message.get_issue_metadata(),
-                                    key="issue_metadata",
-                                )
-                            ]
-                            new_test = test_bot.write_test(
-                                file_change_request=file_change_request,
-                                additional_messages=additional_messages,
-                                file_path=file_change_request.source_file,
-                                cloned_repo=self.cloned_repo,
-                                changed_files=changed_files,
-                                check_sandbox=self.check_sandbox,
-                            )
-                            try:
-                                contents = self.repo.get_contents(
-                                    file_change_request.filename, ref=branch
-                                )
-                            except Exception:
-                                contents = None
-                            if contents is not None:
-                                response = self.repo.update_file(
-                                    file_change_request.filename,
-                                    f"test: Add test for {file_change_request.filename}",
-                                    new_test,
-                                    sha=contents.sha,
-                                    branch=branch,
-                                )
-                            else:
-                                response = self.repo.create_file(
-                                    file_change_request.filename,
-                                    f"test: Add test for {file_change_request.filename}",
-                                    new_test,
-                                    branch=branch,
-                                )
-                            commit = response["commit"]
-                            file_change_request.commit_hash_url = commit.html_url
-                            file_change_request.status = "succeeded"
-                            yield (
-                                file_change_request,
-                                bool(new_test),
-                                None,
-                                commit,
-                                file_change_requests,
-                            )
-                        case "check":
-                            if file_change_requests[i - 1].status == "failed":
-                                file_change_request.status = "failed"
-                                yield (
-                                    file_change_request,
-                                    False,
-                                    None,
-                                    None,
-                                    file_change_requests,
-                                )
-                            else:
-                                commit_hash = self.repo.get_branch(
-                                    branch=branch
-                                ).commit.sha
-                                check_runs = list(
-                                    self.repo.get_commit(commit_hash).get_check_runs()
-                                )
-                                completed = True
-                                total_wait_time = 3600
-                                sleep_time = 5
-                                for j in range(total_wait_time // sleep_time):
-                                    if j % 4 == 0:
-                                        commit_hash_url = f'<a href="https://github.com/{self.repo.full_name}/commit/{commit_hash}">{commit_hash}</a>'
-                                        additional_instructions = ""
-                                        conclusions = []
-                                        check_runs = list(
-                                            self.repo.get_commit(
-                                                commit_hash
-                                            ).get_check_runs()
-                                        )
-                                        for check_run in check_runs:
-                                            conclusions.append(check_run.conclusion)
-                                            conclusion_str = (
-                                                "✓"
-                                                if check_run.conclusion == "success"
-                                                else "✗"
-                                                if check_run.conclusion == "failure"
-                                                else "⋯"
-                                            )
-                                            additional_instructions += f'• {check_run.name}: <a href="{check_run.html_url}">{conclusion_str}</a>\n'
-                                        # these are distinct, it's None if it's not done so succeeded and failed can both be false
-                                        succeeded = all(
-                                            conclusion == "success"
-                                            for conclusion in conclusions
-                                        )
-                                        failed = any(
-                                            conclusion == "failure"
-                                            for conclusion in conclusions
-                                        )
-                                        waiting = any(
-                                            conclusion == None
-                                            for conclusion in conclusions
-                                        )
-                                        if succeeded:
-                                            file_change_request.status = "succeeded"
-                                        elif failed:
-                                            file_change_request.status = "failed"
-                                        file_change_request.instructions = f"\nRan GitHub Actions for {commit_hash_url}:\n{additional_instructions}"
-                                        yield (
-                                            file_change_request,
-                                            True,
-                                            None,
-                                            None,
-                                            file_change_requests,
-                                        )
-                                        if not waiting or failed or succeeded:
-                                            break
-                                    time.sleep(sleep_time)
-                                    logger.info("Waiting for check runs to complete")
-                                else:
-                                    logger.error("Check runs did not complete in time")
-                                    completed = False
+    new_relevant_snippets = []
+    new_read_only_snippets = []
+    
+    for snippet in relevant_snippets:
+        if snippet in new_relevant_snippets or snippet in new_read_only_snippets:
+            continue
+        if "test" in snippet.file_path:
+            new_read_only_snippets.append(snippet)
+        else:
+            new_relevant_snippets.append(snippet)
+    
+    relevant_snippets = new_relevant_snippets
+    read_only_snippets = new_read_only_snippets + read_only_snippets
 
-                                if not completed:
-                                    file_change_request.status = "succeeded"
-                                    file_change_request.instructions += "\n\nCheck runs did not complete in 60 minutes, skipping the rest."
-                                    yield (
-                                        file_change_request,
-                                        False,
-                                        None,
-                                        None,
-                                        file_change_requests,
-                                    )
-                        case "delete":
-                            contents = self.repo.get_contents(
-                                file_change_request.filename, ref=branch
-                            )
-                            self.repo.delete_file(
-                                file_change_request.filename,
-                                f"Deleted {file_change_request.filename}",
-                                sha=contents.sha,
-                                branch=branch,
-                            )
-                            changed_file = True
-                            file_change_requests[i].status = "succeeded"
-                            if i + 1 < len(file_change_requests):
-                                file_change_requests[i + 1].status = "running"
-                            yield file_change_request, changed_file, sandbox_response, commit, file_change_requests
-                        case "rename":
-                            contents = self.repo.get_contents(
-                                file_change_request.filename, ref=branch
-                            )
-                            self.repo.create_file(
-                                file_change_request.instructions,
-                                (
-                                    f"Renamed {file_change_request.filename} to"
-                                    f" {file_change_request.instructions}"
-                                ),
-                                contents.decoded_content,
-                                branch=branch,
-                            )
-                            self.repo.delete_file(
-                                file_change_request.filename,
-                                f"Deleted {file_change_request.filename}",
-                                sha=contents.sha,
-                                branch=branch,
-                            )
-                            changed_file = True
-                            file_change_requests[i].status = "succeeded"
-                            if i + 1 < len(file_change_requests):
-                                file_change_requests[i + 1].status = "running"
-                            yield file_change_request, changed_file, sandbox_response, commit, file_change_requests
-                        case _:
-                            raise Exception(
-                                f"Unknown change type {file_change_request.change_type}"
-                            )
-                    logger.print(f"Done processing {file_change_request.filename}.")
-            except AssistantRaisedException as e:
-                raise e
-            except Exception as e:
-                logger.error(f"Error in change_files_in_github {e}")
-                logger.error(traceback.format_exc())
-                discord_log_error(traceback.format_exc() + "\n" + str(e))
-                file_change_request.status = "failed"
+    interleaved_snippets = []
+    for i in range(max(len(relevant_snippets), len(read_only_snippets))):
+        if i < len(relevant_snippets):
+            interleaved_snippets.append(relevant_snippets[i])
+        if i < len(read_only_snippets):
+            interleaved_snippets.append(read_only_snippets[i])
 
-            if self.ticket_progress:
-                self.ticket_progress.coding_progress.file_change_requests = (
-                    file_change_requests
-                )
-                self.ticket_progress.save()
+    interleaved_snippets = partition_snippets_if_test(interleaved_snippets, include_tests=False)
+    max_snippets = get_max_snippets(interleaved_snippets)
+    relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
+    read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
 
-            if changed_file:
-                completed += 1
-            i += 1
-
-    def handle_create_file_main(
-        self,
-        file_change_request: FileChangeRequest,
-        branch: str,
-        changed_files: list[tuple[str, str]] = [],
-    ):
-        file_change, sandbox_response = self.create_file(
-            file_change_request, changed_files=changed_files
+    messages.append(
+        Message(
+            role="user",
+            content=format_snippets(
+                relevant_snippets,
+                read_only_snippets,
+                problem_statement,
+            ),
+            key="relevant_snippets",
         )
-        file_markdown = is_markdown(file_change_request.filename)
-        file_change.code = format_contents(file_change.code, file_markdown)
-        logger.debug(
-            f"{file_change_request.filename},"
-            f" {f'Create {file_change_request.filename}'}, {file_change.code},"
-            f" {branch}"
+    )
+    if additional_context:
+        messages.append(
+            Message(
+                role="user",
+                content=additional_context,
+            )
+        )
+    if pr_info:
+        messages.append(
+            Message(
+                role="user",
+                content=f"# Pr Description - use this to get an idea of what the original pull request was about:\n\n{pr_info}",
+            )
+        )
+    messages.append(
+        Message(
+            role="user",
+            content=f"# Comment left on the Pull Request - THIS IS THE USER REQUEST YOU ARE TO RESOLVE:\n<user_comment>\n{problem_statement}\n</user_comment>",
+        )
+    )
+    formatted_pr_diffs = on_comment_pr_diffs_format.format(pr_changes=pr_diffs)
+    messages.append(
+        Message(role="user", content=formatted_pr_diffs, key="pr_diffs")
+    )
+    print("messages")
+    for message in messages:
+        print(message.content + "\n\n")
+    joint_message = "\n\n".join(message.content for message in messages[1:])
+    print("messages", joint_message)
+    issue_sub_request_chat_gpt = ChatGPT(
+        messages=[
+            Message(
+                role="system",
+                content=issue_sub_request_on_comment_system_prompt,
+            ),
+        ],
+    )
+    renames_chat_gpt = ChatGPT(
+        messages=[
+            Message(
+                role="system",
+                content=rename_on_comment_system_prompt,
+            ),
+        ],
+    )
+    MODEL = "claude-3-opus-20240229"
+
+    renames_response = renames_chat_gpt.chat_anthropic(
+        content=joint_message + "\n\n" + rename_on_comment_prompt,
+        temperature=0.1,
+        images=images,
+        use_openai=use_openai,
+        seed=seed + 1,
+        stop_sequences=["</renames>"],
+        model=MODEL # haiku can troll this reponse
+    )
+    renames_dict = parse_renames(renames_response)
+    # need better validation
+    if renames_dict:
+        relevant_snippets = [Snippet(
+            file_path=renames_dict.get(snippet.file_path, snippet.file_path),
+            start=snippet.start,
+            end=snippet.end,
+            content=snippet.content,
+            score=snippet.score,
+            type_name=snippet.type_name,
+        ) for snippet in relevant_snippets]
+        read_only_snippets = [Snippet(
+            file_path=renames_dict.get(snippet.file_path, snippet.file_path),
+            start=snippet.start,
+            end=snippet.end,
+            content=snippet.content,
+            score=snippet.score,
+            type_name=snippet.type_name,
+        ) for snippet in read_only_snippets]
+        messages = [
+            message if message.key != "relevant_snippets" else Message(
+                role="user",
+                content=format_snippets(
+                    relevant_snippets,
+                    read_only_snippets,
+                    problem_statement,
+                ),
+                key="relevant_snippets",
+            ) for message in messages
+        ]
+        renames_string = "# Warning\n<warnings>\nIMPORTANT:" + "\n".join(
+            f"`{old_name}` has already been renamed to `{new_name}`" for old_name, new_name in renames_dict.items()
+        ) + "\nDo NOT include any renaming steps in your plan.\n</warnings>"
+        messages.append(
+            Message(
+                role="user",
+                content=renames_string,
+                key="renames"
+            )
+        )
+        joint_message = "\n\n".join(message.content for message in messages[1:])
+        user_facing_message += "We decided to make the following renames to help you solve the GitHub issue:\n"  +"\n".join(
+            f"Rename `{old_name}` to `{new_name}`" for old_name, new_name in renames_dict.items()
+        ) + "\n\n"
+        yield renames_dict, user_facing_message, []
+
+    issue_sub_requests = ""
+    if not use_openai:
+        issue_sub_request_response = continuous_llm_calls(
+            issue_sub_request_chat_gpt,
+            content=joint_message + "\n\n" + issue_sub_request_on_comment_prompt,
+            model=MODEL,
+            temperature=0.1,
+            images=images,
+            use_openai=use_openai,
+            seed=seed,
+            stop_sequences=["</issue_sub_requests>"],
+            response_cleanup=cleanup_fcrs,
+            MAX_CALLS=10
+        )
+        issue_sub_request_pattern = re.compile(r"<issue_sub_requests>(.*?)</issue_sub_requests>", re.DOTALL)
+        issue_sub_request_match = issue_sub_request_pattern.search(issue_sub_request_response)
+        if not issue_sub_request_match:
+            raise Exception("Failed to match issue excerpts")
+        issue_sub_requests = issue_sub_request_match.group(1)
+        issue_sub_requests = issue_sub_requests.strip("\n")
+        issue_sub_requests = re.sub(r"<justification>\n(.*?)\n</justification>\n*", "\n", issue_sub_requests, flags=re.DOTALL).strip("\n")
+
+        user_facing_message += "I'm going to follow the following steps to help you solve the GitHub issue:\n" 
+        single_issue_sub_request_pattern = re.compile(r"<issue_sub_request>(.*?)</issue_sub_request>", re.DOTALL)
+        for i, single_issue_sub_request_match in enumerate(single_issue_sub_request_pattern.finditer(issue_sub_requests)):
+            user_facing_message += f"{i + 1}. {single_issue_sub_request_match.group(1).strip()}\n"
+        user_facing_message += "\n\n"
+        yield renames_dict, user_facing_message, []
+
+    open("msg.txt", "w").write(joint_message + "\n\n" + proposed_plan_on_comment_prompt.format(issue_sub_requests=issue_sub_requests))
+    
+    chat_gpt = ChatGPT(
+        messages=[
+            Message(
+                role="system",
+                content=proposed_plan_on_comment_system_prompt,
+            ),
+        ],
+    )
+    # handle stop sequences better for multiple chained calls
+    proposed_plan_response: str = continuous_llm_calls(
+        chat_gpt,
+        content=joint_message + "\n\n" + proposed_plan_on_comment_prompt.format(issue_sub_requests=issue_sub_requests),
+        model=MODEL,
+        temperature=0.1,
+        images=images,
+        use_openai=use_openai,
+        seed=seed,
+        stop_sequences=["</issue_analysis>"],
+        response_cleanup=cleanup_fcrs,
+        MAX_CALLS=10
+    )
+    # get the issue analysis from the proposed plan response
+    issue_analysis_and_proposed_changes, failed , _ = extract_object_fields_from_string(proposed_plan_response, ["issue_analysis"])
+
+    # TODO: add error case for no issue_analysis
+
+    chat_gpt.messages= [
+        Message(
+            role="system",
+            content=plan_generation_steps_on_comment_system_prompt,
+        ),
+    ]
+    # handle stop sequences better for multiple chained calls
+    files_to_change_response: str = continuous_llm_calls(
+        chat_gpt,
+        content=joint_message + "\n\n" + plan_generation_steps_on_comment_prompt.format(
+            issue_analysis_and_proposed_changes=issue_analysis_and_proposed_changes
+        ),
+        model=MODEL,
+        temperature=0.1,
+        images=images,
+        use_openai=use_openai,
+        seed=seed,
+        stop_sequences=["</plan>"],
+        response_cleanup=cleanup_fcrs,
+        MAX_CALLS=10
+    )
+    relevant_modules = []
+    pattern = re.compile(r"<relevant_modules>(.*?)</relevant_modules>", re.DOTALL)
+    relevant_modules_match = pattern.search(files_to_change_response)
+    if relevant_modules_match:
+        relevant_modules = [relevant_module.strip() for relevant_module in relevant_modules_match.group(1).split("\n") if relevant_module.strip()]
+    print("relevant_modules", relevant_modules)
+    file_change_requests = []
+    try:
+        for re_match in re.finditer(
+            FileChangeRequest._regex, files_to_change_response, re.DOTALL
+        ):
+            file_change_request = FileChangeRequest.from_string(re_match.group(0))
+            file_change_request.raw_relevant_files = " ".join(relevant_modules)
+            file_change_request.filename = renames_dict.get(file_change_request.filename, file_change_request.filename)
+            file_change_requests.append(file_change_request)
+        
+        yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm currently just making some edits:\n", file_change_requests
+        
+        error_message, error_indices = get_error_message(
+            file_change_requests,
+            cloned_repo,
+            renames_dict=renames_dict,
         )
 
-        result = self.repo.create_file(
-            file_change_request.filename,
-            file_change.commit_message,
-            file_change.code,
-            branch=branch,
+        for error_resolution_count in range(3):
+            if not error_message:
+                break
+            # todo: segment these into smaller calls to handle different edge cases
+            # delete the error messages
+            chat_gpt.messages = [message if message.role != "system" else Message(
+                content=fix_files_to_change_system_prompt,
+                role="system"
+            ) for message in chat_gpt.messages]
+            fix_attempt = continuous_llm_calls(
+                chat_gpt,
+                content=fix_files_to_change_prompt.format(
+                    error_message=error_message,
+                    allowed_indices=english_join([str(index) for index in range(len(error_indices))]),
+                ),
+                model=MODEL,
+                temperature=0.1,
+                images=images,
+                seed=seed,
+                stop_sequences=["</error_resolutions"],
+                response_cleanup=cleanup_fcrs,
+                use_openai=error_resolution_count < 2,
+            )
+            drops, matches = parse_patch_fcrs(fix_attempt)
+            for index, new_fcr in matches:
+                if index >= len(error_indices):
+                    logger.warning(f"Index {index} not in error indices")
+                    continue
+                if "COPIED_FROM_PREVIOUS_MODIFY" in new_fcr.instructions:
+                    # if COPIED_FROM_PREVIOUS_CREATE, we just need to override the filename
+                    file_change_requests[error_indices[index]].filename = renames_dict.get(new_fcr.filename, new_fcr.filename)
+                    continue
+                file_change_requests[error_indices[index]] = new_fcr
+            for drop in sorted(drops, reverse=True):
+                if drop >= len(error_indices):
+                    logger.warning(f"Index {drop} not in error indices")
+                    continue
+                file_change_requests.pop(error_indices[drop])
+            logger.debug("Old indices", error_indices)
+            error_message, error_indices = get_error_message(file_change_requests, cloned_repo, renames_dict=renames_dict)
+            logger.debug("New indices", error_indices)
+            yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm currently just making some edits:\n", file_change_requests
+
+        set_fcr_change_type(file_change_requests, cloned_repo, renames_dict=renames_dict)
+        yield renames_dict, user_facing_message + "Here are the changes we decided to make. I'm done making edits and now I'm just validating the changes using a linter to catch any mistakes like syntax errors or undefined variables:\n", file_change_requests
+        return renames_dict, file_change_requests, files_to_change_response
+    except RegexMatchError as e:
+        print("RegexMatchError", e)
+
+    return [], ""
+
+
+def context_get_files_to_change(
+    relevant_snippets: list[Snippet],
+    read_only_snippets: list[Snippet],
+    problem_statement,
+    repo_name,
+    cloned_repo: ClonedRepo,
+    import_graph: Graph | None = None,
+    pr_diffs: str = "",
+    chat_logger: ChatLogger = None,
+    seed: int = 0,
+    images: list[tuple[str, str, str]] | None = None
+):
+    use_openai = True
+    messages: list[Message] = []
+    messages.append(
+        Message(role="system", content=issue_sub_request_system_prompt, key="system")
+    )
+
+    interleaved_snippets = []
+    for i in range(max(len(relevant_snippets), len(read_only_snippets))):
+        if i < len(relevant_snippets):
+            interleaved_snippets.append(relevant_snippets[i])
+        if i < len(read_only_snippets):
+            interleaved_snippets.append(read_only_snippets[i])
+
+    interleaved_snippets = partition_snippets_if_test(interleaved_snippets, include_tests=False)
+    max_snippets = get_max_snippets(interleaved_snippets)
+    if True:
+        max_snippets = max_snippets[::-1]
+    relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
+    read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
+
+    relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
+    read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
+    # attach all relevant snippets
+    joined_relevant_snippets = "\n".join(
+        relevant_snippet_template.format(
+            i=i,
+            file_path=snippet.file_path,
+            content=snippet.expand(300).get_snippet(add_lines=False) if snippet.type_name == "source" else snippet.get_snippet(add_lines=False),
+        ) for i, snippet in enumerate(relevant_snippets)
+    )
+    relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
+    messages.append(
+        Message(
+            role="user",
+            content=relevant_snippets_message,
+            key="relevant_snippets",
+        )
+    )
+    joined_relevant_read_only_snippets = "\n".join(
+        read_only_snippet_template.format(
+            i=i,
+            file_path=snippet.file_path,
+            content=snippet.get_snippet(add_lines=False),
+        ) for i, snippet in enumerate(read_only_snippets)
+    )
+    read_only_snippets_message = f"<relevant_read_only_snippets>\n{joined_relevant_read_only_snippets}\n</relevant_read_only_snippets>"
+    if read_only_snippets:
+        messages.append(
+            Message(
+                role="user",
+                content=read_only_snippets_message,
+                key="relevant_snippets",
+            )
+        )
+    if import_graph:
+        graph_string = ""
+        reverse_graph = import_graph.reverse()
+        for snippet in relevant_snippets + read_only_snippets:
+            file_path = snippet.file_path
+            if file_path not in reverse_graph or not reverse_graph[file_path]:
+                continue
+            graph_string += f"\nThe file '{file_path}' is imported by the following files:\n"
+            for import_path in reverse_graph[file_path]:
+                if ".venv" in import_path or "build" in import_path:
+                    continue
+                graph_string += f"- {import_path}\n"
+            graph_string = graph_string.strip('\n')
+        messages.append(
+            Message(
+                role="user",
+                content=f"# Here's the structure of the imports:\n<import_graph>\n{graph_string}\n</import_graph>",
+            )
+        )
+    messages.append(
+        Message(
+            role="user",
+            content=f"# GitHub Issue\n<issue>\n{problem_statement}\n</issue>",
+        )
+    )
+    if pr_diffs:
+        messages.append(
+            Message(role="user", content=pr_diffs, key="pr_diffs")
         )
 
-        changed_files.append((file_change_request.filename, ("", file_change.code)))
+    print("messages")
+    for message in messages:
+        print(message.content + "\n\n")
+    joint_message = "\n\n".join(message.content for message in messages[1:])
+    print("messages", joint_message)
 
-        # file_change_request.new_content = file_change.code, changed_files
-        file_change_request.new_content = file_change.code
+    chat_gpt = ChatGPT(
+        messages=[
+            Message(
+                role="system",
+                content=context_files_to_change_system_prompt,
+            ),
+        ],
+    )
+    MODEL = "claude-3-opus-20240229"
+    open("msg.txt", "w").write(joint_message + "\n\n" + context_files_to_change_prompt)
+    files_to_change_response = chat_gpt.chat_anthropic(
+        content=joint_message + "\n\n" + context_files_to_change_prompt,
+        model=MODEL,
+        temperature=0.1,
+        images=images,
+        use_openai=use_openai,
+    )
+    relevant_files = []
+    read_only_files = []
+    # parse out <relevant_files> block
+    relevant_files_pattern = re.compile(r"<relevant_files>(.*?)</relevant_files>", re.DOTALL)
+    relevant_files_matches = relevant_files_pattern.findall(files_to_change_response)
+    if relevant_files_matches:
+        relevant_files_str = '\n'.join(relevant_files_matches)
+        relevant_files = parse_filenames(relevant_files_str)
+    # parse out <read_only_files> block
+    read_only_files_pattern = re.compile(r"<read_only_files>(.*?)</read_only_files>", re.DOTALL)
+    read_only_files_matches = read_only_files_pattern.findall(files_to_change_response)
+    if read_only_files_matches:
+        read_only_files_str = '\n'.join(read_only_files_matches)
+        read_only_files = parse_filenames(read_only_files_str)
+    relevant_files = list(dict.fromkeys(relevant_files))
+    read_only_files = list(dict.fromkeys(read_only_files))
+    return relevant_files, read_only_files
 
-        return True, sandbox_response, result["commit"], changed_files
+def get_files_to_change_for_test(
+    relevant_snippets: list[Snippet],
+    read_only_snippets: list[Snippet],
+    problem_statement: str,
+    updated_files: dict[str, dict[str, str]],
+    cloned_repo: ClonedRepo,
+    import_graph: Graph | None = None,
+    chat_logger: ChatLogger = None,
+) -> tuple[list[FileChangeRequest], str]:
+    file_change_requests: list[FileChangeRequest] = []
+    messages: list[Message] = []
+    messages.append(
+        Message(role="system", content=issue_sub_request_system_prompt, key="system")
+    )
 
-    def handle_modify_file_main(
-        self,
-        file_change_request: FileChangeRequest,
-        branch: str,
-        changed_files: list[tuple[str, str]] = [],
-        assistant_conversation: AssistantConversation | None = None,
-    ):
-        CHUNK_SIZE = 10000  # Disable chunking for now
-        sandbox_execution: SandboxResponse = None
-        commit_message: str = None
-        try:
-            file = self.get_file(file_change_request.filename, branch=branch)
-            file_contents = file.decoded_content.decode("utf-8")
-            file_name = file_change_request.filename
-            lines = file_contents.split("\n")
+    # keep order but move all files without tests to read only snippets
+    new_relevant_snippets = []
+    new_read_only_snippets = []
+    for snippet in relevant_snippets + read_only_snippets:
+        if snippet in new_relevant_snippets or snippet in new_read_only_snippets:
+            continue
+        if "test" in snippet.file_path:
+            new_relevant_snippets.append(snippet)
+        else:
+            new_read_only_snippets.append(snippet)
+    
+    relevant_snippets = new_relevant_snippets
+    read_only_snippets = new_read_only_snippets
 
-            if file_change_request.start_and_end_lines:
-                CHUNK_SIZE = (
-                    10000  # dont chunk if we know the start and end lines already
+    for relevant_snippet in relevant_snippets:
+        if relevant_snippet.file_path in updated_files:
+            relevant_snippet.content = updated_files[relevant_snippet.file_path]["contents"]
+    
+    for read_only_snippet in read_only_snippets:
+        if read_only_snippet.file_path in updated_files:
+            read_only_snippet.content = updated_files[read_only_snippet.file_path]["contents"]
+
+
+    interleaved_snippets = []
+    for i in range(max(len(relevant_snippets), len(read_only_snippets))):
+        if i < len(relevant_snippets):
+            interleaved_snippets.append(relevant_snippets[i])
+        if i < len(read_only_snippets):
+            interleaved_snippets.append(read_only_snippets[i])
+    
+    max_snippets = get_max_snippets(interleaved_snippets)
+    max_snippets = max_snippets[::-1]
+    relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
+    read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
+
+    relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
+    read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
+    # attach all relevant snippets
+    if read_only_snippets:
+        joined_relevant_read_only_snippets = "\n".join(
+            read_only_snippet_template.format(
+                i=i,
+                file_path=snippet.file_path,
+                content=snippet.get_snippet(add_lines=False),
+            ) for i, snippet in enumerate(read_only_snippets)
+        )
+        read_only_snippets_message = f"<relevant_read_only_snippets>\n{joined_relevant_read_only_snippets}\n</relevant_read_only_snippets>"
+        messages.append(
+            Message(
+                role="user",
+                content=read_only_snippets_message,
+                key="relevant_snippets",
+            )
+        )
+    if True:
+        formatted_relevant_snippets = []
+        for i, snippet in enumerate(tqdm(relevant_snippets)):
+            annotated_source_code, code_summaries = get_annotated_source_code(
+                source_code=snippet.get_snippet(add_lines=False),
+                issue_text=problem_statement,
+                file_path=snippet.file_path,
+            )
+            formatted_relevant_snippets.append(
+                relevant_snippet_template.format(
+                    i=i,
+                    file_path=snippet.file_path,
+                    content=annotated_source_code,
                 )
-
-            def get_new_file(temperature: float = 0.0):
-                nonlocal changed_files
-                new_file_contents = ""
-                try:
-                    chunking = (
-                        len(lines) > CHUNK_SIZE
-                    )  # Only chunk if the file is large enough
-                    sandbox_error = None
-                    first_characters_in_instructions = (
-                        file_change_request.instructions.lower()
-                    )
-                    first_characters_in_instructions = first_characters_in_instructions[
-                        : min(60, len(first_characters_in_instructions))
-                    ]
-                    if (
-                        any(
-                            keyword in first_characters_in_instructions
-                            for keyword in ("refactor", "extract", "replace")
-                        )
-                        and file_change_request.filename.endswith(".py")
-                        and False
-                    ):
-                        chunking = False
-                        refactor_bot = RefactorBot(chat_logger=self.chat_logger)
-                        additional_messages = [
-                            Message(
-                                role="user",
-                                content=self.human_message.get_issue_metadata(),
-                                key="issue_metadata",
-                            )
-                        ]
-                        # empty string
-                        cloned_repo = ClonedRepo(
-                            self.cloned_repo.repo_full_name,
-                            self.cloned_repo.installation_id,
-                            branch,
-                            self.cloned_repo.token,
-                        )
-                        new_file_contents = refactor_bot.refactor_snippets(
-                            additional_messages=additional_messages,
-                            snippets_str=file_contents,
-                            file_path=file_change_request.filename,
-                            update_snippets_code=file_contents,
-                            request=file_change_request.instructions,
-                            changes_made="",
-                            cloned_repo=cloned_repo,
-                        )
-                        if new_file_contents is None:
-                            new_file_contents = file_contents  # no changes made
-                        changed_files.append(
-                            (
-                                file_change_request.filename,
-                                (file_contents, new_file_contents),
-                            )
-                        )
-                        commit_message = (
-                            f"feat: Refactored {file_change_request.filename}"
-                        )
-                    elif file_change_request.entity:
-                        (
-                            new_file_contents,
-                            suggested_commit_message,
-                            sandbox_error,
-                            changed_files,
-                        ) = self.modify_file(
-                            file_change_request,
-                            contents="\n".join(lines),
-                            chunking=True,
-                            temperature=temperature,
-                            changed_files=changed_files,
-                            assistant_conversation=assistant_conversation,
-                        )
-                        commit_message = suggested_commit_message
-                    elif not chunking:
-                        (
-                            new_file_contents,
-                            suggested_commit_message,
-                            sandbox_error,
-                            changed_files,
-                        ) = self.modify_file(
-                            file_change_request,
-                            contents="\n".join(lines),
-                            chunking=chunking,
-                            changed_files=changed_files,
-                            temperature=temperature,
-                            assistant_conversation=assistant_conversation,
-                        )
-                        commit_message = suggested_commit_message
-                    elif file_change_request.comment_line is not None:
-                        # find the line with the comment
-                        comment_line = file_change_request.comment_line
-                        expand_size = 50
-                        start = max(0, comment_line - expand_size)
-                        end = min(len(lines), comment_line + expand_size)
-                        chunk = "\n".join(lines[start:end])
-                        (
-                            new_chunk,
-                            commit_message,
-                            sandbox_error,
-                            changed_files,
-                        ) = self.modify_file(
-                            file_change_request,
-                            contents=chunk,
-                            changed_files=changed_files,
-                            temperature=temperature,
-                        )
-                        new_lines = copy.deepcopy(lines)
-                        new_lines[start:end] = new_chunk.split("\n")
-                        new_file_contents = "\n".join(new_lines)
-                    else:
-                        chunks = chunk_code(
-                            file_contents,
-                            path=file_change_request.filename,
-                            MAX_CHARS=15_000,
-                            coalesce=5_000,
-                        )
-                        for i, chunk in enumerate(chunks):
-                            chunk.start += 1
-                            if chunk.end >= len(lines) - 2:
-                                chunk.end += 1
-                            chunk_contents = chunk.get_snippet(
-                                add_ellipsis=False, add_lines=False
-                            )
-                            (
-                                new_chunk,
-                                suggested_commit_message,
-                                sandbox_error,
-                                changed_files,
-                            ) = self.modify_file(
-                                file_change_request,
-                                contents=chunk_contents,
-                                chunking=True,
-                                changed_files=changed_files,
-                                temperature=temperature,
-                            )
-                            commit_message = suggested_commit_message
-                            logger.info(
-                                f"Chunk {i} of {len(chunks)}: {generate_diff(chunk_contents, new_chunk)}"
-                            )
-                            new_file_contents += new_chunk + "\n"
-                except Exception as e:
-                    logger.print(e)
-                    raise e
-                changed_files.append((file_name, ("\n".join(lines), new_file_contents)))
-                return new_file_contents, commit_message, sandbox_error, changed_files
-
-            (
-                new_file_contents,
-                commit_message,
-                sandbox_execution,
-                changed_files,
-            ) = get_new_file()
-
-            if file_contents == new_file_contents:
-                logger.info("No changes made to file. Retrying with temperature 0.2")
-                (
-                    new_file_contents,
-                    commit_message,
-                    sandbox_execution,
-                    changed_files,
-                ) = get_new_file(temperature=0.2)
-
-            if file_contents == new_file_contents:
-                logger.info("No changes made to file. Retrying with temperature 0.4")
-                (
-                    new_file_contents,
-                    commit_message,
-                    sandbox_execution,
-                    changed_files,
-                ) = get_new_file(temperature=0.4)
-
-            # If the original file content is identical to the new file content, log a warning and return
-            if file_contents == new_file_contents:
-                logger.warning(
-                    f"No changes made to {file_change_request.filename}. Skipping file"
-                    " update."
-                )
-                return (
-                    False,
-                    sandbox_execution,
-                    "No changes made to file.",
-                    changed_files,
-                )
+            )
+        joined_relevant_snippets = "\n".join(
+            formatted_relevant_snippets
+        )
+    else:
+        joined_relevant_snippets = "\n".join(
+            relevant_snippet_template.format(
+                i=i,
+                file_path=snippet.file_path,
+                content=snippet.expand(300).get_snippet(add_lines=False),
+            ) for i, snippet in enumerate(relevant_snippets)
+        )
+    relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. We previously summarized each of the files to help you solve the GitHub issue. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
+    messages.append(
+        Message(
+            role="user",
+            content=relevant_snippets_message,
+            key="relevant_snippets",
+        )
+    )
+    messages.append(
+        Message(
+            role="user",
+            content=f"# GitHub Issue\n<issue>\n{problem_statement}\n</issue>",
+        )
+    )
+    diff_string = ""
+    for file_path, file_info in updated_files.items():
+        diff_string += f"```diff\n{file_path}\n{generate_diff(file_info['original_contents'], file_info['contents'], n=10)}\n```"
+    if diff_string:
+        messages.append(
+            Message(
+                role="user",
+                content=f"# Here are the changes we have made to resolve the issue that needs testing:\n<diff>\n{diff_string}\n</diff>\n",
+                key="pr_diffs"
+            )
+        )
+    if import_graph:
+        graph_string = ""
+        reverse_graph = import_graph.reverse()
+        for snippet in relevant_snippets + read_only_snippets:
+            file_path = snippet.file_path
+            if file_path not in reverse_graph or not reverse_graph[file_path]:
+                continue
+            graph_string += f"\nThe file '{file_path}' is imported by the following files:\n"
+            for import_path in reverse_graph[file_path]:
+                if ".venv" in import_path or "build" in import_path:
+                    continue
+                graph_string += f"- {import_path}\n"
+        messages.append(
+            Message(
+                role="user",
+                content=f"# Here's the structure of the imports:\n<import_graph>\n{graph_string}\n</import_graph>",
+            )
+        )
+    try:
+        print("messages")
+        for message in messages:
+            print(message.content + "\n\n")
+        joint_message = "\n\n".join(message.content for message in messages[1:])
+        print("messages", joint_message)
+        chat_gpt = ChatGPT(
+            messages=[
+                Message(
+                    role="system",
+                    content=test_files_to_change_system_prompt,
+                ),
+            ],
+        )
+        MODEL = "claude-3-opus-20240229"
+        files_to_change_response: str = chat_gpt.chat_anthropic(
+            content=joint_message + "\n\n" + test_files_to_change_prompt,
+            model=MODEL,
+            temperature=0.1,
+        )
+        # breakpoint()
+        max_tokens = 4096 * 3.5 * 0.9 # approx max tokens per response
+        expected_plan_count = 1
+        call_anthropic_second_time = len(files_to_change_response) > max_tokens and files_to_change_response.count("</plan>") < expected_plan_count
+        if call_anthropic_second_time:
+            # ask for a second response
             try:
-                result = self.repo.update_file(
-                    file_name,
-                    commit_message,
-                    new_file_contents,
-                    file.sha,
-                    branch=branch,
+                second_response = chat_gpt.chat_anthropic(
+                    content="",
+                    model=MODEL,
+                    temperature=0.1,
                 )
-            except AssistantRaisedException as e:
-                raise e
+                # we can simply concatenate the responses
+                files_to_change_response += second_response
             except Exception as e:
-                logger.info(f"Error in updating file, repulling and trying again {e}")
-                file = self.get_file(file_change_request.filename, branch=branch)
-                result = self.repo.update_file(
-                    file_name,
-                    commit_message,
-                    new_file_contents,
-                    file.sha,
-                    branch=branch,
-                )
-            file_change_request.new_content = new_file_contents
-            return True, sandbox_execution, result["commit"], changed_files
-        except (MaxTokensExceeded, AssistantRaisedException) as e:
-            raise e
-        except Exception as e:
-            tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")
-            return False, sandbox_execution, None, changed_files
+                logger.warning(f"Failed to get second response due to {e}")
+        if chat_logger:
+            chat_logger.add_chat(
+                {
+                    "model": MODEL,
+                    "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
+                    "output": files_to_change_response,
+                })
+        print("files_to_change_response", files_to_change_response)
+        relevant_modules = []
+        pattern = re.compile(r"<relevant_modules>(.*?)</relevant_modules>", re.DOTALL)
+        relevant_modules_match = pattern.search(files_to_change_response)
+        if relevant_modules_match:
+            relevant_modules = [relevant_module.strip() for relevant_module in relevant_modules_match.group(1).split("\n") if relevant_module.strip()]
+        print("relevant_modules", relevant_modules)
+        file_change_requests = []
+        for re_match in re.finditer(
+            FileChangeRequest._regex, files_to_change_response, re.DOTALL
+        ):
+            file_change_request = FileChangeRequest.from_string(re_match.group(0))
+            file_change_request.raw_relevant_files = " ".join(relevant_modules)
+            file_change_requests.append(file_change_request)
+        return file_change_requests, files_to_change_response
+    except RegexMatchError as e:
+        print("RegexMatchError", e)
+
+    return [], ""
+
+
+def get_files_to_change_for_gha(
+    relevant_snippets: list[Snippet],
+    read_only_snippets: list[Snippet],
+    problem_statement: str,
+    updated_files: dict[str, dict[str, str]],
+    cloned_repo: ClonedRepo,
+    pr_diffs: str = "",
+    chat_logger: ChatLogger = None,
+    use_faster_model: bool = False,
+    use_openai: bool = False,
+) -> tuple[list[FileChangeRequest], str]:
+    file_change_requests: list[FileChangeRequest] = []
+    messages: list[Message] = []
+    messages.append(
+        Message(role="system", content=issue_sub_request_system_prompt, key="system")
+    )
+    # update the state of the snippets to be current
+    for relevant_snippet in relevant_snippets:
+        if relevant_snippet.file_path in updated_files:
+            relevant_snippet.content = updated_files[relevant_snippet.file_path]["contents"]
+    
+    for read_only_snippet in read_only_snippets:
+        if read_only_snippet.file_path in updated_files:
+            read_only_snippet.content = updated_files[read_only_snippet.file_path]["contents"]
+
+    interleaved_snippets = []
+    for i in range(max(len(relevant_snippets), len(read_only_snippets))):
+        if i < len(relevant_snippets):
+            interleaved_snippets.append(relevant_snippets[i])
+        if i < len(read_only_snippets):
+            interleaved_snippets.append(read_only_snippets[i])
+
+    max_snippets = get_max_snippets(interleaved_snippets)
+    relevant_snippets = [snippet for snippet in max_snippets if any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
+    read_only_snippets = [snippet for snippet in max_snippets if not any(snippet.file_path == relevant_snippet.file_path for relevant_snippet in relevant_snippets)]
+
+    read_only_snippet_template = '<read_only_snippet index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</read_only_snippet>'
+    joined_relevant_read_only_snippets = "\n".join(
+        read_only_snippet_template.format(
+            i=i,
+            file_path=snippet.file_path,
+            content=snippet.get_snippet(add_lines=False),
+        ) for i, snippet in enumerate(read_only_snippets)
+    )
+    read_only_snippets_message = f"<relevant_read_only_snippets>\n{joined_relevant_read_only_snippets}\n</relevant_read_only_snippets>"
+    if read_only_snippets:
+        messages.append(
+            Message(
+                role="user",
+                content=read_only_snippets_message,
+                key="relevant_snippets",
+            )
+        )
+    relevant_snippet_template = '<relevant_file index="{i}">\n<file_path>\n{file_path}\n</file_path>\n<source>\n{content}\n</source>\n</relevant_file>'
+    joined_relevant_snippets = "\n".join(
+        relevant_snippet_template.format(
+            i=i,
+            file_path=snippet.file_path,
+            content=snippet.expand(300).get_snippet(add_lines=False) if snippet.type_name == "source" else snippet.get_snippet(add_lines=False),
+        ) for i, snippet in enumerate(relevant_snippets)
+    )
+    relevant_snippets_message = f"# Relevant codebase files:\nHere are the relevant files from the codebase. These will be your primary reference to solve the problem:\n\n<relevant_files>\n{joined_relevant_snippets}\n</relevant_files>"
+    messages.append(
+        Message(
+            role="user",
+            content=relevant_snippets_message,
+            key="relevant_snippets",
+        )
+    )
+    messages.append(
+        Message(
+            role="user",
+            content=f"# GitHub Issue\n<issue>\n{problem_statement}\n</issue>",
+        )
+    )
+    if pr_diffs:
+        messages.append(
+            Message(role="user", content=pr_diffs, key="pr_diffs")
+        )
+    if use_faster_model:
+        file_paths_in_context = "\n".join(
+            snippet.file_path for snippet in relevant_snippets + read_only_snippets
+        )
+        messages.append(
+            Message(
+                role="user",
+                content=f"Here are all the file paths in context:\n<file_paths_in_context>\n{file_paths_in_context}\n<file_paths_in_context>",
+            )
+        )
+    try:
+        print("messages")
+        for message in messages:
+            print(message.content + "\n\n")
+        joint_message = "\n\n".join(message.content for message in messages[1:])
+        print("messages", joint_message)
+        chat_gpt = ChatGPT(
+            messages=[
+                Message(
+                    role="system",
+                    content=gha_files_to_change_system_prompt,
+                ),
+            ],
+        )
+        MODEL = "claude-3-opus-20240229" if not use_faster_model else "claude-3-sonnet-20240229"
+        continuous_llm_calls(
+            chat_gpt,
+            content=joint_message + "\n\n" + gha_files_to_change_prompt,
+            model=MODEL,
+            temperature=0.1,
+            stop_sequences=["</reflection>"],
+            response_cleanup=cleanup_fcrs,
+            MAX_CALLS=10,
+            use_openai=use_openai,
+        )
+        chat_gpt.messages[-1].content += "</reflection>\n"
+        chat_gpt.messages[0].content = gha_files_to_change_system_prompt_2
+        files_to_change_response = continuous_llm_calls(
+            chat_gpt,
+            content=gha_files_to_change_prompt_2,
+            model=MODEL,
+            temperature=0.1,
+            stop_sequences=["</plan>"],
+            response_cleanup=cleanup_fcrs,
+            MAX_CALLS=10,
+            use_openai=False,
+        ) + "\n</plan>"
+
+        if chat_logger:
+            chat_logger.add_chat(
+                {
+                    "model": MODEL,
+                    "messages": [{"role": message.role, "content": message.content} for message in chat_gpt.messages],
+                    "output": files_to_change_response,
+                })
+        print("files_to_change_response", files_to_change_response)
+        relevant_modules = []
+        pattern = re.compile(r"<relevant_modules>(.*?)</relevant_modules>", re.DOTALL)
+        relevant_modules_match = pattern.search(files_to_change_response)
+        if relevant_modules_match:
+            relevant_modules = [relevant_module.strip() for relevant_module in relevant_modules_match.group(1).split("\n") if relevant_module.strip()]
+        print("relevant_modules", relevant_modules)
+        file_change_requests = []
+        for re_match in re.finditer(
+            FileChangeRequest._regex, files_to_change_response, re.DOTALL
+        ):
+            file_change_request = FileChangeRequest.from_string(re_match.group(0))
+            file_change_request.raw_relevant_files = " ".join(relevant_modules)
+            file_change_requests.append(file_change_request)
+
+        error_message, error_indices = get_error_message(file_change_requests, cloned_repo, updated_files)
+
+        for _ in range(3):
+            if not error_message:
+                break
+            chat_gpt.messages = [message for message in chat_gpt.messages if message.key != "system"]
+            fix_attempt = continuous_llm_calls(
+                chat_gpt,
+                content=fix_files_to_change_prompt.format(
+                    error_message=error_message,
+                    allowed_indices=english_join([str(index) for index in range(len(error_indices))]),
+                ),
+                model=MODEL,
+                temperature=0.1,
+                stop_sequences=["</error_resolutions"],
+                response_cleanup=cleanup_fcrs,
+                MAX_CALLS=10,
+                use_openai=use_openai,
+            )
+            drops, matches = parse_patch_fcrs(fix_attempt)
+            for index, new_fcr in matches:
+                if index >= len(error_indices):
+                    logger.warning(f"Index {index} not in error indices")
+                    continue
+                if new_fcr.change_type == "create" and "COPIED_FROM_PREVIOUS_CREATE" in new_fcr.instructions:
+                    # if COPIED_FROM_PREVIOUS_CREATE, we just need to override the filename
+                    file_change_requests[error_indices[index]].filename = new_fcr.filename
+                    continue
+                file_change_requests[error_indices[index]] = new_fcr
+
+            for drop in sorted(drops, reverse=True):
+                if drop >= len(error_indices):
+                    logger.warning(f"Index {drop} not in error indices")
+                    continue
+                file_change_requests.pop(error_indices[drop])
+            logger.debug("Old indices", error_indices)
+            error_message, error_indices = get_error_message(file_change_requests, cloned_repo, updated_files)
+            logger.debug("New indices", error_indices)
+
+        # breakpoint()
+        set_fcr_change_type(file_change_requests, cloned_repo)
+        return file_change_requests, files_to_change_response
+    except RegexMatchError as e:
+        print("RegexMatchError", e)
+
+    return [], ""

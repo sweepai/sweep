@@ -2,10 +2,10 @@ import re
 import traceback
 from typing import TypeVar
 
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
+from sweepai.config.server import DEFAULT_GPT4_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
-from sweepai.logn import logger
+from loguru import logger
 
 system_prompt = """You are a brilliant and meticulous engineer assigned to review the following commit diffs and make sure the file conforms to the user's rules.
 If the diffs do not conform to the rules, we should create a GitHub issue telling the user what changes should be made.
@@ -112,11 +112,9 @@ class PostMerge(ChatGPT):
                     key="system",
                 )
             ]
-            self.model = (
-                DEFAULT_GPT4_32K_MODEL
-                if (self.chat_logger and self.chat_logger.is_paying_user())
-                else DEFAULT_GPT35_MODEL
-            )
+            if self.chat_logger and not self.chat_logger.is_paying_user():
+                raise ValueError("User is not a paying user")
+            self.model = DEFAULT_GPT4_MODEL
             response = self.chat(
                 user_message.format(
                     rule=rule,
@@ -129,8 +127,6 @@ class PostMerge(ChatGPT):
                 issue_title_and_description.issue_title,
                 issue_title_and_description.issue_description,
             )
-        except SystemExit:
-            raise SystemExit
         except Exception:
             logger.error(f"An error occurred: {traceback.print_exc()}")
             return False, "", ""

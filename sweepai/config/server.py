@@ -6,7 +6,7 @@ from loguru import logger
 
 logger.print = logger.info
 
-load_dotenv(dotenv_path=".env", override=True)
+load_dotenv(dotenv_path=".env", override=True, verbose=True)
 
 os.environ["GITHUB_APP_PEM"] = os.environ.get("GITHUB_APP_PEM") or base64.b64decode(
     os.environ.get("GITHUB_APP_PEM_BASE64", "")
@@ -19,40 +19,12 @@ if os.environ["GITHUB_APP_PEM"]:
         .strip('"')
     )
 
-os.environ["TRANSFORMERS_CACHE"] = os.environ.get(
-    "TRANSFORMERS_CACHE", "/tmp/cache/model"
-)  # vector_db.py
-os.environ["TIKTOKEN_CACHE_DIR"] = os.environ.get(
-    "TIKTOKEN_CACHE_DIR", "/tmp/cache/tiktoken"
-)  # utils.py
-
-SENTENCE_TRANSFORMERS_MODEL = os.environ.get(
-    "SENTENCE_TRANSFORMERS_MODEL",
-    "sentence-transformers/all-MiniLM-L6-v2",  # "all-mpnet-base-v2"
-)
-BATCH_SIZE = int(
-    os.environ.get("BATCH_SIZE", 32)
-)  # Tune this to 32 for sentence-transformers/all-MiniLM-L6-v2 on CPU
-
 TEST_BOT_NAME = "sweep-nightly[bot]"
 ENV = os.environ.get("ENV", "dev")
-# ENV = os.environ.get("MODAL_ENVIRONMENT", "dev")
-
-# ENV = PREFIX
-# ENVIRONMENT = PREFIX
-
-DB_MODAL_INST_NAME = "db"
-DOCS_MODAL_INST_NAME = "docs"
-API_MODAL_INST_NAME = "api"
-UTILS_MODAL_INST_NAME = "utils"
 
 BOT_TOKEN_NAME = "bot-token"
 
-# goes under Modal 'discord' secret name (optional, can leave env var blank)
-DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
-DISCORD_MEDIUM_PRIORITY_URL = os.environ.get("DISCORD_MEDIUM_PRIORITY_URL")
-DISCORD_LOW_PRIORITY_URL = os.environ.get("DISCORD_LOW_PRIORITY_URL")
-DISCORD_FEEDBACK_WEBHOOK_URL = os.environ.get("DISCORD_FEEDBACK_WEBHOOK_URL")
+GITHUB_BASE_URL = os.environ.get("GITHUB_BASE_URL", "https://api.github.com") # configure for enterprise
 
 SWEEP_HEALTH_URL = os.environ.get("SWEEP_HEALTH_URL")
 DISCORD_STATUS_WEBHOOK_URL = os.environ.get("DISCORD_STATUS_WEBHOOK_URL")
@@ -123,68 +95,48 @@ blocked_dirs: []
 )
 
 
-OPENAI_USE_3_5_MODEL_ONLY = (
-    os.environ.get("OPENAI_USE_3_5_MODEL_ONLY", "false").lower() == "true"
-)
-
-
-# goes under Modal 'mongodb' secret name
 MONGODB_URI = os.environ.get("MONGODB_URI", None)
+IS_SELF_HOSTED = os.environ.get("IS_SELF_HOSTED", "true").lower() == "true"
 
-IS_SELF_HOSTED = MONGODB_URI is None
-
-# goes under Modal 'redis_url' secret name (optional, can leave env var blank)
 REDIS_URL = os.environ.get("REDIS_URL")
-# deprecated: old logic transfer so upstream can use this
 if not REDIS_URL:
     REDIS_URL = os.environ.get("redis_url", "redis://0.0.0.0:6379/0")
 
 ORG_ID = os.environ.get("ORG_ID", None)
-# goes under Modal 'posthog' secret name (optional, can leave env var blank)
 POSTHOG_API_KEY = os.environ.get(
     "POSTHOG_API_KEY", "phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n"
 )
 
-LOGTAIL_SOURCE_KEY = os.environ.get("LOGTAIL_SOURCE_KEY")
-
-E2B_API_KEY = os.environ.get("E2B_API_KEY")
-
 SUPPORT_COUNTRY = os.environ.get("GDRP_LIST", "").split(",")
 
 WHITELISTED_REPOS = os.environ.get("WHITELISTED_REPOS", "").split(",")
-
-
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
-ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
-
-VECTOR_EMBEDDING_SOURCE = os.environ.get(
-    "VECTOR_EMBEDDING_SOURCE", "sentence-transformers"
-)  # Alternate option is openai or huggingface and set the corresponding env vars
-
-BASERUN_API_KEY = os.environ.get("BASERUN_API_KEY", None)
-
-# Huggingface settings, only checked if VECTOR_EMBEDDING_SOURCE == "huggingface"
-HUGGINGFACE_URL = os.environ.get("HUGGINGFACE_URL", None)
-HUGGINGFACE_TOKEN = os.environ.get("HUGGINGFACE_TOKEN", None)
-
-# Replicate settings, only checked if VECTOR_EMBEDDING_SOURCE == "replicate"
-REPLICATE_API_KEY = os.environ.get("REPLICATE_API_KEY", None)
-REPLICATE_URL = os.environ.get("REPLICATE_URL", None)
-REPLICATE_DEPLOYMENT_URL = os.environ.get("REPLICATE_DEPLOYMENT_URL", None)
+BLACKLISTED_USERS = os.environ.get("BLACKLISTED_USERS", "").split(",")
 
 # Default OpenAI
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", None)
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", None) # this may be none, and it will use azure
 
-# Azure settings, only checked if OPENAI_API_TYPE == "azure"
+OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", "anthropic")
+assert OPENAI_API_TYPE in ["anthropic", "azure", "openai"], "Invalid OPENAI_API_TYPE"
+OPENAI_EMBEDDINGS_API_TYPE = os.environ.get("OPENAI_EMBEDDINGS_API_TYPE", "openai")
+
 AZURE_API_KEY = os.environ.get("AZURE_API_KEY", None)
-OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", None)
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", None)
 OPENAI_API_VERSION = os.environ.get("OPENAI_API_VERSION", None)
+AZURE_OPENAI_DEPLOYMENT = os.environ.get("AZURE_OPENAI_DEPLOYMENT", None)
+
+OPENAI_EMBEDDINGS_API_TYPE = os.environ.get("OPENAI_EMBEDDINGS_API_TYPE", "openai")
+OPENAI_EMBEDDINGS_AZURE_ENDPOINT = os.environ.get(
+    "OPENAI_EMBEDDINGS_AZURE_ENDPOINT", None
+)
+OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT = os.environ.get(
+    "OPENAI_EMBEDDINGS_AZURE_DEPLOYMENT", None
+)
+OPENAI_EMBEDDINGS_AZURE_API_VERSION = os.environ.get(
+    "OPENAI_EMBEDDINGS_AZURE_API_VERSION", None
+)
 
 OPENAI_API_ENGINE_GPT35 = os.environ.get("OPENAI_API_ENGINE_GPT35", None)
 OPENAI_API_ENGINE_GPT4 = os.environ.get("OPENAI_API_ENGINE_GPT4", None)
-OPENAI_API_ENGINE_GPT4_32K = os.environ.get("OPENAI_API_ENGINE_GPT4_32K", None)
 MULTI_REGION_CONFIG = os.environ.get("MULTI_REGION_CONFIG", None)
 if isinstance(MULTI_REGION_CONFIG, str):
     MULTI_REGION_CONFIG = MULTI_REGION_CONFIG.strip("'").replace("\\n", "\n")
@@ -195,11 +147,70 @@ if WHITELISTED_USERS:
     WHITELISTED_USERS = WHITELISTED_USERS.split(",")
     WHITELISTED_USERS.append(GITHUB_BOT_USERNAME)
 
-DEFAULT_GPT4_32K_MODEL = os.environ.get("DEFAULT_GPT4_32K_MODEL", "gpt-4-1106-preview")
-DEFAULT_GPT35_MODEL = os.environ.get("DEFAULT_GPT35_MODEL", "gpt-3.5-turbo-1106")
+DEFAULT_GPT4_MODEL = os.environ.get("DEFAULT_GPT4_MODEL", "gpt-4-0125-preview")
 
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", None)
-LOKI_URL = os.environ.get("LOKI_URL", None)
+LOKI_URL = None
 
-DEBUG: bool = True
+FILE_CACHE_DISABLED = os.environ.get("FILE_CACHE_DISABLED", "true").lower() == "true"
 ENV = "prod" if GITHUB_BOT_USERNAME != TEST_BOT_NAME else "dev"
+
+PROGRESS_BASE_URL = os.environ.get(
+    "PROGRESS_BASE_URL", "https://progress.sweep.dev"
+).rstrip("/")
+
+DISABLED_REPOS = os.environ.get("DISABLED_REPOS", "").split(",")
+
+GHA_AUTOFIX_ENABLED: bool = os.environ.get("GHA_AUTOFIX_ENABLED", False)
+MERGE_CONFLICT_ENABLED: bool = os.environ.get("MERGE_CONFLICT_ENABLED", False)
+INSTALLATION_ID = os.environ.get("INSTALLATION_ID", None)
+
+AWS_ACCESS_KEY=os.environ.get("AWS_ACCESS_KEY")
+AWS_SECRET_KEY=os.environ.get("AWS_SECRET_KEY")
+AWS_REGION=os.environ.get("AWS_REGION")
+ANTHROPIC_AVAILABLE = AWS_ACCESS_KEY and AWS_SECRET_KEY and AWS_REGION
+
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", None)
+
+COHERE_API_KEY = os.environ.get("COHERE_API_KEY", None)
+
+VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY", None)
+
+VOYAGE_API_AWS_ACCESS_KEY=os.environ.get("VOYAGE_API_AWS_ACCESS_KEY_ID")
+VOYAGE_API_AWS_SECRET_KEY=os.environ.get("VOYAGE_API_AWS_SECRET_KEY")
+VOYAGE_API_AWS_REGION=os.environ.get("VOYAGE_API_AWS_REGION")
+VOYAGE_API_AWS_ENDPOINT_NAME=os.environ.get("VOYAGE_API_AWS_ENDPOINT_NAME", "voyage-code-2")
+
+VOYAGE_API_USE_AWS = VOYAGE_API_AWS_ACCESS_KEY and VOYAGE_API_AWS_SECRET_KEY and VOYAGE_API_AWS_REGION
+
+PAREA_API_KEY = os.environ.get("PAREA_API_KEY", None)
+
+# TODO: we need to make this dynamic + backoff
+BATCH_SIZE = int(
+    os.environ.get("BATCH_SIZE", 64 if VOYAGE_API_KEY else 256) # Voyage only allows 128 items per batch and 120000 tokens per batch
+)
+
+DEPLOYMENT_GHA_ENABLED = os.environ.get("DEPLOYMENT_GHA_ENABLED", "true").lower() == "true"
+
+JIRA_USER_NAME = os.environ.get("JIRA_USER_NAME", None)
+JIRA_API_TOKEN = os.environ.get("JIRA_API_TOKEN", None)
+JIRA_URL = os.environ.get("JIRA_URL", None)
+
+SLACK_API_KEY = os.environ.get("SLACK_API_KEY", None)
+
+LICENSE_KEY = os.environ.get("LICENSE_KEY", None)
+ALTERNATE_AWS = os.environ.get("ALTERNATE_AWS", "none").lower() == "true"
+
+WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", None)
+
+SENTRY_URL = os.environ.get("SENTRY_URL", None)
+
+CACHE_DIRECTORY = os.environ.get("CACHE_DIRECTORY", "/mnt/caches")
+
+assert OPENAI_API_KEY, "OPENAI_API_KEY is required."
+assert COHERE_API_KEY, "COHERE_API_KEY is required."
+
+CIRCLE_CI_PAT = os.environ.get("CIRCLE_CI_PAT", None) # if this is present, we will poll from and get logs from circleci
+
+DOCKER_ENABLED = os.environ.get("DOCKER_ENABLED", "false").lower() == "true"
+DOCKERFILE_CONFIG_LOCATION = os.environ.get("DOCKERFILE_CONFIG_LOCATION", None) # location of the 

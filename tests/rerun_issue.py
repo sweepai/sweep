@@ -5,12 +5,12 @@ import requests
 import typer
 from github import Github
 
-from sweepai.events import Account, Installation, IssueRequest
 from sweepai.utils.github_utils import get_github_client, get_installation_id
+from sweepai.web.events import Account, Installation, IssueRequest
 
 
 def wait_for_server(host: str):
-    for i in range(120):
+    for i in range(10 * 60):
         try:
             response = requests.get(host)
             if response.status_code == 200:
@@ -92,18 +92,16 @@ def main(
     better_stack_prefix: str = "https://logs.betterstack.com/team/199101/tail?rf=now-30m&q=metadata.issue_url%3A",
 ):
     issue_url = issue_url or typer.prompt("Issue URL")
-    print(f"Fetching issue metdata...")
+    print("Fetching issue metdata...")
     issue_request = fetch_issue_request(issue_url)
     wait_for_server(host)
-    print(f"Sending request...")
+    print("Sending request...")
     response = requests.post(
         host,
         json=issue_request.dict(),
         headers={"X-GitHub-Event": "issues"},
     )
-    print(response)
     better_stack_link = f"{better_stack_prefix}{html.escape(issue_url)}"
-    print(f"Track the logs at the following link:\n\n{better_stack_link}")
 
 
 if __name__ == "__main__":
