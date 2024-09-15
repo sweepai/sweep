@@ -82,7 +82,7 @@ dependencies = [
   "jira==3.8.0",
   "slack-sdk==3.27.1",
   "jsonpatch==1.33",
-  "scikit-learn==1.4.2",
+  "scikit-learn==1.5.0",
   "sentry-sdk==2.2.0",
 ]
 
