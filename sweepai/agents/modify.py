@@ -25,12 +25,12 @@ def generate_code_suggestions(
         if fcr.filename not in modify_order:
             modify_order.append(fcr.filename)
 
-    code_suggestions = []
+    applied_code_suggestions = []
     for file_path in modify_order:
         if file_path in modify_files_dict:
             file_data = modify_files_dict[file_path]
             if file_data["original_contents"] != file_data["contents"]:
-                code_suggestions.append(StatefulCodeSuggestion(
+                applied_code_suggestions.append(StatefulCodeSuggestion(
                     file_path=file_path,
                     original_code=file_data["original_contents"],
                     new_code=file_data["contents"],
@@ -38,26 +38,23 @@ def generate_code_suggestions(
                     state="done"
                 ))
     
-    current_fcr_index = next((i for i, fcr in enumerate(fcrs) if not fcr.is_completed), -1)
-    if current_fcr_index >= 0:
-        for i, fcr in enumerate(fcrs):
-            if i < current_fcr_index:
-                continue
-            else:
-                parsed_fcr = parse_fcr(fcr)
-                try:
-                    file_contents = cloned_repo.get_file_contents(fcr.filename)
-                except FileNotFoundError:
-                    file_contents = ""
-                code_suggestions.append(StatefulCodeSuggestion(
-                    file_path=fcr.filename,
-                    original_code=parsed_fcr["original_code"][0] if parsed_fcr["original_code"] else "",
-                    new_code=parsed_fcr["new_code"][0] if parsed_fcr["new_code"] else "",
-                    file_contents=file_contents,
-                    state=("processing" if i == current_fcr_index else "pending"),
-                    error=error_messages_dict.get(i, None)
-                ))
-    return code_suggestions
+    queued_code_suggestions = []
+    current_fcr_index = next((i for i, fcr in enumerate(fcrs) if not fcr.is_completed), len(fcrs))
+    for i, fcr in enumerate(fcrs):
+        parsed_fcr = parse_fcr(fcr)
+        try:
+            file_contents = cloned_repo.get_file_contents(fcr.filename)
+        except FileNotFoundError:
+            file_contents = ""
+        queued_code_suggestions.append(StatefulCodeSuggestion(
+            file_path=fcr.filename,
+            original_code=parsed_fcr["original_code"][0] if parsed_fcr["original_code"] else "",
+            new_code=parsed_fcr["new_code"][0] if parsed_fcr["new_code"] else "",
+            file_contents=file_contents,
+            state=("processing" if i == current_fcr_index else ("pending" if i > current_fcr_index else "done")),
+            error=error_messages_dict.get(i, None)
+        ))
+    return applied_code_suggestions, queued_code_suggestions
 
 @streamable
 def modify(
