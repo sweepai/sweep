@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sign In</title>
+    <script>
+        function validateAndSubmitForm(event) {
+            event.preventDefault();
+            var username = document.getElementById("username").value;
+            var password = document.getElementById("password").value;
+            if (username === "" || password === "") {
+                alert("Both fields are required.");
+                return false;
+            }
+            // Handle form submission here.
+            alert("Form submitted successfully.");
+            return true;
+        }
+    </script>
+</head>
+<body>
+    <form onsubmit="return validateAndSubmitForm(event);">
+        <label for="username">Username:</label><br>
+        <input type="text" id="username" name="username"><br>
+        <label for="password">Password:</label><br>
+        <input type="password" id="password" name="password"><br>
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>

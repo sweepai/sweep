@@ -1,0 +1,41 @@
+/* Styles for the body element */
+body {
+    font-family: Arial, sans-serif;
+}
+
+/* Styles for the form element */
+form {
+    margin: 0 auto;
+    width: 300px;
+    padding: 1em;
+    border: 1px solid #CCC;
+    border-radius: 1em;
+}
+
+/* Styles for input elements within the form */
+form input {
+    margin-bottom: 1em;
+    padding: .25em;
+    border: 1px solid #CCC;
+    border-radius: .25em;
+}
+
+/* Styles for the submit input within the form */
+form input[type="submit"] {
+    padding: 1em;
+    border: none;
+    background-color: #007BFF;
+    color: white;
+    border-radius: .25em;
+}
+
+/* Styles for the hover state of the submit input within the form */
+form input[type="submit"]:hover {
+    background-color: #0056b3;
+}
+
+/* Styles for h1 elements */
+h1 {
+    text-align: center;
+    font-size: 2em;
+}
