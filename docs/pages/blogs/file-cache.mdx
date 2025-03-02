@@ -82,25 +82,25 @@ except Exception as e:
     print(e) # -> this doesn't work
 ```
 
-hashlib.md5 alone doesn't work for objects, giving us the error: `TypeError: object supporting the buffer API required`. 
+hashlib.sha1 alone doesn't work for objects, giving us the error: `TypeError: object supporting the buffer API required`. 
 We use recursive_hash, which works for arbitrary python objects.
 
 ```python /recursive_hash(item, depth + 1, ignore_params)/ /recursive_hash(key, depth + 1, ignore_params)/ /+ recursive_hash(val, depth + 1, ignore_params)/ /recursive_hash(value.__dict__, depth + 1, ignore_params)/
 def recursive_hash(value, depth=0, ignore_params=[]):
     """Hash primitives recursively with maximum depth."""
     if depth > MAX_DEPTH:
-        return hashlib.md5("max_depth_reached".encode()).hexdigest()
+        return hashlib.sha1("max_depth_reached".encode()).hexdigest()
 
     if isinstance(value, (int, float, str, bool, bytes)):
-        return hashlib.md5(str(value).encode()).hexdigest()
+        return hashlib.sha1(str(value).encode()).hexdigest()
     elif isinstance(value, (list, tuple)):
-        return hashlib.md5(
+        return hashlib.sha1(
             "".join(
                 [recursive_hash(item, depth + 1, ignore_params) for item in value]
             ).encode()
         ).hexdigest()
     elif isinstance(value, dict):
-        return hashlib.md5(
+        return hashlib.sha1(
             "".join(
                 [
                     recursive_hash(key, depth + 1, ignore_params)
@@ -113,7 +113,7 @@ def recursive_hash(value, depth=0, ignore_params=[]):
     elif hasattr(value, "__dict__") and value.__class__.__name__ not in ignore_params:
         return recursive_hash(value.__dict__, depth + 1, ignore_params)
     else:
-        return hashlib.md5("unknown".encode()).hexdigest()
+        return hashlib.sha1("unknown".encode()).hexdigest()
 ``` 
 
 ### file_cache
