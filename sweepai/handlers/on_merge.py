@@ -5,6 +5,10 @@ on_merge is called by sweepai/api.py
 
 from loguru import logger
 
+# Debounce time in seconds
+DEBOUNCE_TIME = 120
+DEBOUNCE_TIME = 120
+
 # change threshold for number of lines changed
 CHANGE_BOUNDS = (10, 1500)
 
