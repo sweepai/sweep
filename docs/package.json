@@ -33,7 +33,7 @@
     "react-markdown": "^8.0.7",
     "react-youtube": "^10.1.0",
     "tailwind": "^4.0.0",
-    "uglify-js": "2.6.0"
+    "uglify-js": "3.14.3"
   },
   "devDependencies": {
     "@types/node": "18.11.10",
