@@ -579,7 +579,7 @@ tomlkit==0.12.3
     # via
     #   poetry
     #   pylint
-tornado==6.4
+tornado==6.4.2
     # via
     #   ipykernel
     #   jupyter-client

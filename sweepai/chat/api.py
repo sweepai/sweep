@@ -1201,7 +1201,11 @@ async def read_message_from_disk(
     message_id: str,
 ):
     try:
-        with open(f"{CACHE_DIRECTORY}/messages/{message_id}.json", "r") as file:
+        normalized_message_id = os.path.normpath(message_id)
+        fullpath = os.path.join(CACHE_DIRECTORY, "messages", f"{normalized_message_id}.json")
+        if not fullpath.startswith(os.path.join(CACHE_DIRECTORY, "messages")):
+            raise Exception("Invalid message ID")
+        with open(fullpath, "r") as file:
             message_data = json.load(file)
         return {
             "status": "success",
