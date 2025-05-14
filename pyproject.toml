@@ -71,7 +71,7 @@ dependencies = [
   "rapidfuzz==3.6.2",
   "resend==0.8.0",
   "psutil==5.9.8",
-  "jinja2==3.1.4",
+  "jinja2==3.1.6",
   "tiktoken==0.6.0",
   "uvicorn==0.29.0",
   "pylint==3.1.0",
@@ -82,8 +82,8 @@ dependencies = [
   "jira==3.8.0",
   "slack-sdk==3.27.1",
   "jsonpatch==1.33",
-  "scikit-learn==1.4.2",
-  "sentry-sdk==2.2.0",
+  "scikit-learn==1.5.1",
+  "sentry-sdk==2.8.0",
 ]
 
 [tool.isort]
