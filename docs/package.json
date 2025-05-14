@@ -5,9 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "prepublish": "npm run snyk-protect",
-    "snyk-protect": "snyk-protect"
+    "start": "next start"
   },
   "repository": {
     "type": "git",
@@ -35,8 +33,7 @@
     "react-markdown": "^8.0.7",
     "react-youtube": "^10.1.0",
     "tailwind": "^4.0.0",
-    "uglify-js": "3.14.3",
-    "@snyk/protect": "latest"
+    "uglify-js": "3.14.3"
   },
   "devDependencies": {
     "@types/node": "18.11.10",
@@ -64,6 +61,5 @@
       "katex@>=0.10.0-beta <0.16.10": ">=0.16.10",
       "express@<4.19.2": ">=4.19.2"
     }
-  },
-  "snyk": true
+  }
 }
