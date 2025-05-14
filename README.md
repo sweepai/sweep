@@ -10,7 +10,7 @@ g>
 <g
    =======
 <p align="center">
-    <img src="https://github.com/sweepai/sweep/assets/26889185/39d500fc-9276-402c-9ec7-3e61f57ad233">
+    <img src="[![CodeQL Advanced](https://github.com/https-gitcom/sweep/actions/workflows/codeql.yml/badge.svg)](https://github.com/https-gitcom/sweep/actions/workflows/codeql.yml)">
 </p>
 
 ---
