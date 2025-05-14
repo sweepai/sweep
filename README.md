@@ -1,19 +1,11 @@
 
-§:
-
-g>
-<g
-   <<<<<<< dependabot/npm_and_yarn/sweep_chat/axios-1.7.7
-§:
-
-g>
-<g
-   =======
+§:g> <<<<<<< dependabot/npm_and_yarn/sweep_chat/axios-1.7.7 >>>>>>>
+§:<g=======
 <p align="center">
     <img src="[![CodeQL Advanced](https://github.com/https-gitcom/sweep/actions/workflows/codeql.yml/badge.svg)](https://github.com/https-gitcom/sweep/actions/workflows/codeql.yml)">
 </p>
 
----
+[![CodeQL Advanced](https://github.com/https-gitcom/sweep/actions/workflows/codeql.yml/badge.svg)](https://github.com/https-gitcom/sweep/actions/workflows/codeql.yml)---
 
 <b>
   Sweep</b> is an AI junior developer that turns bugs and feature requests into code changes. :robot:
