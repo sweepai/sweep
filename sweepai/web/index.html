@@ -1,0 +1,41 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sweep AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            /* Dark mode gradient background */
+            /* background: linear-gradient(135deg, #0d1117, #112233, #1a2b3c); */
+            /* background: radial-gradient(135deg, #0d1117, #2a1427, #4a154b); */
+            /* background: radial-gradient(#4a154b, #0d1117); */
+            background: radial-gradient(#302b63, #0f0c29);
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="text-white min-h-screen flex flex-col items-center justify-center">
+    <h1 class="text-4xl font-bold">Welcome to Sweep AI</h1>
+    <img src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" alt="Sweeping GIF" class="w-64 h-64 mt-8 rounded-full">
+    {% if license_expired %}
+    <div class="bg-red-600 text-white font-bold p-4 rounded-lg mt-8">
+        <p>Error: Your license is either invalid or has expired. Please renew to continue using all features by contacting us at <a href="mailto:team@sweep.dev" class="text-gray-200 hover:underline">team@sweep.dev</a>.</p>
+    </div>
+    {% endif %}
+    {% if not license_expired %}
+    <h2 class="text-2xl mt-8">Sweep AI is up and running on <a id="dynamicUrl" href="http://localhost:8080" class="text-blue-400 hover:underline">http://localhost:8080</a></h2>
+    {% endif %}
+    <code class="mt-4">Version {{version}}</code>
+    <script>
+        document.getElementById('dynamicUrl').textContent = window.location.href;
+        document.getElementById('dynamicUrl').setAttribute("href", window.location.href);
+    </script>
+</body>
+</html>

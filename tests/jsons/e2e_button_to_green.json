@@ -1,0 +1,39 @@
+{
+    "action": "labeled",
+    "issue": {
+        "title": "Sweep: Change the install app button color to green",
+        "number": 1,
+        "html_url": "https://github.com/sweepai/e2e/issues/1",
+        "user": {
+            "login": "MartinYe1234",
+            "type": "User"
+        },
+        "body": "### Details\nReference CallToAction.tsx to find the button\n\n\n<details open>\n<summary>Checklist</summary>\n\n- [X] Modify `src/components/CallToAction.tsx` \u2713 https://github.com/sweepai/e2e/commit/0ef6250fe662c13f62201808baf2d9cb376134af [Edit](https://github.com/sweepai/e2e/edit/sweep/change_the_install_app_button_color_to_g_6f507/src/components/CallToAction.tsx#L55-L64)\n- [X] Running GitHub Actions for `src/components/CallToAction.tsx` \u2713  [Edit](https://github.com/sweepai/e2e/edit/sweep/change_the_install_app_button_color_to_g_6f507/src/components/CallToAction.tsx#L55-L64)\n</details>\n",
+        "labels": [
+            {
+                "name": "sweep"
+            }
+        ],
+        "assignees": null,
+        "pull_request": null
+    },
+    "repository": {
+        "full_name": "sweepai/e2e",
+        "description": null
+    },
+    "assignee": {
+        "login": "MartinYe1234"
+    },
+    "installation": {
+        "id": 36855882,
+        "account": {
+            "id": 52641447,
+            "login": "MartinYe1234",
+            "type": "User"
+        }
+    },
+    "sender": {
+        "login": "MartinYe1234",
+        "type": "User"
+    }
+}

@@ -1,49 +1,55 @@
 import difflib
 import re
 
-from sweepai.core.entities import SweepContext
-from sweepai.logn import logger
-from sweepai.utils.chat_logger import discord_log_error
+from loguru import logger
+from sweepai.dataclasses.comments import CommentDiffSpan
 from sweepai.utils.search_and_replace import Match, find_best_match
 
 
-def diff_contains_dups_or_removals(diff, new_code):
-    # The regex pattern for lines removed or added in the actual code
-    removed_line_pattern = r"^-.*"
-    added_line_pattern = r"^\+.*"
-
-    lines_removed = False
-    duplicate_lines_added = False
-
-    # Split the diff and new_code into separate lines
-    diff_lines = diff.split("\n")[3:]  # Start from the third line
-    new_code_lines = [line.strip() for line in new_code.split("\n")]
-
-    # Check if there are removed lines
-    for line in diff_lines:
-        if re.match(removed_line_pattern, line):
-            lines_removed = True
-
-    # Check if there are duplicate lines added
-    added_lines = [
-        line[1:].strip() for line in diff_lines if re.match(added_line_pattern, line)
-    ]
-    for line in added_lines:
-        if new_code_lines.count(line) > 1:
-            duplicate_lines_added = True
-            break
-
-    return lines_removed or duplicate_lines_added
-
-
-def generate_diff(old_code, new_code):
+def generate_diff(old_code, new_code, **kwargs):
     if old_code == new_code:
         return ""
-    old_code = old_code.strip()
-    new_code = new_code.strip()
+    stripped_old_code = old_code.strip("\n")
+    stripped_new_code = new_code.strip("\n")
+
+    # Split the code into lines, preserving the line endings
+    old_lines = old_code.splitlines(keepends=True)
+    new_lines = new_code.splitlines(keepends=True)
+
+    # Add a newline character at the end if it's missing
+    if not old_code.endswith("\n"):
+        old_lines.append("\n")
+    if not new_code.endswith("\n"):
+        new_lines.append("\n")
+
+    default_kwargs = {"n": 5}
+    default_kwargs.update(kwargs)
 
     diff = difflib.unified_diff(
-        old_code.splitlines(keepends=True), new_code.splitlines(keepends=True)
+        stripped_old_code.splitlines(keepends=True),
+        stripped_new_code.splitlines(keepends=True),
+        **kwargs
+    )
+
+    diff_result = ""
+
+    for line in diff:
+        if not line.endswith("\n"):
+            line += "\n"
+        diff_result += line
+
+    return diff_result
+
+def generate_ndiff(old_code, new_code, **kwargs):
+    if old_code == new_code:
+        return ""
+    stripped_old_code = old_code.strip()
+    stripped_new_code = new_code.strip()
+
+    diff = difflib.ndiff(
+        stripped_old_code.splitlines(keepends=True),
+        stripped_new_code.splitlines(keepends=True),
+        **kwargs
     )
 
     diff_text = "".join(diff)
@@ -112,61 +118,6 @@ def format_contents(file_contents, is_markdown=False):
 
     lines = first_three_lines + lines[3:-3] + last_three_lines
     return "\n".join(lines)
-
-
-def generate_new_file(
-    modify_file_response: str, old_file_content: str, chunk_offset: int = 0
-) -> str:
-    old_file_lines = old_file_content.split("\n")
-
-    # Extract content between <new_file> tags
-    new_file = re.search(
-        r".*?<new_file>\n?(.*)\n<\/new_file>", modify_file_response, re.DOTALL
-    ).group(1)
-    if "<copy_lines" not in new_file:
-        return new_file
-
-    # v5
-    result = []
-    lines = new_file.split("\n")
-    for line_number, line in enumerate(lines):
-        # Todo: make it support 1 number only
-        matches = re.finditer(r"<copy_lines\s(\d+-\d+)/?>", line)
-        copied_lines = False
-        for match in matches:
-            copied_lines = True
-            start, end = match.group(1).split("-")
-            start, end = int(start) - 1, int(end) - 1
-            if chunk_offset != 0:  # Correct for the line numbers being much higher
-                start -= chunk_offset
-                end -= chunk_offset
-            start = max(0, start)
-            end = min(len(old_file_lines) - 1, end)
-
-            replacements = old_file_lines[start : end + 1]
-            replacements_str = "\n".join(replacements)
-            line = line.replace(match.group(0), replacements_str)
-
-        # check if line was incorrectly duplicated
-        append = True
-        if not copied_lines:  # if bot generated, and line before is not bot generated
-            if len(result) > 0:
-                # Get last line in results
-                last_group = result[-1]
-                # last_line = last_group
-                if "\n" in last_group:
-                    last_line = last_group[
-                        last_group.rindex("\n") + 1 :
-                    ]  # if its multiple lines
-                    # if last line is same is current line
-                    if last_line == line:
-                        append = False
-
-        if append:
-            result.append(line)
-    result = "\n".join(result)
-
-    return result
 
 
 NOT_FOUND = "NOT_FOUND"
@@ -244,10 +195,12 @@ def sliding_window_replacement(
 
     # No changes could be found. Return original code.
     if max_similarity == 0:
-        raise Exception("No identical lines")
+        logger.print("No matches found")
+        return original, best_match, NOT_FOUND
 
     if max_similarity < 50:
         logger.print(f"Low similarity: {max_similarity}")
+        return original, best_match, NOT_FOUND
 
     snippet, spaces, strip = get_snippet_with_padding(original, best_match, search)
     if len(snippet) == 1 and len(replace) == 1:
@@ -290,89 +243,6 @@ def get_matches(modify_file_response):
     )
     return matches
 
-
-def generate_new_file_from_patch(
-    modify_file_response: str,
-    old_file_content: str,
-    chunk_offset: int = 0,
-    sweep_context: SweepContext = None,
-):
-    old_file_lines = old_file_content.split("\n")
-
-    # Extract content between <new_file> tags
-    matches = get_matches(modify_file_response)
-    errors = []
-
-    if not old_file_content.strip():
-        # If old file is empty, just return the first match
-        logger.print(matches)
-        search_and_replace, *_ = matches
-        return search_and_replace[1]
-
-    for search, replace in matches:
-        # Remove trailing tags
-        if search.lstrip().startswith("<old_file>") and replace.lstrip().startswith(
-            "<old_file>"
-        ):
-            search = search.lstrip()[len("<old_file>") :]
-            replace = replace.lstrip()[len("<old_file>") :]
-        # Remove trailing tags
-        if search.rstrip().endswith("</old_file>") and replace.rstrip().endswith(
-            "</old_file>"
-        ):
-            search = search.rstrip()[: -len("</old_file>")]
-            replace = replace.rstrip()[: -len("</old_file>")]
-        if replace.lstrip().startswith("<new_file>"):
-            replace = replace.lstrip()[len("<new_file>") :]
-        elif replace.lstrip().startswith("<updated_file>"):
-            replace = replace.lstrip()[len("<updated_file>") :]
-        if replace.rstrip().endswith("</new_file>"):
-            replace = replace.rstrip()[: -len("</new_file>")]
-        elif replace.rstrip().endswith("</updated_file>"):
-            replace = replace.rstrip()[: -len("</updated_file>")]
-        if replace.endswith("===="):
-            replace = replace[: -len("====")]
-        old_file_lines, best_match, status = sliding_window_replacement(
-            old_file_lines, search.split("\n"), replace.split("\n")
-        )
-
-        if status is not None:
-            s = search.replace("`", "\\`")
-            r = replace.replace("`", "\\`")
-            errors.append(f"- {status}\n```\n{s}\n```\n\n```\n{r}\n```")
-
-    if len(errors) > 0:
-        log = "\n\n".join(errors)
-        if sweep_context:
-            discord_log_error(
-                f"{sweep_context.issue_url}\nModify Parsing Errors {'gpt3.5' if sweep_context.use_faster_model else 'gpt4'}: \n"
-                + log,
-                priority=2 if sweep_context.use_faster_model else 0,
-            )
-        else:
-            discord_log_error(
-                f"Modify Parsing Errors gpt3.5: \n" + log,
-                priority=2,
-            )
-
-    result = "\n".join(old_file_lines)
-    return result, errors
-
-
-def join_contents_k(first, second, k):
-    """
-    Join contents together removing k duplicate lines
-    """
-    first_lines = first.split("\n")
-    second_lines = second.split("\n")
-    for i in range(k, 0, -1):
-        if len(first_lines) < k or len(second_lines) < k:
-            continue
-        if first_lines[-i:] == second_lines[:i]:
-            return "\n".join(first_lines) + "\n" + "\n".join(second_lines[i:])
-    return "\n".join(first_lines) + "\n" + "\n".join(second_lines)
-
-
 def is_markdown(filename):
     return (
         filename.endswith(".md")
@@ -380,17 +250,220 @@ def is_markdown(filename):
         or filename.endswith(".txt")
     )
 
+def get_diff_spans(old_content: str, new_content: str, file_name: str) -> list[CommentDiffSpan]:
+    # Split the contents into lines
+    old_lines = old_content.splitlines()
+    new_lines = new_content.splitlines()
+
+    # Create a differ object
+    differ = difflib.Differ()
+
+    # Generate the diff
+    diff = list(differ.compare(old_lines, new_lines))
+
+    # Initialize variables
+    old_end_line = 0
+    new_end_line = 0
+    old_start_line = None
+    new_start_line = None
+    new_code = []
+    diff_spans = []
+
+    # Iterate through the diff lines
+    for line in diff:
+        if line.startswith("  "):
+            # Unchanged line
+            old_end_line += 1
+            new_end_line += 1
+            if old_start_line is not None:
+                # End of a diff span
+                diff_spans.append(
+                    CommentDiffSpan(
+                        old_start_line=old_start_line, 
+                        old_end_line=old_end_line,
+                        new_start_line=new_start_line,
+                        new_end_line=new_end_line,
+                        new_code="\n".join(new_code),
+                        file_name=file_name
+                    )
+                )
+                old_start_line = None
+                new_start_line = None
+                new_code = []
+        elif line.startswith("+ "):
+            # Added line
+            new_end_line += 1
+            if old_start_line is None:
+                old_start_line = old_end_line
+                new_start_line = new_end_line
+            if line.strip():
+                new_code.append(line[2:])
+        elif line.startswith("- "):
+            # Removed line
+            old_end_line += 1
+            if old_start_line is None:
+                old_start_line = old_end_line
+                new_start_line = new_end_line
+    # Handle the last diff span
+    if old_start_line is not None:
+        diff_spans.append(
+            CommentDiffSpan(
+                old_start_line=old_start_line, 
+                old_end_line=old_end_line,
+                new_start_line=new_start_line,
+                new_end_line=new_end_line,
+                new_code="\n".join(new_code),
+                file_name=file_name
+            )
+        )
+
+    return diff_spans
 
 if __name__ == "__main__":
-    old_file = """
-a
-b
-c
-"""
+    old_file = """\
+            b"sample text",
+            b"typed sample text",
+            b"3",
+        ]
+        mock_User_load.return_value = MagicMock()
+        mock_TypingPractice.return_value = create_autospec(TypingPractice)
 
-    search = "b"
-    replace = """a
-b"""
+        main(mock_stdscr)
+
+        mock_stdscr.clear.assert_called()
+        mock_User_load.assert_called_with(b"username")
+        mock_TypingPractice.assert_called()
+        mock_TypingPractice.return_value.start_session.assert_called_with(
+            b"sample text"
+        )
+        mock_TypingPractice.return_value.end_session.assert_called_with(
+            b"typed sample text"
+        )
+        mock_TypingPractice.return_value.get_user_statistics.assert_called()
+        mock_curses_echo.assert_called()
+        mock_curses_initscr.assert_called()
+
+    @patch("touch_typing_practice.main.User.load")
+    @patch("touch_typing_practice.main.TypingPractice")
+    def test_main_invalid_choice(self, mock_TypingPractice, mock_User_load):
+        mock_stdscr = MagicMock()
+        mock_stdscr.getstr.side_effect = [
+            b"username",
+            b"invalid choice",
+            b"1",
+            b"sample text",
+            b"typed sample text",
+            b"3",
+        ]
+        mock_User_load.return_value = MagicMock()
+        mock_TypingPractice.return_value = create_autospec(TypingPractice)
+        mock_curses_initscr.assert_called()
+
+        main(mock_stdscr)
+
+        mock_stdscr.clear.assert_called()
+        mock_User_load.assert_called_with(b"username")
+        mock_TypingPractice.assert_called()
+        mock_TypingPractice.return_value.start_session.assert_called_with(
+            b"sample text"
+        )
+        mock_TypingPractice.return_value.end_session.assert_called_with(
+            b"typed sample text"
+        )
+        mock_TypingPractice.return_value.get_user_statistics.assert_called()
+
+
+if __name__ == "__main__":
+    unittest.main()"""
+
+    search = """\
+        mock_curses_initscr.assert_called()
+
+        main(mock_stdscr)
+
+        mock_stdscr.clear.assert_called()
+        mock_User_load.assert_called_with(b"username")
+        mock_TypingPractice.assert_called()
+        mock_TypingPractice.return_value.start_session.assert_called_with(
+            b"sample text"
+        )
+        mock_TypingPractice.return_value.end_session.assert_called_with(
+            b"typed sample text"
+        )
+        mock_TypingPractice.return_value.get_user_statistics.assert_called()
+        mock_curses_echo.assert_called()
+        mock_curses_initscr.assert_called()
+
+    @patch("touch_typing_practice.main.User.load")
+    @patch("touch_typing_practice.main.TypingPractice")
+    def test_main_invalid_choice(self, mock_TypingPractice, mock_User_load):
+        mock_stdscr = MagicMock()
+        mock_stdscr.getstr.side_effect = [
+            b"username",
+            b"invalid choice",
+            b"1",
+            b"sample text",
+            b"typed sample text",
+            b"3",
+        ]
+        mock_User_load.return_value = MagicMock()
+        mock_TypingPractice.return_value = create_autospec(TypingPractice)
+        mock_curses_initscr.assert_called()
+
+        main(mock_stdscr)
+
+        mock_stdscr.clear.assert_called()
+        mock_User_load.assert_called_with(b"username")
+        mock_TypingPractice.assert_called()
+        mock_TypingPractice.return_value.start_session.assert_called_with(
+            b"sample text"
+        )
+        mock_TypingPractice.return_value.end_session.assert_called_with(
+            b"typed sample text"
+        )
+        mock_TypingPractice.return_value.get_user_statistics.assert_called()"""
+    replace = """\
+        main(mock_stdscr)
+
+        mock_stdscr.clear.assert_called()
+        mock_User_load.assert_called_with(b"username")
+        mock_TypingPractice.assert_called()
+        mock_TypingPractice.return_value.start_session.assert_called_with(
+            b"sample text"
+        )
+        mock_TypingPractice.return_value.end_session.assert_called_with(
+            b"typed sample text"
+        )
+        mock_TypingPractice.return_value.get_user_statistics.assert_called()
+        mock_curses_echo.assert_called()
+
+    @patch("touch_typing_practice.main.User.load")
+    @patch("touch_typing_practice.main.TypingPractice")
+    def test_main_invalid_choice(self, mock_TypingPractice, mock_User_load):
+        mock_stdscr = MagicMock()
+        mock_stdscr.getstr.side_effect = [
+            b"username",
+            b"invalid choice",
+            b"1",
+            b"sample text",
+            b"typed sample text",
+            b"3",
+        ]
+        mock_User_load.return_value = MagicMock()
+        mock_TypingPractice.return_value = create_autospec(TypingPractice)
+
+        main(mock_stdscr)
+
+        mock_stdscr.clear.assert_called()
+        mock_User_load.assert_called_with(b"username")
+        mock_TypingPractice.assert_called()
+        mock_TypingPractice.return_value.start_session.assert_called_with(
+            b"sample text"
+        )
+        mock_TypingPractice.return_value.end_session.assert_called_with(
+            b"typed sample text"
+        )
+        mock_TypingPractice.return_value.get_user_statistics.assert_called()"""
     print(
         "\n".join(
             sliding_window_replacement(
@@ -398,38 +471,3 @@ b"""
             )[0]
         )
     )
-    old_file = '''
-
-"""
-on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
-It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its own PRs.
-"""
-
-'''
-
-    search = "on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py."
-    replace = '''
-"""
-on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
-It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its own PRs.
-"""'''
-    res = "\n".join(
-        sliding_window_replacement(
-            old_file.split("\n"), search.split("\n"), replace.split("\n")
-        )[0]
-    )
-    assert old_file == res
-
-    search = "on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py."
-    replace = '''
-"""
-Add another test line
-on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
-Add another test line'''
-    res = "\n".join(
-        sliding_window_replacement(
-            old_file.split("\n"), search.split("\n"), replace.split("\n")
-        )[0]
-    )
-    print(res)
-    assert "Add another test line" in res

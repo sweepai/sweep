@@ -71,7 +71,7 @@ class PrunedSnippets(RegexMatchableBaseModel):
         ):
             index = match_.group("index").strip("\n")
             index = int(index)
-            if index != None:
+            if index is not None:
                 snippet_indices.add(index)
         if len(snippet_indices) > 0:
             snippet_indices.add(0)
@@ -108,8 +108,6 @@ class PruneModifySnippets(ChatGPT):
             )
             snippet_indices = PrunedSnippets.from_string(response)
             return snippet_indices.snippet_indices
-        except SystemExit:
-            raise SystemExit
         except Exception as e:
             logger.error(f"An error occurred: {e}")
             return []

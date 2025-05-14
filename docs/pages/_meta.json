@@ -1,5 +1,7 @@
 {
-  "index": "🚀 Getting Started",
+  "index": "What's Sweep?",
+  "getting-started": "🚀 Getting Started",
+  "cli": "🔧 Sweep CLI",
   "deployment": "🏠 Self-Host",
   "usage": "📖 Usage",
   "about": "👋 About",
@@ -16,6 +18,12 @@
     "title": "Email",
     "type": "page",
     "href": "mailto:team@sweep.dev",
+    "newWindow": true
+  },
+  "community": {
+    "title": "Community",
+    "type": "page",
+    "href": "https://community.sweep.dev",
     "newWindow": true
   },
   "payment": {

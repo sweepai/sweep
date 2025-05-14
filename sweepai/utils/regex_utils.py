@@ -1,3 +1,6 @@
+import re
+
+
 def xml_pattern(
     tags: str,
     name: str | None = None,
@@ -5,8 +8,7 @@ def xml_pattern(
     **kwargs: dict[str, str],
 ) -> str:
     name = name or tags
-    # new_lines = "\n" if add_newlines else ""
-    new_lines = ""
+    new_lines = "\n" if add_newlines else ""
     if kwargs:
         kwargs_pattern = "\s+" + r"\s+".join(
             rf"{key}=\"(?P<{value}>.*?)\"" for key, value in kwargs.items()
@@ -16,9 +18,13 @@ def xml_pattern(
     return rf"<{tags}{kwargs_pattern}>{new_lines}(?P<{name}>.*?){new_lines}</{tags}>"
 
 
-if __name__ == "__main__":
-    import re
+def search_xml(content: str, tag: str, **kwargs) -> str:
+    return re.search(xml_pattern(tag, name=tag, **kwargs), content, re.DOTALL).group(
+        tag
+    )
 
+
+if __name__ == "__main__":
     pattern = xml_pattern("additional_changes", required="additional_changes_required")
     print(pattern)
     example_template = """\

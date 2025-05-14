@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "sweep-sdk"
+version = "0.0.0"
+description = "Python library for building LLM agents"
+authors = ["Kevin Lu", "William Zeng"]
+packages = [{include = "src" }]
+classifiers = ["Programming Language :: Python :: 3.10"]
+readme = "README.md"
+
+[tool.poetry.urls]
+Repository = "https://github.com/sweepai/sweep"
+"Community" = "https://community.sweep.dev/"
+Documentation = "https://docs.sweep.dev"
+Homepage = "https://sweep.dev"
+"Bug Tracker" = "https://github.com/sweepai/sweep/issues"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+backoff = "^2.2.1"
+tiktoken = "^0.3.2"
+openai = "0.28.1"
+loguru = "^0.6.0"
+
+[tool.black]
+string-normalization = false
+
+[mypy]
+check_untyped_defs = true
+
+[tool.pylint.'MESSAGES CONTROL']
+
+disable=[
+  'no-name-in-module'
+]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

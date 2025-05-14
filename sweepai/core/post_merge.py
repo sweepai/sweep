@@ -2,12 +2,12 @@ import re
 import traceback
 from typing import TypeVar
 
-from sweepai.config.server import DEFAULT_GPT4_32K_MODEL, DEFAULT_GPT35_MODEL
+from sweepai.config.server import DEFAULT_GPT4_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
-from sweepai.logn import logger
+from loguru import logger
 
-system_prompt = """Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to review the following commit diffs and make sure the file conforms to the user's rules.
+system_prompt = """You are a brilliant and meticulous engineer assigned to review the following commit diffs and make sure the file conforms to the user's rules.
 If the diffs do not conform to the rules, we should create a GitHub issue telling the user what changes should be made.
 
 Provide your response in the following format:
@@ -22,7 +22,7 @@ Output "True" if the rule is broken, "False" otherwise
 </changes_required>
 
 <issue_title>
-Github issue title describing the root cause of the broken rule.
+Write an issue title describing what file and rule to fix.
 </issue_title>
 
 <issue_description>
@@ -47,7 +47,7 @@ Output "True" if the rule is broken, "False" otherwise
 </changes_required>
 
 <issue_title>
-Github issue title describing the root cause of the broken rule.
+Write an issue title describing what file and rule to fix.
 </issue_title>
 
 <issue_description>
@@ -63,7 +63,7 @@ class IssueTitleAndDescription(RegexMatchableBaseModel):
     issue_description: str
 
     @classmethod
-    def from_string(cls: type[Self], string: str, **kwargs) -> Self:
+    def from_string(cls: type["IssueTitleAndDescription"], string: str, **kwargs) -> "IssueTitleAndDescription":
         changes_required_pattern = (
             r"""<changes_required>(\n)?(?P<changes_required>.*)</changes_required>"""
         )
@@ -103,7 +103,7 @@ class IssueTitleAndDescription(RegexMatchableBaseModel):
 
 
 class PostMerge(ChatGPT):
-    def check_for_issues(self, rule, diff) -> tuple[str, str]:
+    def check_for_issues(self, rule, diff) -> tuple[bool, str, str]:
         try:
             self.messages = [
                 Message(
@@ -112,11 +112,9 @@ class PostMerge(ChatGPT):
                     key="system",
                 )
             ]
-            self.model = (
-                DEFAULT_GPT4_32K_MODEL
-                if (self.chat_logger and self.chat_logger.is_paying_user())
-                else DEFAULT_GPT35_MODEL
-            )
+            if self.chat_logger and not self.chat_logger.is_paying_user():
+                raise ValueError("User is not a paying user")
+            self.model = DEFAULT_GPT4_MODEL
             response = self.chat(
                 user_message.format(
                     rule=rule,
@@ -129,8 +127,6 @@ class PostMerge(ChatGPT):
                 issue_title_and_description.issue_title,
                 issue_title_and_description.issue_description,
             )
-        except SystemExit:
-            raise SystemExit
         except Exception:
             logger.error(f"An error occurred: {traceback.print_exc()}")
             return False, "", ""
