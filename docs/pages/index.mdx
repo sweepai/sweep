@@ -10,39 +10,71 @@ Describe bugs, small features, and refactors like you would to a junior develope
 
 See highlights at https://docs.sweep.dev/about/examples.
 
-## 🌠 Features
-* 🔧 Turns issues directly into pull requests (without an IDE)
-* 👀 Addresses developer replies & comments on its PRs
-* 🕵️‍♂️ Uses embedding-based code search, with popularity reranking for repository-level code understanding ([🔍 Rebuilding our Search Engine in a Day](https://docs.sweep.dev/blogs/building-code-search))
-* 🎊 New: Fixes PRs based on Github Actions feedback
-
-<video controls>
-  <source src="https://github.com/sweepai/sweep/assets/44910023/365ec29f-7317-40a7-9b5e-0af02f2b0e47" type="video/mp4"/>
-    Your browser does not support the video tag.
-</video>
-
-## 🚀 Getting Started
+## 🚀 Install Sweep
 
 Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating an issue for the bot to address.
-We support all languages GPT4 supports, including Python, Typescript, Rust, Go, Java, C# and C++.
+We support all languages that GPT4 supports, such as Python, Typescript, Rust, Go, Java, C# and C++.
 
-1. Add the [Sweep GitHub app](https://github.com/apps/sweep-ai) to desired repos
-2. Create new issue in repo, like "Sweep: Write tests". If there's an existing issue, label it with the purple "Sweep" label.
-3. Watch the magic happen 🪄
+1. Add the [Sweep GitHub app](https://github.com/apps/sweep-ai) to your desired repos
+2. Create new issue in your repo, like `"Sweep: Handle this feature on my backlog ...."`. If there's an existing issue, label it with the purple "Sweep" label.
 
-### 🍲 Recipes
-#### To get the best performance from Sweep, we recommend the following approach to writing github issues/chats.
-For harder problems, try to provide the same information a human would need. For simpler problems, providing a single line and a file name should suffice.
+## 💡 How to Use Sweep
+You can use Sweep to create pull requests - a set of code changes that can be independently tested and merged. Sweep can do this in a couple of ways.
 
-A good issue might include:
+### Creating Pull Requests to handle an Issue
+First, you can assign Sweep a task like squashing an old bug in your backlog. To do this, create or use an existing GitHub issue. This issue should be detailed enough for a junior engineer (Sweep) to find the correct files and make the appropriate code changes.
 
-| Where to look <br/> **[file name or function name]**| What to do <br/> **[change the logic to do this]** | Additional Context (optional) <br/> **[there's a bug/we need this feature/there's this dependency]** |
-|-----------|------------|----------------------|
-|In `sweepai/app/ui.py`|use an os-agnostic temp directory|N/A|
-|In `on_comment.py`|we should not fire an event|because it's possible that the comment is on a closed PR|
-|In the config loader in `packages/server/src/config.ts`|add a third option called "env" to load the config settings from environment variables| At present, there are two options:  1. ... and 2. ...|
+#### Assigning Sweep to an Existing Issue
+To have Sweep create a PR for an existing issue, label the issue with the purple "Sweep" label (added to your repository when Sweep is installed).
+<br/>
+<div align="center"><img src="/assets/tutorial/label_issue.gif" alt="How to label a GitHub issue with Sweep" /></div>
 
-If you want Sweep to use a file, try to mention the full path. Similarly, to have Sweep use a function, try to mention the class method or what it does. Also see [Advanced](https://docs.sweep.dev/usage/advanced).
+#### Assigning Sweep to a New Issue
+To have Sweep create a PR for a new issue, create a new issue with the title `"Sweep: [title of issue]"`.
+<br/>
+<div align="center"><img src="/assets/tutorial/create_issue.gif" alt="How to create a new GitHub issue with Sweep" /></div>
+
+### Best Practices for Creating Issues
+For harder problems, try to provide the same information a human would need.
+
+- Title: `“Sweep: create a new search query filtering agent that will be used in ticket_utils.py”`
+
+- Description: `“We have keyword search in lexical_search.py, and we’d like to filter out unnecessary keywords using an agent and a prompt. Use the file name_agent.py as a reference”`
+
+For simpler problems, providing a single line and a reference file should suffice.
+- Title: `“Sweep: Add docstrings to main/api.py”`
+
+- Description: `“Use the file main/github_utils.py as a reference”`
+
+### Improving Sweep's PRs
+Sweep won’t always get it right, as language models aren’t as reliable for as we’d like them to be. <br/>
+Sweep has a couple of ways to deal with this though:
+
+#### Running your GitHub Actions
+Sweep defines and runs GitHub actions for you. After the PR is created, Sweep will work asynchronously until it fixes your CI. At this point, you can either try to fix it yourself or wait until Sweep completes it.
+
+### Having Sweep edit an existing PR
+If you want Sweep to make an edit to it's previous change, you can leave a comment on it's PR. Sweep supports two types of comments - specific and general.
+
+> [!NOTE] 
+> All comments must be prefixed with "Sweep: "
+
+#### Review Comments (Specific)
+You can create a specific comment by making a review comment. This comment will only modify the file that’s been commented on.
+<br/>
+<div align="center"><img src="/assets/tutorial/pr_comment.gif" alt="Creating a review comment on GitHub for Sweep to handle" /></div>
+
+#### Issue Comments (General)
+You can create a general comment by making an issue comment. This comment can perform codebase wide changes.
+<br/>
+<div align="center"><img src="/assets/tutorial/issue_comment.gif" alt="Creating a review comment on GitHub for Sweep to handle" /></div>
+<br/>
+
+### Merge Conflict Resolution
+When you create a pull request, Sweep will automatically resolve merge conflicts via a new pull request. The new pull request will contain the same changes as the original pull request, but with the merge conflicts resolved.
+<br/>
+<div align="center"><img src="/assets/tutorial/merge_conflict.gif" alt="How Sweep resolves merge conflicts" /></div>
+<br/>
 
 ## 🤝 Contributing
 
@@ -51,23 +83,8 @@ For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/).
 
 ## 📘 Story
 
-We were frustrated by small tickets, like simple bug fixes, annoying refactors, and small features. Each task required us to open our IDE to fix simple bugs. So we decided to leverage the capabilities of ChatGPT to address this directly in GitHub.
+We were frustrated by small issues, like simple bug fixes, annoying refactors, and small features. Each task required us to open our IDE to fix simple bugs. So we decided to leverage the capabilities of ChatGPT to address this directly in GitHub.
 
-Unlike existing AI solutions, this can solve entire tickets and can be parallelized + asynchronous: developers can spin up 10 tickets and Sweep will address them all at once.
-
-## 📚 The Stack
-- GPT-4 32k 0613 (default)
-- ActiveLoop DeepLake for Vector DB with MiniLM L12 as our embeddings model
-- Modal Labs for infra + deployment
-
-## 🗺️ Roadmap
-See [🗺️ Roadmap](https://docs.sweep.dev/about/roadmap)
-
-## ⭐ Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=sweepai/sweep&type=Date)](https://star-history.com/#sweepai/sweep&Date)
-
-Consider starring us if you're using Sweep so more people hear about us!
 
 ### Contributors
 {/* Centering causes NextJS hydration problems */}

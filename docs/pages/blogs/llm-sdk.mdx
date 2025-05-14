@@ -1,0 +1,100 @@
+# 🎉 Releasing our Open Source LLM Framework + Playground!
+**William Zeng** - November 22th, 2023
+
+---
+<img src="/covers/llm-sdk.png" alt="AI generated image of a playground" />
+
+Since the early days, we've used our own LLM framework at [Sweep](https://sweep.dev). Its helped us ship way faster, and we're excited to branch off this framework as it's own sdk!
+
+SweepAgent is our building block for having an LLM handle any task. <br></br>
+We’re using to thinking of LLMs as text-in -> text-out. Prompt engineering is commonly understood as “change your vocabulary and grammar until the LLM works”.
+
+## Prompt Engineering
+
+However, prompt engineering is more about optimizing your input (format and content), output, and parser such that you reliably achieve a given task.
+
+Our SweepAgent class allows us to separate the concerns of a LLM task handler. Rather than a text-text interface, a SweepAgent takes in variables (like any other function) and transforms it to a Pydantic BaseModel.
+
+This takes the burden of LLM unreliability away from your main code and encapsulates it with the LLM request. <br></br>
+For example, if we want GPT to generate a list of cities, we can ask it to format it using these xml tags (XML is a lot more robust and costs fewer tokens):
+
+Here's an example prompt:
+
+```xml
+Format the cities using these tags:
+<locations>
+City1
+City2
+City3
+City4
+</locations>
+```
+
+Say GPT generates the following response:
+
+```xml
+Sure, I can help with that. Here are the cities:
+<locations>
+Topeka
+Omaha
+</locations>
+```
+
+We can then match the inner file string using this pattern:
+```python
+r"<locations>(?P<locations_string>.*?)</locations>”
+```
+
+The issues don't end there though.
+
+GPT might mistakenly format the cities in any of the following ways:
+
+```
+* Topeka
+- Topeka
+Topeka
+file: Topeka
+```
+
+Our [`RegexExtractModel`](https://github.com/sweepai/sweep/blob/main/docs/sdk/src/agent.py#L17) parses this into a string, but we also need custom logic to handle the above edge cases.<br></br>
+To do this, we can instantiate a `RegexExtractModel` with a `@property` decorator:
+```python
+class Locations(RegexExtractModel):
+    locations_string: str
+    _regex = r"<locations>(?P<locations_string>.*?)</locations>"
+
+    @property
+    def locations(self):
+        result = []
+        for line in self.locations_string.split("\n"):
+            line = line.strip()
+            if " " in line:
+                line = line.split(" ")[-1]
+            result.append(line)
+        return result
+```
+
+This allows us to use the `locations` property as a list of locations, while still having the original string available for debugging.<br></br>
+We can then use this to define our `FindLocationsAgent`:
+
+```python
+class FindLocationsAgent(SweepAgent):
+    regex_extract_model = Locations
+    system_prompt = "You are a geographer."
+    user_prompt = "Tell me the midpoint between {first_location} and {second_location}. Then provide four cities near that midpoint formatted using <locations>\nCity1\nCity2\nCity3\nCity4\n</locations> tags."
+
+find_locations_agent = FindLocationsAgent()
+location_obj = find_locations_agent.handle_task(
+    system_prompt_args=dict(),
+    user_prompt_args={"first_location": "NYC", "second_location": "LA"},
+)
+```
+
+Our main logic just has to treat FindLocationsAgent as a function that takes in two locations and returns a list of cities. We can also test the prompt, parser, and external logic separately.
+
+
+## Try it out
+
+Try it out by copying the code from https://github.com/sweepai/sweep/blob/main/docs/sdk/src/agent.py or installing the package with `pip install sweep-sdk`. We'd love to hear your feedback!
+
+In addition, we released the first version of our corresponding prompt playground at https://playground.sweep.dev!

@@ -2,33 +2,35 @@ from __future__ import annotations
 
 import os
 import re
-import string
-import uuid
-from dataclasses import dataclass
-from typing import Any, ClassVar, List, Literal, Type, TypeVar
+from difflib import unified_diff
+from typing import Any, ClassVar, Literal, Type, TypeVar
 from urllib.parse import quote
 
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from sweepai.utils.diff import generate_diff
 from sweepai.utils.str_utils import (
     blockquote,
     clean_logs,
     create_collapsible,
-    format_exit_code,
+    format_sandbox_success,
+    rstrip_lines,
+    strip_triple_quotes,
 )
 
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
 
 class Message(BaseModel):
-    role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal[
-        "function"
-    ]
+    role: (
+        Literal["system"] | Literal["user"] | Literal["assistant"] | Literal["function"]
+    )
     content: str | None = None
     name: str | None = None
     function_call: dict | None = None
     key: str | None = None
+    annotations: dict | None = None
 
     @classmethod
     def from_tuple(cls, tup: tuple[str | None, str | None]) -> Self:
@@ -47,6 +49,11 @@ class Message(BaseModel):
         if self.role == "function":
             obj["name"] = self.name
         return obj
+
+    def __repr__(self):
+        # take the first 100 and last 100 characters of the message if it's too long
+        truncated_message_content = self.content[:100] + "..." + self.content[-100:] if len(self.content) > 200 else self.content
+        return f"\nSTART OF MESSAGE\n\n{truncated_message_content}\n\nROLE: {self.role} FUNCTION_CALL: {self.function_call} NAME: {self.name} ANNOTATIONS: {self.annotations if self.annotations else ''} KEY: {self.key}\n\nEND OF MESSAGE\n\n"
 
 
 class Function(BaseModel):
@@ -79,40 +86,6 @@ class RegexMatchableBaseModel(BaseModel):
         )
 
 
-class ExpandedPlan(RegexMatchableBaseModel):
-    queries: str
-    additional_instructions: str
-
-    @classmethod
-    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        query_pattern = r"""<queries>(\n)?(?P<queries>.*)</queries>"""
-        query_match = re.search(query_pattern, string, re.DOTALL)
-        instructions_pattern = r"""<additional_instructions>(\n)?(?P<additional_instructions>.*)</additional_instructions>"""
-        instructions_match = re.search(instructions_pattern, string, re.DOTALL)
-        return cls(
-            queries=query_match.groupdict()["queries"] if query_match else None,
-            additional_instructions=instructions_match.groupdict()[
-                "additional_instructions"
-            ].strip()
-            if instructions_match
-            else "",
-        )
-
-
-# todo (fix double colon regex): Update the split from "file_tree.py : desc" to "file_tree.py\tdesc"
-# tab supremacy
-def clean_filename(file_name: str):
-    valid_chars = "-_./$[]%s%s" % (string.ascii_letters, string.digits)
-    file_name = "".join(c for c in file_name if c in valid_chars)
-    file_name = file_name.replace(" ", "")
-    file_name = file_name.strip("`")
-    return os.path.normpath(file_name)
-
-
-def clean_instructions(instructions: str):
-    return instructions.strip()
-
-
 def create_error_logs(
     commit_url_display: str,
     sandbox_response: SandboxResponse,
@@ -125,13 +98,12 @@ def create_error_logs(
                 "\n\n".join(
                     [
                         create_collapsible(
-                            f"<code>{execution.command.format(file_path=file_path)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
-                            f"<pre>{clean_logs(execution.output)}</pre>",
-                            i == len(sandbox_response.executions) - 1,
+                            f"<code>{output}</code> {i + 1}/{len(sandbox_response.outputs)} {format_sandbox_success(sandbox_response.success)}",
+                            f"<pre>{clean_logs(output)}</pre>",
+                            i == len(sandbox_response.outputs) - 1,
                         )
-                        for i, execution in enumerate(sandbox_response.executions)
-                        if len(sandbox_response.executions) > 0
-                        # And error code check
+                        for i, output in enumerate(sandbox_response.outputs)
+                        if len(sandbox_response.outputs) > 0
                     ]
                 )
             ),
@@ -142,48 +114,73 @@ def create_error_logs(
     )
 
 
-class ExtractionRequest(RegexMatchableBaseModel):
-    use_tools: bool
-    _regex = r"""<use_tools>\s+(?P<use_tools>.*?)</use_tools>"""
-
-    @classmethod
-    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        use_tools_pattern = r"""<use_tools>\s+(?P<use_tools>.*?)</use_tools>"""
-        use_tools_match = re.search(use_tools_pattern, string, re.DOTALL)
-        use_tools = use_tools_match.groupdict()["use_tools"].strip().lower() == "true"
-        return cls(use_tools=use_tools)
-
-
 class FileChangeRequest(RegexMatchableBaseModel):
     filename: str
     instructions: str
-    change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal[
-        "rename"
-    ] | Literal["rewrite"] | Literal["check"] | Literal["extract"] | Literal["test"]
-    _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- ]*?)\"( entity=\"(.*?)\")?( source_file=\"(?P<source_file>.*?)\")?( destination_module=\"(?P<destination_module>.*?)\")?( relevant_files=\"(?P<raw_relevant_files>.*?)\")?>(?P<instructions>.*?)\s*<\/\1>"""
+    change_type: (
+        Literal["modify"]
+        | Literal["create"]
+        | Literal["delete"]
+        | Literal["rename"]
+        | Literal["rewrite"]
+        | Literal["check"]
+        | Literal["refactor"]
+        | Literal["test"]
+    )
+    _regex = r"""<(?P<change_type>[a-z_]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- @\{\}]*?)\"( start_line=\"(?P<start_line>.*?)\")?( end_line=\"(?P<end_line>.*?)\")?( entity=\"(.*?)\")?( source_file=\"(?P<source_file>.*?)\")?( destination_module=\"(?P<destination_module>.*?)\")?( relevant_files=\"(?P<raw_relevant_files>.*?)\")?(.*?)>(?P<instructions>.*?)\s*<\/\1>"""
+    is_completed: bool = False
     entity: str | None = None
     source_file: str | None = None
+    old_content: str | None = None
     new_content: str | None = None
     raw_relevant_files: str | None = None
+    # allow inf
+    start_line: Any | int | str | None = None
+    end_line: Any | int | str | None = None
     start_and_end_lines: list[tuple] = []
     comment_line: int | None = None
+    sandbox_response: None = None
     failed_sandbox_test: bool | None = False
     parent: FileChangeRequest | None = None
-    status: Literal["succeeded"] | Literal["failed"] | Literal["queued"] | Literal[
-        "running"
-    ] = "queued"
+    status: (
+        Literal["succeeded"]
+        | Literal["failed"]
+        | Literal["queued"]
+        | Literal["running"]
+    ) = "queued"
     destination_module: str | None = None
-    sandbox_response: SandboxResponse | None = None
     commit_hash_url: str | None = None
-    id_: str = Field(default_factory=lambda: str(uuid.uuid4()))
+
+    def __repr__(self):
+        return f"START OF FCR\n\n{self.change_type.capitalize()}: {self.filename} with instructions:\n{self.instructions}\n\nEND OF FCR\n\n"
+
+    def get_edit_url(self, repo_full_name: str, branch_name: str):
+        url = f"https://github.com/{repo_full_name}/edit/{branch_name}/{self.filename}"
+        if self.start_line and self.end_line:
+            url += f"#L{self.start_line}-L{self.end_line}"
+        return url
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
         result = super().from_string(string, **kwargs)
         result.filename = result.filename.strip("/")
         result.instructions = result.instructions.replace("\n*", "\n•")
+        if result.source_file:
+            result.source_file = result.source_file.strip()
+            if " " in result.source_file:
+                result.source_file = result.source_file.split(" ")[0]
         if result.instructions.startswith("*"):
             result.instructions = "•" + result.instructions[1:]
+        if result.start_line:
+            try:
+                result.start_line = int(result.start_line)
+            except ValueError:
+                result.start_line = None
+        if result.end_line:
+            try:
+                result.end_line = int(result.end_line)
+            except ValueError:
+                result.start_line = None
         return result
 
     @property
@@ -221,6 +218,8 @@ class FileChangeRequest(RegexMatchableBaseModel):
 
     @property
     def display_summary(self):
+        if self.change_type == "check":
+            return f"Running GitHub Actions for `{self.filename}`"
         return f"{self.change_type.capitalize()} `{self.filename}`"
 
     @property
@@ -249,99 +248,27 @@ class FileChangeRequest(RegexMatchableBaseModel):
 
     @property
     def instructions_ticket_display(self):
-        if self.change_type == "check" and self.sandbox_response is not None:
-            return create_error_logs(
-                self.commit_hash_url if self.commit_hash_url is not None else "",
-                self.sandbox_response,
-                file_path=self.filename,
-            )
         return self.instructions_display
 
     @property
     def instructions_display(self):
-        if self.change_type == "check":
-            return f"Run `{self.filename}` through the sandbox."
+        # if self.change_type == "check":
+        #     return f"Run GitHub Actions for `{self.filename}` with results:\n{self.instructions}"
         return f"{self.change_type.capitalize()} {self.filename} with contents:\n{self.instructions}"
 
-
-class FileCreation(RegexMatchableBaseModel):
-    commit_message: str
-    code: str
-    _regex = r"""<new_file(.*?)>(?P<code>.*)</new_file>"""
-    # Regex updated to support ``` outside of <new_file> tags
-
-    @classmethod
-    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        re_match = re.search(cls._regex, string, re.DOTALL)
-
-        if re_match is None:
-            logger.info(f"Did not match {string} with pattern {cls._regex}")
-            raise ValueError("No <new_file> tags or ``` found in code block")
-
-        result = cls(
-            code=re_match.groupdict()["code"].strip(),
-            commit_message="Created file",
-        )
-
-        first_index = result.code.find("<new_file>")
-        if first_index >= 0:
-            last_index = result.code.rfind("</new_file>")
-            result.code = result.code[first_index + len("<new_file>") : last_index]
-        else:
-            first_index = result.code.find("```")
-            if first_index >= 0:
-                last_index = result.code.rfind("```")
-                file_extension = os.path.splitext(result.code)[1]
-                if file_extension not in [".md", ".rst", ".mdx", ".txt"]:
-                    result.code = result.code[first_index:last_index]
-
-        result.code = result.code.strip()
-        if result.code.endswith("</new_file>"):
-            result.code = result.code[: -len("</new_file>")]
-            result.code = result.code.strip()
-
-        # Todo: Remove this?
-        if len(result.code) == 1:
-            result.code = result.code.replace("```", "")
-            return result.code + "\n"
-
-        if result.code.startswith("```"):
-            first_newline = result.code.find("\n")
-            result.code = result.code[first_newline + 1 :]
-
-        result.code = result.code.strip()
-        if result.code.endswith("```"):
-            result.code = result.code[: -len("```")]
-            result.code = result.code.strip()
-        result.code += "\n"
-        return result
+    @property
+    def diff_display(self):
+        if self.old_content and self.new_content:
+            diff = unified_diff(
+                self.old_content.splitlines(keepends=True),
+                self.new_content.splitlines(keepends=True),
+            )
+            diff_text = "".join(diff)
+            return f"<pre>{diff_text}</pre>"
+        return ""
 
 
-class SectionRewrite(RegexMatchableBaseModel):
-    section: str
-    _regex = r"""<section>(?P<section>.*)</section>"""
-
-    @classmethod
-    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        result = super().from_string(string, **kwargs)
-
-        if len(result.section) == 1:
-            result.section = result.section.replace("```", "")
-            return result.section + "\n"
-
-        if result.section.startswith("```"):
-            first_newline = result.section.find("\n")
-            result.section = result.section[first_newline + 1 :]
-
-        result.section = result.section.strip()
-        if result.section.endswith("```"):
-            result.section = result.section[: -len("```")]
-            result.section = result.section.strip()
-        result.section += "\n"
-        return result
-
-
-class PullRequest(RegexMatchableBaseModel):
+class SweepPullRequest(RegexMatchableBaseModel):
     title: str
     branch_name: str
     content: str
@@ -355,15 +282,24 @@ class ProposedIssue(RegexMatchableBaseModel):
     _regex = r'<issue\s+title="(?P<title>.*?)">(?P<body>.*?)</issue>'
 
 
+SNIPPET_FORMAT = """<snippet>
+<file_name>{denotation}</file_name>
+<source>
+{contents}
+</source>
+</snippet>"""
+
 class Snippet(BaseModel):
     """
     Start and end refer to line numbers
     """
 
-    content: str
+    content: str = Field(repr=False)
     start: int
     end: int
     file_path: str
+    score: float = 0.0 # TODO: migrate all usages to use this
+    type_name: Literal["source", "tests", "dependencies", "tools", "docs"] = "source"
 
     def __eq__(self, other):
         if isinstance(other, Snippet):
@@ -422,7 +358,13 @@ class Snippet(BaseModel):
 
     @property
     def xml(self):
-        return f"""<snippet source="{self.file_path}:{self.start}-{self.end}">\n{self.get_snippet()}\n</snippet>"""
+        return SNIPPET_FORMAT.format(
+            denotation=self.file_denotation,
+            contents=self.get_snippet()
+        )
+
+    def get_xml(self, add_lines: bool = True):
+        return f"""<snippet source="{self.file_path}:{self.start}-{self.end}">\n{self.get_snippet(add_lines)}\n</snippet>"""
 
     def get_url(self, repo_name: str, commit_id: str = "main"):
         num_lines = self.content.count("\n") + 1
@@ -457,34 +399,55 @@ class Snippet(BaseModel):
             start=max(self.start - num_lines, 1),
             end=min(self.end + num_lines, self.content.count("\n") + 1),
             file_path=self.file_path,
+            score=self.score,
         )
 
     @property
     def denotation(self):
         return f"{self.file_path}:{self.start}-{self.end}"
-
-
-class DiffSummarization(RegexMatchableBaseModel):
-    content: str
-    _regex = r"""<file_summaries>(\n)?(?P<content>.*)$"""
+    
+    @property
+    def file_denotation(self):
+        if self.start <= 0 and self.end >= self.content.count("\n") + 1:
+            return f"{self.file_path}"
+        return f"{self.file_path}:{self.start}-{self.end}" 
 
     @classmethod
-    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        result = super().from_string(string, **kwargs)
-        result.content = result.content.replace("</file_summaries>", "", 1).strip()
+    def from_file(
+        cls,
+        file_path: str,
+        file_contents: str,
+        **kwargs
+    ):
         return cls(
-            content=result.content,
+            content=file_contents,
+            start=1,
+            end=file_contents.count("\n") + 1,
+            file_path=file_path,
+            **kwargs,
         )
 
-
-class PullRequestComment(RegexMatchableBaseModel):
-    changes_required: str
-    content: str
-    _regex = r"""<changes_required>(?P<changes_required>.*)<\/changes_required>(\s+)<review_comment>(?P<content>.*)<\/review_comment>"""
-
+def fuse_snippets(snippets: list[Snippet]) -> list[Snippet]:
+    new_snippets = []
+    for snippet in snippets:
+        for new_snippet in new_snippets:
+            if new_snippet.file_path == snippet.file_path:
+                if new_snippet.end + 1 == snippet.start:
+                    new_snippet.end = snippet.end
+                    break
+                elif new_snippet.start - 1 == snippet.end:
+                    new_snippet.start = snippet.start
+                    break
+        else:
+            new_snippets.append(snippet)
+    return new_snippets
 
 class NoFilesException(Exception):
     def __init__(self, message="Sweep could not find any files to modify"):
+        super().__init__(message)
+
+class UnsuitableFileException(Exception):
+    def __init__(self, message="Sweep has determined this file is unsuitable to work with"):
         super().__init__(message)
 
 
@@ -514,52 +477,11 @@ class MockPR(BaseModel):
         pass
 
 
-class SweepContext(BaseModel):  # type: ignore
-    class Config:
-        arbitrary_types_allowed = True
-
-    # username: str
-    issue_url: str
-    use_faster_model: bool
-    # is_paying_user: bool
-    # repo: Repository
-    token: Any = None
-
-    _static_instance: Any = None
-
-    @classmethod
-    def create(cls, **kwargs):
-        sweep_context = cls(**kwargs)
-        if SweepContext._static_instance is None:
-            SweepContext._static_instance = sweep_context
-        return sweep_context
-
-    @staticmethod
-    def log_error(exception, traceback):
-        pass
-
-    @staticmethod
-    def log(message):
-        pass
-
-    def __str__(self):
-        return f"{self.issue_url}, {self.use_faster_model}"
-
-
-@dataclass
-class SandboxExecution:
-    command: str
-    output: str
-    exit_code: int
-
-
 class SandboxResponse(BaseModel):
     success: bool
-    error_messages: list[str]
     outputs: list[str]
-    executions: list[SandboxExecution]
     updated_content: str
-    sandbox: dict
+    error_messages: list[str]
 
 
 class MaxTokensExceeded(Exception):
@@ -582,49 +504,43 @@ class EmptyRepository(Exception):
         pass
 
 
-class CustomInstructions(BaseModel):
-    user_prompt: str | List[str]
-    system_prompt: str = None
-    # Todo: add delete_after
-    # delete_after: bool = False
+def parse_fcr(fcr: "FileChangeRequest"):
+    justification, *_ = fcr.instructions.split("<original_code>", 1)
+    justification, *_ = justification.split("<new_code>", 1)
+    justification = justification.rstrip().removesuffix("1.").removesuffix("2.").rstrip() # sometimes Claude puts 1. <original_code> which is weird
+    original_code_pattern = r"<original_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>\s*\n(.*?)</original_code>"
+    new_code_pattern = r"<new_code(?: file_path=\".*?\")?(?: index=\"\d+\")?>\s*\n(.*?)</new_code>"
+    original_code_matches = list(re.finditer(original_code_pattern, fcr.instructions, re.DOTALL))
+    new_code_matches = list(re.finditer(new_code_pattern, fcr.instructions, re.DOTALL))
+    replace_all_pattern = r"<replace_all>true</replace_all>"
+    replace_all_matches = list(re.finditer(replace_all_pattern, fcr.instructions, re.DOTALL))
+    return {
+        "justification": justification.strip(),
+        "file_path": fcr.filename,
+        "original_code": [strip_triple_quotes(original_code_match.group(1)) for original_code_match in original_code_matches],
+        "new_code": [strip_triple_quotes(new_code_match.group(1)) for new_code_match in new_code_matches],
+        "replace_all": bool(replace_all_matches),
+    }
 
-    def activate(self, chatbot, key: str, **kwargs):
-        # Create class for handling __enter__ and __exit__ methods
-        class CustomInstructionsContext:
-            def __init__(self, chatbot, custom_instructions: CustomInstructions):
-                self.chatbot = chatbot
-                self.custom_instructions = custom_instructions
-                self.old_system_prompt = chatbot.messages[0].content
 
-            def __enter__(self):
-                nonlocal key, kwargs
-                if self.custom_instructions.system_prompt:
-                    self.chatbot.messages[
-                        0
-                    ].content = self.custom_instructions.system_prompt.format(**kwargs)
-                if self.custom_instructions.user_prompt:
-                    if type(self.custom_instructions.user_prompt) == list:
-                        for user_prompt in self.custom_instructions.user_prompt:
-                            self.chatbot.messages.append(
-                                Message(
-                                    role="user",
-                                    content=user_prompt.format(**kwargs),
-                                    key=key,
-                                )
-                            )
-                    else:
-                        self.chatbot.messages.append(
-                            Message(
-                                role="user",
-                                content=self.custom_instructions.user_prompt.format(
-                                    **kwargs
-                                ),
-                                key=key,
-                            )
-                        )
-
-            def __exit__(self, exc_type, exc_value, traceback):
-                if self.old_system_prompt is not None:
-                    self.chatbot.messages[0].content = self.old_system_prompt
-
-        return CustomInstructionsContext(chatbot, self)
+def render_fcrs(file_change_requests: list["FileChangeRequest"]):
+    # Render plan start
+    planning_markdown = ""
+    for fcr in file_change_requests:
+        parsed_fcr = parse_fcr(fcr)
+        if parsed_fcr and parsed_fcr["new_code"]:
+            planning_markdown += f"#### `{fcr.filename}`\n"
+            planning_markdown += f"{blockquote(parsed_fcr['justification'])}\n\n"
+            if parsed_fcr["original_code"] and parsed_fcr["original_code"][0].strip():
+                planning_markdown += f"""```diff\n{generate_diff(
+                    parsed_fcr["original_code"][0],
+                    rstrip_lines(parsed_fcr["new_code"][0]),
+                )}\n```\n"""
+            else:
+                _file_base_name, ext = os.path.splitext(fcr.filename)
+                planning_markdown += f"```{ext}\n{parsed_fcr['new_code'][0]}\n```\n"
+        else:
+            planning_markdown += (
+                f"#### `{fcr.filename}`\n{blockquote(fcr.instructions)}\n"
+            )
+    return planning_markdown

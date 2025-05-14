@@ -19,7 +19,7 @@ class TestButtons(unittest.TestCase):
 
     def test_create_action_buttons(self):
         labels = ["Test1", "Test2"]
-        expected_output = "## Actions (click)\n- [ ] Test1\n- [ ] Test2"
+        expected_output = "## Actions\n- [ ] Test1\n- [ ] Test2"
         self.assertEqual(create_action_buttons(labels), expected_output)
 
     def test_get_toggled_state(self):

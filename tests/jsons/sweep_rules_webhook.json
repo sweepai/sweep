@@ -1,0 +1,232 @@
+{
+    "ref": "refs/heads/main",
+    "before": "d734fa919a4d34f5328fbe8d636e7efe34d00e5e",
+    "after": "78850ac77eea6c831a4cfe6856ac85bcc42514c7",
+    "repository": {
+      "id": 653574784,
+      "node_id": "R_kgDOJvTCgA",
+      "name": "sweep",
+      "full_name": "sweepai/sweep",
+      "private": false,
+      "owner": {
+        "name": "sweepai",
+        "email": "kevin@sweep.dev",
+        "login": "sweepai",
+        "id": 127925974,
+        "node_id": "O_kgDOB5_-1g",
+        "avatar_url": "https://avatars.githubusercontent.com/u/127925974?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/sweepai",
+        "html_url": "https://github.com/sweepai",
+        "followers_url": "https://api.github.com/users/sweepai/followers",
+        "following_url": "https://api.github.com/users/sweepai/following{/other_user}",
+        "gists_url": "https://api.github.com/users/sweepai/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/sweepai/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/sweepai/subscriptions",
+        "organizations_url": "https://api.github.com/users/sweepai/orgs",
+        "repos_url": "https://api.github.com/users/sweepai/repos",
+        "events_url": "https://api.github.com/users/sweepai/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/sweepai/received_events",
+        "type": "Organization",
+        "site_admin": false
+      },
+      "html_url": "https://github.com/sweepai/sweep",
+      "description": "Sweep: AI-powered Junior Developer for small features and bug fixes.",
+      "fork": false,
+      "url": "https://github.com/sweepai/sweep",
+      "forks_url": "https://api.github.com/repos/sweepai/sweep/forks",
+      "keys_url": "https://api.github.com/repos/sweepai/sweep/keys{/key_id}",
+      "collaborators_url": "https://api.github.com/repos/sweepai/sweep/collaborators{/collaborator}",
+      "teams_url": "https://api.github.com/repos/sweepai/sweep/teams",
+      "hooks_url": "https://api.github.com/repos/sweepai/sweep/hooks",
+      "issue_events_url": "https://api.github.com/repos/sweepai/sweep/issues/events{/number}",
+      "events_url": "https://api.github.com/repos/sweepai/sweep/events",
+      "assignees_url": "https://api.github.com/repos/sweepai/sweep/assignees{/user}",
+      "branches_url": "https://api.github.com/repos/sweepai/sweep/branches{/branch}",
+      "tags_url": "https://api.github.com/repos/sweepai/sweep/tags",
+      "blobs_url": "https://api.github.com/repos/sweepai/sweep/git/blobs{/sha}",
+      "git_tags_url": "https://api.github.com/repos/sweepai/sweep/git/tags{/sha}",
+      "git_refs_url": "https://api.github.com/repos/sweepai/sweep/git/refs{/sha}",
+      "trees_url": "https://api.github.com/repos/sweepai/sweep/git/trees{/sha}",
+      "statuses_url": "https://api.github.com/repos/sweepai/sweep/statuses/{sha}",
+      "languages_url": "https://api.github.com/repos/sweepai/sweep/languages",
+      "stargazers_url": "https://api.github.com/repos/sweepai/sweep/stargazers",
+      "contributors_url": "https://api.github.com/repos/sweepai/sweep/contributors",
+      "subscribers_url": "https://api.github.com/repos/sweepai/sweep/subscribers",
+      "subscription_url": "https://api.github.com/repos/sweepai/sweep/subscription",
+      "commits_url": "https://api.github.com/repos/sweepai/sweep/commits{/sha}",
+      "git_commits_url": "https://api.github.com/repos/sweepai/sweep/git/commits{/sha}",
+      "comments_url": "https://api.github.com/repos/sweepai/sweep/comments{/number}",
+      "issue_comment_url": "https://api.github.com/repos/sweepai/sweep/issues/comments{/number}",
+      "contents_url": "https://api.github.com/repos/sweepai/sweep/contents/{+path}",
+      "compare_url": "https://api.github.com/repos/sweepai/sweep/compare/{base}...{head}",
+      "merges_url": "https://api.github.com/repos/sweepai/sweep/merges",
+      "archive_url": "https://api.github.com/repos/sweepai/sweep/{archive_format}{/ref}",
+      "downloads_url": "https://api.github.com/repos/sweepai/sweep/downloads",
+      "issues_url": "https://api.github.com/repos/sweepai/sweep/issues{/number}",
+      "pulls_url": "https://api.github.com/repos/sweepai/sweep/pulls{/number}",
+      "milestones_url": "https://api.github.com/repos/sweepai/sweep/milestones{/number}",
+      "notifications_url": "https://api.github.com/repos/sweepai/sweep/notifications{?since,all,participating}",
+      "labels_url": "https://api.github.com/repos/sweepai/sweep/labels{/name}",
+      "releases_url": "https://api.github.com/repos/sweepai/sweep/releases{/id}",
+      "deployments_url": "https://api.github.com/repos/sweepai/sweep/deployments",
+      "created_at": 1686737287,
+      "updated_at": "2023-12-05T21:22:25Z",
+      "pushed_at": 1701823489,
+      "git_url": "git://github.com/sweepai/sweep.git",
+      "ssh_url": "git@github.com:sweepai/sweep.git",
+      "clone_url": "https://github.com/sweepai/sweep.git",
+      "svn_url": "https://github.com/sweepai/sweep",
+      "homepage": "https://sweep.dev",
+      "size": 113789,
+      "stargazers_count": 5843,
+      "watchers_count": 5843,
+      "language": "Python",
+      "has_issues": true,
+      "has_projects": false,
+      "has_downloads": true,
+      "has_wiki": false,
+      "has_pages": false,
+      "has_discussions": true,
+      "forks_count": 275,
+      "mirror_url": null,
+      "archived": false,
+      "disabled": false,
+      "open_issues_count": 619,
+      "license": {
+        "key": "other",
+        "name": "Other",
+        "spdx_id": "NOASSERTION",
+        "url": null,
+        "node_id": "MDc6TGljZW5zZTA="
+      },
+      "allow_forking": true,
+      "is_template": false,
+      "web_commit_signoff_required": false,
+      "topics": [
+        "ai",
+        "code-assistant",
+        "code-search",
+        "developer-tools",
+        "gen-ai",
+        "github-app",
+        "gpt-35-turbo",
+        "gpt-4-32k",
+        "llm"
+      ],
+      "visibility": "public",
+      "forks": 275,
+      "open_issues": 619,
+      "watchers": 5843,
+      "default_branch": "main",
+      "stargazers": 5843,
+      "master_branch": "main",
+      "organization": "sweepai",
+      "custom_properties": {
+
+      }
+    },
+    "pusher": {
+      "name": "kevinlu1248",
+      "email": "kevinlu1248@gmail.com"
+    },
+    "organization": {
+      "login": "sweepai",
+      "id": 127925974,
+      "node_id": "O_kgDOB5_-1g",
+      "url": "https://api.github.com/orgs/sweepai",
+      "repos_url": "https://api.github.com/orgs/sweepai/repos",
+      "events_url": "https://api.github.com/orgs/sweepai/events",
+      "hooks_url": "https://api.github.com/orgs/sweepai/hooks",
+      "issues_url": "https://api.github.com/orgs/sweepai/issues",
+      "members_url": "https://api.github.com/orgs/sweepai/members{/member}",
+      "public_members_url": "https://api.github.com/orgs/sweepai/public_members{/member}",
+      "avatar_url": "https://avatars.githubusercontent.com/u/127925974?v=4",
+      "description": "AI junior developer that turns bugs & feature requests into code changes"
+    },
+    "sender": {
+      "login": "kevinlu1248",
+      "id": 26889185,
+      "node_id": "MDQ6VXNlcjI2ODg5MTg1",
+      "avatar_url": "https://avatars.githubusercontent.com/u/26889185?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/kevinlu1248",
+      "html_url": "https://github.com/kevinlu1248",
+      "followers_url": "https://api.github.com/users/kevinlu1248/followers",
+      "following_url": "https://api.github.com/users/kevinlu1248/following{/other_user}",
+      "gists_url": "https://api.github.com/users/kevinlu1248/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/kevinlu1248/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/kevinlu1248/subscriptions",
+      "organizations_url": "https://api.github.com/users/kevinlu1248/orgs",
+      "repos_url": "https://api.github.com/users/kevinlu1248/repos",
+      "events_url": "https://api.github.com/users/kevinlu1248/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/kevinlu1248/received_events",
+      "type": "User",
+      "site_admin": false
+    },
+    "installation": {
+      "id": 36855882,
+      "node_id": "MDIzOkludGVncmF0aW9uSW5zdGFsbGF0aW9uMzY4NTU4ODI="
+    },
+    "created": false,
+    "deleted": false,
+    "forced": false,
+    "base_ref": null,
+    "compare": "https://github.com/sweepai/sweep/compare/d734fa919a4d...78850ac77eea",
+    "commits": [
+      {
+        "id": "78850ac77eea6c831a4cfe6856ac85bcc42514c7",
+        "tree_id": "f213946c953af87281efcb42c2d635c291752542",
+        "distinct": true,
+        "message": "Update api.py",
+        "timestamp": "2023-12-05T16:44:49-08:00",
+        "url": "https://github.com/sweepai/sweep/commit/78850ac77eea6c831a4cfe6856ac85bcc42514c7",
+        "author": {
+          "name": "Kevin Lu",
+          "email": "kevinlu1248@gmail.com",
+          "username": "kevinlu1248"
+        },
+        "committer": {
+          "name": "GitHub",
+          "email": "noreply@github.com",
+          "username": "web-flow"
+        },
+        "added": [
+
+        ],
+        "removed": [
+
+        ],
+        "modified": [
+          "sweepai/api.py"
+        ]
+      }
+    ],
+    "head_commit": {
+      "id": "78850ac77eea6c831a4cfe6856ac85bcc42514c7",
+      "tree_id": "f213946c953af87281efcb42c2d635c291752542",
+      "distinct": true,
+      "message": "Update api.py",
+      "timestamp": "2023-12-05T16:44:49-08:00",
+      "url": "https://github.com/sweepai/sweep/commit/78850ac77eea6c831a4cfe6856ac85bcc42514c7",
+      "author": {
+        "name": "Kevin Lu",
+        "email": "kevinlu1248@gmail.com",
+        "username": "kevinlu1248"
+      },
+      "committer": {
+        "name": "GitHub",
+        "email": "noreply@github.com",
+        "username": "web-flow"
+      },
+      "added": [
+
+      ],
+      "removed": [
+
+      ],
+      "modified": [
+        "sweepai/api.py"
+      ]
+    }
+  }

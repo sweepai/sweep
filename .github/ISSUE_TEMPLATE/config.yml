@@ -1,6 +1,6 @@
 contact_links:
-  - name: Discord
-    url: https://discord.gg/sweep
+  - name: Discourse
+    url: https://community.sweep.dev/
     about: Feel free to report bugs and request features here!
   - name: Docs
     url: https://docs.sweep.dev

@@ -1,25 +1,24 @@
-import json
 from datetime import datetime, timedelta
+from threading import Thread
 from typing import Any
 
-import requests
-from geopy import Nominatim
+from loguru import logger
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
 
 from sweepai.config.server import (
-    DISCORD_LOW_PRIORITY_URL,
-    DISCORD_MEDIUM_PRIORITY_URL,
-    DISCORD_WEBHOOK_URL,
-    GITHUB_BOT_USERNAME,
+    IS_SELF_HOSTED,
     MONGODB_URI,
-    SUPPORT_COUNTRY,
 )
-from sweepai.logn import logger
+from sweepai.global_threads import global_threads
 
-global_mongo_client = MongoClient(
-    MONGODB_URI, serverSelectionTimeoutMS=20000, socketTimeoutMS=20000
-)
+global_mongo_client = None
+if MONGODB_URI:
+    global_mongo_client = MongoClient(
+        MONGODB_URI,
+        serverSelectionTimeoutMS=20000,
+        socketTimeoutMS=20000,
+    )
 
 
 class ChatLogger(BaseModel):
@@ -36,9 +35,10 @@ class ChatLogger(BaseModel):
     current_month: str = Field(
         default_factory=lambda: datetime.utcnow().strftime("%m/%Y")
     )
+    active: bool = False  # refers to whether it was an auto-created PR or if it was created by the user with intent
 
-    def __init__(self, data: dict[str, str] = {}, mock=False):
-        super().__init__(data=data)  # Call the BaseModel's __init__ method
+    def __init__(self, data: dict[str, str] = {}, mock=False, **kwargs):
+        super().__init__(data=data, **kwargs)  # Call the BaseModel's __init__ method
         key = MONGODB_URI
         if key is None:
             logger.warning("Chat history logger has no key")
@@ -59,15 +59,12 @@ class ChatLogger(BaseModel):
                     "expiration", expireAfterSeconds=2419200
                 )
                 self.expiration = datetime.utcnow() + timedelta(days=1)
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.warning("Chat history could not connect to MongoDB")
-                logger.warning(e)
+            except Exception:
+                logger.info("Chat history could not connect to MongoDB")
 
-    def add_chat(self, additional_data):
+    def _add_chat(self, additional_data):
         if self.chat_collection is None:
-            logger.error("Chat collection is not initialized")
+            logger.warning("Chat collection is not initialized")
             return
         document = {
             **self.data,
@@ -78,7 +75,12 @@ class ChatLogger(BaseModel):
         self.index += 1
         self.chat_collection.insert_one(document)
 
-    def add_successful_ticket(self, gpt3=False):
+    def add_chat(self, additional_data):
+        thread = Thread(target=self._add_chat, args=(additional_data,))
+        thread.start()
+        global_threads.append(thread)
+
+    def _add_successful_ticket(self, gpt3=False):
         if self.ticket_collection is None:
             logger.error("Ticket Collection Does Not Exist")
             return
@@ -105,6 +107,11 @@ class ChatLogger(BaseModel):
             )
 
         logger.info(f"Added Successful Ticket for {username}")
+
+    def add_successful_ticket(self, gpt3=False):
+        thread = Thread(target=self._add_successful_ticket, args=(gpt3,))
+        thread.start()
+        global_threads.append(thread)
 
     def _cache_key(self, username, field, metadata=""):
         return f"{username}_{field}_{metadata}"
@@ -153,12 +160,18 @@ class ChatLogger(BaseModel):
         return user_field_value
 
     def is_consumer_tier(self):
+        if IS_SELF_HOSTED:
+            return True
         return self._get_user_field("is_trial_user")
 
     def is_paying_user(self):
+        if IS_SELF_HOSTED:
+            return True
         return self._get_user_field("is_paying_user")
 
-    def use_faster_model(self, g):
+    def use_faster_model(self):
+        if IS_SELF_HOSTED:
+            return False
         if self.ticket_collection is None:
             logger.error("Ticket Collection Does Not Exist")
             return True
@@ -167,55 +180,10 @@ class ChatLogger(BaseModel):
             return self.get_ticket_count() >= 500 and purchased_tickets == 0
         if self.is_consumer_tier():
             return self.get_ticket_count() >= 20 and purchased_tickets == 0
-
-        try:
-            loc_user = g.get_user(self.data["username"]).location
-            loc = Nominatim(user_agent="location_checker").geocode(
-                loc_user, exactly_one=True
-            )
-            g = False
-            for c in SUPPORT_COUNTRY:
-                if c.lower() in loc.raw.get("display_name").lower():
-                    g = True
-                    break
-            if not g:
-                return (
-                    self.get_ticket_count() >= 5
-                    or self.get_ticket_count(use_date=True) >= 1
-                )
-        except SystemExit:
-            raise SystemExit
-        except:
-            pass
-
-        # Non-trial users can only create 2 GPT-4 tickets per day
         return (
-            self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) > 3
-        ) and purchased_tickets == 0
-
-
-def discord_log_error(content, priority=0):
-    """
-    priority: 0 (high), 1 (medium), 2 (low)
-    """
-    if GITHUB_BOT_USERNAME != "sweep-ai[bot]":  # disable for dev
-        return
-    try:
-        url = DISCORD_WEBHOOK_URL
-        if priority == 1:
-            url = DISCORD_MEDIUM_PRIORITY_URL
-        if priority == 2:
-            url = DISCORD_LOW_PRIORITY_URL
-
-        data = {"content": content}
-        headers = {"Content-Type": "application/json"}
-        response = requests.post(url, data=json.dumps(data), headers=headers)
-        # Success: response.status_code == 204:
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
-        logger.error(f"Could not log to Discord: {e}")
-
+            (self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) > 3)
+            and purchased_tickets == 0
+        ) or not self.active
 
 if __name__ == "__main__":
     chat_logger = ChatLogger(

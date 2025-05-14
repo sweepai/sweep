@@ -1,0 +1,70 @@
+name: Python CI All
+
+concurrency: 
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'sweepai/**'
+      - 'tests/**'
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'sweepai/**'
+      - 'tests/**'
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10"]
+        # python-version: ["3.10", "3.11"]
+        os: [ubuntu-latest]
+    # outputs:
+    #   cache-key: ${{ steps.cache-dependencies.outputs.cache-key }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.67.0
+          override: true
+      # - uses: Swatinem/rust-cache@v1
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      # - run: echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
+        # if: steps.restore-dependencies.outputs.cache-hit != 'true'
+      - run: |
+          pip install uv
+          uv venv
+          source .venv/bin/activate
+          echo ".venv/bin" >> $GITHUB_PATH
+        # if: steps.restore-dependencies.outputs.cache-hit != 'true'
+      - run: uv pip install -r requirements.txt
+        # if: steps.restore-dependencies.outputs.cache-hit != 'true'
+      - run: uv pip install ruff pylint pytest pytest-xdist black
+        # if: steps.restore-dependencies.outputs.cache-hit != 'true'
+      - name: Format with Black
+        run: black sweepai
+
+      - name: Lint with Ruff
+        run: ruff check sweepai
+
+      - name: Lint with Pylint
+        run: pylint sweepai --errors-only --disable=E1136,E1101 # some weird cache bug
+
+      - name: Run Unit Tests
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          COHERE_API_KEY: test
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python -m unittest sweepai/**/*_test.py

@@ -1,6 +1,5 @@
-version: '2'
 services:
-  webhook:
+  hosted:
     env_file:
       - .env
     build:
@@ -8,39 +7,15 @@ services:
       dockerfile: Dockerfile
       target: base
     image: sweepai/sweep
-    network_mode: "host"
+    container_name: webhook
+    # network_mode: "host"
     volumes:
       - .:/app
-      - /sweep_docs:/sweep_docs
-    ports:
-      - "${PORT:-8080}:${PORT:-8080}"
+      - /mnt/caches:/mnt/caches
     command: >
-      sh -c "echo PORT: ${PORT:-8080} && . bin/startup.sh"
+      sh -c ". bin/startup.sh"
     stdin_open: true
     tty: true
-    environment:
-      - PORT=${PORT:-8080}
-  sandbox:
-    build:
-      context: sweepai/sandbox
-      dockerfile: Dockerfile.sandbox
-    image: sweepai/sandbox
-    scale: 0
-  sandbox-web:
-    env_file:
-      - .env
-    build:
-      context: sweepai/sandbox
-      dockerfile: Dockerfile.web
-    image: sweepai/sandbox-web
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
     ports:
-      - 8081:8080
-  minis3:
-    build: minis3
-    image: sweepai/minis3
-    ports:
-      - "8082:8080"
-    volumes:
-      - ./public:/app/public
+      - "${PORT:-8080}:8080"
+    restart: unless-stopped

@@ -1,0 +1,68 @@
+name: Python Review Pr Test
+
+concurrency: 
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'sweepai/**'
+      - 'tests/**'
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'sweepai/**'
+      - 'tests/**'
+
+jobs:
+  review-pr:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10"]
+        # python-version: ["3.10", "3.11"]
+        os: [ubuntu-latest]
+    # outputs:
+    #   cache-key: ${{ steps.cache-dependencies.outputs.cache-key }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.67.0
+          override: true
+      # - uses: Swatinem/rust-cache@v1
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      # - run: echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
+        # if: steps.restore-dependencies.outputs.cache-hit != 'true'
+      - run: |
+          pip install uv
+          uv venv
+          source .venv/bin/activate
+          echo ".venv/bin" >> $GITHUB_PATH
+        # if: steps.restore-dependencies.outputs.cache-hit != 'true'
+      - run: uv pip install -r requirements.txt
+        # if: steps.restore-dependencies.outputs.cache-hit != 'true'
+      - run: uv pip install ruff pylint pytest pytest-xdist black
+        # if: steps.restore-dependencies.outputs.cache-hit != 'true'
+      - name: Run Review Test
+        env:
+          LICENSE_KEY: ${{ secrets.LICENSE_KEY }}
+          GITHUB_PAT: ${{ secrets.GH_PAT }}
+          GITHUB_APP_ID: ${{ secrets.GH_APP_ID }}
+          GITHUB_APP_PEM: ${{ secrets.GH_APP_PEM }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
+          CACHE_DIRECTORY: /tmp
+        run: |
+          export PYTHONPATH=.
+          pytest tests/e2e/test_pr_review.py -s

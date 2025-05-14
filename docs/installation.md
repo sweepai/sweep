@@ -1,7 +1,8 @@
 # Welcome to Sweep - GitHub App installed successfully! 🎉
 
 
-⚠️ Be sure to follow these instructions in your own repository. Sweep works best with real repositories and real issues; empty or test repositories will break Sweep. *If you don't have a good repo at hand, check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/tutorial).*
+## ⚠️ Be sure to follow these instructions in your own repository.
+Sweep works best with real repositories and real issues; empty or test repositories will break Sweep. *If you don't have a good repo at hand, check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/usage/tutorial).*
 
 
 If you prefer video, [check out our demo (2 min)](https://www.youtube.com/watch?v=fr5V5EWVcyM&lc=UgxM_ZzFiFYfjo1ADU54AaABAg)
@@ -77,7 +78,7 @@ For professionals who want even more tickets and priority support/feature reques
 [Check out our docs](https://docs.sweep.dev/).
 
 ### Contact Us 👥
-- [Discord](https://discord.gg/invite/sweep)
+- [Discourse](https://community.sweep.dev/)
 - team@sweep.dev
 - [Star us on GitHub! ⭐](https://github.com/sweepai/sweep)
 
@@ -86,4 +87,4 @@ Note - you need to have Sweep installed and [Issues enabled in Repo](https://doc
 
 # Bug Reports
 
-If Sweep fails to solve your issue that is within the scope of Sweep (see Limitations) and you submit a high-quality bug report at our [Discord](https://discord.gg/sweep), we will reset your ticket count, giving your GPT-4 tickets back. This is only for GPT4 PRs.
+If Sweep fails to solve your issue that is within the scope of Sweep (see Limitations) and you submit a high-quality bug report at our [Discourse](https://community.sweep.dev/), we will reset your ticket count, giving your GPT-4 tickets back. This is only for GPT4 PRs.

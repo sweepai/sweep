@@ -1,0 +1,132 @@
+import { Callout, Tabs, Steps } from 'nextra/components'
+import { FaInfoCircle, FaExclamationCircle } from 'react-icons/fa'
+
+# Sweep CLI Installation
+<Callout type="info">Prerequisites: **python 3.10 and pip**. We also recommend [uv](https://github.com/astral-sh/uv#getting-started) for a ~1s install.</Callout>
+
+Sweep CLI is a locally running version of Sweep (no data will enter our servers).<br/>
+
+*To use our hosted version of Sweep, [install it here (2 min)](https://github.com/apps/sweep-ai). To self-host your own deployment of Sweep, visit [deployment (15 min)](/deployment).*
+<Steps>
+### Install the Sweep CLI
+
+```sh filename="terminal"
+pip install sweepai
+```
+
+### Initialize the Sweep CLI
+
+Initialize the CLI with your OpenAI, Anthropic and GitHub API keys:
+
+```sh filename="terminal"
+sweep init
+```
+
+and follow the prompts to enter your API keys.
+
+### Run the Sweep CLI
+
+Create a GitHub Issue like [the examples in our guide](/#best-practices-for-creating-issues) in your repo, and run the following command:
+
+```sh filename="terminal"
+sweep run https://github.com/YOUR-USERNAME/YOUR-REPO/issues/1
+```
+
+To have Sweep automatically fix newly created issues, you can also run the following command:
+```sh filename="terminal"
+sweep watch YOUR-USERNAME/YOUR-REPO
+```
+</Steps>
+
+## 🎉 Congratulations!
+
+You have successfully set up the Sweep CLI. You can now use Sweep to help handle GitHub issues and pull requests.<br/>
+To set up Sweep for your organization, see [self-hosting Sweep's GitHub App](/deployment) and [book a call](https://calendly.com/sweep-ai/founders-meeting) with us for a commercial license.
+
+---
+
+### Bonus (optional)
+
+#### Ripgrep
+
+Our search pipeline involves agentic search which sometimes uses Ripgrep, which you can install by running:
+
+<Tabs items={['MacOS', 'Debian (or Ubuntu)', 'Windows', 'Cargo']}>
+<Tabs.Tab>
+```zsh filename="terminal"
+brew install ripgrep
+```
+</Tabs.Tab>
+<Tabs.Tab>
+With `apt-get`:
+```zsh filename="terminal"
+sudo apt-get install ripgrep
+```
+With `curl`:
+```zsh filename="terminal"
+curl -LO https://github.com/BurntSushi/ripgrep/releases/download/13.0.0/ripgrep_13.0.0_amd64.deb
+sudo dpkg -i ripgrep_13.0.0_amd64.deb
+```
+</Tabs.Tab>
+<Tabs.Tab>
+With Windows Chocolatey:
+```zsh filename="terminal"
+choco install ripgrep
+```
+With Windows Scoop:
+```zsh filename="terminal"
+scoop install ripgrep
+```
+With Winget:
+```zsh filename="terminal"
+winget install BurntSushi.ripgrep.MSVC
+```
+</Tabs.Tab>
+<Tabs.Tab>
+```zsh filename="terminal"
+cargo install ripgrep
+```
+</Tabs.Tab>
+</Tabs>
+
+For other methods of installation, you can visit [here](https://github.com/BurntSushi/ripgrep#installation)
+
+#### Eslint
+
+If you're editing Javascript / Typescript code, our code editing agent will use your global copy of eslint. You need npm and npx installed, and you can install all the required packages with
+
+```zsh filename="terminal"
+npm i -g typescript eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin eslint-plugin-import
+```
+
+You can double check it's working with:
+
+```zsh filename="terminal"
+npx eslint --version
+```
+
+### Search Improvements using Other Search Providers
+
+#### Cohere Rerank v3
+
+Cohere's Rerank v3 endpoint can improve search's recall by > 5%. You can get an API key from https://dashboard.cohere.com/api-keys and run:
+
+```zsh filename="terminal"
+export COHERE_API_KEY=abcdefg
+```
+
+Then Sweep will use Cohere to rerank the top 100 snippets after the initial retrieval.
+
+#### Voyage AI
+
+Voyage AI's `voyage-code-2` embedding model achieves a 3% higher search recall compared to OpenAI's Ada v3. You can get an API key from https://dash.voyageai.com/api-keys and run:
+
+```zsh filename="terminal"
+export VOYAGE_API_KEY=pa-abcdefg
+```
+
+Then Sweep will use Voyage AI for retrieval instead of OpenAI.
+
+#### Self-hosted Search Providers
+
+For connecting with self-hosted Cohere's or Voyage AI's model(s) on AWS SageMaker, contact us at team@sweep.dev.

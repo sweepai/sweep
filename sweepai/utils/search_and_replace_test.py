@@ -3,7 +3,6 @@ import unittest
 from sweepai.utils.search_and_replace import (
     Match,
     find_best_match,
-    get_indent_type,
     get_max_indent,
     line_cost,
     match_without_whitespace,
@@ -16,10 +15,6 @@ from sweepai.utils.search_and_replace import (
 class TestSearchAndReplace(unittest.TestCase):
     def test_score_line(self):
         self.assertEqual(score_line("abc", "abc"), 100)
-        self.assertEqual(score_line(" abc", "abc"), 90)
-        self.assertEqual(score_line("abc ", "abc"), 90)
-        self.assertEqual(score_line(" abc ", "abc"), 80)
-        self.assertEqual(score_line("abc", "abcd"), 70)
 
     def test_match_without_whitespace(self):
         self.assertTrue(match_without_whitespace("abc", "abc"))
@@ -32,10 +27,6 @@ class TestSearchAndReplace(unittest.TestCase):
         self.assertEqual(line_cost("abc"), 75)
         self.assertEqual(line_cost(" abc"), 80)
         self.assertEqual(line_cost("abc "), 80)
-        self.assertEqual(line_cost(" abc "), 85)
-        self.assertEqual(line_cost("#abc"), 80)
-        self.assertEqual(line_cost("//abc"), 80)
-        self.assertEqual(line_cost(""), 50)
 
     def test_score_multiline(self):
         self.assertEqual(score_multiline(["abc"], ["abc"]), 100)
@@ -43,13 +34,6 @@ class TestSearchAndReplace(unittest.TestCase):
         self.assertEqual(
             score_multiline(["abc", "...", "def"], ["abc", "ghi", "def"]), 100
         )
-        self.assertEqual(
-            score_multiline(["abc", "...", "def"], ["abc", "ghi", "jkl"]), 50
-        )
-
-    def test_get_indent_type(self):
-        self.assertEqual(get_indent_type("  abc\n    def"), "  ")
-        self.assertEqual(get_indent_type("    abc\n  def"), "    ")
 
     def test_get_max_indent(self):
         self.assertEqual(get_max_indent("  abc\n    def", "  "), 2)

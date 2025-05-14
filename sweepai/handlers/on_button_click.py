@@ -1,3 +1,4 @@
+
 from github.Repository import Repository
 from loguru import logger
 
@@ -10,13 +11,13 @@ from sweepai.config.client import (
 )
 from sweepai.config.server import MONGODB_URI
 from sweepai.core.post_merge import PostMerge
-from sweepai.events import IssueCommentRequest
 from sweepai.handlers.on_merge import comparison_to_diff
-from sweepai.handlers.pr_utils import make_pr
 from sweepai.utils.buttons import ButtonList, check_button_title_match
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
+from sweepai.utils.str_utils import BOT_SUFFIX
+from sweepai.web.events import IssueCommentRequest
 
 
 def handle_button_click(request_dict):
@@ -36,9 +37,13 @@ def handle_button_click(request_dict):
         revert_files = []
         for button_text in selected_buttons:
             revert_files.append(button_text.split(f"{RESET_FILE} ")[-1].strip())
-        handle_revert(revert_files, request_dict["issue"]["number"], repo)
+        handle_revert(
+            file_paths=revert_files,
+            pr_number=request_dict["issue"]["number"],
+            repo=repo,
+        )
         comment.edit(
-            body=ButtonList(
+            ButtonList(
                 buttons=[
                     button
                     for button in button_list.buttons
@@ -52,9 +57,15 @@ def handle_button_click(request_dict):
         rules = []
         for button_text in selected_buttons:
             rules.append(button_text.split(f"{RULES_LABEL} ")[-1].strip())
-        handle_rules(request_dict, rules, user_token, repo, gh_client)
+        handle_rules(
+            request_dict=request_dict,
+            rules=rules,
+            user_token=user_token,
+            repo=repo,
+            gh_client=gh_client,
+        )
         comment.edit(
-            body=ButtonList(
+            ButtonList(
                 buttons=[
                     button
                     for button in button_list.buttons
@@ -62,6 +73,7 @@ def handle_button_click(request_dict):
                 ],
                 title=RULES_TITLE,
             ).serialize()
+            + BOT_SUFFIX
         )
         if not rules:
             try:
@@ -126,20 +138,14 @@ def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
             chat_logger=chat_logger
         ).check_for_issues(rule=rule, diff=commits_diff)
         if changes_required:
-            new_pr = make_pr(
-                title="[Sweep Rules] " + issue_title,
-                repo_description=repo.description,
-                summary=f"Apply this change: {rule}\n{issue_description}",
-                repo_full_name=request_dict["repository"]["full_name"],
-                installation_id=request_dict["installation"]["id"],
-                user_token=user_token,
-                use_faster_model=chat_logger.use_faster_model(gh_client),
-                username=request_dict["sender"]["login"],
-                chat_logger=chat_logger,
-                branch_name=pr.head.ref,
-                rule=rule,
-            )
-            pr.create_issue_comment(
-                f"✨ **Created PR: {new_pr.html_url}** to fix `{rule}`.\n This PR was made against the `{pr.head.ref}` branch, not your main branch, so it's safe to merge if it looks good!"
-            )
+            # stack_pr(
+            #     request=issue_description
+            #     + "\n\nThis issue was created to address the following rule:\n"
+            #     + rule,
+            #     pr_number=request_dict["issue"]["number"],
+            #     username=request_dict["sender"]["login"],
+            #     repo_full_name=request_dict["repository"]["full_name"],
+            #     installation_id=request_dict["installation"]["id"],
+            #     tracking_id=tracking_id,
+            # )
             posthog.capture(request_dict["sender"]["login"], "rule_pr_created")

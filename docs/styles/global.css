@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+}
+
+/* Taken from https://github.com/hatchet-dev/hatchet/blob/c66f97c85698752b276f37e9e450fab71d4211ee/frontend/docs/styles/global.csshttps://github.com/hatchet-dev/hatchet/blob/c66f97c85698752b276f37e9e450fab71d4211ee/frontend/docs/styles/global.css */
+.spark:before {
+    content: "";
+    position: absolute;
+    width: 200%;
+    aspect-ratio: 1;
+    inset: 0 auto auto 50%;
+    z-index: -1;
+    translate: -50% -15%;
+    rotate: 0;
+    transform: rotate(-90deg);
+    opacity: 1;
+    background: conic-gradient(from 0deg, transparent 0 340deg, white 360deg);
+    transition: opacity var(--transition);
+    animation: rotate var(--spark) linear infinite both;
+  }
+
+.nextra-code-block pre {
+    background-color: #1e293b !important;
+    /* background-color: #0d0a19 !important; */
+}
+html.dark .nextra-code-block pre {
+    background-color: #1e293b !important;
+    /* background-color: #130e25 !important; */
+}
+
+/* Base dark mode styles */
+html.dark body {
+    background-color: var(--background) !important;
+}
+html.dark div.nx-sticky.nx-bottom-0 {
+    background-color: var(--background) !important;
+}
+html.dark div.nextra-nav-container {
+    background-color: var(--background) !important;
+}
+
+.nextra-nav-container-blur {
+    background-color: var(--background) !important;
+}
+
+nav {
+    background-color: var(--background) !important;
+}
+
+.dark .nx-sticky {
+    box-shadow: none !important;
+}
+
+/* Center numbers in steps */
+.nextra-steps h3::before {
+    line-height: 25px;
+}
+
+.dark .nextra-breadcrumb a,
+.dark .nextra-breadcrumb a:visited,
+.dark .nextra-breadcrumb a:hover,
+.dark .nextra-breadcrumb a:active {
+  background: none !important;
+  -webkit-text-fill-color: var(--ash-gray) !important;
+}
+
+:is(html[class~="dark"]) .nextra-nav-container-blur.nx-pointer-events-none {
+    background-color: var(--background) !important;
+}
