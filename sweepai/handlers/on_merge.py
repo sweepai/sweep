@@ -23,7 +23,6 @@ diff_section_prompt = """
 def comparison_to_diff(comparison, blocked_dirs):
     pr_diffs = []
     for file in comparison.files:
-        diff = file.patch
         if (
             file.status == "added"
             or file.status == "modified"
