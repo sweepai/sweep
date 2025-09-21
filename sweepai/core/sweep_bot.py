@@ -1552,3 +1552,7 @@ def get_files_to_change_for_gha(
         print("RegexMatchError", e)
 
     return [], ""
+
+# if __name__ == "__main__":
+#     print("test")
+#     print("test2")
