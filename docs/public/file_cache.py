@@ -15,18 +15,18 @@ if DISABLE_CACHE:
 def recursive_hash(value, depth=0, ignore_params=[]):
     """Hash primitives recursively with maximum depth."""
     if depth > MAX_DEPTH:
-        return hashlib.md5("max_depth_reached".encode()).hexdigest()
+        return hashlib.sha1("max_depth_reached".encode()).hexdigest()
 
     if isinstance(value, (int, float, str, bool, bytes)):
-        return hashlib.md5(str(value).encode()).hexdigest()
+        return hashlib.sha1(str(value).encode()).hexdigest()
     elif isinstance(value, (list, tuple)):
-        return hashlib.md5(
+        return hashlib.sha1(
             "".join(
                 [recursive_hash(item, depth + 1, ignore_params) for item in value]
             ).encode()
         ).hexdigest()
     elif isinstance(value, dict):
-        return hashlib.md5(
+        return hashlib.sha1(
             "".join(
                 [
                     recursive_hash(key, depth + 1, ignore_params)
@@ -43,7 +43,7 @@ def recursive_hash(value, depth=0, ignore_params=[]):
 
 
 def hash_code(code):
-    return hashlib.md5(code.encode()).hexdigest()
+    return hashlib.sha1(code.encode()).hexdigest()
 
 
 def file_cache(ignore_params=[], verbose=False):
