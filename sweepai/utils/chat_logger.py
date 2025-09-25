@@ -38,7 +38,7 @@ class ChatLogger(BaseModel):
     active: bool = False  # refers to whether it was an auto-created PR or if it was created by the user with intent
 
     def __init__(self, data: dict[str, str] = {}, mock=False, **kwargs):
-        super().__init__(data=data, **kwargs)  # Call the BaseModel's __init__ method
+        super().__init__(data=data, **kwargs)
         key = MONGODB_URI
         if key is None:
             logger.warning("Chat history logger has no key")
