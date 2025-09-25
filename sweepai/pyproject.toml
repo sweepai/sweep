@@ -1,0 +1,13 @@
+[tool.poetry]
+name = "sweepai"
+version = "0.1.0"
+description = "Sweep AI junior developer"
+authors = ["Sweep AI <info@sweep.ai>"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+opencv-python = "^4.5.3"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
