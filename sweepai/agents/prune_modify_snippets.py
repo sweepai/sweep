@@ -109,7 +109,7 @@ class PruneModifySnippets(ChatGPT):
             snippet_indices = PrunedSnippets.from_string(response)
             return snippet_indices.snippet_indices
         except Exception as e:
-            logger.error(f"An error occurred: {e}")
+            logger.exception(f"An error occurred: {e}")
             return []
 
 
