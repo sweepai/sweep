@@ -1,0 +1,4 @@
+.red-div {
+    width: 50px;
+    background-color: red;
+}
