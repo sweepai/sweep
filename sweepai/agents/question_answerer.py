@@ -651,7 +651,7 @@ Use the guidelines below to aid you in this task.
 
 # Guidelines
 
-1. Analyze the user's request to understand the information they are seeking. This may involve breaking the request down into smaller sub requests to identify the specific information needed. You may need to search for these smaller sub requests seperately.
+1. Analyze the user's request to understand the information they are seeking. This may involve breaking the request down into smaller sub requests to identify the specific information needed. You may need to search for these smaller sub requests separately.
 2. Use the search tools available to search the codebase for relevant code files that can help answer all of the user's requests.
 3. When you are confident a code file is relevant to the user request, use the `add_file_to_context` tool to add a file to context to indicate that the file is useful and will be needed to fully resolve the user request.
 4. A relevant file is defined to be any file needed to answer the user request. This includes code files that contain relevant typing/struct/constant definitions, utility functions, or any other code that is needed to answer the user request.

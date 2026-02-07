@@ -19,7 +19,7 @@ The output must:
 3. Group similar operations where applicable to avoid redundancy.
 Your message must be directly related to the file changes stated. Avoid additional interpretation or detail not present in the input.
 
-You will recieve a series of file diffs that need to be described in a short commit message.
+You will receive a series of file diffs that need to be described in a short commit message.
 
 Return your commit message in the following xml format:
 

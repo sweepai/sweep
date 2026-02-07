@@ -291,13 +291,13 @@ def on_comment(
                 "failed",
                 properties={
                     "error": str(e),
-                    "traceback": f"An error occured during the search! The stack trace is below:\n\n{stack_trace}",
+                    "traceback": f"An error occurred during the search! The stack trace is below:\n\n{stack_trace}",
                     "duration": elapsed_time,
                     "tracking_id": tracking_id,
                     **metadata,
                 },
             )
-            edit_comment(ERROR_FORMAT.format(title=f"An error occured!\n\nThe exception message is:{str(e)}\n\nThe stack trace is:{stack_trace}"))
+            edit_comment(ERROR_FORMAT.format(title=f"An error occurred!\n\nThe exception message is:{str(e)}\n\nThe stack trace is:{stack_trace}"))
             raise e
 
         try:

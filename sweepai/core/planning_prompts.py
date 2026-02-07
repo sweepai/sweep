@@ -81,7 +81,7 @@ Reference the provided code files, summaries, entity names, and necessary files/
 </issue_sub_request>
 <proposed_changes>
 For each of the sub requests here, pinpoint the exact places to make changes. Describe exactly what to do, referencing specific code entities in the relevant files.
-Break the above steps up into seperate actionable steps and number them.
+Break the above steps up into separate actionable steps and number them.
 Example:
 1. Step 1
    - Step 1a

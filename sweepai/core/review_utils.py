@@ -511,7 +511,7 @@ class PRReviewBot(ChatGPT):
                 use_openai=True,
                 seed=seed
             )
-            # make a seperate call for the special rules
+            # make a separate call for the special rules
             # check if there are special rules we need to follow for this file by seeing if the files "SWEEP.md" exists
             special_rules = self.get_special_rules(cloned_repo, file_names)
             if special_rules:
@@ -1012,7 +1012,7 @@ def get_code_reviews_for_file(
     )
     return code_review_by_group
 
-# run 5 seperate instances of review_pr and then group the resulting issues and only take the issues that appear the majority of the time (> 3)
+# run 5 separate instances of review_pr and then group the resulting issues and only take the issues that appear the majority of the time (> 3)
 def group_vote_review_pr(
     username: str, 
     pr_changes: dict[str, PRChange], 
@@ -1266,7 +1266,7 @@ def cluster_patches(pr_changes: dict[str, PRChange]):
     
     # group key is the label, value is the list of file names to review together
     groups_to_review_files_in: dict[str, list[str]] = {}
-    # split files into their groups -> -1 means create a seperate group -1x for that group
+    # split files into their groups -> -1 means create a separate group -1x for that group
     noise_groups = 0
     for index, group in enumerate(labels):
         if group != -1:
