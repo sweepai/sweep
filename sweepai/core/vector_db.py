@@ -223,7 +223,7 @@ def openai_with_expo_backoff(batch: tuple[str]):
         # make sure all token counts are within model params (max: 8192)
         new_embeddings = openai_call_embedding(batch)
     except requests.exceptions.Timeout as e:
-        logger.exception(f"Timeout error occured while embedding: {e}")
+        logger.exception(f"Timeout error occurred while embedding: {e}")
     except Exception as e:
         logger.exception(e)
         if any(tiktoken_client.count(text) > 8192 for text in batch):

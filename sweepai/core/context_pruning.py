@@ -350,7 +350,7 @@ def build_full_hierarchy(
             if length == 1
         }
     except Exception as e:
-        print("error occured while fetching successors:", e)
+        print("error occurred while fetching successors:", e)
         return hierarchy
     sorted_successors = sorted(successors)
     for idx, child in enumerate(sorted_successors):
@@ -368,7 +368,7 @@ def build_full_hierarchy(
                 if length == 1
             }
         except Exception as e:
-            print("error occured while fetching predecessors:", e)
+            print("error occurred while fetching predecessors:", e)
             return hierarchy
         sorted_predecessors = sorted(predecessors)
         for idx, parent in enumerate(sorted_predecessors):
@@ -543,7 +543,7 @@ def add_relevant_files_to_top_snippets(rcm: RepoContextManager) -> RepoContextMa
                 rcm.boost_snippets_to_top(code_snippets, code_files_in_query)
             except Exception as e:
                 logger.error(
-                    f"Tried to add code file found in query but recieved error: {e}, skipping and continuing to next one."
+                    f"Tried to add code file found in query but received error: {e}, skipping and continuing to next one."
                 )
     return rcm
 
@@ -790,7 +790,7 @@ def handle_function_call(
                 output = f"FAILURE: No results found for code_entity: {code_entity} in the entire codebase. Please try a new code_entity. Consider trying different whitespace or a truncated version of this code_entity."
         except Exception as e:
             logger.error(
-                f"FAILURE: An Error occured while trying to find the code_entity {code_entity}: {e}"
+                f"FAILURE: An Error occurred while trying to find the code_entity {code_entity}: {e}"
             )
             output = f"FAILURE: No results found for code_entity: {code_entity} in the entire codebase. Please try a new code_entity. Consider trying different whitespace or a truncated version of this code_entity."
     elif function_name == "view_files":
