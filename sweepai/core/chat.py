@@ -399,7 +399,7 @@ class ChatGPT(MessageList):
                 model = self.model
                 streamed_text = ""
                 if use_openai:
-                    client = OpenAI()
+                    client = OpenAI(timeout=60.0)
                     response = client.chat.completions.create(
                         model=model,
                         messages=self.messages_dicts,
@@ -438,7 +438,7 @@ class ChatGPT(MessageList):
                             aws_region=AWS_REGION,
                         )
                     else:
-                        client = Anthropic(api_key=ANTHROPIC_API_KEY)
+                        client = Anthropic(api_key=ANTHROPIC_API_KEY, timeout=60.0)
                     start_time = time.time()
                     message_dicts = [
                         {
@@ -499,7 +499,7 @@ class ChatGPT(MessageList):
                     seed: int = seed,
                 ) -> str: # add system message and model to cache
                     if use_openai:
-                        client = OpenAI()
+                        client = OpenAI(timeout=60.0)
                     else:
                         if ANTHROPIC_AVAILABLE and use_aws:
                             if "anthropic" not in model:
@@ -510,7 +510,7 @@ class ChatGPT(MessageList):
                                 aws_region=AWS_REGION,
                             )
                         else:
-                            client = Anthropic(api_key=ANTHROPIC_API_KEY)
+                            client = Anthropic(api_key=ANTHROPIC_API_KEY, timeout=60.0)
                     if parea_client:
                         if use_openai:
                             parea_client.wrap_openai_client(client)
