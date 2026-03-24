@@ -57,7 +57,7 @@ class AssistantConversation(BaseModel):
         run_id: str,
         thread_id: str,
     ) -> AssistantConversation | None:
-        client = OpenAI(api_key=OPENAI_API_KEY)
+        client = OpenAI(api_key=OPENAI_API_KEY, timeout=60.0, max_retries=3)
         try:
             assistant = client.beta.assistants.retrieve(
                 assistant_id=assistant_id, timeout=1.5

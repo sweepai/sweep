@@ -17,7 +17,7 @@ REDIS_URL = os.environ.get("REDIS_URL", "redis://0.0.0.0:6379/0")
 CACHE_VERSION = "v-2.0.1"
 DIMENSIONS_TO_KEEP = 512
 
-openai_client = OpenAI()
+openai_client = OpenAI(timeout=60.0, max_retries=3)
 redis_client: Redis = Redis.from_url(REDIS_URL)
 
 def count_tiktoken(text: str, model: str = "gpt-4") -> int:

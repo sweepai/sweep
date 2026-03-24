@@ -1,7 +1,7 @@
 import openai
 from openai import OpenAI
 
-client = OpenAI()
+client = OpenAI(timeout=60.0, max_retries=3)
 
 INSTRUCTIONS = """\
 You are a brilliant and meticulous engineer assigned to write code to complete the user's request. You specialize in Python programming.
