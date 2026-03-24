@@ -11,7 +11,7 @@ from sweepai.config.server import OPENAI_API_KEY
 
 Self = TypeVar("Self", bound="RegexExtractModel")
 
-client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+client = OpenAI(api_key=OPENAI_API_KEY, timeout=60.0, max_retries=3) if OPENAI_API_KEY else None
 
 
 class RegexExtractModel(BaseModel):

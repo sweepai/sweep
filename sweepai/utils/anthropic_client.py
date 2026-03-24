@@ -44,7 +44,7 @@ class AnthropicClient:
             self.model = DEFAULT_GPT4_MODEL
             logger.info(f"Using OpenAI model: {self.model}")
         else:
-            self.client = Anthropic()
+            self.client = Anthropic(timeout=60.0, max_retries=3)
             if parea_client:
                 parea_client.wrap_anthropic_client(self.client)
             self.model = "claude-3-opus-20240229"

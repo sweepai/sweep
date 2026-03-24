@@ -239,7 +239,7 @@ class OpenAIProxy:
     def set_openai_default_api_parameters(
         self, model, messages, max_tokens, temperature, tools=[], stop_sequences=[]
     ):
-        client = OpenAI(api_key=OPENAI_API_KEY)
+        client = OpenAI(api_key=OPENAI_API_KEY, timeout=60.0, max_retries=3)
         if len(tools) == 0:
             response = client.chat.completions.create(
                 model=model,
@@ -287,7 +287,7 @@ def get_client():
         "OPENAI_API_VERSION", None
     )
     if OPENAI_API_TYPE == "anthropic":
-        client = Anthropic()
+        client = Anthropic(timeout=60.0, max_retries=3)
         model="claude-3-opus-20240229"
     if OPENAI_API_TYPE == "openai":
         client = OpenAI(api_key=OPENAI_API_KEY, timeout=90) if OPENAI_API_KEY else None

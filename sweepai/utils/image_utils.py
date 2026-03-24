@@ -70,7 +70,7 @@ def get_image_urls_from_issue_body(body: str) -> dict[str, str]:
 # sumarize images
 def summarize_images(images: list[tuple[str, str]]):
     summaries = []
-    client = OpenAI()
+    client = OpenAI(timeout=60.0, max_retries=3)
     for image, image_type, url in images:
         response = client.chat.completions.create(
             model="gpt-4-turbo",
