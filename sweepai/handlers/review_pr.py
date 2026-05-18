@@ -128,7 +128,7 @@ def review_pr(
             pr_changes, dropped_files, unsuitable_files = get_pr_changes(
                 repository, pr, cloned_repo
             )
-            # -1 group key means review those seperately
+            # -1 group key means review those separately
             grouped_files: dict[str, list[str]] = cluster_patches(pr_changes)
             # build another dict so that all files are in their own group
             single_files = {file_name: [file_name] for file_name in pr_changes.keys()}

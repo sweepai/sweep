@@ -86,7 +86,7 @@ def openai_with_expo_backoff(batch: tuple[str]):
     try:
         new_embeddings = openai_call_embedding(batch)
     except requests.exceptions.Timeout as e:
-        logger.exception(f"Timeout error occured while embedding: {e}")
+        logger.exception(f"Timeout error occurred while embedding: {e}")
     except BadRequestError as e:
         try:
             # 4. If we get a BadRequestError, truncate the text and try again
