@@ -30,7 +30,8 @@ from jwt import encode
 from loguru import logger
 from urllib3 import Retry
 
-from sweepai.config.client import SweepConfig
+from sweepai.config.client import SweepConfig, get_blocked_dirs
+from sweepai.utils.path_guard import merge_protected_paths, sanitize_file_changes
 from sweepai.config.server import (
     CACHE_DIRECTORY,
     GITHUB_APP_ID,
@@ -281,22 +282,25 @@ def file_exists_in_repo(repo: Repository, filepath: str):
         return False  # File does not exist
 
 
+def get_protected_paths(repo: Repository) -> list[str]:
+    return merge_protected_paths(get_blocked_dirs(repo))
+
+
 def validate_and_sanitize_multi_file_changes(
     repo: Repository, file_changes: dict[str, str], fcrs: list[FileChangeRequest]
-):
-    sanitized_file_changes = {}
-    all_file_names = list(file_changes.keys())
-    all_fcr_file_names = set(os.path.normpath(fcr.filename) for fcr in fcrs)
-    file_removed = False
-    # validate each file change
-    for file_name in all_file_names:
-        # file_name must either appear in the repo or in a fcr
-        if os.path.normpath(file_name) in all_fcr_file_names or file_exists_in_repo(
-            repo, os.path.normpath(file_name)
-        ):
-            sanitized_file_changes[file_name] = copy.deepcopy(file_changes[file_name])
-        else:
-            file_removed = True
+) -> tuple[dict[str, str], bool]:
+    def file_exists(path: str) -> bool:
+        return file_exists_in_repo(repo, path)
+
+    protected_paths = get_protected_paths(repo)
+    sanitized_file_changes, file_removed, rejected_paths = sanitize_file_changes(
+        file_changes,
+        [fcr.filename for fcr in fcrs],
+        protected_paths,
+        file_exists,
+    )
+    for rejected_path in rejected_paths:
+        logger.warning(f"Rejected write to protected path: {rejected_path}")
     return sanitized_file_changes, file_removed
 
 

@@ -190,12 +190,6 @@ def parse_filenames(text):
     # Find all occurrences of file names in the text
     return file_names
 
-def is_blocked(file_path: str, blocked_dirs: list[str]):
-    for blocked_dir in blocked_dirs:
-        if file_path.startswith(blocked_dir) and len(blocked_dir) > 0:
-            return {"success": True, "path": blocked_dir}
-    return {"success": False}
-
 def validate_change(
     code_suggestion: CodeSuggestion,
     cloned_repo: ClonedRepo,
